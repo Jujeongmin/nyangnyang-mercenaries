@@ -372,8 +372,15 @@
   /* 네비 8% */
   #nav{flex:0 0 8%;display:grid;grid-template-columns:repeat(5,1fr);
     background:#121826;border-top:1px solid var(--line)}
-  .nv{display:flex;align-items:center;justify-content:center;font-size:11px;
-    color:var(--dim);cursor:pointer;position:relative}
+  /* 아이콘 위 · 글자 아래. 아이콘이 없으면(onerror 로 제거) 글자만 가운데 남는다 */
+  /* 아이콘을 네비 높이가 허용하는 만큼 키운다. 글자는 이름표 역할만 하므로
+     아이콘이 주인공이고 글자는 그 아래 작게 붙는다. */
+  .nv{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:0;font-size:9px;color:var(--dim);cursor:pointer;position:relative;overflow:hidden}
+  .nv img{width:min(44px,10.5vw);height:min(44px,10.5vw);object-fit:contain;
+    margin-bottom:-1px;
+    filter:grayscale(.5) brightness(.8);opacity:.82;
+    transition:filter .12s,opacity .12s,transform .12s}
   .nv.on{color:var(--gold)}
 
   /* 오버레이 — 화면을 다 덮지 않는다. 가운데 카드만 띄운다 */
@@ -841,7 +848,10 @@
   #corner{pointer-events:none}
 
   /* 방치 보상 보물상자 — 접속 팝업 대신 메인에 상시 노출 */
-  #chest{position:absolute;right:6px;bottom:62px;z-index:19;pointer-events:auto;
+  /* 스킬바가 bottom:6 에 높이 58 이라 위쪽 경계가 64px 이다. 상자는 그 위에 서야
+     하는데, 남은 시간 배지(#chestT)가 상자보다 4px 더 내려오므로 그만큼 더 띄운다.
+     62px 이면 배지가 마지막 스킬 아이콘을 덮는다 — 실제로 그랬다. */
+  #chest{position:absolute;right:6px;bottom:78px;z-index:19;pointer-events:auto;
     width:52px;height:52px;border:none;background:none;cursor:pointer;padding:0}
   #chest img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 3px 8px #000a)}
@@ -931,7 +941,7 @@
     #corner{left:46px}
     #chest{right:46px}
     #corner{bottom:62px;max-width:136px}
-    #chest{width:44px;height:44px;bottom:62px}
+    #chest{width:44px;height:44px;bottom:78px}
     #auto,#bossGo{font-size:10px}
     #timer{font-size:19px}
     #fgObj{width:88px;height:62px}
@@ -1072,18 +1082,27 @@
   .mdBuy.off,.dg.lock .sh-price{border-image:var(--f-off) 120 fill stretch;
     color:var(--dim);text-shadow:none}
 
-  /* ── 인벤토리 칸 ── */
-  .slot{background:none;border-style:solid;border-width:12px;border-radius:0;
-    border-image:var(--f-slot) 41 fill stretch}
+  /* ── 인벤토리 칸 ──
+     **빈 칸에는 금색 액자를 안 씌운다.** 12칸이 전부 금테면 하단 패널이 금색 벽이
+     되고, 정작 장비를 낀 칸이 안 도드라진다 — 빈 칸이 많을수록 심해진다.
+     빈 칸은 판을 파낸 구멍으로, 낀 칸만 등급 액자(FRE-*)로 튀어나오게 한다. */
+  .slot:not([class*="fre-"]){
+    border:0;border-radius:9px;background:#0a0f18;
+    box-shadow:inset 0 3px 7px #000a, inset 0 0 0 1px #ffffff12,
+               inset 0 -1px 0 #ffffff0a}
+  /* 부위 이름은 구멍 바닥에 새긴 글씨처럼 — 빈 칸이 스스로 주장하지 않게 */
+  .slot:not([class*="fre-"]) b,
+  .slot:not([class*="fre-"]){color:#5d6d86;text-shadow:0 1px 0 #0008}
 
   /* ── 하단 네비 ── */
   #nav{background:none;border-top:none;border-style:solid;border-width:9px 12px;
     border-image:var(--f-nav) 39 fill stretch}
-  /* 선택 표시가 네비 바 배경 뒤로 숨지 않게 .nv 에 스태킹 문맥을 만든다 */
-  .nv{text-shadow:0 1px 2px #000a;isolation:isolate}
-  .nv.on{color:#fff}
-  .nv.on::before{content:"";position:absolute;inset:-6px 0 -4px;z-index:-1;
-    background:var(--f-navon) center/100% 100% no-repeat}
+  /* 선택 표시 그림(UI-NAVON 의 금색 호)은 뺐다. 5칸 중 한 칸만 커다란 장식이
+     붙어 바 전체가 기울어 보이고, 아이콘까지 얹으면 그림 위에 그림이 된다.
+     선택은 **아이콘이 밝아지고 글자가 금색이 되는 것**으로만 말한다. */
+  .nv{text-shadow:0 1px 2px #000a}
+  .nv.on{color:var(--gold)}
+  .nv.on img{filter:drop-shadow(0 0 6px #ffc94a66);opacity:1;transform:translateY(-2px) scale(1.06)}
 
   /* ── 게이지 ──
      4~9px 짜리 얇은 바에 9-slice 를 물리면 테두리가 높이를 다 먹는다.
@@ -1442,10 +1461,23 @@
   #capbox{filter:drop-shadow(0 2px 5px #0009)}
   #cp{text-shadow:0 2px 6px #000a}
 
-  /* 하단 패널 — 장비 칸과 제작대가 올라앉는 판 */
-  #bottom{background:none;border-top:none;border-style:solid;
+  /* 하단 패널 — 장비 칸과 제작대가 올라앉는 판.
+     UI 킷의 남색 판은 위쪽 전투 화면(초원·하늘)과 아래 네비(나무)의 따뜻한 색
+     사이에서 혼자 차갑게 떠 있었다. 새 에셋을 만드는 대신 **제작대를 광원으로**
+     삼는다 — 판 아래 가운데에서 불빛이 번지고 가장자리로 갈수록 어두워진다.
+     제작대가 이 판의 주인공이라는 것도 빛이 대신 말해 준다. */
+  #bottom{position:relative;isolation:isolate;
+    background:none;border-top:none;border-style:solid;
     border-width:10px 12px 12px;border-image:var(--f-panel) 86 fill stretch;
     padding:2px 4px 4px}
+  #bottom::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background:
+      /* 가장자리 감쇠 — 먼저 깔아 바닥을 눌러 둔다 */
+      radial-gradient(150% 130% at 50% 72%, #0000 34%, #05080e 100%),
+      /* 제작대 화덕 불빛 — 중심을 제작대 오브젝트 높이에 맞춘다 */
+      radial-gradient(76% 58% at 50% 86%, #ff9a3c3d 0%, #d9541a1f 42%, #0000 76%)}
+  /* 불빛은 배경층이므로 내용은 그 위로 올린다 */
+  #bottom > *{position:relative;z-index:0}
 
   /* 스테이지 진행도 — 전용 에셋(UI-STAGE)이 나오면 배경으로 깐다.
      그때까지는 UI-PILL 로 대비만 확보한다. 에셋이 오면 --f-stage 만 바꾸면 된다. */
@@ -1679,11 +1711,13 @@
 
 
   <div id="nav">
-    <div class="nv on" data-tab="merc">용병</div>
-    <div class="nv" data-tab="skill">스킬</div>
-    <div class="nv" data-tab="dungeon">던전</div>
-    <div class="nv" data-tab="alliance">연합</div>
-    <div class="nv" data-tab="shop">상점</div>
+    <!-- 아이콘이 아직 없으면 onerror 로 스스로 사라지고 글자만 남는다.
+         에셋을 넣으면 코드 수정 없이 붙는다 (에셋_생성_프롬프트.md 9-5) -->
+    <div class="nv on" data-tab="merc"><img src="/assets/ui/IC-MERC.png" alt="" onerror="this.remove()"><span>용병</span></div>
+    <div class="nv" data-tab="skill"><img src="/assets/ui/IC-SKILL.png" alt="" onerror="this.remove()"><span>스킬</span></div>
+    <div class="nv" data-tab="dungeon"><img src="/assets/ui/IC-DUNGEON.png" alt="" onerror="this.remove()"><span>던전</span></div>
+    <div class="nv" data-tab="alliance"><img src="/assets/ui/IC-ALLIANCE.png" alt="" onerror="this.remove()"><span>연합</span></div>
+    <div class="nv" data-tab="shop"><img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.remove()"><span>상점</span></div>
   </div>
 
   <!-- 편성 시트 — 용병/스킬 탭. 아래에서 올라와 화면 60% 를 덮는다 -->

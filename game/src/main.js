@@ -150,11 +150,20 @@ function capGain(n = 1) {
   renderCaptain();
 }
 
-function renderCaptain() {
-  $('#caplv').textContent = S.capLv;
+/**
+ * 우편 빨간 점. **renderTop(1초 루프)에서 매번 다시 계산한다.**
+ * 예전에는 renderCaptain 안에 있었는데 그 함수는 부팅·레벨업 때만 불린다 —
+ * 다 받아도 점이 남고, 새 우편이 와도 점이 안 켜졌다.
+ */
+function renderMailDot() {
   const un = (S.mailbox || []).filter(x => !x.claimed).length;
   const mb = document.querySelector('.side button[data-s="mail"]');
   if (mb) mb.classList.toggle('hasnew', un > 0);
+}
+
+function renderCaptain() {
+  $('#caplv').textContent = S.capLv;
+  renderMailDot();
   const need = capNeed(S.capLv);
   $('#xpfill').style.width = Math.min(100, (S.capXp / need) * 100) + '%';
 }
@@ -249,7 +258,8 @@ function claimMail(i) {
     if (bag) S[bag] += v;
   }
   m0.claimed = true;
-  save(); mail.render(); renderTop();
+  // 우편 빨간 점은 renderCaptain 이 계산한다. 여기서 안 부르면 다 받아도 점이 남는다
+  save(); mail.render(); renderCaptain(); renderTop();
   toast(`${m0.title} 수령`);
 }
 
@@ -287,6 +297,25 @@ const QUEST_CUR = { diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket', spee
 // 마주치지 않는다"를 요구하는데, CP 기준은 그 계단을 무너뜨린다.
 // quests.json > slotUnlockQuests.canonicalSource: true — 그 표가 단일 소스다.
 // ─────────────────────────────────────────────
+
+/**
+ * 하단 네비 강조 — **지금 열려 있는 것에서 파생시킨다.**
+ *
+ * 누를 때 `.on` 을 붙이는 방식은 닫는 경로가 여러 개(#ovx · 배경 탭 · 시트 닫기 ·
+ * 상점 뒤로 · 다른 화면으로 이동)라 반드시 하나를 빠뜨린다 — 실제로 패널을 닫아도
+ * 강조가 남았다. 열린 패널이 하나도 없으면 강조도 없다.
+ */
+let navTab = null;
+
+function syncNav() {
+  const open = $('#sheet')?.classList.contains('show')
+    || $('#ov')?.classList.contains('show')
+    || $('#shop')?.classList.contains('show')
+    || !!document.querySelector('.fullscr.show');
+  if (!open) navTab = null;
+  document.querySelectorAll('#nav .nv').forEach(x =>
+    x.classList.toggle('on', !!navTab && x.dataset.tab === navTab));
+}
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
 const questCleared = () => (S.quest || 1) - 1;
@@ -1649,6 +1678,7 @@ function renderTop() {
   $('.nv[data-tab="shop"]')?.classList.toggle('hasnew', summonRewardWaiting());
   $('.side [data-s="pass"]')?.classList.toggle('hasnew', passWaiting());
   renderRosterDots();
+  renderMailDot();
   $('#dpsInfo').textContent = `초당 피해 ${num(partyDps())}`;
   floatCurrency();
   renderForgeDock();
@@ -2253,8 +2283,7 @@ function rollSkills() {
     questGoto(QUEST_TYPE[def.type]);
   });
   document.querySelectorAll('#nav .nv').forEach(n => n.addEventListener('click', () => {
-    document.querySelectorAll('#nav .nv').forEach(x => x.classList.remove('on'));
-    n.classList.add('on');
+    navTab = n.dataset.tab;
     // 시트는 네비 위에 떠 있다. 시트를 안 쓰는 탭으로 가면 닫아 준다
     if (!['merc', 'skill', 'dungeon'].includes(n.dataset.tab)) roster.close();
     // ui.json > mainScreen.navBar.items 기준. 장비는 하단 패널에 있으므로 뺐다.
@@ -2264,6 +2293,8 @@ function rollSkills() {
     else if (n.dataset.tab === 'merc') roster.open('mercenary');
     else if (n.dataset.tab === 'skill') roster.open('skill');
     else toast(`${n.textContent} 탭 — 미구현`);
+    // **연 뒤에** 맞춘다. 열기 전에 부르면 아직 아무것도 안 떠 있어 바로 지워진다
+    syncNav();
   }));
 
   // 설정은 사이드 열에서 상단바로 옮겼다. 스테이지 표시는 HUD 진행도와 중복이라 뺐다.
@@ -2332,6 +2363,7 @@ function rollSkills() {
     renderTop();
     renderChest();
     renderForgeDock();
+    syncNav();
     save();
   }, 1000);
 
