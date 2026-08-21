@@ -14,7 +14,7 @@ const rd = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 const txt = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 // 클라이언트가 실제로 담을 수 있는 재화. main.js 의 MAIL_CUR 이 단일 소스다.
-const main = txt('app/src/main.js');
+const main = txt('game/src/main.js');
 const i0 = main.indexOf('const MAIL_CUR');
 const BAGS = new Set([...main.slice(i0, i0 + 400).matchAll(/(\w+):\s*'(\w+)'/g)].map(m => m[1]));
 for (const k of ['gold', 'diamond']) BAGS.add(k);   // 소모·표시만 하는 것도 살아 있다
@@ -54,20 +54,20 @@ function scanGrants(o, file, at) {
   }
 }
 
-for (const f of fs.readdirSync(path.join(ROOT, 'data'))
+for (const f of fs.readdirSync(path.join(ROOT, 'game/public/data'))
   .filter(f => f.endsWith('.json') && !f.endsWith('.bak'))) {
-  scanGrants(rd('data/' + f), f, '');
+  scanGrants(rd('game/public/data/' + f), f, '');
 }
 
 // 코드가 참조하는 에셋이 실제로 있는지
 const missing = [];
-const SRC = ['app/index.html', 'app/src/main.js',
-  ...fs.readdirSync(path.join(ROOT, 'app/src/view')).filter(f => f.endsWith('.js'))
-    .map(f => 'app/src/view/' + f)];
+const SRC = ['game/index.html', 'game/src/main.js',
+  ...fs.readdirSync(path.join(ROOT, 'game/src/view')).filter(f => f.endsWith('.js'))
+    .map(f => 'game/src/view/' + f)];
 for (const f of SRC) {
   const re = /assets\/(ui|fx|char|skill|equip|captain|enemy|boss)\/([A-Za-z0-9_-]+)\.png/g;
   for (const m of txt(f).matchAll(re)) {
-    if (!fs.existsSync(path.join(ROOT, 'assets', m[1], m[2] + '.png'))) {
+    if (!fs.existsSync(path.join(ROOT, 'game/public/assets', m[1], m[2] + '.png'))) {
       missing.push(`${f}  ${m[1]}/${m[2]}.png`);
     }
   }

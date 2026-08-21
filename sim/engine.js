@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const D = (f) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', f), 'utf8'));
+const D = (f) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'game/public/data', f), 'utf8'));
 
 const CHARS  = D('characters.json');
 const SKILLS = D('skills.json');

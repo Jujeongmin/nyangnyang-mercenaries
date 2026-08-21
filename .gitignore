@@ -2,13 +2,17 @@
 node_modules/
 __pycache__/
 
+# Vite 빌드 산출물
+dist/
+.vite/
+
 # 생성물 — node tools/prompts.js 로 재생성된다
 prompts/
 
 # 백업·임시
 *.bak
 9stest.html
-assets/ui/_*.png
+game/public/assets/ui/_*.png
 
 # 옛 생성분 백업 — 저장소에 안 올린다 (로컬 보관)
 assets_bak/

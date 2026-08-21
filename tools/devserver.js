@@ -40,7 +40,7 @@ http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const json = JSON.parse(body);
-        const dir = path.join(ROOT, 'assets', 'cutout');
+        const dir = path.join(ROOT, 'game/public/assets', 'cutout');
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.join(dir, id + '.json'), JSON.stringify(json, null, 2));
         res.writeHead(200, { 'Content-Type': MIME['.json'] });

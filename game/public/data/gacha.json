@@ -1,0 +1,624 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "소환 3트랙 확률표 + 소환 레벨 정의. 천장(pity) 없음 - 소환 레벨이 소프트 천장 역할.",
+    "legalNotice": "게임산업법(2024.3 시행) 확률형 아이템 확률 공개 의무 대상. 이 파일이 확률 공시의 단일 소스이며 UI가 그대로 읽어 표시해야 한다. 하드코딩 금지."
+  },
+  "pity": null,
+  "pityNote": "천장 없음 (2026-08-21 사용자 확정 — 혼 폐기 후에도 천장 안 넣는다). 대신 (1) 소환 레벨의 등급 바닥 상승, (2) 온보딩 확정 지급, (3) 캐스케이드 — 풀레벨 대상 중복은 economy.json > cascade 로 다른 대상 레벨로 자동 이관되어 어떤 뽑기도 무가치하지 않다.",
+  "levelEffects": {
+    "gradeFloorRise": "레벨 구간을 넘으면 최하위 등급이 풀에서 영구 제거",
+    "rateIncrease": "구간 내 레벨당 최고등급 +0.1%p, 최하위 등급에서 차감",
+    "permanentStatBuff": "소환 레벨이 CP 총합에 곱연산으로 기여"
+  },
+  "cpContribution": {
+    "mercenarySummonLevel": 0.005,
+    "skillSummonLevel": 0.005,
+    "equipmentSummonLevel": 0.008,
+    "note": "장비는 시간+과금 게이트라 계수를 높게 잡음. 만렙 3트랙 곱연산 = 1.25 * 1.25 * 1.48 = 2.31배"
+  },
+  "rateBandsAppliesTo": [
+    "mercenary",
+    "skill"
+  ],
+  "rateBands": [
+    {
+      "minLevel": 1,
+      "maxLevel": 9,
+      "rates": {
+        "N": 55,
+        "R": 30,
+        "SR": 12,
+        "SSR": 2.7,
+        "UR": 0.3,
+        "LR": 0
+      }
+    },
+    {
+      "minLevel": 10,
+      "maxLevel": 19,
+      "rates": {
+        "N": 0,
+        "R": 60,
+        "SR": 28,
+        "SSR": 10.5,
+        "UR": 1.48,
+        "LR": 0.02
+      }
+    },
+    {
+      "minLevel": 20,
+      "maxLevel": 29,
+      "rates": {
+        "N": 0,
+        "R": 0,
+        "SR": 65,
+        "SSR": 27,
+        "UR": 7.95,
+        "LR": 0.05
+      }
+    },
+    {
+      "minLevel": 30,
+      "maxLevel": 39,
+      "rates": {
+        "N": 0,
+        "R": 0,
+        "SR": 0,
+        "SSR": 70,
+        "UR": 29.9,
+        "LR": 0.1
+      }
+    },
+    {
+      "minLevel": 40,
+      "maxLevel": 49,
+      "rates": {
+        "N": 0,
+        "R": 0,
+        "SR": 0,
+        "SSR": 0,
+        "UR": 99.7,
+        "LR": 0.3
+      }
+    },
+    {
+      "minLevel": 50,
+      "maxLevel": 60,
+      "rates": {
+        "N": 0,
+        "R": 0,
+        "SR": 0,
+        "SSR": 0,
+        "UR": 99.4,
+        "LR": 0.6
+      }
+    }
+  ],
+  "equipmentRateBands": {
+    "note": "장비는 10등급이라 용병/스킬(6등급)과 별도 확률표를 쓴다. rateBands는 용병·스킬 전용.",
+    "tierRef": "equipment.json > grades",
+    "model": "sliding_window_two_phase",
+    "modelNote": "구버전처럼 Lv1부터 신화(T6)가 섞여 나오는 방식은 직관적이지 않았다. 지금은 '내 소환 레벨에서 나올 수 있는 최고 등급'이 명확하다.",
+    "phases": {
+      "unlock": {
+        "levelRange": "1-32",
+        "cadence": 4,
+        "description": "4레벨마다 상위 등급 1개 해금. Lv5/9/13/17/21/25/29 에서 각각 T4~T10 해금. Lv13부터는 동시에 최하위 1개씩 제거."
+      },
+      "refine": {
+        "levelRange": "33-60",
+        "description": "신규 해금 없음. 최하위 등급을 계속 밀어내고 상위 등급 확률을 끌어올린다. 무한(T10) 확률이 0.5% -> 42%로 상승하는 구간."
+      }
+    },
+    "designIntent": "해금은 빠르게, 확률은 천천히. 최고 등급을 일찍 '볼 수는' 있게 하되 실제로 모으려면 레벨을 계속 올려야 한다. 등급 해금과 확률 상승이 서로 다른 시점에 보상을 준다.",
+    "bands": [
+      {
+        "minLevel": 1,
+        "maxLevel": 4,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 65,
+          "2": 28,
+          "3": 7
+        }
+      },
+      {
+        "minLevel": 5,
+        "maxLevel": 8,
+        "unlocks": 4,
+        "removes": null,
+        "rates": {
+          "1": 60,
+          "2": 29,
+          "3": 9.5,
+          "4": 1.5
+        }
+      },
+      {
+        "minLevel": 9,
+        "maxLevel": 12,
+        "unlocks": 5,
+        "removes": null,
+        "rates": {
+          "1": 58,
+          "2": 30,
+          "3": 9,
+          "4": 2.6,
+          "5": 0.4
+        }
+      },
+      {
+        "minLevel": 13,
+        "maxLevel": 16,
+        "unlocks": 6,
+        "removes": 1,
+        "rates": {
+          "2": 58,
+          "3": 30,
+          "4": 9.5,
+          "5": 2.35,
+          "6": 0.15
+        }
+      },
+      {
+        "minLevel": 17,
+        "maxLevel": 20,
+        "unlocks": 7,
+        "removes": 2,
+        "rates": {
+          "3": 58,
+          "4": 30,
+          "5": 9.5,
+          "6": 2.42,
+          "7": 0.08
+        }
+      },
+      {
+        "minLevel": 21,
+        "maxLevel": 24,
+        "unlocks": 8,
+        "removes": 3,
+        "rates": {
+          "4": 58,
+          "5": 30,
+          "6": 9.5,
+          "7": 2.46,
+          "8": 0.04
+        }
+      },
+      {
+        "minLevel": 25,
+        "maxLevel": 28,
+        "unlocks": 9,
+        "removes": 4,
+        "rates": {
+          "5": 58,
+          "6": 30,
+          "7": 9.5,
+          "8": 2.48,
+          "9": 0.02
+        }
+      },
+      {
+        "minLevel": 29,
+        "maxLevel": 32,
+        "unlocks": 10,
+        "removes": 5,
+        "rates": {
+          "6": 58,
+          "7": 30,
+          "8": 9.5,
+          "9": 2.49,
+          "10": 0.01
+        }
+      },
+      {
+        "minLevel": 33,
+        "maxLevel": 38,
+        "unlocks": null,
+        "removes": 6,
+        "rates": {
+          "7": 60,
+          "8": 32,
+          "9": 7.9,
+          "10": 0.1
+        }
+      },
+      {
+        "minLevel": 39,
+        "maxLevel": 45,
+        "unlocks": null,
+        "removes": 7,
+        "rates": {
+          "8": 62,
+          "9": 37.5,
+          "10": 0.5
+        }
+      },
+      {
+        "minLevel": 46,
+        "maxLevel": 52,
+        "unlocks": null,
+        "removes": 8,
+        "rates": {
+          "9": 99.2,
+          "10": 0.8
+        }
+      },
+      {
+        "minLevel": 53,
+        "maxLevel": 60,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "9": 94,
+          "10": 6
+        }
+      }
+    ],
+    "firstAppearance": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 5,
+      "5": 9,
+      "6": 13,
+      "7": 17,
+      "8": 21,
+      "9": 25,
+      "10": 29
+    },
+    "firstAppearanceDays": {
+      "4": 3,
+      "5": 9,
+      "6": 15,
+      "7": 21,
+      "8": 28,
+      "9": 38,
+      "10": 50
+    },
+    "topGradeRarity": {
+      "principle": "최상위 등급 확률은 티어가 오를수록 절대값이 작아진다. 뽑기 물량이 게임 내내 100배 늘어나므로(열쇠 D7 45개/일 -> D180 6,000개/일) 고정 %를 쓰면 후반에 최고 등급이 쏟아진다.",
+      "byTier": {
+        "3": 7,
+        "4": 1.5,
+        "5": 0.4,
+        "6": 0.15,
+        "7": 0.08,
+        "8": 0.04,
+        "9": 0.02,
+        "10": 0.01
+      },
+      "expectedYieldAtUnlock": [
+        {
+          "tier": 5,
+          "nameKo": "전설",
+          "day": 9,
+          "keysPerDay": 60,
+          "rate": 0.4,
+          "perDay": 0.24,
+          "feel": "주 1~2개"
+        },
+        {
+          "tier": 6,
+          "nameKo": "신화",
+          "day": 15,
+          "keysPerDay": 90,
+          "rate": 0.15,
+          "perDay": 0.135,
+          "feel": "주 1개"
+        },
+        {
+          "tier": 7,
+          "nameKo": "초월",
+          "day": 21,
+          "keysPerDay": 130,
+          "rate": 0.08,
+          "perDay": 0.1,
+          "feel": "10일에 1개"
+        },
+        {
+          "tier": 8,
+          "nameKo": "태초",
+          "day": 28,
+          "keysPerDay": 170,
+          "rate": 0.04,
+          "perDay": 0.068,
+          "feel": "15일에 1개"
+        },
+        {
+          "tier": 9,
+          "nameKo": "천상",
+          "day": 38,
+          "keysPerDay": 280,
+          "rate": 0.02,
+          "perDay": 0.056,
+          "feel": "18일에 1개"
+        },
+        {
+          "tier": 10,
+          "nameKo": "무한",
+          "day": 50,
+          "keysPerDay": 450,
+          "rate": 0.01,
+          "perDay": 0.045,
+          "feel": "22일에 1개"
+        }
+      ],
+      "note": "해금 직후 최상위는 '봤지만 거의 못 가지는' 상태다. 그 등급을 실제로 모으려면 다음 정제 구간까지 레벨을 올려야 한다 - 이것이 장비 소환 레벨업의 지속 동기다."
+    },
+    "sixPieceTimeline": {
+      "note": "무한(T10) 6부위를 모으는 예상 시점",
+      "unlockAt": "D50, Lv29, 0.01% - 사실상 수집 불가",
+      "collectableFrom": "D60~, Lv33 정제 구간 진입 시 0.1%로 10배. 열쇠 700~1,100개/일 => 약 0.9개/일",
+      "sixPiecesBy": "약 D65",
+      "realGate": "그 뒤 15강까지가 골드 게이트(T10 1부위 만강 13억). 확률이 아니라 골드가 실제 속도를 잡는다."
+    },
+    "goldGate": "T10을 일찍 봐도 실전력이 되려면 6부위 + 15강이 필요하고 그건 골드 게이트다(goldsinks.json). 확률 완화가 진행 속도를 직접 밀어올리지는 않는다.",
+    "topBandNote": "만렙(Lv53-60)에서도 무한은 6%다. 100%로 만들면 장비 소환을 더 할 이유가 사라진다. 6%면 D160 기준 하루 약 270개 - 6부위 교체와 세트 맞추기에는 충분하되 '흔한 등급'으로 전락하지는 않는다.",
+    "intraBandScalingEquipment": {
+      "mode": "multiplicative",
+      "topGradePerLevel": 1.15,
+      "deductFrom": "lowest_active_grade",
+      "note": "용병·스킬용 intraBandScaling(레벨당 +0.1%p 가산)을 장비에 그대로 쓰면 최상위 0.01%가 한 레벨 만에 10배가 된다. 장비는 곱연산으로 적용한다 - 구간 시작 0.01%가 3레벨 뒤 약 0.0152%."
+    },
+    "floorRise": "구간마다 최하위 등급이 영구 제거된다. 제거분은 removedGradeHandling에 따라 자동 분해 -> 골드.",
+    "uiRequirement": "소환 화면에 '다음 레벨 해금: 초월(T7) - Lv25' 를 항상 표시한다. 등급 해금이 장비 소환 레벨업의 가장 큰 동기가 된다."
+  },
+  "intraBandScaling": {
+    "mode": "multiplicative",
+    "topGradePerLevel": 1.12,
+    "deductFrom": "lowest_active_grade",
+    "note": "구버전은 레벨당 +0.1%p 가산이었다. LR 확률을 0.02%로 낮추면 한 레벨 만에 6배가 되어 무의미해진다. 장비(intraBandScalingEquipment)와 동일하게 곱연산으로 전환."
+  },
+  "perItemRateFormula": {
+    "formula": "itemRate = gradeRate / countOfItemsInThatGrade",
+    "legalRequirement": "개별 아이템 단위 확률까지 공개 의무. UI는 이 계산 결과를 전부 표시해야 한다.",
+    "example": "Lv1~9 UR 0.3% / UR 용병 3종 => 각 0.1%"
+  },
+  "removedGradeHandling": {
+    "behavior": "auto_cascade",
+    "note": "소환 레벨이 올라 풀에서 빠진 등급은 사라지는 게 아니라 캐스케이드로 들어간다. 혼 폐기 전에는 혼으로 적립했다 — 지금은 상위 대상 레벨로 바로 이관된다."
+  },
+  "tracks": {
+    "mercenary": {
+      "nameKo": "용병 소환",
+      "unlock": "tutorial",
+      "levelUpMethod": "pull_count",
+      "maxLevel": 50,
+      "costs": {
+        "diamondPerPull": 150,
+        "diamondPer10Pull": 1350,
+        "ticketId": "merc_ticket",
+        "ticketPerPull": 1
+      },
+      "expPerPull": 1,
+      "levelRequirement": [
+        {
+          "fromLevel": 1,
+          "toLevel": 10,
+          "pullsPerLevel": 10,
+          "cumulativeAtEnd": 90
+        },
+        {
+          "fromLevel": 10,
+          "toLevel": 20,
+          "pullsPerLevel": 25,
+          "cumulativeAtEnd": 340
+        },
+        {
+          "fromLevel": 20,
+          "toLevel": 30,
+          "pullsPerLevel": 50,
+          "cumulativeAtEnd": 840
+        },
+        {
+          "fromLevel": 30,
+          "toLevel": 40,
+          "pullsPerLevel": 100,
+          "cumulativeAtEnd": 1840
+        },
+        {
+          "fromLevel": 40,
+          "toLevel": 50,
+          "pullsPerLevel": 200,
+          "cumulativeAtEnd": 3840
+        }
+      ],
+      "levelReward": {
+        "currency": "merc_ticket",
+        "byBand": [
+          {
+            "toLevel": 10,
+            "tickets": 1
+          },
+          {
+            "toLevel": 20,
+            "tickets": 2
+          },
+          {
+            "toLevel": 30,
+            "tickets": 3
+          },
+          {
+            "toLevel": 40,
+            "tickets": 5
+          },
+          {
+            "toLevel": 50,
+            "tickets": 8
+          }
+        ],
+        "claim": "manual",
+        "claimNote": "자동으로 넣지 않는다. 빨간 점을 띄우고 유저가 눌러서 받는다 — 자동이면 레벨이 오른 것 자체를 모르고 지나간다. 받는 행위가 곧 보상 인지다.",
+        "budgetNote": "Lv30 까지 누적 60장/트랙. 무과금이 D180 에 실제로 닿는 구간이 Lv25~30 이라 두 트랙 합쳐 약 120뽑, 총 예산(약 4,050뽑)의 3% 다. 뒷구간(31~50)은 누적 190장까지 오르지만 그 구간은 3,840뽑이 필요해 사실상 과금 유저만 닿는다."
+      }
+    },
+    "skill": {
+      "nameKo": "스킬 소환",
+      "unlock": "stage_25",
+      "levelUpMethod": "pull_count",
+      "maxLevel": 50,
+      "costs": {
+        "diamondPerPull": 150,
+        "diamondPer10Pull": 1350,
+        "ticketId": "skill_ticket",
+        "ticketPerPull": 1
+      },
+      "expPerPull": 1,
+      "levelRequirement": [
+        {
+          "fromLevel": 1,
+          "toLevel": 10,
+          "pullsPerLevel": 10,
+          "cumulativeAtEnd": 90
+        },
+        {
+          "fromLevel": 10,
+          "toLevel": 20,
+          "pullsPerLevel": 25,
+          "cumulativeAtEnd": 340
+        },
+        {
+          "fromLevel": 20,
+          "toLevel": 30,
+          "pullsPerLevel": 50,
+          "cumulativeAtEnd": 840
+        },
+        {
+          "fromLevel": 30,
+          "toLevel": 40,
+          "pullsPerLevel": 100,
+          "cumulativeAtEnd": 1840
+        },
+        {
+          "fromLevel": 40,
+          "toLevel": 50,
+          "pullsPerLevel": 200,
+          "cumulativeAtEnd": 3840
+        }
+      ],
+      "levelReward": {
+        "currency": "skill_ticket",
+        "byBand": [
+          {
+            "toLevel": 10,
+            "tickets": 1
+          },
+          {
+            "toLevel": 20,
+            "tickets": 2
+          },
+          {
+            "toLevel": 30,
+            "tickets": 3
+          },
+          {
+            "toLevel": 40,
+            "tickets": 5
+          },
+          {
+            "toLevel": 50,
+            "tickets": 8
+          }
+        ],
+        "claim": "manual",
+        "claimNote": "자동으로 넣지 않는다. 빨간 점을 띄우고 유저가 눌러서 받는다 — 자동이면 레벨이 오른 것 자체를 모르고 지나간다. 받는 행위가 곧 보상 인지다.",
+        "budgetNote": "Lv30 까지 누적 60장/트랙. 무과금이 D180 에 실제로 닿는 구간이 Lv25~30 이라 두 트랙 합쳐 약 120뽑, 총 예산(약 4,050뽑)의 3% 다. 뒷구간(31~50)은 누적 190장까지 오르지만 그 구간은 3,840뽑이 필요해 사실상 과금 유저만 닿는다."
+      }
+    },
+    "equipment": {
+      "nameKo": "장비 소환",
+      "unlock": "stage_10",
+      "levelUpMethod": "currency_and_timer",
+      "maxLevel": 60,
+      "costs": {
+        "currencyId": "equip_ticket",
+        "keyPerPull": 1,
+        "keyPer10Pull": 9,
+        "note": "구 황금 열쇠. CU-07 장비 소환권이 역할을 그대로 이어받았다."
+      },
+      "levelUpNote": "뽑기 횟수와 무관. 제련석 투입 + 대기 시간으로만 상승. 실패 없음(확정 성공). 진행 중에도 뽑기는 정상 가능.",
+      "levelUpSource": "economy.json > equipmentSummonLevel"
+    }
+  },
+  "onboardingGuarantees": [
+    {
+      "id": "first_10pull",
+      "trigger": "계정 최초 용병 10연",
+      "grant": "SSR 이상 1개 확정",
+      "oncePerAccount": true
+    },
+    {
+      "id": "day3_selector",
+      "trigger": "신규 7일 이벤트 3일차",
+      "grant": "SSR 용병 선택권 1장",
+      "oncePerAccount": true
+    },
+    {
+      "id": "tutorial_boost",
+      "trigger": "튜토리얼",
+      "grant": "용병 소환 레벨 5까지 무료 지급",
+      "oncePerAccount": true
+    }
+  ],
+  "onboardingNote": "천장이 없어 신규 유저가 초반에 아무것도 못 뽑고 이탈하는 것이 유일한 위험. 천장 대신 온보딩 확정 지급으로 방어.",
+  "levelUpRewards": {
+    "everyLevel": {
+      "diamond": 100,
+      "ticketRandom": 1
+    },
+    "milestones": [
+      {
+        "level": 10,
+        "grant": "해당 구간 최고등급 확정 선택권 1장"
+      },
+      {
+        "level": 20,
+        "grant": "해당 구간 최고등급 확정 선택권 1장"
+      },
+      {
+        "level": 30,
+        "grant": "해당 구간 최고등급 확정 선택권 1장"
+      },
+      {
+        "level": 40,
+        "grant": "해당 구간 최고등급 확정 선택권 1장"
+      },
+      {
+        "level": 50,
+        "grant": "해당 구간 최고등급 확정 선택권 1장"
+      }
+    ]
+  },
+  "serverAuthority": {
+    "rollLocation": "server",
+    "verse8Api": "remoteFunction",
+    "reference": "https://docs.verse8.io/ko/docs/vxshop/gacha-example",
+    "note": "클라 판정 금지. 서버가 굴리고 인벤토리 갱신 후 결과만 반환."
+  },
+  "rateBandsHistory": {
+    "v1": {
+      "LR": "Lv10 0.1% -> Lv50 25%"
+    },
+    "v2": {
+      "LR": "Lv10 0.02% -> Lv50 0.6%"
+    },
+    "reason": "만렙 25%는 최고 등급으로 지나치게 흔했다. 무과금 D180 누적 뽑기(트랙당 약 2,025회) 기준 LR 40체 이상이 나와 UR과 구분이 사라진다. 무과금 1~2체를 목표로 재산출."
+  },
+  "lrPolicy": {
+    "availability": "always",
+    "note": "LR은 상시 획득 가능하다. 시즌 한정 아님. 소환 레벨 10부터 풀에 등장하며 레벨이 오를수록 확률이 오른다.",
+    "firstAppearanceLevel": 10,
+    "expectedF2P_D180": "약 1.5체 (트랙당)",
+    "designIntent": "언제든 터질 수 있다는 기대감을 유지하되, 실제 획득은 희귀하게. UR이 실질 최고 등급이고 LR은 잭팟이다."
+  },
+  "noPity": {
+    "decided": "2026-08-21",
+    "rule": "천장 없음. 확정 획득 경로도 없음.",
+    "why": "혼 상점(유일한 확정 경로)을 없애면서 SSR·LR 선택권도 같이 뺐다. 확정 경로가 하나라도 남으면 유저는 확률을 무시하고 그 경로만 본다 — 그러면 소환 레벨·확률 공개 같은 장치가 전부 장식이 된다.",
+    "risk": "UR 이 오래 안 나오는 유저의 이탈. 소환 레벨(최하위 등급 영구 제거)이 완만한 상향 곡선을 대신 맡는다. 라이브 후 UR 첫 획득 시점 분포를 반드시 본다."
+  }
+}

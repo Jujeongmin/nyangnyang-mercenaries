@@ -262,7 +262,7 @@ const ASSET_DIR = {
   skill: 'skill', equip: 'equip', frame: 'ui', currency: 'ui', altar: 'ui',
   forge: 'ui', sideicon: 'ui', chest: 'ui', forgeobj: 'ui', uikit: 'ui', projectile: 'fx', dungeonkey: 'ui', summonfx: 'fx', passivefx: 'fx', battlefx: 'fx',
 };
-const has = (cat, id) => fs.existsSync(path.join(ROOT, 'assets', ASSET_DIR[cat], id + '.png'));
+const has = (cat, id) => fs.existsSync(path.join(ROOT, 'game/public/assets', ASSET_DIR[cat], id + '.png'));
 
 // 방향 규칙이 바뀌어 다시 뽑아야 하는 분류
 // 몹·보스는 원화가 이미 오른손잡이(무기가 이미지 왼쪽)라 다시 뽑을 이유가 없다.
@@ -288,7 +288,7 @@ let todo = '# 남은 에셋\n\n'
 // 이미 다시 뽑은 것까지 남은 일로 세어 진행 상황을 못 본다.
 const V2_AT = Date.parse('2026-08-20T15:00:00+09:00');
 const isOld = (cat, id) => {
-  const f = path.join(ROOT, 'assets', ASSET_DIR[cat], id + '.png');
+  const f = path.join(ROOT, 'game/public/assets', ASSET_DIR[cat], id + '.png');
   try { return fs.statSync(f).mtimeMs < V2_AT; } catch { return false; }
 };
 

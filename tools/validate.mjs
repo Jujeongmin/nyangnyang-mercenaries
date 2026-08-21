@@ -5,7 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { validate } from '../app/src/core/data.js';
+import { validate } from '../game/src/core/data.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = [
@@ -16,7 +16,7 @@ const FILES = [
 
 const D = {};
 for (const n of FILES) {
-  const p = path.join(ROOT, 'data', n + '.json');
+  const p = path.join(ROOT, 'game/public/data', n + '.json');
   if (!fs.existsSync(p)) { console.error(`없음: data/${n}.json`); process.exit(1); }
   D[n.replace(/-(\w)/g, (_, c) => c.toUpperCase())] = JSON.parse(fs.readFileSync(p, 'utf8'));
 }
