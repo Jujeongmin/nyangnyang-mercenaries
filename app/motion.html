@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>모션 랩</title>
+<style>
+  :root{--bg:#0e131c;--panel:#18202e;--line:#2c3850;--txt:#e8edf5;--dim:#8fa0ba;--gold:#ffc94a;--up:#5ad86a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:"Malgun Gothic",system-ui,sans-serif;overflow:hidden}
+  #wrap{display:flex;height:100%}
+  #stage{flex:1;position:relative;min-width:0;background:#131b28}
+  canvas{display:block;width:100%;height:100%}
+  #side{width:280px;flex:0 0 280px;background:var(--panel);border-left:1px solid var(--line);
+    padding:12px;overflow-y:auto}
+  h1{font-size:14px;margin:0 0 3px}
+  .sub{font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:10px}
+  select{width:100%;background:#222c40;border:1px solid var(--line);color:var(--txt);
+    border-radius:6px;padding:7px;font-size:12px;margin-bottom:7px}
+  .grp{font-size:10px;color:var(--dim);letter-spacing:.5px;margin:13px 0 6px;
+    border-bottom:1px solid var(--line);padding-bottom:4px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px}
+  button{background:#222c40;border:1px solid var(--line);color:var(--txt);border-radius:7px;
+    padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+  button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .kv{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);
+    padding:3px 2px;border-bottom:1px solid #1e2636}
+  .kv b{color:var(--txt);font-variant-numeric:tabular-nums}
+  label.chk{display:flex;align-items:center;gap:7px;font-size:12px;padding:4px 2px;cursor:pointer}
+  label.chk input{accent-color:var(--gold)}
+  #phase{font-size:11px;color:var(--gold);font-weight:700;margin-top:4px;min-height:16px}
+  #strip{position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;
+    background:#0b0f17cc;border-top:1px solid var(--line);overflow-x:auto}
+  #strip canvas{width:96px;height:96px;flex:0 0 96px;border-right:1px solid #1e2636}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><canvas id="cv"></canvas><div id="strip"></div></div>
+  <div id="side">
+    <h1>모션 랩</h1>
+    <div class="sub">공격 모션을 세워놓고 본다.<br>스크럽으로 프레임을 하나씩 확인.</div>
+
+    <select id="unit"></select>
+    <select id="motion"></select>
+
+    <div class="grp">재생</div>
+    <div class="row2">
+      <button id="play">재생</button>
+      <button id="loop" class="on">반복</button>
+    </div>
+    <input type="range" id="scrub" min="0" max="1000" value="0">
+    <div id="phase"></div>
+    <div class="row2" style="margin-top:7px">
+      <button data-sp="0.25">0.25x</button>
+      <button data-sp="1" class="on">1x</button>
+    </div>
+
+    <div class="grp">표시</div>
+    <label class="chk"><input type="checkbox" id="c_arm" checked> 팔 파트</label>
+    <label class="chk"><input type="checkbox" id="c_deform" checked> 메시 디폼</label>
+    <label class="chk"><input type="checkbox" id="c_breathe"> 호흡</label>
+    <label class="chk"><input type="checkbox" id="c_shadow" checked> 그림자</label>
+    <label class="chk"><input type="checkbox" id="c_pivot"> 관절 표시</label>
+
+    <div class="grp">현재 포즈</div>
+    <div class="kv"><span>p</span><b id="k_p">0.000</b></div>
+    <div class="kv"><span>팔 각도</span><b id="k_arm">0°</b></div>
+    <div class="kv"><span>전후 이동</span><b id="k_fwd">0.00</b></div>
+    <div class="kv"><span>스쿼시</span><b id="k_sq">0.00</b></div>
+    <div class="kv"><span>휘어짐</span><b id="k_bend">0.00</b></div>
+    <div class="kv"><span>회전</span><b id="k_rot">0°</b></div>
+    <div class="kv"><span>팔 컷아웃</span><b id="k_cut">—</b></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+<script type="module" src="./src/motion.js"></script>
+</body>
+</html>

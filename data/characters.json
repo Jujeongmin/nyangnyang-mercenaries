@@ -1,0 +1,524 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "용병 32종 정의 + 등급/직군/레벨 규칙",
+    "totalCharacters": 32
+  },
+  "cpWeights": {
+    "atk": 2,
+    "def": 1.8,
+    "hp": 0.1
+  },
+  "cpWeightsNote": "v4. 시뮬레이터 탐색값. combat.json > cpWeights / damage.mitigationBase / skills.json > effectBalanceNote 와 한 묶음이다.",
+  "gradeCoef": {
+    "N": 100000,
+    "R": 250000,
+    "SR": 600000,
+    "SSR": 1500000,
+    "UR": 4000000,
+    "LR": 14000000
+  },
+  "levelCap": {
+    "N": 10,
+    "R": 15,
+    "SR": 20,
+    "SSR": 25,
+    "UR": 30,
+    "LR": 40
+  },
+  "levelGrowthPerLevel": 0.06,
+  "gradeSerialityCheck": {
+    "note": "만렙 하위등급 < Lv0 상위등급 이 전 구간 성립해야 자동장착이 직관과 일치",
+    "N_max": 160,
+    "R_base": 250,
+    "R_max": 475,
+    "SR_base": 600,
+    "SR_max": 1320,
+    "SSR_base": 1500,
+    "SSR_max": 3750,
+    "UR_base": 4000,
+    "UR_max": 11200,
+    "LR_base": 14000,
+    "LR_max": 47600
+  },
+  "classes": {
+    "warrior": {
+      "nameKo": "전사",
+      "statRatio": {
+        "atk": 30,
+        "def": 20,
+        "hp": 50
+      },
+      "cpDivisor": 1.01,
+      "passive": {
+        "id": "guard_power",
+        "nameKo": "수호의 힘",
+        "atkFromDef": 0.162,
+        "atkFromHp": 0.0144,
+        "atkSpeedAdd": 0.018,
+        "netEffect": 1.15,
+        "note": "DEF 의 22.5% 를 ATK 에 더한다. 방어 스킬·방어 장비가 그대로 딜이 된다. 기본 스탯에서는 ATK 의 15% 라 다른 직군과 같다.",
+        "history": {
+          "v1": "crit_up 15% x2.0",
+          "v0": "evade_counter"
+        }
+      }
+    },
+    "archer": {
+      "nameKo": "궁수",
+      "statRatio": {
+        "atk": 30,
+        "def": 20,
+        "hp": 50
+      },
+      "cpDivisor": 1.01,
+      "passive": {
+        "id": "rapid_fire",
+        "nameKo": "속사",
+        "atkFromDef": 0.099,
+        "atkFromHp": 0.0396,
+        "atkSpeedAdd": 0.018,
+        "netEffect": 1.15,
+        "note": "공격 속도 +15%. 방어 스탯을 환산하지 않는 대신 순수 공격 스탯에 가장 잘 붙는다.",
+        "history": {
+          "v1": "evade_counter 회피10% 반격45%"
+        }
+      }
+    },
+    "mage": {
+      "nameKo": "마법사",
+      "statRatio": {
+        "atk": 30,
+        "def": 20,
+        "hp": 50
+      },
+      "cpDivisor": 1.01,
+      "passive": {
+        "id": "mana_convert",
+        "nameKo": "마력 전환",
+        "atkFromDef": 0.036,
+        "atkFromHp": 0.0648,
+        "atkSpeedAdd": 0.018,
+        "netEffect": 1.15,
+        "note": "HP 의 9% 를 ATK 에 더한다. 체력 스킬·체력 장비가 그대로 딜이 된다. 기본 스탯에서는 ATK 의 15% 라 다른 직군과 같다.",
+        "history": {
+          "v1": "extra_magic_hit 25% x0.6"
+        }
+      }
+    }
+  },
+  "statDerivation": {
+    "formula": "statTotal = gradeCoef / cpDivisor; atk = statTotal * 30/100; def = statTotal * 20/100; hp = statTotal * 50/100",
+    "cpDivisor": 1.01,
+    "cpDivisorNote": "0.30*2.0 + 0.20*1.8 + 0.50*0.1 = 1.010. 직군 공통이다.",
+    "guarantee": "전 직군 동일 등급에서 ATK 가 같다. 스테이지 DPS 편차가 시뮬이 아니라 구조로 0 이다.",
+    "cpAtLevel": "cp = gradeCoef * (1 + level * 0.06)",
+    "statUsage": {
+      "atk": "스테이지·던전·아레나 전부에서 사용",
+      "def": "아레나 전용. 스테이지에서는 감산이 적용되지 않는다",
+      "hp": "아레나 전용. 스테이지에서 아군은 죽지 않는다"
+    },
+    "conversion": {
+      "formula": "atkFinal = atkBase + def * atkFromDef + hp * atkFromHp",
+      "order": "스탯 증가 스킬을 모두 적용한 **뒤** 환산한다. 먼저 환산하면 방어 스킬이 딜로 안 바뀐다.",
+      "warriorAtkFromDef": 0.225,
+      "mageAtkFromHp": 0.09,
+      "note": "환산 예산(ATK 의 15%)을 직군마다 DEF/HP/공격속도에 다르게 배분한다. 총량이 같으므로 기본 스탯 기대값은 동일하고, 방어 스킬이 붙으면 세 직군이 서로 다른 비율로 이득을 본다. 한 직군만 환산에서 빠지면 그 직군이 방어 스킬을 낀 순간 뒤처진다 (실측 편차 5.28%)."
+    }
+  },
+  "elements": {
+    "fire": {
+      "nameKo": "불",
+      "combatEffect": "none"
+    },
+    "water": {
+      "nameKo": "물",
+      "combatEffect": "none"
+    },
+    "nature": {
+      "nameKo": "풀",
+      "combatEffect": "none"
+    },
+    "light": {
+      "nameKo": "빛",
+      "combatEffect": "none"
+    },
+    "dark": {
+      "nameKo": "암",
+      "combatEffect": "none"
+    }
+  },
+  "elementNote": "속성 상성은 전투 판정에서 제거됨. 도감 분류 + 비주얼 테마 전용. 자동장착이 CP만 보므로 상성은 유저가 통제 불가한 무작위 손해가 됨.",
+  "synergy": null,
+  "synergyNote": "파티 시너지 전면 삭제. 자동장착(CP 내림차순 정렬)이 수학적 최적해가 되도록 보장. 직군 패시브는 반드시 자기 완결형이어야 함 - 다른 시스템 수치를 참조하면 그리디 정렬이 깨진다.",
+  "autoEquip": {
+    "trigger": "manual_button",
+    "buttonLabel": "자동장착",
+    "location": "용병 탭 상단",
+    "partySlots": 5,
+    "partySlotsNote": "최종 5칸. 시작 3칸이며 quests.json > slotUnlockQuests.mercenary 로 순차 해금. 자동장착은 해금된 칸 수만큼만 채운다.",
+    "algorithm": "roster.sort((a,b) => cp(b) - cp(a)).slice(0, 해금슬롯수)",
+    "complexity": "O(n log n)",
+    "optimality": "시너지가 없으므로 그리디 정렬이 수학적 최적해다. 유저가 수동으로 이보다 나은 편성을 만들 수 없다.",
+    "autoApply": false,
+    "autoApplyReason": "자동 적용하지 않는다. 버튼을 눌러야 반영된다. 방치형에서 돌아와 누를 이유를 남기는 것이 자동강화·장비 교체와 동일한 철학.",
+    "badge": "현재 편성보다 CP가 높은 조합이 가능하면 용병 탭에 빨간 뱃지 + 상승 예상치 표시",
+    "lockSlots": 2,
+    "lockNote": "유저가 최대 2칸 고정 가능. 자동장착은 고정 칸을 건드리지 않는다. 고정으로 인한 CP 손실을 화면에 명시 표시.",
+    "orderNote": "자동강화를 먼저 실행해야 CP가 최신이 된다. 두 버튼을 나란히 두되 강화 뱃지를 우선 노출한다."
+  },
+  "characters": [
+    {
+      "id": "N-01",
+      "asset": "char_N01",
+      "nameKo": "꼬마 햄찌",
+      "grade": "N",
+      "class": "mage",
+      "element": "fire"
+    },
+    {
+      "id": "N-02",
+      "asset": "char_N02",
+      "nameKo": "도토리 다람쥐",
+      "grade": "N",
+      "class": "archer",
+      "element": "nature"
+    },
+    {
+      "id": "N-03",
+      "asset": "char_N03",
+      "nameKo": "개굴 병정",
+      "grade": "N",
+      "class": "warrior",
+      "element": "water"
+    },
+    {
+      "id": "N-04",
+      "asset": "char_N04",
+      "nameKo": "삐약 기사",
+      "grade": "N",
+      "class": "warrior",
+      "element": "light"
+    },
+    {
+      "id": "N-05",
+      "asset": "char_N05",
+      "nameKo": "두더쥐 궁수",
+      "grade": "N",
+      "class": "archer",
+      "element": "dark"
+    },
+    {
+      "id": "N-06",
+      "asset": "char_N06",
+      "nameKo": "느림보 달팽이",
+      "grade": "N",
+      "class": "mage",
+      "element": "water"
+    },
+    {
+      "id": "R-09",
+      "asset": "char_R09",
+      "nameKo": "화염 오소리",
+      "grade": "R",
+      "class": "warrior",
+      "element": "fire"
+    },
+    {
+      "id": "R-02",
+      "asset": "char_R02",
+      "nameKo": "멍뭉 방패병",
+      "grade": "R",
+      "class": "warrior",
+      "element": "nature"
+    },
+    {
+      "id": "R-03",
+      "asset": "char_R03",
+      "nameKo": "토끼 사수",
+      "grade": "R",
+      "class": "archer",
+      "element": "light"
+    },
+    {
+      "id": "R-04",
+      "asset": "char_R04",
+      "nameKo": "너굴 도적궁",
+      "grade": "R",
+      "class": "archer",
+      "element": "dark"
+    },
+    {
+      "id": "R-05",
+      "asset": "char_R05",
+      "nameKo": "고슴도치 술사",
+      "grade": "R",
+      "class": "mage",
+      "element": "nature"
+    },
+    {
+      "id": "R-06",
+      "asset": "char_R06",
+      "nameKo": "꽥꽥 마법사",
+      "grade": "R",
+      "class": "mage",
+      "element": "water"
+    },
+    {
+      "id": "R-07",
+      "asset": "char_R07",
+      "nameKo": "두꺼비 장군",
+      "grade": "R",
+      "class": "warrior",
+      "element": "dark"
+    },
+    {
+      "id": "R-08",
+      "asset": "char_R08",
+      "nameKo": "박쥐 궁수",
+      "grade": "R",
+      "class": "archer",
+      "element": "fire"
+    },
+    {
+      "id": "SR-01",
+      "asset": "char_SR01",
+      "nameKo": "불꽃 여우",
+      "grade": "SR",
+      "class": "mage",
+      "element": "fire"
+    },
+    {
+      "id": "SR-02",
+      "asset": "char_SR02",
+      "nameKo": "서리늑대",
+      "grade": "SR",
+      "class": "warrior",
+      "element": "water"
+    },
+    {
+      "id": "SR-03",
+      "asset": "char_SR03",
+      "nameKo": "펭귄 창궁수",
+      "grade": "SR",
+      "class": "archer",
+      "element": "water"
+    },
+    {
+      "id": "SR-04",
+      "asset": "char_SR04",
+      "nameKo": "수달 마법사",
+      "grade": "SR",
+      "class": "mage",
+      "element": "water"
+    },
+    {
+      "id": "SR-05",
+      "asset": "char_SR05",
+      "nameKo": "부엉이 현자",
+      "grade": "SR",
+      "class": "mage",
+      "element": "light"
+    },
+    {
+      "id": "SR-06",
+      "asset": "char_SR06",
+      "nameKo": "숲사슴 궁수",
+      "grade": "SR",
+      "class": "archer",
+      "element": "nature"
+    },
+    {
+      "id": "SR-07",
+      "asset": "char_SR07",
+      "nameKo": "양치기 기사",
+      "grade": "SR",
+      "class": "warrior",
+      "element": "light"
+    },
+    {
+      "id": "SR-08",
+      "asset": "char_SR08",
+      "nameKo": "도마뱀 검사",
+      "grade": "SR",
+      "class": "warrior",
+      "element": "dark"
+    },
+    {
+      "id": "SSR-01",
+      "asset": "char_SSR01",
+      "nameKo": "화염 곰장군",
+      "grade": "SSR",
+      "class": "warrior",
+      "element": "fire"
+    },
+    {
+      "id": "SSR-02",
+      "asset": "char_SSR02",
+      "nameKo": "대나무 판다현자",
+      "grade": "SSR",
+      "class": "mage",
+      "element": "nature"
+    },
+    {
+      "id": "SSR-03",
+      "asset": "char_SSR03",
+      "nameKo": "백호 검성",
+      "grade": "SSR",
+      "class": "warrior",
+      "element": "light"
+    },
+    {
+      "id": "SSR-04",
+      "asset": "char_SSR04",
+      "nameKo": "창공 독수리",
+      "grade": "SSR",
+      "class": "archer",
+      "element": "light"
+    },
+    {
+      "id": "SSR-05",
+      "asset": "char_SSR05",
+      "nameKo": "심연 상어",
+      "grade": "SSR",
+      "class": "warrior",
+      "element": "dark"
+    },
+    {
+      "id": "UR-01",
+      "asset": "char_UR01",
+      "nameKo": "봉황 대마도사",
+      "grade": "UR",
+      "class": "mage",
+      "element": "fire"
+    },
+    {
+      "id": "UR-02",
+      "asset": "char_UR02",
+      "nameKo": "해태 수호기사",
+      "grade": "UR",
+      "class": "warrior",
+      "element": "light"
+    },
+    {
+      "id": "UR-03",
+      "asset": "char_UR03",
+      "nameKo": "구미호 저격수",
+      "grade": "UR",
+      "class": "archer",
+      "element": "dark"
+    },
+    {
+      "id": "LR-01",
+      "asset": "char_LR01",
+      "nameKo": "성좌룡",
+      "grade": "LR",
+      "class": "mage",
+      "element": "light",
+      "note": "LR 최고 등급. 상시 획득 가능 (gacha.json > lrPolicy)"
+    },
+    {
+      "id": "LR-02",
+      "asset": "char_LR02",
+      "nameKo": "종말의 흑기린",
+      "grade": "LR",
+      "class": "warrior",
+      "element": "dark",
+      "note": "LR 최고 등급. 상시 획득 가능 (gacha.json > lrPolicy)"
+    }
+  ],
+  "classDistribution": {
+    "warrior": 13,
+    "archer": 9,
+    "mage": 10
+  },
+  "classDistributionNote": "고르지 않지만 기계적으로 무해하다 - 세 직군은 동일 등급에서 CP와 기대 DPS가 모두 같도록 설계됐다. 시각적 다양성을 원하면 전사 2종을 궁수로 전환할 수 있으나, 해당 캐릭터의 에셋 프롬프트(장비 묘사)도 함께 고쳐야 한다.",
+  "codex": {
+    "note": "1회 획득 시 영구 등록. 캐스케이드로 소모돼도 등록 유지.",
+    "bonusPerRegistered": 0.01,
+    "maxBonus": 0.32,
+    "bonusTarget": "CP_총합 곱연산 항"
+  },
+  "captain": {
+    "id": "CAPTAIN",
+    "nameKo": "냥이 단장",
+    "asset": "captain_*",
+    "role": "mascot",
+    "originNote": "구 R-01 냥이 검사. 32종 중 고양이가 한 마리뿐인데 게임 이름이 냥냥 용병단이라 이름과 로스터가 어긋났다. 로스터에서 빼 단장(마스코트)으로 승격하고 그 자리는 R-09 화염 오소리가 메운다.",
+    "combatParticipation": false,
+    "combatParticipationNote": "전투에 참여하지 않는다. 전투 화면 좌측 맨 앞에서 지휘 포즈로 서 있을 뿐이다.",
+    "statEffect": "none",
+    "statEffectReason": "스탯을 붙이면 CP 천장과 총 뽑기 예산을 다시 계산해야 한다. 칭호(profile.json)와 같은 이유로 순수 외형 요소로 남긴다.",
+    "forms": [
+      {
+        "id": "captain_warrior",
+        "nameKo": "검사 단장",
+        "class": "warrior",
+        "asset": "captain_warrior",
+        "reuse": "구 char_R01 이미지 그대로 사용"
+      },
+      {
+        "id": "captain_archer",
+        "nameKo": "사수 단장",
+        "class": "archer",
+        "asset": "captain_archer"
+      },
+      {
+        "id": "captain_mage",
+        "nameKo": "술사 단장",
+        "class": "mage",
+        "asset": "captain_mage"
+      }
+    ],
+    "formRule": {
+      "mode": "auto_reflect_party",
+      "algorithm": "현재 편성된 용병 중 가장 많은 직군의 모습으로 변한다. 동수면 전사 > 궁수 > 마법사 순.",
+      "purpose": "자동장착이라 유저가 파티를 들여다보지 않는다. 단장 모습이 바뀌면 편성이 달라진 것을 화면만 보고 안다.",
+      "manualLock": "설정에서 원하는 모습으로 고정 가능. 취향 우선."
+    },
+    "expressions": [
+      {
+        "id": "exp_normal",
+        "nameKo": "기본",
+        "trigger": "평상시"
+      },
+      {
+        "id": "exp_happy",
+        "nameKo": "기쁨",
+        "trigger": "보상 수령 / SR 이상 소환 / 스테이지 돌파"
+      },
+      {
+        "id": "exp_surprise",
+        "nameKo": "놀람",
+        "trigger": "UR·LR 소환 / 등급 해금"
+      },
+      {
+        "id": "exp_trouble",
+        "nameKo": "곤란",
+        "trigger": "재화 부족 / 스테이지 패배 / 벽 정체"
+      }
+    ],
+    "expressionNote": "표정은 얼굴 클로즈업이라 3직군 공용이다. 직군마다 만들면 12장이 되지만 공용이면 4장으로 끝난다.",
+    "appearsIn": [
+      "타이틀 화면",
+      "로고·앱 아이콘",
+      "로딩 화면",
+      "튜토리얼 안내",
+      "전투 화면 좌측 지휘 포즈",
+      "빈 목록 화면",
+      "우편함",
+      "상점 배너"
+    ]
+  },
+  "classesNote": "세 직군의 ATK/DEF/HP 는 완전히 동일하다. 구분은 패시브뿐이고, 기본 스탯에서는 셋 다 netEffect 1.15 로 기대값이 같다. 다만 전사는 DEF, 마법사는 HP 를 ATK 로 환산하므로 방어 스탯이 늘어나면 갈린다. 방어 스킬·장비가 전투 기여 0 이 되는 문제를 이렇게 푼다 (불변식 9). 참조 설계: 버섯커 키우기의 \"체력을 올릴수록 강해지는 직업\".",
+  "gradeCoefNote": "전투력 자릿수를 위해 v3 에서 ×1000 했다. 스탯·요구 CP·적 HP 가 전부 이 값에서 파생되므로 비율은 그대로고 표시만 커진다. 골드 공식 계수만 K^1.35 로 나눠 보정했다.",
+  "dupeValue": {
+    "N": 1,
+    "R": 3,
+    "SR": 10,
+    "SSR": 30,
+    "UR": 100,
+    "LR": 300
+  },
+  "dupeValueNote": "등급별 중복 가치. 혼 폐기 후에도 캐스케이드 레벨 이관 계산에 그대로 쓴다 (economy.json > cascade). 이름만 soulValue 에서 바꿨다."
+}

@@ -1,0 +1,391 @@
+{
+  "meta": {
+    "version": "2.0",
+    "description": "용병단 공용 장비 6부위 x 10등급. 자동 소환 + 필터 시스템.",
+    "designChoice": "5인 x 6부위 = 30칸 관리는 방치형에서 이탈 요인. 공용이면 전투력 계산도 단순해 랭킹 비교가 명확하다.",
+    "changelog": "v2.0 - 등급 6단계 -> 10단계로 분리(용병/스킬과 독립). 자동 소환 + 필터 추가."
+  },
+  "slots": [
+    {
+      "id": "weapon",
+      "assetPrefix": "equip_EQW",
+      "nameKo": "무기"
+    },
+    {
+      "id": "armor",
+      "assetPrefix": "equip_EQA",
+      "nameKo": "방어구"
+    },
+    {
+      "id": "accessory",
+      "assetPrefix": "equip_EQR",
+      "nameKo": "장신구"
+    },
+    {
+      "id": "talisman",
+      "assetPrefix": "equip_EQT",
+      "nameKo": "부적"
+    },
+    {
+      "id": "banner",
+      "assetPrefix": "equip_EQB",
+      "nameKo": "깃발"
+    },
+    {
+      "id": "relic",
+      "assetPrefix": "equip_EQX",
+      "nameKo": "유물"
+    }
+  ],
+  "grades": [
+    {
+      "tier": 1,
+      "id": "common",
+      "nameKo": "일반",
+      "color": "#9E9E9E",
+      "slotBonus": 0.0074
+    },
+    {
+      "tier": 2,
+      "id": "uncommon",
+      "nameKo": "고급",
+      "color": "#4CAF50",
+      "slotBonus": 0.0111
+    },
+    {
+      "tier": 3,
+      "id": "rare",
+      "nameKo": "희귀",
+      "color": "#2196F3",
+      "slotBonus": 0.0148
+    },
+    {
+      "tier": 4,
+      "id": "epic",
+      "nameKo": "영웅",
+      "color": "#9C27B0",
+      "slotBonus": 0.0222
+    },
+    {
+      "tier": 5,
+      "id": "legendary",
+      "nameKo": "전설",
+      "color": "#FF9800",
+      "slotBonus": 0.0308
+    },
+    {
+      "tier": 6,
+      "id": "mythic",
+      "nameKo": "신화",
+      "color": "#F44336",
+      "slotBonus": 0.0444
+    },
+    {
+      "tier": 7,
+      "id": "transcendent",
+      "nameKo": "초월",
+      "color": "#00BCD4",
+      "slotBonus": 0.0628
+    },
+    {
+      "tier": 8,
+      "id": "primordial",
+      "nameKo": "태초",
+      "color": "#FFD700",
+      "slotBonus": 0.0899
+    },
+    {
+      "tier": 9,
+      "id": "celestial",
+      "nameKo": "천상",
+      "color": "#E91E63",
+      "slotBonus": 0.1294
+    },
+    {
+      "tier": 10,
+      "id": "infinite",
+      "nameKo": "무한",
+      "color": "#FFFFFF",
+      "slotBonus": 0.1848,
+      "prismatic": true
+    }
+  ],
+  "gradeDesignNote": "등급 계수는 T1 0.006에서 T10 0.150까지 공비 약 1.43의 등비수열. T10 per-slot 0.150은 구버전 UR과 동일하게 맞춰 CP 천장(1,310,000)을 보존한다.",
+  "assetNote": "부위 6종 x 등급대 4밴드 = 24장. B1 T1-3 / B2 T4-6 / B3 T7-8 / B4 T9-10. 밴드 안에서는 테두리 색으로 구분한다. v1 은 부위 6장 + 색조 필터였는데, 그러면 T1 과 T10 이 같은 그림이라 좋은 장비를 뽑은 보람이 화면에 안 남았다. 60장(10등급 전부)은 과하고 체감 도약이 생기는 지점만 끊어 4밴드로 잡았다.",
+  "enhancement": {
+    "minLevel": 0,
+    "maxLevel": 15,
+    "bonusPerLevel": 0.045,
+    "formula": "slotBonus = grades[tier].slotBonus * (1 + enhanceLevel * 0.045)",
+    "currency": "gold",
+    "goldCostFormula": "baseCost * 1.55^enhanceLevel",
+    "baseCostByTier": {
+      "1": 60,
+      "2": 160,
+      "3": 400,
+      "4": 1200,
+      "5": 3600,
+      "6": 11000,
+      "7": 32000,
+      "8": 100000,
+      "9": 300000,
+      "10": 1000000
+    },
+    "costRebalanceNote": "v2.0의 (base 5,000,000 / ratio 2.15)는 T10 6부위 만강에 약 2.5조 골드가 필요했다. 무과금 생애 골드 총량(약 150억)의 160배로 도달 불가능했다. ratio 1.55 + base 1/5로 재조정해 T10 6부위 만강 = 약 78억(생애 골드의 50%)이 되게 맞췄다. goldsinks.json > budget 참조.",
+    "failureChance": 0,
+    "failureNote": "강화 실패 없음. 방치형에서 실패는 골드 소각 이상의 의미가 없고 스트레스만 준다."
+  },
+  "totalBonusFormula": "equipmentBonus = SUM(slotBonus × (1 + 강화×0.045) for 6 slots)",
+  "maxBonusVerification": {
+    "sixT10Slots": 1.109,
+    "afterMaxEnhance": 1.8575,
+    "setBonus": 0,
+    "total": 1.8575,
+    "cpMultiplier": 2.8575,
+    "status": "세트 삭제 전(2.8575)과 동일. CP 천장 1,834,000 불변."
+  },
+  "autoEquip": {
+    "enabled": false,
+    "changedFrom": "auto_apply",
+    "changeReason": "유저가 직접 클릭해 장착한다. 자동 적용은 편하지만 방치형에서 돌아올 이유를 없앤다. 자동강화 버튼과 같은 철학 - 시스템이 계산은 다 해주되 확정은 유저가 누른다.",
+    "recommendation": {
+      "algorithm": "부위별로 CP 기여가 가장 높은 장비 선택 (그리디)",
+      "complexity": "O(n)",
+      "role": "[전체 교체] 버튼이 이 결과를 일괄 적용한다.",
+      "note": "세트 보너스가 없으므로 부위 간 상호작용이 사라졌다. 부위별 최고를 고르는 것이 곧 최적해다. 구버전의 3^6=729 전수평가는 불필요."
+    },
+    "individualSwap": "부위별 교체 버튼에 CP 증가량을 표시한다. 세트가 없으므로 개별 교체가 총 CP를 낮추는 일은 발생하지 않는다."
+  },
+  "summon": {
+    "currency": "golden_key",
+    "keyPerPull": 1,
+    "rateTable": "gacha.json > equipmentRateBands",
+    "levelSource": "economy.json > equipmentSummonLevel",
+    "progression": [
+      {
+        "summonLv": 1,
+        "unlock": "manual_single",
+        "nameKo": "1회 소환",
+        "pullsPerAction": 1
+      },
+      {
+        "summonLv": 5,
+        "unlock": "manual_multi",
+        "nameKo": "10연 소환",
+        "pullsPerAction": 10,
+        "discount": 0.1
+      },
+      {
+        "summonLv": 10,
+        "unlock": "auto_summon",
+        "nameKo": "자동 소환 해금",
+        "pullsPerBatch": 10
+      },
+      {
+        "summonLv": 15,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 20,
+        "nameKo": "자동 소환 20개씩"
+      },
+      {
+        "summonLv": 20,
+        "unlock": "filter_grade",
+        "nameKo": "필터: 등급 하한",
+        "pullsPerBatch": 30
+      },
+      {
+        "summonLv": 25,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 50,
+        "nameKo": "자동 소환 50개씩"
+      },
+      {
+        "summonLv": 30,
+        "unlock": "filter_cp",
+        "nameKo": "필터: 전투력 하한",
+        "pullsPerBatch": 75
+      },
+      {
+        "summonLv": 35,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 110,
+        "nameKo": "자동 소환 110개씩"
+      },
+      {
+        "summonLv": 40,
+        "unlock": "filter_slot",
+        "nameKo": "필터: 부위 선택",
+        "pullsPerBatch": 160
+      },
+      {
+        "summonLv": 45,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 230,
+        "nameKo": "자동 소환 230개씩"
+      },
+      {
+        "summonLv": 50,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 330,
+        "nameKo": "자동 소환 330개씩"
+      },
+      {
+        "summonLv": 55,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 470,
+        "nameKo": "자동 소환 470개씩"
+      },
+      {
+        "summonLv": 60,
+        "unlock": "auto_scale",
+        "pullsPerBatch": 700,
+        "nameKo": "자동 소환 700개씩"
+      }
+    ],
+    "progressionNote": "nameKo 는 화면에 그대로 뜬다. 비어 있으면 auto_scale 같은 내부 키가 노출된다.",
+    "autoSummon": {
+      "trigger": "유저가 자동 소환 ON. 황금 열쇠가 남아있는 동안 반복.",
+      "batchIntervalSec": 1,
+      "stopConditions": [
+        "열쇠 소진",
+        "유저 OFF",
+        "인벤토리 상한"
+      ],
+      "offlineAccrual": false,
+      "offlineNote": "오프라인 자동 소환은 넣지 않는다. 넣으면 열쇠가 자동 소모돼 유저가 통제감을 잃고, 필터 설정 실수의 피해가 복구 불가능해진다."
+    },
+    "verse8Constraint": {
+      "problem": "remoteFunction 호출 제한 ~10회/초. 자동 소환을 뽑기 1회당 1호출로 구현하면 Lv60에서 초당 700회 호출이 되어 즉시 한계를 넘는다.",
+      "solution": "배치 호출. 클라가 remoteFunction('autoSummonEquip', [{ count: pullsPerBatch }]) 를 1초에 1번 호출하고, 서버가 count회를 한 번에 굴려 결과를 배열로 반환한다.",
+      "filterOnServer": "필터 판정과 자동 분해까지 서버에서 처리한다. 통과분만 클라로 반환하므로 전송량도 함께 줄어든다.",
+      "clientRole": "클라는 연출만 재생. 실제 판정은 전부 서버.",
+      "reference": "https://docs.verse8.io/ko/docs/gameserver/sdk/remoteFunction"
+    }
+  },
+  "filter": {
+    "purpose": "자동 소환에서 쓸모없는 하위 장비가 인벤토리를 채우는 것을 막는다. 통과 못한 장비는 즉시 자동 분해 -> 골드.",
+    "appliesTo": "auto_summon only",
+    "manualSummonNote": "수동 소환에는 필터를 적용하지 않는다. 유저가 직접 뽑은 결과를 게임이 임의로 버리면 신뢰를 잃는다.",
+    "conditions": [
+      {
+        "id": "min_grade",
+        "nameKo": "최소 등급",
+        "unlockLv": 20,
+        "type": "tier_threshold",
+        "range": [
+          1,
+          10
+        ],
+        "default": 1
+      },
+      {
+        "id": "min_cp",
+        "nameKo": "최소 전투력 기여",
+        "unlockLv": 30,
+        "type": "number_threshold",
+        "note": "해당 장비를 장착했을 때의 CP 기여도 기준. 등급뿐 아니라 강화 상태·세트 적합성까지 반영된다.",
+        "default": 0
+      },
+      {
+        "id": "slots",
+        "nameKo": "부위 선택",
+        "unlockLv": 40,
+        "type": "multi_select",
+        "options": [
+          "weapon",
+          "armor",
+          "accessory",
+          "talisman",
+          "banner",
+          "relic"
+        ],
+        "default": "all"
+      }
+    ],
+    "combineRule": "AND. 모든 활성 조건을 통과해야 보관.",
+    "alwaysKeep": "현재 장착 중인 장비보다 CP 기여가 높으면 필터와 무관하게 무조건 보관한다. 필터 설정 실수로 상위 장비를 버리는 사고를 막는 안전장치.",
+    "ui": {
+      "presets": [
+        "전부 보관",
+        "영웅 이상",
+        "전설 이상",
+        "신화 이상",
+        "직접 설정"
+      ],
+      "resultSummary": "자동 소환 종료 시 요약 표시. 예: '700회 소환 / 보관 12 / 분해 688 / 골드 +4.2M / 전투력 +8,340'",
+      "resultSummaryNote": "낱개 결과를 다 보여주면 700개가 흘러가서 아무것도 안 보인다. 요약과 최고 등급 획득분만 강조."
+    }
+  },
+  "duplicateHandling": {
+    "behavior": "부위별로 CP 기여가 가장 높은 장비만 유지, 나머지는 자동 분해 -> 골드",
+    "goldByTier": {
+      "1": 100,
+      "2": 300,
+      "3": 900,
+      "4": 2700,
+      "5": 8000,
+      "6": 24000,
+      "7": 72000,
+      "8": 216000,
+      "9": 650000,
+      "10": 2000000
+    },
+    "goldSinkNote": "분해 골드가 economy.json risks > gold_inflation 를 악화시킨다. 자동 소환 물량이 커질수록 골드가 폭증하므로 T10 강화 비용(5,000,000 x 2.15^15)이 주 소모처로 기능해야 한다.",
+    "note": "장비는 레벨 개념이 없다(강화만 있음). 부위별로 CP가 가장 높은 것만 유지, 나머지 자동 분해."
+  },
+  "equipMode": "manual_with_recommendation",
+  "equipFlow": {
+    "trigger": "자동/수동 소환으로 현재 장착품보다 총 CP 기여가 높은 장비가 인벤토리에 생기면",
+    "badge": {
+      "location": "대장간 아이콘 + 하단 네비 장비 탭",
+      "content": "교체 가능한 부위 수",
+      "effect": "반짝임 + 빨간 뱃지",
+      "note": "뱃지가 곧 복귀 동기다. 자동 소환을 돌려놓고 나갔다가 뱃지를 보고 돌아온다."
+    },
+    "steps": [
+      "1. 대장간 아이콘 클릭 -> 장비 오버레이",
+      "2. 6부위 각각에 [현재 장착] vs [대기 중 최고] 나란히 표시",
+      "3. 업그레이드 가능한 부위에 초록 화살표 + 총 CP 증가량",
+      "4. 부위별 [교체] 버튼 (세트 파괴 시 경고) 또는 상단 [전체 교체] 버튼",
+      "5. 교체 시 장착 슬롯에서 반짝임 + 상단 전투력 즉시 상승"
+    ],
+    "replacedItem": "교체로 밀려난 기존 장비는 즉시 자동 분해 -> 골드"
+  },
+  "setsRemoved": {
+    "removed": [
+      "sets(강철/야수/마도)",
+      "setBonus(3부위 +0.15 / 6부위 +0.35)",
+      "reforge(계열 변경)"
+    ],
+    "reason": "계열·세트 기획 삭제.",
+    "compensation": "세트 보너스 0.35가 빠지면 장비 보너스 최대치가 1.8575 -> 1.5075로 내려가 CP 천장이 1,834,000 -> 1,609,300 이 된다. St200 요구(1,600,000)가 천장의 99.4%가 되어 사실상 도달 불가가 되므로, 등급 계수 전체를 x1.2322 배 해서 세트분을 흡수했다. T10 0.150 -> 0.1848.",
+    "sideEffects": [
+      "에셋 장비 아이콘 18장 -> 6장 (부위만, 계열 없음)",
+      "goldsinks 재련 소모처 삭제",
+      "자동장착이 729 조합 전수평가 -> 부위별 그리디로 단순화",
+      "개별 교체 시 세트 파괴 경고 불필요"
+    ]
+  },
+  "assetBands": [
+    {
+      "band": 1,
+      "tiers": "1-3",
+      "suffix": "EQ-?1"
+    },
+    {
+      "band": 2,
+      "tiers": "4-6",
+      "suffix": "EQ-?2"
+    },
+    {
+      "band": 3,
+      "tiers": "7-8",
+      "suffix": "EQ-?3"
+    },
+    {
+      "band": 4,
+      "tiers": "9-10",
+      "suffix": "EQ-?4"
+    }
+  ]
+}

@@ -1,0 +1,612 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "재화 정의 / 장비 소환 레벨 타이머 / 자동강화·캐스케이드 / 혼 상점 / 과금 패키지",
+    "targetLifespanDays": 180,
+    "sessionPattern": "3회 x 5분/일",
+    "monetizationGap": "무과금 3개월 = 과금 1개월 (3배속)"
+  },
+  "currencies": {
+    "diamond": {
+      "nameKo": "다이아",
+      "asset": "cur_CU01",
+      "type": "premium",
+      "uses": [
+        "용병 소환",
+        "스킬 소환",
+        "타이머 즉시완료",
+        "상점"
+      ],
+      "hudAlways": true
+    },
+    "golden_key": {
+      "nameKo": "황금 열쇠",
+      "asset": "cur_CU02",
+      "type": "dedicated",
+      "uses": [
+        "장비 소환"
+      ],
+      "hudAlways": false
+    },
+    "forge_ore": {
+      "nameKo": "제련석",
+      "asset": "cur_CU03",
+      "type": "dedicated",
+      "uses": [
+        "장비 소환 레벨업"
+      ],
+      "hudAlways": true
+    },
+    "gold": {
+      "nameKo": "골드",
+      "asset": "cur_CU04",
+      "type": "basic",
+      "uses": [
+        "장비 강화",
+        "용병 레벨업"
+      ],
+      "hudAlways": true
+    },
+    "merc_ticket": {
+      "nameKo": "용병 소환권",
+      "asset": "cur_CU05",
+      "type": "ticket",
+      "uses": [
+        "용병 소환 1회 대체"
+      ]
+    },
+    "skill_ticket": {
+      "nameKo": "스킬 소환권",
+      "asset": "cur_CU06",
+      "type": "ticket",
+      "uses": [
+        "스킬 소환 1회 대체"
+      ]
+    },
+    "equip_ticket": {
+      "nameKo": "장비 소환권",
+      "asset": "cur_CU07",
+      "type": "ticket",
+      "uses": [
+        "장비 소환 1회 대체"
+      ]
+    }
+  },
+  "currencyDesign": {
+    "diamondShared": "용병·스킬 소환이 다이아를 공유한다. 매번 '어느 트랙에 쓸까' 선택이 발생 - 시너지 삭제로 사라진 전략 레이어가 여기서 복구된다. 두 트랙의 CP 계수가 0.005로 동일하므로 정답이 없다.",
+    "equipmentIsolated": "장비는 전용 재화(열쇠)라 다이아 배분 압박에서 제외. 트랙별 게이트 성격이 깔끔하게 분리됨.",
+    "hudLimit": "HUD 상시 노출은 다이아·골드 2개만. 모래시계는 제작대 화면, 훈장은 아레나 화면에서만 뜬다.",
+    "noSoul": "혼(용병혼·스킬혼)을 폐기했다. 재화가 늘수록 유저가 \"이건 어디 쓰는 거냐\"를 배우는 비용만 커지고, 혼은 배출처(영혼의 탑)와 소모처(혼 상점)가 서로만 바라보는 닫힌 고리라 빼도 다른 곳이 안 흔들린다. 대신 확정 획득 경로가 사라지므로 UR 획득은 순수 확률이 된다.",
+    "noSpeedupTickets": "가속권 1h/6h/1d 를 폐기했다. 제작 시간 단축은 모래시계(5분) 하나로 통일한다 — 같은 일을 하는 재화가 네 개면 유저가 어느 걸 아껴야 하는지 못 배운다. 기존 지급분은 모래시계로 환산하되 시간 그대로가 아니라 크게 낮췄다 (1일권 1장 = 10개). 시간대로 주면 무과금이 타이머를 통째로 씹는다."
+  },
+  "autoEnhance": {
+    "trigger": "용병탭 / 스킬탭 상단 '자동강화' 버튼",
+    "currencyCost": 0,
+    "note": "중복은 즉시 반영되지 않고 '강화 대기 재료'로 누적. 버튼 1회 = 가능한 모든 레벨업 일괄 처리. 소환 연출이 레벨업 팝업에 끊기지 않고, 유저에게 행위 감각을 준다.",
+    "badge": "대기 재료 존재 시 탭에 빨간 뱃지 (복귀 유도)",
+    "processOrder": [
+      "1. 미보유 -> Lv1로 신규 등록",
+      "2. 보유 & 캡 미달 -> 해당 대상 레벨업",
+      "3. 보유 & 캡 도달 -> 캐스케이드",
+      "4. 전 대상 캡 도달 -> 전량 이월 카운터에 적립",
+      "5. 이관 후 나머지 -> 이월 카운터에 적립"
+    ],
+    "verse8Constraint": {
+      "rateLimit": "remoteFunction 호출 ~10회/초",
+      "requirement": "반드시 remoteFunction('autoEnhance') 단일 호출로 서버가 전량 일괄 계산. 중복 개당 호출 금지.",
+      "reference": "https://docs.verse8.io/ko/docs/gameserver/sdk/remoteFunction"
+    }
+  },
+  "cascade": {
+    "description": "레벨 캡 찍은 대상을 또 뽑으면 CP 서열상 다음으로 강하면서 캡 미달인 대상에게 레벨이 이관됨",
+    "unit": "dupe_value",
+    "formula": {
+      "dupeValue": "dupeValue[dupe.grade]",
+      "levelCost": "dupeValue[target.grade]",
+      "levelsTransferred": "floor(carried / levelCost)",
+      "carry": "carried = 이월분 + dupeValue. 나머지는 버리지 않고 그 트랙에 그대로 남는다"
+    },
+    "targetSelection": "같은 트랙 내 CP 내림차순으로 캡 미달 대상 탐색",
+    "examples": [
+      {
+        "dupe": "SR(10)",
+        "target": "SR(10/lv)",
+        "result": "+1레벨"
+      },
+      {
+        "dupe": "UR(100)",
+        "target": "SR(10/lv)",
+        "result": "+10레벨"
+      },
+      {
+        "dupe": "N(1)",
+        "target": "SSR(30/lv)",
+        "result": "0레벨, 혼 1 적립"
+      }
+    ],
+    "synergyWithAutoEquip": "CP 내림차순 이관이므로 실제 편성된 5명이 항상 먼저 강화된다. 전투력 효율 자동 최적화.",
+    "uiRequirement": "이관 로그 필수 노출. 예: '백호 검성 MAX → 창공 독수리 Lv12→Lv15 (+3) / 이월 40'. 안 보이면 'UR 중복 어디 갔냐' 문의가 터진다.",
+    "carryNote": "혼이 없어졌으므로 나머지를 재화로 적립하지 않는다. 트랙별 이월 카운터에 그대로 쌓아 두고 다음 중복이 들어올 때 합산한다. 버리면 N 중복이 영원히 무가치해지고, 새 재화를 만들면 혼이 이름만 바꿔 돌아온다."
+  },
+  "equipmentSummonLevel": {
+    "maxLevel": 60,
+    "currency": "gold",
+    "failureChance": 0,
+    "failureNote": "실패 확률 넣으면 시간 대기와 겹쳐서 이탈 요인. 확정 성공.",
+    "offlineProgress": true,
+    "concurrentSlots": {
+      "base": 1,
+      "premium": 2,
+      "max": 2
+    },
+    "slotWarning": "3슬롯은 만들지 말 것. 슬롯이 늘면 시간 게이트 자체가 무너진다.",
+    "timeMinutes": [
+      5,
+      6,
+      7,
+      9,
+      11,
+      13,
+      16,
+      20,
+      25,
+      30,
+      60,
+      70,
+      82,
+      95,
+      111,
+      129,
+      151,
+      176,
+      205,
+      240,
+      360,
+      389,
+      420,
+      454,
+      490,
+      529,
+      572,
+      617,
+      667,
+      720,
+      1080,
+      1166,
+      1260,
+      1361,
+      1470,
+      1587,
+      1714,
+      1852,
+      2000,
+      2160,
+      2880,
+      3110,
+      3359,
+      3628,
+      3918,
+      4232,
+      4571,
+      4937,
+      5332,
+      5760,
+      7200,
+      7852,
+      8563,
+      9338,
+      10184,
+      11106,
+      12112,
+      13208,
+      14400
+    ],
+    "totals": {
+      "totalTimeDays": 110,
+      "f2pMaxLevelDay": 180,
+      "totalGold": 1201023800
+    },
+    "forgeVisualStages": [
+      {
+        "stage": 1,
+        "asset": "forge_FG01",
+        "levelRange": "1-20"
+      },
+      {
+        "stage": 2,
+        "asset": "forge_FG02",
+        "levelRange": "21-40"
+      },
+      {
+        "stage": 3,
+        "asset": "forge_FG03",
+        "levelRange": "41-60"
+      }
+    ],
+    "serverAuthority": {
+      "requirement": "레벨업 시작 시각을 서버에 기록하고 완료 판정도 서버가 한다. 로컬 시간 기준이면 기기 시계 조작으로 즉시 완료 치트가 가능하고, 랭킹이 통째로 무너진다.",
+      "verse8Api": "remoteFunction + $global.updateMyState"
+    },
+    "currencyNote": "제련석(forge_ore)은 폐기됐다. 게이트 재화를 하나 더 두면 유저가 \"뭐가 모자란지\" 를 매번 확인해야 한다. 골드는 이미 방치·스테이지에서 상시 들어오므로 진행이 막히는 지점이 명확해진다.",
+    "goldCost": [
+      27200,
+      35300,
+      46200,
+      59800,
+      76100,
+      95200,
+      117000,
+      139000,
+      152000,
+      163000,
+      272000,
+      326000,
+      386000,
+      451000,
+      522000,
+      598000,
+      680000,
+      734000,
+      778000,
+      816000,
+      1090000,
+      1240000,
+      1410000,
+      1590000,
+      1790000,
+      2010000,
+      2250000,
+      2450000,
+      2600000,
+      2720000,
+      4350000,
+      4950000,
+      5600000,
+      6310000,
+      7070000,
+      7890000,
+      8760000,
+      9570000,
+      10300000,
+      10900000,
+      16300000,
+      18400000,
+      20600000,
+      23000000,
+      25600000,
+      28300000,
+      31200000,
+      33700000,
+      36000000,
+      38100000,
+      54400000,
+      61400000,
+      69600000,
+      78900000,
+      89200000,
+      101000000,
+      113000000,
+      125000000,
+      136000000
+    ],
+    "goldCostNote": "배열 index i 는 Lv 2 → Lv i+2 로 올리는 **총** 비용이다. 구 oreCost 곡선의 모양을 유지한 채 총합이 골드 예산 배분(1,200,000,000)과 맞도록 ×543.8 배율을 걸고 유효숫자 3자리로 반올림했다.",
+    "installments": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "installmentsNote": "분할 납부 횟수. 총액은 고정이고 이걸 n 회로 쪼개 넣는다 (1회분 = ceil(총액/n)). Lv30 까지 4회, 이후 6회. 회차가 늘어도 총액은 같다 — 후반에 진행감이 더 잘게 보이게 하는 장치다.",
+    "speedup": {
+      "id": "speedup_5m",
+      "nameKo": "모래시계",
+      "reduceMinutes": 5,
+      "diamondPrice": 12,
+      "bulk": [
+        {
+          "count": 1,
+          "diamond": 12
+        },
+        {
+          "count": 10,
+          "diamond": 110,
+          "discount": 0.08
+        },
+        {
+          "count": 60,
+          "diamond": 600,
+          "discount": 0.17
+        }
+      ],
+      "monetizationNote": "주 공급은 **다이아 구매**다. 무과금 수급으로 충분해지면 과금할 이유가 사라진다. 후반 제작 시간이 하루를 넘어가는 지점이 결제 전환점이고, 그때 모래시계가 유일한 단축 수단이어야 한다. 즉시완료(다이아 정액)를 없앤 것도 같은 이유다 — 단축 수단이 둘이면 싼 쪽만 쓴다.",
+      "f2pTrickle": "무과금은 **맛보기만** 얻는다. 탑 10층 마일스톤과 광고 보상뿐이고 정기 공급원은 없다. 쓰는 법을 배울 만큼만 주고, 계속 쓰려면 사야 한다.",
+      "priceBasis": "5분당 12다이아 = 1시간 144다이아. Lv41 제작시간 36시간을 통째로 줄이면 5,184다이아 — 패키지 기준 실화폐로 유의미한 금액이다. 통째로 지르기보다 \"몇 시간만 당기기\"를 유도한다."
+    }
+  },
+  "timeSkip": {
+    "adWatch": {
+      "reduceMinutes": 30,
+      "dailyLimit": 5,
+      "premiumBonusLimit": 5,
+      "lateGameSwitch": {
+        "fromLevel": 40,
+        "mode": "percent",
+        "reducePct": 0.03,
+        "reason": "정액 -30분은 초반엔 강력하지만 10일짜리 레벨엔 무의미해진다. Lv40+ 부터 정률로 전환해야 후반 광고 노출이 유지된다."
+      },
+      "verse8Api": "https://docs.verse8.io/ko/docs/ads/server-verification"
+    },
+    "instantComplete": {
+      "formula": "diamond = ceil(remainingMinutes / 6)",
+      "minimum": 5,
+      "examples": [
+        {
+          "remaining": "4시간(240분)",
+          "cost": 40
+        },
+        {
+          "remaining": "4일(5760분)",
+          "cost": 960
+        }
+      ],
+      "designIntent": "후반 레벨은 즉시완료가 비싸져 자연스럽게 '광고+가속권으로 야금야금'을 유도. 광고 노출량 확보."
+    },
+    "speedupItems": [],
+    "speedupSource": "퀘스트 보상 (장비 소환 레벨 퀘스트의 선행 공급). 재화만 줘도 시간이 안 지나면 못 깨므로 필수."
+  },
+  "premiumPass": {
+    "type": "subscription",
+    "period": "monthly",
+    "benefits": {
+      "dailyDiamond": 500,
+      "totalDiamondPerMonth": 15000,
+      "forgeSlots": 1,
+      "timerReducePct": 0.2,
+      "adLimitBonus": 5,
+      "dungeonEntryBonus": 2
+    }
+  },
+  "diamondPackages": {
+    "exchangeRate": "약 1890 다이아 = $1 (VX 환산은 VXShop 등록 시 확정)",
+    "packages": [
+      {
+        "id": "first_buy",
+        "diamond": 1500,
+        "bonusDiamond": 1500,
+        "oncePerAccount": true,
+        "nameKo": "첫 결제 2배"
+      },
+      {
+        "id": "pack_s",
+        "diamond": 8000
+      },
+      {
+        "id": "pack_m",
+        "diamond": 17000
+      },
+      {
+        "id": "pack_l",
+        "diamond": 55000
+      },
+      {
+        "id": "pack_xl",
+        "diamond": 100000
+      },
+      {
+        "id": "pack_xxl",
+        "diamond": 220000
+      }
+    ],
+    "gapVerification": {
+      "f2p_90day_pulls": 1320,
+      "paid_30day_naturalPulls": 440,
+      "paid_30day_purchasedPulls": 880,
+      "requiredDiamondPerMonth": 132000,
+      "result": "3배속 성립"
+    },
+    "vxshop": "https://docs.verse8.io/ko/docs/vxshop/prerequisites"
+  },
+  "faucetDistribution": {
+    "perCurrency": true,
+    "note": "통화별로 주력 배출원이 다르다. 하나의 전역 비율로 묶으면 안 된다 - 골드는 스테이지 파밍 재화이고, 다이아·열쇠·제련석은 던전 게이트 재화다.",
+    "gold": {
+      "stageAndIdle": 0.85,
+      "dungeon_gold_mine": 0.15
+    },
+    "diamond": {
+      "dungeon_crystal_cave": 0.55,
+      "quest": 0.25,
+      "dailyAndAds": 0.12,
+      "stageFirstClear": 0.08
+    },
+    "golden_key": {
+      "dungeon_treasure_vault": 0.7,
+      "quest": 0.2,
+      "dailyAndAds": 0.1
+    },
+    "forge_ore": {
+      "dungeon_furnace": 0.75,
+      "quest": 0.2,
+      "dailyAndAds": 0.05
+    },
+    "gateNote": "게이트 재화(다이아·열쇠·제련석)를 던전이 지배한다는 것은 그 배출이 CP에 종속된다는 뜻이다 - 강한 유저가 더 빨리 강해지는 양의 피드백. 랭킹 경쟁 게임에선 필요하다. 퀘스트+일일 고정 배출이 무과금 안전망 역할.",
+    "history": {
+      "v1": {
+        "dungeon": 0.6,
+        "quest": 0.2,
+        "idle": 0.1,
+        "dailyAndAds": 0.1
+      },
+      "reason": "v1의 전역 비율은 골드에 맞지 않았다. 스테이지 보상 공식을 세우자 골드 배출의 85%가 스테이지/방치에서 나오는 것이 확인됐다."
+    }
+  },
+  "f2pDailyYield": [
+    {
+      "day": 1,
+      "diamond": 350,
+      "gold": 120000,
+      "goldenKey": 0,
+      "forgeOre": 0,
+      "pullsPerDay": 2
+    },
+    {
+      "day": 7,
+      "diamond": 700,
+      "gold": 3300000,
+      "goldenKey": 45,
+      "forgeOre": 0,
+      "pullsPerDay": 5
+    },
+    {
+      "day": 30,
+      "diamond": 1400,
+      "gold": 14400000,
+      "goldenKey": 180,
+      "forgeOre": 12000,
+      "pullsPerDay": 9
+    },
+    {
+      "day": 60,
+      "diamond": 2200,
+      "gold": 35500000,
+      "goldenKey": 600,
+      "forgeOre": 45000,
+      "pullsPerDay": 15
+    },
+    {
+      "day": 120,
+      "diamond": 3400,
+      "gold": 124000000,
+      "goldenKey": 2400,
+      "forgeOre": 173000,
+      "pullsPerDay": 23
+    },
+    {
+      "day": 180,
+      "diamond": 4600,
+      "gold": 193000000,
+      "goldenKey": 6000,
+      "forgeOre": 480000,
+      "pullsPerDay": 31
+    }
+  ],
+  "goldColumnNote": "골드 수치는 v2에서 stages.json > rewards 공식 + dungeons.json > gold_mine 로 생성한 값으로 교체됐다. v1 값(D1 6만 ~ D180 3억)은 근거 없는 손추정이었고, 생애 누적이 goldsinks 예산의 0.18배에 그쳤다.",
+  "f2pProgressSim": [
+    {
+      "day": 7,
+      "cumulativePulls": 25,
+      "mercSummonLv": 3,
+      "skillSummonLv": 3,
+      "equipSummonLv": 8
+    },
+    {
+      "day": 30,
+      "cumulativePulls": 320,
+      "mercSummonLv": 10,
+      "skillSummonLv": 10,
+      "equipSummonLv": 22
+    },
+    {
+      "day": 60,
+      "cumulativePulls": 1050,
+      "mercSummonLv": 17,
+      "skillSummonLv": 17,
+      "equipSummonLv": 33
+    },
+    {
+      "day": 120,
+      "cumulativePulls": 2180,
+      "mercSummonLv": 25,
+      "skillSummonLv": 25,
+      "equipSummonLv": 48
+    },
+    {
+      "day": 180,
+      "cumulativePulls": 3900,
+      "mercSummonLv": 33,
+      "skillSummonLv": 33,
+      "equipSummonLv": 60
+    }
+  ],
+  "f2pProgressNote": "장비 Lv60은 무과금도 도달(시간 게이트라 과금 무관). 용병·스킬은 무과금 Lv33~34에서 멈춤(MAX 50) - 과금 축으로 남는다. 시간은 평등, 다이아는 불평등.",
+  "free1000Adjustment": {
+    "note": "무료 1000뽑(free1000.json) 도입 후 위 f2pDailyYield / f2pProgressSim 은 수정 동굴 baseYield 250 -> 190 보정을 전제로 한다. 보정 후 D180 누적 뽑기 약 4,050, 소환Lv 34로 원래 설계에 복귀.",
+    "compensationTarget": "dungeons.json > crystal_cave.baseYield"
+  },
+  "risks": [
+    {
+      "id": "f2p_stage200_gap",
+      "severity": "high",
+      "description": "무과금 St200 도달 약 D190. 6개월 안에 최종 스테이지를 못 깬다.",
+      "mitigation": "D150 전에 시즌 콘텐츠(LR 한정, 시즌 아레나) 투입해 목표를 갈아끼워야 한다. 라이브 운영 계획 필요."
+    },
+    {
+      "id": "gold_inflation",
+      "severity": "resolved",
+      "description": "D180 일일 3억 골드. 장비 강화만으로는 소모처 부족.",
+      "mitigation": "goldsinks.json 에서 소모처 5종으로 해결. 장비 강화(50%) / 훈련소(27%) / 환전소(13%, 무한) / 재련(6%) / 던전 재도전(4%). 환전소가 유일한 무한 소모처로 지수 배출을 흡수한다.",
+      "residualTodo": "프로토타입에서 D30/D90/D180 골드 수지 실측 필요. 현재 수치는 추정."
+    },
+    {
+      "id": "diamond_price_lock",
+      "severity": "high",
+      "description": "다이아 단가 150이 무과금 진행속도·과금 격차·소환레벨 곡선을 전부 결정한다. 출시 후 변경 불가에 가깝다.",
+      "mitigation": "소프트런칭으로 검증."
+    }
+  ]
+}

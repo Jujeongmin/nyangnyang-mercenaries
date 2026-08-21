@@ -1,0 +1,814 @@
+// 스테이지 전투 씬.
+//
+// combat.json > stageRules 를 그대로 따른다:
+//   · 아군은 죽지 않는다 (allyInvulnerable). 잡몹은 때리는 연출만 한다
+//   · DEF 감산 없음 — 순수 DPS 레이스
+//   · 실패 조건은 제한 시간 초과 하나뿐
+//
+// 진행 구조는 stages.json > enemyDerivation:
+//   조우 3회 × 잡몹 4 → 보스 1
+
+import { UnitRig } from './rig.js';
+import { Impact } from './impact.js';
+import { DamageNumbers } from './numbers.js';
+import { motionForClass } from './motions.js';
+import { loadCutout } from './cutout.js';
+import { FxLayer, HIT_BY_MOTION, skillFx } from './fx.js';
+
+const PIXI = () => window.PIXI;
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+// 아군 5인 "(" 대형 — 앞(아래)일수록 크고 늦게 그린다
+// 용병 5명 — 단장 뒤로 '(' 호. 양 끝이 앞(오른쪽)으로 나오고 가운데가 뒤로 부푼다.
+// dy 가 위로 갈수록 멀리 선 것이므로 sc 를 줄이고 z 를 낮춘다 — 겹쳐도 앞뒤가 읽힌다.
+const ALLY_LANE = [
+  { dx: 0.34, dy: 0.36, sc: 1.04, z: 16 },
+  { dx: -0.22, dy: 0.00, sc: 0.99, z: 15 },
+  { dx: -0.46, dy: -0.38, sc: 0.94, z: 14 },
+  { dx: -0.22, dy: -0.76, sc: 0.90, z: 13 },
+  { dx: 0.34, dy: -1.12, sc: 0.86, z: 12 },
+];
+// 적 공격 유형 -> 모션. 컷아웃을 안 하므로 몸 전체로 표현한다.
+const MOB_MOTION = { charge: 'pounce', thrust: 'thrust', projectile: 'cast' };
+
+const FOE_LANE = [
+  { dx: -0.10, dy: 0.20, sc: 1.05, z: 16 },
+  { dx: 0.62, dy: -0.12, sc: 0.97, z: 15 },
+  { dx: 0.20, dy: -0.72, sc: 0.88, z: 14 },
+  { dx: 0.86, dy: -0.86, sc: 0.80, z: 13 },
+];
+
+export class BattleScene {
+  /**
+   * @param opt.data      data/*.json (core/data.js 의 D)
+   * @param opt.onEvent   전투 이벤트 콜백 (stage/wave/win/lose/dps)
+   */
+  constructor(canvas, opt) {
+    this.canvas = canvas;
+    this.D = opt.data;
+    this.onEvent = opt.onEvent || (() => {});
+    this.speed = 1;
+    this.paused = false;
+    this.units = [];
+    this.foes = [];
+    this.tex = new Map();
+    this.activeSkills = [];        // main 이 채운다. 스킬 이펙트 선택에 쓴다
+  }
+
+  async init() {
+    const P = PIXI();
+    const app = new P.Application();
+    await app.init({
+      canvas: this.canvas, background: '#16202f',
+      antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true,
+    });
+    this.app = app;
+
+    this.world = new P.Container(); app.stage.addChild(this.world);
+    this.bg = new P.Container(); this.world.addChild(this.bg);
+    this.field = new P.Container(); this.field.sortableChildren = true; this.world.addChild(this.field);
+    // 이펙트는 유닛 위, 데미지 숫자 아래에 깔린다
+    this.fxLayer = new P.Container(); this.world.addChild(this.fxLayer);
+    this.ui = new P.Container(); this.world.addChild(this.ui);
+
+    this.impact = new Impact(P, this.world);
+    this.fx = new FxLayer(P, this.fxLayer);
+    this.numbers = new DamageNumbers(P, this.ui);
+
+    // 전투에 쓰는 이펙트만 미리 받는다 (소환 연출 FX-* 는 소환 화면에서)
+    await this.fx.preload([
+      'HIT-01', 'HIT-02', 'HIT-03', 'HIT-04', 'HIT-05', 'HIT-06', 'HIT-07', 'HIT-08',
+      'PX-01', 'PX-02', 'PX-03',
+      ...Array.from({ length: 9 }, (_, i) => `PJ-0${i + 1}`),
+      ...Array.from({ length: 12 }, (_, i) => `SFX-${String(i + 1).padStart(2, '0')}`),
+    ]);
+
+    app.ticker.add(t => this.tick(t.deltaMS));
+    app.renderer.on('resize', () => this.layout());
+
+    // 창 resize 이벤트만 믿으면 안 된다. 탭이 숨어 있거나 모바일 주소창이
+    // 접혔다 펴질 때 이벤트가 안 오거나 CSS 반영 전에 와서 백버퍼가 어긋난다.
+    // 그러면 캔버스가 실제 박스보다 커진 채 남아 화면이 잘려 보인다.
+    const host = this.canvas.parentElement;
+    const fit = () => {
+      const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
+      if (app.renderer.width === w && app.renderer.height === h) return;
+      app.renderer.resize(w, h);
+      this.layout();
+    };
+    this._ro = new ResizeObserver(fit);
+    this._ro.observe(host);
+    fit();
+  }
+
+  /** assets/trim.json — 원화별 불투명 영역. 크기·발밑 기준이 된다. */
+  async loadTrim() {
+    if (this._trim) return this._trim;
+    try {
+      const r = await fetch('../assets/trim.json');
+      this._trim = r.ok ? await r.json() : {};
+    } catch { this._trim = {}; }
+    return this._trim;
+  }
+
+  async load(path) {
+    if (!this.tex.has(path)) {
+      try { this.tex.set(path, await PIXI().Assets.load(path)); }
+      catch { this.tex.set(path, null); }
+    }
+    return this.tex.get(path);
+  }
+
+  /**
+   * 배경 교체. 잘라 붙이면 다음 스테이지로 넘어갈 때 화면이 툭 끊긴다.
+   * 새 배경을 같은 스크롤 위상으로 겹쳐 띄우고 교차 페이드한다.
+   */
+  async setBackground(id) {
+    if (this.bgId === id) return;
+    const P = PIXI();
+    const t = await this.load(`../assets/bg/${id}.png`);
+    if (!t) return;
+    this.bgId = id;
+
+    // 배경 2장을 이어 붙여 무한 스크롤
+    // 한 장 걸러 좌우 반전이라 주기가 2*bgW 다. 화면을 덮으려면 4장.
+    const layer = new P.Container();
+    for (let i = 0; i < 4; i++) layer.addChild(new P.Sprite(t));
+    layer.bgTex = t;
+    this.bg.addChild(layer);
+
+    const old = this.bgLayer;
+    layer.alpha = old ? 0 : 1;
+    this.bgLayer = layer;
+    if (old) this.bgFade = { old, next: layer, t: 0, dur: 0.8 };
+    this.layout();
+  }
+
+  /** 스크롤 위상(bgOff)을 모든 레이어에 반영한다. 레이어가 둘이어도 어긋나지 않는다. */
+  placeBg() {
+    const W = this.bgW;
+    if (!W) return;
+    const s = this.bgScale;
+    const off = ((this.bgOff ?? 0) % (W * 2) + W * 2) % (W * 2);
+    for (const layer of this.bg.children) {
+      layer.children.forEach((sp, i) => {
+        sp.anchor.set(0.5, 0);
+        sp.scale.set(i % 2 ? -s : s, s);
+        sp.x = i * W - off + W / 2;
+        sp.y = 0;
+      });
+    }
+  }
+
+  /** assets/cutout/<ID>.json 이 있으면 무기 팔을 분리해 돌린다. */
+  async cutoutFor(id, src) {
+    if (!this._cut) this._cut = new Map();
+    if (this._cut.has(id)) return this._cut.get(id);
+    let out = null;
+    try {
+      const r = await fetch(`../assets/cutout/${id}.json`);
+      if (r.ok) out = await loadCutout(PIXI(), src, await r.json());
+    } catch { /* 없으면 몸통만 */ }
+    this._cut.set(id, out);
+    return out;
+  }
+
+  /**
+   * @param party [{id, class, grade, level}]
+   * 단장은 파티와 별개다 — characters.json > captain.combatParticipation: false.
+   * 전투에 참여하지 않고 좌측 맨 앞에 지휘 포즈로 선다.
+   */
+  async setParty(party) {
+    for (const u of this.units) u.rig.view.destroy({ children: true });
+    this.units = [];
+    if (this.captain) { this.captain.view.destroy({ children: true }); this.captain = null; }
+    if (this.capBar) { this.capBar.destroy(); this.capBar = null; }
+
+    const TR = await this.loadTrim();
+    const capSrc = '../assets/captain/captain_warrior.png';
+    const capTex = await this.load(capSrc);
+    if (capTex) {
+      const arm = await this.cutoutFor('captain_warrior', capSrc);
+      this.captain = new UnitRig(PIXI(), capTex, {
+        size: this.allySize() * 1.0, facing: 1, grid: [5, 9], motion: 'slash', arm,
+        trim: TR.captain_warrior,
+      });
+      this.field.addChild(this.captain.view);
+      // 파티 체력바. 단장이 파티를 대표한다 — 용병마다 띄우면 막대밭이 된다.
+      this.capBar = new (PIXI().Graphics)();
+      this.ui.addChild(this.capBar);
+    }
+    for (const m of party) {
+      const src = m.id === 'CAPTAIN'
+        ? '../assets/captain/captain_warrior.png'
+        : `../assets/char/${m.id}.png`;
+      const t = await this.load(src);
+      if (!t) continue;
+      const arm = await this.cutoutFor(m.id === 'CAPTAIN' ? 'captain_warrior' : m.id, src);
+      const rig = new UnitRig(PIXI(), t, {
+        size: this.allySize(), facing: 1, grid: [5, 9],
+        motion: motionForClass(m.class), arm, trim: TR[m.id],
+      });
+      this.field.addChild(rig.view);
+      this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5), skillCd: rnd(4, 9) });
+    }
+    this.layout();
+  }
+
+  /** combat.json > enemyAttack.byId. 없으면 몸통박치기로 본다. */
+  enemyKind(id) {
+    const t = this.D.combat.enemyAttack;
+    return (t && t.byId && t.byId[id]) || 'charge';
+  }
+
+  async spawnWave(kind, ids, hpEach) {
+    const TR = await this.loadTrim();
+    const P = PIXI();
+    this.fx?.clear();
+    this.clearFoes();
+    for (const id of ids) {
+      const src = kind === 'boss' ? `../assets/boss/${id}.png` : `../assets/enemy/${id}.png`;
+      const t = await this.load(src);
+      if (!t) continue;
+      const arm = await this.cutoutFor(id, src);
+      const rig = new UnitRig(P, t, {
+        arm,
+        // 보스는 확실히 커야 한다. 잡몹과 급이 같으면 "좀 센 잡몹"으로 읽힌다.
+        // 잡몹은 아군보다 확실히 작아야 한다. 0.88 은 용병과 거의 같아서
+        // 잡몹 셋이 서면 화면 오른쪽이 아군 진영만큼 무거워 보였다.
+        size: kind === 'boss' ? this.allySize() * 1.85 : this.allySize() * 0.68,
+        trim: TR[id],
+        // facing 은 이동 방향(왼쪽으로 돌진), flip 은 스프라이트 반전.
+        // 적 원화는 오른손잡이(무기가 이미지 왼쪽)로 뽑으므로 뒤집지 않는다.
+        facing: -1, flip: false, grid: [5, 9],
+        // 공격 유형에 따라 모션이 갈린다 (combat.json > enemyAttack)
+        motion: MOB_MOTION[this.enemyKind(id)],
+      });
+      this.field.addChild(rig.view);
+      const bar = new P.Graphics();
+      this.ui.addChild(bar);
+      const label = null;   // 보스 이름표는 안 쓴다. 체력바만으로 충분하다.
+      this.foes.push({ id, rig, bar, label, boss: kind === 'boss',
+        atk: this.enemyKind(id),
+        hp: hpEach, maxHp: hpEach, cd: rnd(0.5, 1.6), cdMax: rnd(1.3, 2.0) });
+    }
+    this.layout();
+  }
+
+  /** 아군 5 + 적 4 = 9유닛이 좁은 모바일 화면에 들어가야 한다. 전투 영역 높이 기준. */
+  allySize() {
+    if (!this.app) return 110;
+    const H = this.app.screen.height, W = this.app.screen.width;
+    // 아군 5 + 단장 1 + 적 4 = 10유닛. 크게 잡으면 서로 가려 아무것도 안 읽힌다.
+    return Math.min(H * 0.245, W * 0.19);
+  }
+
+  layout() {
+    if (!this.app) return;
+    const W = this.app.screen.width, H = this.app.screen.height;
+    if (this.bgLayer) {
+      this.bgScale = H / this.bgLayer.bgTex.height;
+      this.bgW = this.bgLayer.bgTex.width * this.bgScale;
+      this.placeBg();
+    }
+    // combat.json > stagePresentation.camera.partyScreenX
+    // 오프셋은 화면폭이 아니라 스프라이트 크기 기준이어야 한다.
+    // 화면폭 기준으로 잡으면 375px 모바일에서 간격이 16px 로 붕괴해 전부 겹친다.
+    const unit = this.allySize() * 0.90;
+    // gy 는 발밑 기준선. 0.80 이면 맨 앞 용병이 퀘스트 바에 걸린다.
+    const px = W * 0.20, ex = W * 0.69, gy = H * 0.72;
+    // 뒤(위)에 선 유닛은 작게 — 원근이 있어야 겹쳐도 읽힌다
+    if (this.captain) {
+      // 단장은 호의 초점 — 세로 한가운데이면서 가장 앞(오른쪽)
+      this.capBy = gy - unit * 0.38;
+      this.captain.setBase(px + unit * 0.98, this.capBy);
+      this.captain.view.zIndex = 20;
+      this.captain.view.scale.set(1.05);
+    }
+    this.units.forEach((u, i) => {
+      const L1 = ALLY_LANE[i % ALLY_LANE.length];
+      u.by = gy + L1.dy * unit;
+      u.rig.setBase(px + L1.dx * unit, u.by);
+      u.rig.view.zIndex = L1.z;
+      u.rig.view.scale.set(L1.sc);
+    });
+    this.foes.forEach((f, i) => {
+      const L2 = FOE_LANE[i % FOE_LANE.length];
+      // 목표 자리를 기억해 둔다. walk 구간에는 이 자리로 걸어온다.
+      f.bx = ex + L2.dx * unit;
+      f.by = gy + L2.dy * unit;
+      f.rig.setBase(f.bx, f.by);
+      f.rig.view.zIndex = L2.z;
+      f.rig.view.scale.set(L2.sc);
+    });
+  }
+
+  /** 스테이지 시작. requiredCp 로 적 HP 를 역산한다. */
+  async startStage(stage, requiredCp, partyDps) {
+    this.stage = stage;
+    this.requiredCp = requiredCp;
+    this.partyDps = partyDps;
+    this.encounter = 0;
+    this.mode = 'stage';
+    this.bossFight = false;
+    this.bossPending = false;
+    this.phase = 'walk';
+    this.phaseT = 0;
+    // 잡몹 웨이브는 제한이 없다. null 이면 타이머를 돌리지도 띄우지도 않는다.
+    this.timeLeft = null;
+    // 파티 체력. 요구 CP 에 비례해 잡는다 — 스테이지가 오르면 같이 오른다.
+    this.partyMaxHp = Math.max(1, this.requiredCp * 1.6);
+    this.partyHp = this.partyMaxHp;
+    this.onEvent({ type: 'stage', stage, encounter: 0 });
+    await this.nextEncounter();
+  }
+
+  async nextEncounter() {
+    const S = this.D.stages.enemyDerivation;
+    const scale = this.D.combat.stageRules.enemyHpScale || 1;
+    const hpRatio = 30 / 100;      // 잡몹 ATK40/DEF30/HP30
+    const bossHpRatio = S.bossStatRatio.hp / 100;
+    const W = this.D.characters.cpWeights;
+    const div = r => (W.atk * r.atk + W.def * r.def + W.hp * r.hp) / 100;
+
+    if (this.encounter < S.encountersPerStage) {
+      const cpEach = this.requiredCp * 0.85 / S.waveEnemyCount;
+      const hp = (cpEach / div({ atk: 40, def: 30, hp: 30 })) * hpRatio * scale;
+      const ids = Array.from({ length: S.waveEnemyCount }, (_, i) =>
+        `E-${String(1 + ((this.stage * 3 + this.encounter * 2 + i) % 12)).padStart(2, '0')}`);
+      await this.spawnWave('mob', ids, hp);
+      this.onEvent({ type: 'wave', encounter: this.encounter, boss: false });
+    } else if (this.bossPending) {
+      // [보스 도전] 을 눌렀을 때만 들어온다
+      this.bossPending = false;
+      const hp = (this.requiredCp * 2.4 / div(S.bossStatRatio)) * bossHpRatio * scale;
+      const b = `B-${String(1 + (this.stage % 6)).padStart(2, '0')}`;
+      await this.spawnWave('boss', [b], hp);
+      this.onEvent({ type: 'wave', encounter: this.encounter, boss: true });
+      // 보스 전용 타이머. 잡몹 웨이브를 오래 끌어도 보스에게는 항상 같은 시간을 준다 —
+      // bossDamageScale 1.0 이라 체력·방어력이 실제로 물리는 유일한 구간이기 때문이다.
+      const bt = this.D.combat.stageRules.bossTimeSeconds;
+      this.timeLeft = bt ?? null;
+      this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
+    }
+    this.phase = 'walk';
+    this.phaseT = 0;
+  }
+
+  tick(rawMs) {
+    if (this.paused || !this.app) return;
+    const scaled = rawMs * this.speed;
+    const dt = this.impact.update(scaled);
+    const s = dt / 1000;
+
+    // 배경 스크롤 — 걷는 구간에만
+    if (this.bgLayer && this.phase === 'walk') {
+      this.bgOff = (this.bgOff ?? 0) + 150 * s;
+      this.placeBg();
+    }
+    // 배경 교차 페이드 — 스크롤은 계속 돌면서 그림만 갈린다
+    if (this.bgFade) {
+      const f = this.bgFade;
+      f.t += s;
+      const k = Math.min(1, f.t / f.dur);
+      f.next.alpha = k;
+      f.old.alpha = 1 - k;
+      if (k >= 1) { this.bg.removeChild(f.old); f.old.destroy({ children: true }); this.bgFade = null; }
+    }
+
+    if (this.phase === 'walk') {
+      this.phaseT += s;
+      const W = this.app.screen.width;
+      // 보스는 더 멀리서 더 느리게 온다 — 등장 자체가 연출이다
+      const dur = this.bossFight ? 1.9 : 1.2;
+      const p = Math.min(1, this.phaseT / dur);
+      const k = 1 - (1 - p) * (1 - p);            // outQuad
+      for (const f of this.foes) {
+        if (f.bx == null) continue;
+        const from = W + f.rig.w * (f.boss ? 1.1 : 0.7);
+        f.rig.setBase(from + (f.bx - from) * k, f.by);
+        // 걷는 동안 위아래로 튄다. 정지 이미지 1장이라 이게 없으면 미끄러진다.
+        f.rig.base.y = f.by - Math.abs(Math.sin(this.phaseT * 11)) * f.rig.h * 0.045 * (1 - p * 0.5);
+        f.rig.view.alpha = Math.min(1, p * 3);
+      }
+      // 아군은 제자리에서 걷는 척한다 (배경이 흐르므로 전진으로 읽힌다)
+      for (let i = 0; i < this.units.length; i++) {
+        const u = this.units[i];
+        if (u.by == null) continue;
+        u.rig.base.y = u.by - Math.abs(Math.sin(this.phaseT * 10 + i * 0.7)) * u.rig.h * 0.04;
+      }
+      if (this.captain && this.capBy != null) {
+        this.captain.base.y = this.capBy - Math.abs(Math.sin(this.phaseT * 10 + 2.2)) * this.captain.h * 0.04;
+      }
+      if (this.phaseT >= dur) {
+        this.phase = 'fight';
+        for (const f of this.foes) { f.rig.setBase(f.bx, f.by); f.rig.view.alpha = 1; }
+        for (const u of this.units) if (u.by != null) u.rig.base.y = u.by;
+        if (this.captain && this.capBy != null) this.captain.base.y = this.capBy;
+      }
+    } else if (this.phase === 'fight') {
+      this.combatStep(s);
+      // 제한이 걸린 구간(보스)에서만 시간이 준다
+      if (this.timeLeft != null) {
+        this.timeLeft -= s;
+        if (this.timeLeft <= 0) {
+          if (this.mode === 'tower') {
+            this.bossFight = false; this.timeLeft = null;
+            this.phase = 'done';
+            this.onEvent({ type: 'towerLose', floor: this.stage });
+            return;
+          }
+          // 보스 실패. 여기서 잡몹을 직접 재개하지 않는다 — 재시작의 주인은
+          // main(onEvent lose → runStage) 하나다. 양쪽이 각자 재개하면
+          // nextEncounter 체인이 둘 돌면서 서로의 웨이브를 밟아 멈춘다. 실제로 그랬다.
+          this.onEvent({ type: 'lose', reason: 'timeout' });
+          this.bossFight = false;
+          this.timeLeft = null;
+          this.phase = 'done';
+          this.clearFoes();
+        }
+      }
+    }
+
+    this.fx.update(dt);
+    if (this.captain) this.captain.update(dt);
+    this.syncReadyBadge();
+    this.drawPartyBar();
+    for (const u of this.units) u.rig.update(dt);
+    for (const f of this.foes) { f.rig.update(dt); this.drawHpBar(f); }
+    this.numbers.update(dt);
+    this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
+  }
+
+  combatStep(s) {
+    const alive = this.foes.filter(f => f.hp > 0);
+    if (!alive.length) return;
+
+    // 단장 — 전투 판정에는 안 들어가고 연출만 한다
+    if (this.captain) {
+      this.capCd = (this.capCd ?? 3) - s;
+      if (this.capCd <= 0 && !this.captain.act) {
+        this.capCd = rnd(3.5, 6.5);
+        this.captain.attack(null);
+      }
+    }
+
+    for (const u of this.units) {
+      u.cd -= s;
+      u.skillCd -= s;
+      if (u.cd > 0 || u.rig.act) continue;
+      u.cd = u.cdMax;
+      // AUTO OFF 면 여기서 안 쏜다. 준비 표시만 밖(#skills)에 넘긴다.
+      const ready = u.skillCd <= 0 && this.activeSkills.length > 0;
+      const useSkill = ready && this.skillAuto !== false;
+      if (useSkill) u.skillCd = rnd(6, 11);
+      if (ready && this.skillAuto === false) this.anyReady = true;
+      u.usingSkill = useSkill
+        ? this.activeSkills[(Math.random() * this.activeSkills.length) | 0]
+        : (u.pendingSkill || null);   // 수동 발동분
+      u.pendingSkill = null;
+      const target = alive[0];
+      // 원거리 직군은 무기 끝에서 투사체가 나간다. 즉발이면 거리가 안 읽힌다.
+      const A = this.D.combat.allyAttack;
+      const kind = (A?.byClass || {})[u.class] || 'melee';
+      if (kind === 'projectile') {
+        u.rig.attack(() => {
+          if (!target.rig?.view || target.rig.view.destroyed || target.hp <= 0) return;
+          const tip = u.rig.weaponTip();
+          let id = (A.projectileFx || {})[u.class] || A.projectileFx.fallback;
+          if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
+          const tx = target.rig.view.x, ty = target.rig.view.y - target.rig.h * 0.5;
+          this.fx.projectile(id, tip.x, tip.y, tx, ty, {
+            size: this.fxSize(u.rig.h * 0.34, 0.12),
+            dur: 260, arc: -0.1,
+            onHit: () => this.hitFoe(u, target, useSkill),
+          });
+        });
+      } else {
+        u.rig.attack(() => this.hitFoe(u, target, useSkill));
+      }
+    }
+
+    // 적 공격. 컷아웃이 없으므로 몸 전체 연출 + 투사체로 표현한다.
+    for (const f of alive) {
+      f.cd -= s;
+      if (f.cd > 0 || f.rig.act) continue;
+      f.cd = f.cdMax;
+      const t = this.units[(Math.random() * this.units.length) | 0];
+      if (!t) continue;
+      const hit = () => {
+        if (!f.rig?.view || f.rig.view.destroyed || !t.rig?.view || t.rig.view.destroyed) return;
+        this.damageParty(f);
+        t.rig.hit(-1);
+        this.impact.flash(t.rig);
+        this.fx.play('HIT-07', t.rig.view.x, t.rig.view.y - t.rig.h * 0.5,
+          { size: this.fxSize(t.rig.h * 0.6, 0.16), dur: 260, to: 1.1 });
+      };
+
+      if (f.atk === 'projectile') {
+        // 제자리에서 기를 모으고, 투사체가 날아가 명중에서 터진다
+        f.rig.attack(() => {
+          if (!f.rig?.view || f.rig.view.destroyed || !t.rig?.view || t.rig.view.destroyed) return;
+          const E = this.D.combat.enemyAttack;
+          let id = (E.projectileFx || {})[f.id] || E.projectileFx.fallback;
+          // 전용 투사체가 아직 없으면 기존 타격 이펙트로 떨어진다
+          if (!this.fx.tex.get(id)) id = (E.projectileFallback || {})[id] || 'HIT-04';
+          const x0 = f.rig.view.x - f.rig.w * 0.35;
+          const y0 = f.rig.view.y - f.rig.h * 0.55;
+          const x1 = t.rig.view.x, y1 = t.rig.view.y - t.rig.h * 0.5;
+          this.fx.projectile(id, x0, y0, x1, y1, {
+            size: this.fxSize(f.rig.h * 0.34, 0.12),
+            dur: 300, arc: -0.12, onHit: hit,
+          });
+        });
+      } else {
+        f.rig.attack(hit);
+      }
+    }
+  }
+
+  /**
+   * 아군 피해. combat.json > stageRules
+   *   잡몹 0.05 배  — 사실상 안 죽는다
+   *   보스 1.0 배   — 여기서만 체력·방어력이 실제로 물린다
+   */
+  damageParty(foe) {
+    if (this.partyHp == null) return;
+    const R = this.D.combat.stageRules;
+    const scale = foe.boss ? (R.bossDamageScale ?? 1) : (R.mobDamageScale ?? 0.05);
+    const raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15);
+    this.partyHp = Math.max(0, this.partyHp - raw);
+    if (this.partyHp <= 0 && this.phase === 'fight') {
+      this.phase = 'done';
+      this.bossFight = false;
+      this.timeLeft = null;
+      this.onEvent({ type: 'lose', reason: 'wipe' });   // 재시작은 main 이 한다
+    }
+  }
+
+  /**
+   * 유닛의 **실제 렌더 경계** 위쪽. 체력바는 여기에 얹는다.
+   *
+   * rig.h 로 계산하면 안 된다 — view.scale 과 rigRoot 안의 shrink·스쿼시가 더 곱해져
+   * 배율이 1 을 넘는 유닛(단장 1.05 등)에서 바가 머리 안으로 파고든다.
+   * 경계는 매 프레임 바뀌므로 매번 읽는다. 유닛 10개 안팎이라 비용은 무시할 만하다.
+   */
+  headTop(rig) {
+    const b = rig.view.getBounds();
+    const w = b.width || rig.w;
+    const cx = b.x + w / 2;
+    const p = this.ui.toLocal({ x: cx, y: b.y });
+    return { cx: p.x, top: p.y, w };
+  }
+
+  /**
+   * 수동 스킬 발동 (#skills 의 i 번째 액티브를 탭). AUTO OFF 일 때만 부른다.
+   * 준비된 유닛 아무나 하나가 그 스킬을 쓴다 — 유닛-스킬 매핑이 없는 구조라
+   * "어떤 스킬을 쏠지"만 유저가 고르는 셈이다.
+   */
+  castSkillManual(i) {
+    const sk = this.activeSkills[i];
+    if (!sk) return false;
+    const u = this.units.find(x => x.skillCd <= 0 && x.rig);
+    if (!u) return false;
+    u.skillCd = rnd(6, 11);
+    u.pendingSkill = sk;          // update 루프의 발동 경로가 이걸 집어 쓴다
+    this.anyReady = false;
+    document.querySelectorAll('#skills .sk.ready')
+      .forEach(el => el.classList.remove('ready'));
+    return true;
+  }
+
+  /** 수동 모드에서 준비 상태를 #skills 아이콘에 반영한다. 프레임마다 부른다. */
+  syncReadyBadge() {
+    if (this.skillAuto !== false) return;
+    const on = this.units.some(x => x.skillCd <= 0);
+    document.querySelectorAll('#skills .sk:not(.lock)')
+      .forEach(el => el.classList.toggle('ready', on));
+  }
+
+  /** 단장 머리 위 파티 체력바. 보스 바와 같은 문법을 쓰되 색만 다르다. */
+  drawPartyBar() {
+    const g = this.capBar;
+    if (!g || !this.captain || this.partyHp == null) return;
+    g.clear();
+    const c = this.captain;
+    const p = Math.max(0, this.partyHp / this.partyMaxHp);
+    const hb = this.headTop(c);
+    const h = 8;
+    const w = hb.w * 1.05;
+    const x = hb.cx - w / 2;
+    // 머리 바로 위. 8px 은 바 자체 높이, 6px 은 머리와의 간격이다.
+    const y = hb.top - h - 6;
+    g.roundRect(x - 2, y - 2, w + 4, h + 4, 6)
+      .fill({ color: 0x0a1020, alpha: 0.9 })
+      .stroke({ color: 0x7ad8ff, width: 1.5, alpha: 0.9 });
+    g.roundRect(x, y, w * p, h, 3)
+      .fill({ color: p > 0.3 ? 0x4bd86a : 0xffa63a });
+    g.roundRect(x, y, w * p, h * 0.4, 3).fill({ color: 0xffffff, alpha: 0.25 });
+  }
+
+  /**
+   * 이펙트 크기 상한. 배수만 쓰면 보스가 커질 때 화면을 통째로 덮는다.
+   * 화면 짧은 변의 일정 비율을 넘지 않게 자른다.
+   */
+  fxSize(want, cap = 0.42) {
+    const s = Math.min(this.app.screen.width, this.app.screen.height);
+    return Math.min(want, s * cap);
+  }
+
+  hitFoe(from, foe, skill) {
+    // 패배·웨이브 전환의 clearFoes 뒤에 늦게 도착한 공격 콜백이 파괴된 rig 를
+    // 만지면 null.x 로 터지고, 그 예외가 틱 루프를 세운다 — 실제로 그랬다.
+    if (!foe || foe.hp <= 0 || !foe.rig?.view || foe.rig.view.destroyed) return;
+    const crit = Math.random() < 0.15;
+    // 파티 총 DPS 를 공격 1회분으로 환산 — 실제 판정은 서버가 한다
+    const per = this.partyDps / Math.max(1, this.units.length) * from.cdMax;
+    const dmg = per * (skill ? 6 : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
+    foe.hp -= dmg;
+
+    // 타격 지점 — 몸통 중앙보다 조금 위가 잘 읽힌다
+    const hx = foe.rig.view.x, hy = foe.rig.view.y - foe.rig.h * 0.52;
+    const size = this.fxSize(foe.rig.h * (skill ? 1.15 : 0.95), 0.30);
+
+    // 스킬이면 스킬 전용 이펙트가 우선한다. 평타 이펙트와 겹치면 뭉개진다.
+    const sfx = skill && from.usingSkill ? skillFx(from.usingSkill.id) : null;
+    if (sfx) {
+      // 스킬은 대상 전체를 덮을 만큼 크게. 이게 스킬을 특별하게 만든다
+      this.fx.play(sfx, hx, hy - foe.rig.h * 0.05, {
+        size: this.fxSize(foe.rig.h * 1.45, 0.40), dur: 520, from: 0.45, to: 1.2, hold: 0.3,
+      });
+      // 시전자 발밑에도 작게 — 누가 썼는지 읽히게
+      this.fx.play(sfx, from.rig.view.x, from.rig.view.y - from.rig.h * 0.25, {
+        size: this.fxSize(from.rig.h * 0.62, 0.18), dur: 380, from: 0.3, to: 0.9, additive: true,
+      });
+    } else {
+      // 모션별 타격 이펙트. 에셋_생성_프롬프트.md STEP 13 매핑 그대로.
+      const pool = HIT_BY_MOTION[from.rig.motion] || HIT_BY_MOTION.slash;
+      const id = pool[(Math.random() * pool.length) | 0];
+      this.fx.play(id, hx, hy, {
+        size, dur: 300, rot: rnd(-0.22, 0.22),
+        flip: from.rig.facing < 0, to: 1.35,
+      });
+    }
+    if (crit) {
+      this.fx.play('HIT-06', hx, hy, { size: this.fxSize(size * 1.2, 0.34), dur: 420, to: 1.3, spin: rnd(-1, 1) });
+    }
+    // 직군 패시브 발동 표시 — 때린 쪽에 뜬다
+    if (from.class && Math.random() < 0.35) {
+      const px = { warrior: 'PX-01', archer: 'PX-02', mage: 'PX-03' }[from.class];
+      if (px) this.fx.play(px, from.rig.view.x, from.rig.view.y - from.rig.h * 0.7,
+        { size: this.fxSize(from.rig.h * 0.5, 0.16), dur: 340, to: 1.1 });
+    }
+
+    foe.rig.hit(-1);
+    this.impact.hitStop(skill ? 110 : 70);
+    if (skill) this.impact.shake(crit ? 16 : 11, 1);
+    this.impact.flash(foe.rig);
+    this.impact.puff(foe.rig.view.x + foe.rig.w * 0.12, foe.rig.view.y, -1, skill ? 12 : 5);
+    this.numbers.spawn(foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.95, dmg, crit ? 'crit' : 'normal');
+
+    if (foe.hp <= 0) this.killFoe(foe);
+  }
+
+  /** 사망 — 페이드아웃 + HIT-08 + 상승 입자 */
+  killFoe(foe) {
+    foe.rig.die(foe.boss ? 1.6 : 1);
+    foe.bar.clear();
+    const x = foe.rig.view.x, y = foe.rig.view.y - foe.rig.h * 0.5;
+    this.fx.play('HIT-08', x, y, { size: this.fxSize(foe.rig.h * 0.95, 0.30), dur: 560, from: 0.5, to: 1.3, hold: 0.3 });
+    this.fx.motes(x, y, 14, { spread: foe.rig.w * 0.4 });
+    if (this.foes.every(f => f.hp <= 0)) this.onWaveClear();
+  }
+
+  async onWaveClear() {
+    const S = this.D.stages.enemyDerivation;
+    if (this.mode === 'tower') {
+      this.bossFight = false;
+      this.phase = 'done';
+      this.onEvent({ type: 'towerWin', floor: this.stage });
+      return;
+    }
+    if (this.bossFight) {
+      // 보스 격파 = 스테이지 클리어
+      this.bossFight = false;
+      this.phase = 'done';
+      this.onEvent({ type: 'win', stage: this.stage });
+      return;
+    }
+    this.encounter++;
+    if (this.encounter >= S.encountersPerStage) {
+      // 3웨이브를 정리하면 보스로 바로 들어간다. 진행은 항상 자동이다.
+      this.encounter = 0;
+      this.onEvent({ type: 'bossReady' });
+      return;                       // main 이 VS 연출을 태우고 challengeBoss 를 부른다
+    }
+    this.phase = 'walk';
+    setTimeout(() => this.nextEncounter(), 600);
+  }
+
+  /**
+   * 탑 한 층. 잡몹 웨이브 없이 보스 하나만 나온다.
+   * tower.json > floors — 요구 CP·제한시간·적 비율이 전부 거기서 온다.
+   */
+  async startTowerFloor(floor, requiredCp, partyDps) {
+    const F = this.D.tower.floors;
+    this.stage = floor;
+    this.requiredCp = requiredCp;
+    this.partyDps = partyDps;
+    this.mode = 'tower';
+    this.encounter = 0;
+    this.bossFight = true;
+    this.bossPending = true;
+    this.partyMaxHp = Math.max(1, requiredCp * 1.6);
+    this.partyHp = this.partyMaxHp;
+    this.clearFoes();
+
+    const W = this.D.characters.cpWeights;
+    const r = F.enemy.statRatio;
+    const div = (W.atk * r.atk + W.def * r.def + W.hp * r.hp) / 100;
+    const hp = (requiredCp * F.enemy.hpMultiplier / div) * (r.hp / 100);
+    const b = `B-${String(1 + (floor % 6)).padStart(2, '0')}`;
+    await this.spawnWave('boss', [b], hp);
+    this.onEvent({ type: 'wave', encounter: 0, boss: true });
+    this.timeLeft = F.timeLimitSeconds;
+    this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
+    this.phase = 'walk';
+    this.phaseT = 0;
+  }
+
+  /** 진행도 UI 의 [보스 도전]. 잡몹을 치우고 보스를 부른다. */
+  async challengeBoss() {
+    if (this.bossFight || this.phase === 'done') return;
+    this.bossFight = true;
+    this.bossPending = true;
+    this.encounter = this.D.stages.enemyDerivation.encountersPerStage;
+    this.clearFoes();
+    await this.nextEncounter();
+  }
+
+  /** 이번 스테이지 보스의 에셋 id — VS 화면이 쓴다 */
+  /** stages.json > bosses 에 있으면 고유 이름, 없으면 스테이지 보스 */
+  bossName() {
+    if (this.mode === 'tower') return `${this.stage}층 수문장`;
+    const b = this.D.stages.bosses.find(x => x.stage === this.stage);
+    // 전용 이름이 있는 보스만 이름표를 단다. "스테이지 61 보스"는 읽을 값이 아니다.
+    return b ? b.nameKo : null;
+  }
+
+  bossAssetId() {
+    return `B-${String(1 + (this.stage % 6)).padStart(2, '0')}`;
+  }
+
+  /**
+   * 적을 치운다. rig 만 destroy 하면 체력바 Graphics 가 ui 레이어에 남아
+   * 적 없는 화면에 막대만 떠 있게 된다 — 실제로 그 버그가 났다.
+   */
+  clearFoes() {
+    for (const f of this.foes) {
+      f.rig.view.destroy({ children: true });
+      f.bar.destroy();
+      f.label?.destroy();
+    }
+    this.foes = [];
+  }
+
+  /**
+   * 체력바. 잡몹은 얇게, 보스는 두껍고 넓게 + 이름표.
+   * 머리 위에 그리므로 던전·탑 등 어떤 모드에서도 그대로 따라간다.
+   */
+  drawHpBar(f) {
+    const g = f.bar;
+    g.clear();
+    if (f.hp <= 0) { if (f.label) f.label.visible = false; return; }
+
+    const p = Math.max(0, f.hp / f.maxHp);
+    const boss = f.boss;
+    const hb = this.headTop(f.rig);
+    const w = Math.min(hb.w * (boss ? 1.35 : 0.78), this.app.screen.width - 16);
+    const h = boss ? 13 : 5;
+    // 체력바는 머리 위에 붙어 따라간다. 화면 끝에서 잡아두면 몸에서 떨어져 보인다 —
+    // 대신 화면보다 넓어지지 않게 폭만 제한한다.
+    const x = hb.cx - w / 2;
+    // 보스는 테두리가 3px 더 나가므로 간격을 그만큼 더 준다.
+    const y = hb.top - h - (boss ? 9 : 5);
+
+    if (boss) {
+      // 바깥 테두리 — 잡몹 막대와 급이 다르다는 신호
+      g.roundRect(x - 3, y - 3, w + 6, h + 6, 8)
+        .fill({ color: 0x1a0405, alpha: 0.92 })
+        .stroke({ color: 0xff6a5a, width: 2, alpha: 0.95 });
+      g.roundRect(x, y, w * p, h, 5).fill({ color: p > 0.25 ? 0xe0231c : 0xff2030 });
+      // 상단 광택 — 납작한 사각형이 아니라 덩어리로 보이게
+      g.roundRect(x, y, w * p, h * 0.42, 5).fill({ color: 0xffffff, alpha: 0.22 });
+      // 10칸 눈금. 남은 양을 숫자 없이 읽게 한다
+      for (let i = 1; i < 10; i++) {
+        g.rect(x + w * i / 10 - 0.5, y, 1, h).fill({ color: 0x000000, alpha: 0.45 });
+      }
+      return;
+    }
+
+    g.roundRect(x - 1, y - 1, w + 2, h + 2, 3).fill({ color: 0x000000, alpha: 0.55 });
+    g.roundRect(x, y, w * p, h, 2).fill({ color: p > 0.3 ? 0xff5a6a : 0xff2030 });
+  }
+}

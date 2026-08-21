@@ -1,0 +1,243 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "랭킹 3종 통합 스펙 + Verse8 leaderboard 구현 매핑",
+    "verse8Api": "https://docs.verse8.io/ko/docs/gameserver/sdk/leaderboard",
+    "storage": "global collection"
+  },
+  "boards": [
+    {
+      "id": "stage",
+      "nameKo": "스테이지 순위",
+      "collection": "rank_stage",
+      "scoreField": "최고 돌파 스테이지",
+      "orderBy": [
+        {
+          "field": "score",
+          "direction": "desc"
+        }
+      ],
+      "tiebreak": "동점 시 먼저 도달한 유저가 상위 (createdAt asc)",
+      "mode": "best_only",
+      "reset": null,
+      "rewards": null,
+      "submitTrigger": "최고 기록 갱신 시에만",
+      "submitFrequency": "매우 낮음 (자연 스로틀)"
+    },
+    {
+      "id": "power",
+      "nameKo": "전투력 순위",
+      "collection": "rank_power",
+      "scoreField": "CP_총합",
+      "orderBy": [
+        {
+          "field": "score",
+          "direction": "desc"
+        }
+      ],
+      "tiebreak": "createdAt asc",
+      "mode": "best_only",
+      "reset": null,
+      "rewards": null,
+      "submitTrigger": "자동강화 / 장비 변경 / 소환 레벨업 이후",
+      "submitThrottle": {
+        "debounceSec": 60,
+        "minDeltaPct": 0.005,
+        "dailyCap": 30,
+        "reason": "CP는 소환·강화마다 바뀐다. 매번 제출하면 remoteFunction 10회/초 제한에 즉시 걸린다."
+      }
+    },
+    {
+      "id": "score",
+      "nameKo": "경쟁점수 순위",
+      "collection": "rank_score_s{seasonId}",
+      "scoreField": "아레나 경쟁점수",
+      "orderBy": [
+        {
+          "field": "score",
+          "direction": "desc"
+        }
+      ],
+      "tiebreak": "동점 시 먼저 도달한 유저가 상위 (updatedAt asc)",
+      "mode": "best_only",
+      "reset": "season",
+      "rewards": "rankRewards",
+      "submitTrigger": "아레나 전투 종료 시에만",
+      "submitFrequency": "일 최대 11회 (도전 5 + 광고 3 + 프리미엄 3)"
+    }
+  ],
+  "overlapWarning": {
+    "issue": "스테이지 순위와 전투력 순위는 거의 같은 순서가 나온다. 스테이지 진행이 요구 CP로 게이트되기 때문이다.",
+    "mitigation": "스테이지 동점자를 '먼저 도달한 순'으로 정렬하면 CP가 낮아도 빨리 민 유저가 위로 온다. 부분적 차별화.",
+    "recommendation": "진짜 다른 축을 원하면 퀘스트 진도 랭킹을 4번째로 살려라. 무한 퀘스트는 CP가 아니라 꾸준함이 이기는 유일한 축이다. 현재는 유저 요청에 따라 3종만 노출.",
+    "droppedBoards": [
+      "quest_progress",
+      "dungeon_floor"
+    ]
+  },
+  "display": {
+    "topCount": 20,
+    "pageSize": 20,
+    "showMyRank": true,
+    "myRankAlwaysVisible": "목록 하단에 고정 표시",
+    "nicknameMaxLength": 15,
+    "nicknameNote": "Verse8 leaderboard 제약. 초과 시 서버가 거부한다.",
+    "showProfile": [
+      "칭호",
+      "프로필 테두리",
+      "대표 용병 썸네일"
+    ],
+    "scoreBoardExtra": "경쟁점수 순위는 상위 유저의 방어팀 편성을 공개 (모방 유도)",
+    "topCountNote": "getTopRankings() 가 20명 고정이다. 100명을 노출하려면 getCollectionItems 로 직접 조회해야 하며 조회 비용이 오른다."
+  },
+  "season": {
+    "durationDays": 14,
+    "collectionNaming": "rank_score_s{N}",
+    "resetMethod": "새 시즌 = 새 컬렉션 생성. 기존 컬렉션은 read-only 전환.",
+    "resetMethodReason": "같은 컬렉션에 시즌 필드를 두고 필터링하면 데이터가 무한 누적되고 orderBy 비용이 계속 오른다. 컬렉션 분리가 리셋·조회·보상 확정 모두에 유리하다.",
+    "softReset": {
+      "formula": "newStartScore = 1000 + floor((oldScore - 1000) * 0.5)",
+      "storage": "$global.updateMyState 에 저장, 새 시즌 첫 제출 시 반영"
+    },
+    "archive": {
+      "keepSeasons": 6,
+      "note": "지난 시즌 순위 조회 가능. 6시즌(12주) 초과분은 삭제."
+    }
+  },
+  "rankRewards": {
+    "appliesTo": "score",
+    "grantTiming": "lazy_claim",
+    "grantTimingReason": "Verse8 문서에 스케줄러/크론이 확인되지 않는다. 배치 푸시 대신 유저가 시즌 종료 후 첫 접속할 때 서버가 지난 시즌 순위를 조회해 미수령 보상을 지급한다.",
+    "rankFreezeRequirement": "시즌 종료 시 해당 컬렉션을 read-only로 전환해야 순위가 고정된다. 그래야 늦게 접속한 유저도 동일한 순위를 받는다.",
+    "claimDeadlineDays": 14,
+    "tiers": [
+      {
+        "rank": "1",
+        "medals": 20000,
+        "diamond": 30000,
+        "extra": [
+          "LR 용병 선택권 1장",
+          "한정 칭호 '초대 챔피언'",
+          "황금 프로필 테두리"
+        ]
+      },
+      {
+        "rank": "2-3",
+        "medals": 14000,
+        "diamond": 20000,
+        "extra": [
+          "한정 칭호",
+          "은빛 프로필 테두리"
+        ]
+      },
+      {
+        "rank": "4-10",
+        "medals": 10000,
+        "diamond": 12000,
+        "extra": [
+          "동빛 프로필 테두리"
+        ]
+      },
+      {
+        "rank": "11-50",
+        "medals": 6000,
+        "diamond": 6000,
+        "extra": []
+      },
+      {
+        "rank": "51-100",
+        "medals": 4000,
+        "diamond": 3500,
+        "extra": []
+      },
+      {
+        "rank": "101-500",
+        "medals": 2000,
+        "diamond": 1800,
+        "extra": []
+      },
+      {
+        "rank": "501-1000",
+        "medals": 1200,
+        "diamond": 1000,
+        "extra": []
+      },
+      {
+        "rank": "1001-5000",
+        "medals": 600,
+        "diamond": 500,
+        "extra": []
+      },
+      {
+        "rank": "5001+",
+        "medals": 200,
+        "diamond": 150,
+        "extra": [],
+        "label": "참가 보상"
+      }
+    ],
+    "tierRewardsSeparate": "위는 최종 순위 보상. 티어(브론즈~그랜드마스터) 일일 보상은 arena.json > tiers 에 별도 정의되어 있고 시즌 중 매일 지급된다.",
+    "participationFloor": "5001위 이하도 참가 보상을 준다. 보상이 0이면 하위권은 아예 아레나를 안 한다."
+  },
+  "verse8Implementation": {
+    "submitScore": {
+      "signature": "submitScore(score, nickname)",
+      "validation": "score >= 0 (number), nickname 1-15자",
+      "bestOnlyMode": "새 점수 제출 전 해당 유저의 기존 엔트리를 삭제한다. 유저당 1행 보장."
+    },
+    "getTopRankings": {
+      "signature": "getTopRankings()",
+      "correction": "v1 은 getTopRankings(limit) / limit 100 으로 적혀 있었으나 공식 문서 확인 결과 **인자가 없고 상위 20명 고정**이다.",
+      "returns": "상위 20명 (score desc)",
+      "forTop100": "$global.getCollectionItems('rankings', { orderBy:[{field:'score',direction:'desc'}], limit:100 }) 로 직접 조회한다.",
+      "docs": "https://docs.verse8.io/ko/docs/gameserver/sdk/leaderboard"
+    },
+    "getMyBestRank": {
+      "signature": "getMyBestRank()",
+      "implementation": "자기보다 높은 점수의 개수를 세어 순위 산출",
+      "performanceWarning": "유저 수가 커지면 카운트 비용이 오른다. 내 순위 조회를 화면 진입 시 1회로 제한하고 결과를 캐시할 것. 실시간 갱신 금지."
+    },
+    "entrySchema": {
+      "account": "유저 식별자 (자동)",
+      "score": "number",
+      "nickname": "string (max 15)",
+      "createdAt": "타임스탬프 (자동)",
+      "updatedAt": "타임스탬프 (자동)",
+      "__id": "컬렉션 아이템 ID (자동)"
+    },
+    "confirmedApi": [
+      "submitScore(score, nickname)",
+      "getTopRankings()",
+      "getMyBestRank()",
+      "getMyAllRankings()",
+      "$global.addCollectionItem(name,item)",
+      "$global.getCollectionItems(name,{orderBy,filters})",
+      "$global.deleteCollectionItem(name,id)",
+      "$global.countCollectionItems(name,filters)"
+    ]
+  },
+  "antiCheat": {
+    "principle": "클라이언트가 점수를 계산해 보내면 전부 조작된다. 세 보드 모두 서버가 값을 산출한다.",
+    "stage": "서버가 스테이지 클리어를 판정하고 최고 기록을 갱신",
+    "power": "서버가 유저 state(용병/스킬/장비/소환레벨)로 CP를 재계산. 클라 전송값 신뢰 금지.",
+    "score": "아레나 전투 시뮬레이션 전체를 서버에서 실행 후 점수 갱신",
+    "reference": "https://docs.verse8.io/ko/docs/gameserver/sdk/globalUserState"
+  },
+  "rateLimitBudget": {
+    "constraint": "remoteFunction ~10회/초",
+    "worstCaseUser": "자동강화 1회 + CP 제출 1회 + 아레나 3연전 = 초당 여유 충분",
+    "danger": "CP 제출을 소환 1회마다 하면 10연차에서 10회 호출 = 즉시 한계. 반드시 debounce 60초 + 최소 변화율 0.5% 적용.",
+    "batching": "자동강화는 remoteFunction('autoEnhance') 단일 호출로 전량 처리 후, 그 응답에서 갱신된 CP를 함께 반환받아 별도 제출 호출을 아낀다."
+  },
+  "ui": {
+    "tabs": [
+      "스테이지",
+      "전투력",
+      "경쟁점수"
+    ],
+    "defaultTab": "score",
+    "defaultTabReason": "시즌 보상이 걸린 유일한 보드. 경쟁 동기가 가장 강하다.",
+    "seasonTimer": "경쟁점수 탭 상단에 시즌 남은 시간 + 현재 내 순위 + 그 순위의 예상 보상 표시",
+    "seasonTimerReason": "'지금 47위, 이대로면 훈장 6000' 이 보이면 순위를 올릴 이유가 즉시 생긴다."
+  }
+}

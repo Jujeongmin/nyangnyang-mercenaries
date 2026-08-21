@@ -1,0 +1,218 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "도감 - 용병/스킬 수집 기록. 개별 등록 + 세트 완성 하이브리드.",
+    "purpose": "자동장착과 캐스케이드 때문에 하위 등급은 뽑자마자 레벨업 재료로 소모되고 파티에 낄 일이 없다. 도감은 1회 획득 시 영구 등록되므로 '쓸모없어도 한 번은 뽑아야 하는' 이유를 만든다. 수집형(B안)을 골랐는데 자동장착으로 수집 동기가 사라진 자리를 메우는 장치다."
+  },
+  "budget": {
+    "totalMaxBonus": 0.32,
+    "target": "CP_총합 곱연산 항 (1 + codexBonus)",
+    "breakdown": {
+      "mercIndividual": 0.18,
+      "mercSets": 0.06,
+      "skillIndividual": 0.06,
+      "skillSets": 0.02
+    },
+    "budgetLock": "총합 32%를 유지한다. 늘리면 CP 천장(1,834,000)이 오르고 stages.json > cpCeiling / curve.walls / St200 목표(천장의 87%)가 전부 재계산 대상이 된다. 도감 콘텐츠를 추가할 때는 기존 항목의 배분을 줄여 총합을 지킬 것."
+  },
+  "mercenary": {
+    "registerRule": "1회 획득 시 영구 등록. 캐스케이드로 소모되거나 미장착이어도 등록은 유지된다.",
+    "totalEntries": 32,
+    "individualByGrade": {
+      "N": {
+        "count": 6,
+        "bonusEach": 0.0015,
+        "subtotal": 0.009
+      },
+      "R": {
+        "count": 8,
+        "bonusEach": 0.0025,
+        "subtotal": 0.02
+      },
+      "SR": {
+        "count": 8,
+        "bonusEach": 0.004,
+        "subtotal": 0.032
+      },
+      "SSR": {
+        "count": 5,
+        "bonusEach": 0.007,
+        "subtotal": 0.035
+      },
+      "UR": {
+        "count": 3,
+        "bonusEach": 0.013,
+        "subtotal": 0.039
+      },
+      "LR": {
+        "count": 2,
+        "bonusEach": 0.0225,
+        "subtotal": 0.045
+      }
+    },
+    "individualTotal": 0.18,
+    "gradeWeightReason": "구버전은 전 등급 일률 +1%였다. UR은 확률 0.3%로 N보다 수십 배 뽑기 어려운데 도감 기여가 같은 건 맞지 않는다. 등급이 오를수록 개당 기여를 키워 희귀도와 보상을 일치시켰다.",
+    "sets": {
+      "eligibleGrades": [
+        "N",
+        "R",
+        "SR"
+      ],
+      "eligibleGradesReason": "세트에 UR/LR이 끼면 무과금은 영영 완성하지 못해 죽은 콘텐츠가 된다. 특히 LR은 시즌 한정이라 빛·암·마법사·전사 세트가 영구 미완성이 된다. 세트의 목적 자체가 '하위 등급을 뽑을 이유'이므로 상위 등급을 넣을 이유가 없다.",
+      "poolSize": 22,
+      "byElement": [
+        {
+          "id": "set_fire",
+          "nameKo": "화염 군단",
+          "bonus": 0.006,
+          "members": [
+            "N-01",
+            "R-09",
+            "R-08",
+            "SR-01"
+          ]
+        },
+        {
+          "id": "set_water",
+          "nameKo": "심해 군단",
+          "bonus": 0.006,
+          "members": [
+            "N-03",
+            "N-06",
+            "R-06",
+            "SR-02",
+            "SR-03",
+            "SR-04"
+          ]
+        },
+        {
+          "id": "set_nature",
+          "nameKo": "숲의 군단",
+          "bonus": 0.006,
+          "members": [
+            "N-02",
+            "R-02",
+            "R-05",
+            "SR-06"
+          ]
+        },
+        {
+          "id": "set_light",
+          "nameKo": "성광 군단",
+          "bonus": 0.006,
+          "members": [
+            "N-04",
+            "R-03",
+            "SR-05",
+            "SR-07"
+          ]
+        },
+        {
+          "id": "set_dark",
+          "nameKo": "심연 군단",
+          "bonus": 0.006,
+          "members": [
+            "N-05",
+            "R-04",
+            "R-07",
+            "SR-08"
+          ]
+        }
+      ],
+      "byClass": [
+        {
+          "id": "set_warrior",
+          "nameKo": "강철 전선",
+          "bonus": 0.01,
+          "members": [
+            "N-03",
+            "N-04",
+            "R-09",
+            "R-02",
+            "R-07",
+            "SR-02",
+            "SR-07",
+            "SR-08"
+          ]
+        },
+        {
+          "id": "set_archer",
+          "nameKo": "천공 사수",
+          "bonus": 0.01,
+          "members": [
+            "N-02",
+            "N-05",
+            "R-03",
+            "R-04",
+            "R-08",
+            "SR-03",
+            "SR-06"
+          ]
+        },
+        {
+          "id": "set_mage",
+          "nameKo": "비전 결사",
+          "bonus": 0.01,
+          "members": [
+            "N-01",
+            "N-06",
+            "R-05",
+            "R-06",
+            "SR-01",
+            "SR-04",
+            "SR-05"
+          ]
+        }
+      ],
+      "setsTotal": 0.06,
+      "note": "속성 5세트 x 0.6% + 직군 3세트 x 1.0% = 6.0%. 한 용병이 속성 세트와 직군 세트 양쪽에 속하므로 수집 효율이 겹쳐 체감이 좋다.",
+      "captainNote": "구 R-01 은 단장으로 승격되어 로스터에서 빠졌다. 세트 멤버는 동일 직군·속성인 R-09 화염 오소리로 대체됐다."
+    }
+  },
+  "skill": {
+    "registerRule": "highest_grade",
+    "registerRuleNote": "용병은 캐릭터마다 등급이 고정(냥이 검사는 항상 R)이지만, 스킬은 같은 종류가 N~LR 어느 등급으로도 나온다. 그래서 스킬 도감은 '지금까지 얻은 최고 등급'을 기록하고 그 등급에 따라 보너스를 준다. 같은 스킬을 더 높은 등급으로 뽑으면 도감이 갱신된다.",
+    "totalEntries": 22,
+    "individualByGrade": {
+      "N": 0.0003,
+      "R": 0.0005,
+      "SR": 0.0009,
+      "SSR": 0.0016,
+      "UR": 0.0027,
+      "LR": 0.0045
+    },
+    "individualTotalAtUR": 0.0594,
+    "individualTotalAtLR": 0.099,
+    "budgetedAs": 0.06,
+    "budgetNote": "22종 전부 UR 기록 시 5.94% ~= 배정치 6%. 전부 LR은 9.9%이지만 LR 스킬 확률상 사실상 도달 불가라 예산 초과분은 무시할 수 있는 수준이다.",
+    "sets": [
+      {
+        "id": "set_skill_active",
+        "nameKo": "전술 교본",
+        "bonus": 0.01,
+        "condition": "액티브 12종 전부 등록"
+      },
+      {
+        "id": "set_skill_passive",
+        "nameKo": "수련 비서",
+        "bonus": 0.01,
+        "condition": "패시브 10종 전부 등록"
+      }
+    ],
+    "setsTotal": 0.02,
+    "setsNote": "스킬 세트는 등급 무관, 종류만 모으면 된다. 스킬은 22종뿐이라 등급 조건까지 걸면 너무 가혹하다."
+  },
+  "formula": "codexBonus = mercIndividual + mercSets + skillIndividual + skillSets   (최대 0.32)",
+  "cpIntegration": "CP_총합 = CP_기본 x 장비 x (1 + codexBonus) x 소환레벨3종 x 훈련소",
+  "ui": {
+    "showCompletion": "등급별 / 속성별 / 직군별 진행률",
+    "showNextSet": "완성까지 남은 인원을 명시. 예: '화염 군단 3/4 - 불꽃 여우 1종 남음'",
+    "showNextSetReason": "세트는 완성 전까지 보상이 0이다. 남은 대상이 보이지 않으면 목표로 기능하지 못한다.",
+    "artAsset": "SSR 이상은 전용 도감 일러(art_*), SR 이하는 전투 이미지 확대 대체 가능"
+  },
+  "ranking": {
+    "codexCompletionRanking": false,
+    "note": "ranking.json 은 3종(스테이지/전투력/경쟁점수)만 노출한다. 도감 완성도 랭킹은 droppedBoards 로 보류됨 - 되살리면 수집형 고유의 경쟁축이 하나 생긴다."
+  },
+  "verificationTodo": "시뮬레이터에서 도감·장비·소환레벨은 하나의 mult 값으로 뭉뚱그려 검증했다. 도감은 순수 곱연산 상수라 CP와 실전력에 동일하게 곱해지므로 상관계수를 깨뜨리지 않지만, 개별 기여의 실전 검증은 미실시."
+}

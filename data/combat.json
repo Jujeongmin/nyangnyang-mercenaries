@@ -1,0 +1,436 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "자동전투 규칙. 서버 시뮬레이션 기준 정의.",
+    "designGoal": "CP 공식이 실전 강함과 일치해야 한다. 자동장착이 CP를 최대화하므로, 어긋나면 게임이 스스로 약한 파티를 짠다.",
+    "authority": "server_side",
+    "authorityNote": "스테이지·던전·아레나 전투 전부 서버에서 시뮬레이션한다. 클라는 결과를 받아 연출만 재생한다."
+  },
+  "tick": {
+    "durationMs": 100,
+    "ticksPerSecond": 10,
+    "maxBattleSeconds": 60,
+    "maxTicks": 600,
+    "timeoutResult": "defeat",
+    "timeoutNote": "제한 없으면 방어형끼리 무한 교착이 난다. 60초 초과는 공격측 패배."
+  },
+  "formation": {
+    "positioning": false,
+    "positioningNote": "전투 판정에는 위치·사거리 개념이 없다. 방치형에 넣으면 복잡도만 늘고 CP 상관이 깨진다. 전원이 서로 타격 가능하다. 화면상의 앞줄/뒷줄 배치는 순수 시각 요소이며 판정에 영향을 주지 않는다.",
+    "allySlots": "quests.json > slotUnlockQuests.mercenary 로 해금된 수 (3~5)",
+    "enemyWaveSize": 4,
+    "bossWaveSize": 1,
+    "waveSizeNote": "조우 1회당 적 4마리. stagePresentation.structure 와 일치."
+  },
+  "targeting": {
+    "rule": "lowest_index_alive",
+    "description": "살아있는 적 중 인덱스가 가장 낮은 대상을 친다. 아군과 적 모두 동일.",
+    "rejected": {
+      "lowest_hp": "오버킬 낭비가 줄어 CP 상관을 왜곡한다",
+      "random": "분산이 커져 시뮬 반복 횟수가 늘어난다"
+    },
+    "benefit": "결정론적이라 같은 시드에서 항상 같은 결과. 아레나 재현·검증이 쉽다."
+  },
+  "attack": {
+    "baseAttacksPerSecond": 1,
+    "baseIntervalTicks": 10,
+    "intervalFormula": "intervalTicks = round(10 / atkSpeedMultiplier)",
+    "minIntervalTicks": 2,
+    "classDifference": true,
+    "classDifferenceNote": "궁수 패시브 속사가 공격 속도를 +15% 올린다. 기본 공격 속도는 여전히 직군 공통이며, 차등은 패시브에서만 나온다 — CP 공식은 패시브 netEffect 로 이미 반영하고 있다.",
+    "atkSpeedSources": [
+      "skills.json > SK-P05 공격 속도",
+      "skills.json > SK-A07 광폭화"
+    ]
+  },
+  "damage": {
+    "mitigationFormula": "mitigation = DEF_target / (DEF_target + K * stageRefAtk)",
+    "mitigationConstant": 2.65,
+    "damageFormula": "damage = ATK_attacker * (1 - mitigation) * passiveMultipliers",
+    "selfScaling": true,
+    "selfScalingNote": "K를 공격자 ATK에 묶었기 때문에 스테이지 상수가 필요 없다. 수치가 100배 커져도 감산율이 유지되고, 아레나(유저 vs 유저)에서도 그대로 작동한다.",
+    "typicalMitigation": {
+      "note": "전 직군 DEF 가 동일해졌으므로 직군별 감산 차이가 없다. 아레나에서만 의미."
+    },
+    "minDamage": 1,
+    "minDamageNote": "감산이 아무리 커도 최소 1은 들어간다. 0 데미지 교착 방지.",
+    "mitigationBase": "stage_reference",
+    "stageRefAtkFormula": "requiredCp * 0.04",
+    "mitigationBaseNote": "v1은 K를 공격자 ATK에 묶었다. 그러면 나보다 강한 적 앞에서 DEF가 자동으로 무력화된다 - 보스(파티 총CP의 2.4배)전에서 아군 감산율이 4%로 붕괴했고, 시뮬 결과 DEF의 적정 CP 가격이 0.05까지 떨어지는 퇴행해가 나왔다. 스테이지 기준값으로 바꾸자 DEF 가격이 1.6으로 정상화됐다.",
+    "arenaResolved": "아레나는 틱 시뮬을 쓰지 않으므로 stageRefAtk 대체 기준이 불필요해졌다. arena.json > battle.resolution = cp_probability 참조.",
+    "mitigationAppliesTo": "arena_only",
+    "mitigationScopeNote": "감산 공식 자체는 유지한다. 아레나에서만 쓴다. 스테이지는 stageRules.mitigationApplies=false."
+  },
+  "cpWeights": {
+    "atk": 2,
+    "def": 1.8,
+    "hp": 0.1,
+    "history": {
+      "v1": {
+        "atk": 2,
+        "def": 3,
+        "hp": 0.5
+      },
+      "v2": {
+        "atk": 2,
+        "def": 0.6,
+        "hp": 3
+      },
+      "v3": {
+        "atk": 2,
+        "def": 1.6,
+        "hp": 0.1
+      },
+      "v4": {
+        "atk": 2,
+        "def": 1.8,
+        "hp": 0.1
+      }
+    },
+    "reasonForChange": "v1 편차157% / v2 해석1.3%->시뮬27% / v3 시뮬3.8% / v4는 스킬 효과 균등화 후 재탐색해 2.09%. cpWeights·감산기준·스킬효과·직군패시브가 서로 결합돼 있어 하나를 바꾸면 반드시 함께 재탐색해야 한다.",
+    "impactScope": "등급계수(=CP값) 자체는 불변이므로 CP 천장·스테이지 곡선·랭킹 전부 영향 없음. 파생되는 ATK/DEF/HP 절대값과 cpDivisor만 바뀐다."
+  },
+  "classPassives": {
+    "normalizationRule": "세 직군 모두 실전 기여도가 정확히 x1.15가 되도록 맞춘다.",
+    "warrior": {
+      "id": "crit_up",
+      "critChanceAdd": 0.15,
+      "critDamageMult": 2,
+      "netEffect": 1.15,
+      "appliesTo": "damage"
+    },
+    "archer": {
+      "id": "evade_counter",
+      "evadeChanceAdd": 0.1,
+      "counterAtkRatio": 0.45,
+      "netEffect": 1.161,
+      "derivation": "생존 1/(1-0.10) = 1.111, 반격 (1 + 0.10*0.45) = 1.045, 곱 = 1.161",
+      "history": {
+        "v1": {
+          "evadeChanceAdd": 0.12,
+          "counterAtkRatio": 0.8,
+          "netEffect": 1.245
+        }
+      },
+      "reasonForChange": "v1은 회피 12% + 반격 80%로 순효과 1.245였다. 전사·마법사의 1.15보다 8% 강했다."
+    },
+    "mage": {
+      "id": "extra_magic_hit",
+      "procChance": 0.25,
+      "procAtkRatio": 0.6,
+      "netEffect": 1.15,
+      "appliesTo": "damage"
+    },
+    "selfContainedRule": "직군 패시브는 반드시 자기 스탯만 참조해야 한다. 다른 시스템 수치(스킬 등급, 장비 세트 등)를 참조하면 자동장착의 그리디 정렬이 최적해가 아니게 된다."
+  },
+  "classRatios": {
+    "note": "characters.json > classes 와 동일. cpDivisor는 새 cpWeights 기준으로 재계산됨.",
+    "warrior": {
+      "atk": 35,
+      "def": 40,
+      "hp": 25,
+      "cpDivisor": 1.445
+    },
+    "archer": {
+      "atk": 45,
+      "def": 25,
+      "hp": 30,
+      "cpDivisor": 1.38
+    },
+    "mage": {
+      "atk": 55,
+      "def": 15,
+      "hp": 30,
+      "cpDivisor": 1.4
+    }
+  },
+  "balanceVerification": {
+    "method": "시뮬레이터(sim/) - 고정 스테이지를 깨는 데 필요한 최소 스탯 배율을 이분탐색. 낮을수록 강함.",
+    "tool": "sim/tune.js",
+    "seeds": 5,
+    "winThreshold": "5시드 중 3승",
+    "result": {
+      "warrior": 1.406,
+      "archer": 1.436,
+      "mage": 1.43,
+      "stage": 40
+    },
+    "spread": 0.0209,
+    "target": 0.05,
+    "status": "통과 (2.09%)",
+    "consistency": "St40/60/100/130/170 전 구간 2.1% 동일",
+    "supersedes": "해석적 계산(구 1.3%)은 폐기. 집중공격으로 딜이 제곱 가치를 갖는 효과를 반영하지 못했다."
+  },
+  "death": {
+    "onUnitDeath": "즉시 전투에서 제외. 부활 없음.",
+    "onWaveClear": "생존 아군 최대 HP의 50%만 회복",
+    "onWaveClearNote": "전량 회복은 방어형의 가치를 없앤다 - 한 웨이브에서 죽지만 않으면 HP/DEF가 무의미해지고 DPS만 남는다. 부분 회복이라야 3조우+보스에 걸친 소모전이 성립하고 CP 공식의 DEF/HP 가중치가 실전과 맞는다.",
+    "onPartyWipe": "스테이지 실패. 방치 상태면 같은 스테이지 자동 재도전.",
+    "bossHpCarry": false,
+    "waveClearHealRatio": 0.5,
+    "onWaveClearHistory": {
+      "v1": "전량 회복",
+      "v2": "50% 회복",
+      "reason": "시뮬 결과 전량 회복 시 직군 편차 31% (마법사 최강, 전사 최약)"
+    }
+  },
+  "skills": {
+    "trigger": "쿨타임 완료 즉시 자동 발동",
+    "cooldownStart": "전투 시작 시 0부터 시작 (즉시 발동 아님)",
+    "initialDelayTicks": 10,
+    "initialDelayNote": "전투 시작 1초 후부터 쿨타임이 돈다. 시작하자마자 스킬 8개가 동시에 터지면 연출도 밸런스도 망가진다.",
+    "simultaneousCap": 2,
+    "simultaneousCapNote": "같은 틱에 최대 2개까지만 발동. 초과분은 다음 틱으로 밀린다.",
+    "activeSkillSource": "액티브 스킬은 파티 전체 평균 ATK를 기준으로 계산한다 (특정 용병 소속이 아니므로)",
+    "passiveApplication": "패시브는 전투 시작 시 전 아군에게 일괄 적용"
+  },
+  "randomness": {
+    "seed": "server_generated",
+    "rngPoints": [
+      "치명타 판정",
+      "회피 판정",
+      "마법사 추가타 판정",
+      "즉사 판정",
+      "이중공격 판정"
+    ],
+    "determinism": "같은 시드 + 같은 편성 = 같은 결과. 아레나 재현 검증과 분쟁 처리에 필요.",
+    "arenaReroll": "아레나 재도전 시 서버가 새 시드를 생성한다"
+  },
+  "simulationPerformance": {
+    "worstCaseTicks": 600,
+    "entitiesPerTick": 10,
+    "estimatedOpsPerBattle": 6000,
+    "note": "가벼운 계산이다. 아레나 방어팀 시뮬을 서버에서 돌려도 부담 없음.",
+    "verse8Constraint": "remoteFunction 1회 호출로 전투 1건을 완결 처리한다. 틱 단위로 호출하면 10회/초 제한에 즉시 걸린다."
+  },
+  "battleResolution": {
+    "problem": "방치형은 최고 스테이지를 못 뚫으면 앞 스테이지를 무한 반복하며 재화를 번다. 전투가 초당 여러 번 끝날 수 있어 매번 remoteFunction을 부르면 10회/초 제한에 즉시 걸린다.",
+    "solution": "스테이지 승패를 CP로 판정하고, 전투 장면은 그것을 보여주는 연출로 만든다.",
+    "tiers": [
+      {
+        "ratio": ">= 1.10",
+        "result": "auto_win",
+        "serverCall": false,
+        "note": "파밍 구간. 플레이 시간의 대부분이 여기 - 서버 호출 0"
+      },
+      {
+        "ratio": "0.90 ~ 1.10",
+        "result": "simulate",
+        "serverCall": true,
+        "note": "벽에 부딪힌 경계 구간. 서버가 시드를 주고 실제 틱 시뮬을 돌린다"
+      },
+      {
+        "ratio": "< 0.90",
+        "result": "auto_lose",
+        "serverCall": false
+      }
+    ],
+    "ratioFormula": "myCP / stage.requiredCp",
+    "cosmeticRng": "자동 승패 구간에서 크리·회피·추가타 이펙트는 클라가 로컬에서 굴려 재생한다. 결과에 영향 없음.",
+    "antiCheat": "서버는 전투 로그를 검증하지 않는다. 유저 스탯으로 CP를 재계산해 스테이지 도달만 인정하면 된다. 검증 대상이 훨씬 작아진다.",
+    "appliesTo": [
+      "stage",
+      "dungeon"
+    ],
+    "notAppliesTo": [],
+    "arenaNote": "아레나도 CP 판정을 쓴다. 단 스테이지의 3구간(자동승/시뮬/자동패)이 아니라 연속 확률식 p = 1/(1+(oppCp/myCp)^6) 이다. 상세는 arena.json > battle."
+  },
+  "stagePresentation": {
+    "mode": "auto_side_scroll",
+    "description": "파티가 자동으로 우측 진행. 적 무리를 만나면 멈춰 싸우고, 정리되면 다시 진행. 스테이지 끝에 보스.",
+    "camera": {
+      "method": "background_scroll",
+      "methodNote": "카메라를 움직이지 않고 배경을 좌측으로 흘린다. 파티는 화면 좌측 고정. 구현이 단순하고 좌표 관리가 필요 없다.",
+      "partyScreenX": 0.22,
+      "parallax": {
+        "far": 0.2,
+        "mid": 0.5,
+        "fore": 1
+      }
+    },
+    "walkIllusion": {
+      "method": "배경 스크롤 + 캐릭터 상하 sin 바운스 + 좌우 미세 흔들림",
+      "note": "걷기 스프라이트가 없어도 배경이 흐르면 걷는 것으로 보인다. 정지 이미지 1장 원칙 유지."
+    },
+    "structure": {
+      "encountersPerStage": 3,
+      "enemiesPerEncounter": 4,
+      "stageBoss": {
+        "always": true,
+        "normalStage": "잡몹 1종을 1.6배 확대 + 스탯 강화하여 스테이지 보스로 사용",
+        "milestoneStage": "stages.json > bosses 의 전용 보스 에셋 사용 (St 10/25/50/75/100/150)"
+      },
+      "enemyFormation": "앞줄 2 / 뒷줄 2. 한 줄로 세우면 우측이 좁다."
+    },
+    "timing": {
+      "walkBetweenEncountersSec": 2,
+      "encounterBattleSec": 3,
+      "walkToBossSec": 2,
+      "bossBattleSec": 6,
+      "totalStageSec": 23,
+      "totalStageNote": "1배속 기준 약 23초. 방치형 파밍 반복 주기로 적정. 40초를 넘기면 재화 획득이 답답해진다.",
+      "atSpeed2x": 12,
+      "atSpeed3x": 8
+    },
+    "bossStaging": {
+      "cameraZoom": 1.15,
+      "nameBanner": true,
+      "bgmSwitch": true,
+      "spriteScale": 2,
+      "note": "보스만 특별 취급. 일반 조우와 같은 연출이면 스테이지가 전부 똑같아 보인다."
+    },
+    "progressBar": {
+      "show": true,
+      "content": "스테이지 진행도 % + 조우 아이콘 3개 + 보스 아이콘",
+      "reason": "언제 끝나는지 보이지 않으면 방치형에서 지루함이 배가된다."
+    }
+  },
+  "clientRendering": {
+    "principle": "클라는 계산하지 않는다. 자동 승패 구간은 클라가 연출을 생성하고, 시뮬 구간은 서버가 준 틱별 이벤트 로그를 재생한다.",
+    "dimension": "2D",
+    "dimensionNote": "가짜 원근만 적용한다 - 계단식 배치 + Y기준 z-order + 뒷줄 스케일 0.88 + 패럴랙스 배경. 진짜 2.5D(3D 카메라)는 쓰지 않는다: 에셋이 정면~3/4 정면 1장짜리라 각도가 바뀌면 깨지고, 3D 라이브러리 로딩 비용이 웹 배포에서 치명적이며, 에셋을 전부 다시 뽑아야 한다.",
+    "engine": "PixiJS",
+    "engineReason": [
+      "틴트 - 피격 시 빨간 깜빡임",
+      "hue-rotate 필터 - 잡몹 12종을 36종처럼 재활용 (stages.json > enemyReuseNote)",
+      "스프라이트 아틀라스 배칭 - 에셋 163장",
+      "파티클 - Kenney 파티클 팩"
+    ],
+    "engineAlternative": "DOM + CSS transform. 화면 스프라이트가 10여 개라 성능은 충분하고 가장 가볍지만, hue-rotate 잡몹 재활용과 파티클에서 한계가 온다.",
+    "animation": {
+      "walk": "배경 스크롤 + Y축 sin 바운스",
+      "idle": "Y축 sin 바운스 (진폭 축소)",
+      "attack": "X축 돌진 후 복귀 + 살짝 확대",
+      "hit": "빨간 틴트 깜빡 + 좌우 진동",
+      "death": "회전 + 페이드아웃 + 축소"
+    },
+    "animationNote": "캐릭터당 정지 이미지 1장만 있으면 된다. 스프라이트 시트 불필요.",
+    "classAttackVisuals": {
+      "warrior": "앞으로 돌진 -> 베기 이펙트 -> 원위치 복귀",
+      "archer": "제자리에서 활 당김 -> 화살 투사체 -> 도달 시 타격",
+      "mage": "제자리에서 마법진 -> 투사체 -> 적 위치에서 폭발",
+      "projectileTiming": "투사체는 비행시간만큼 먼저 발사해야 타격 틱과 맞는다. 안 하면 데미지 숫자가 먼저 뜨고 화살이 나중에 도착한다."
+    },
+    "damageText": {
+      "abbreviate": true,
+      "format": "K / M / B / T",
+      "reason": "CP 천장이 183만이고 데미지는 그보다 크다. 축약 없으면 화면이 숫자로 뒤덮인다.",
+      "pooling": true,
+      "poolingReason": "초당 수십 개가 생성·소멸한다. 매번 새로 만들면 GC로 프레임이 튄다.",
+      "critStyle": "폰트 1.4배 + 색상 구분"
+    },
+    "screenShake": {
+      "onNormalHit": false,
+      "onBossHit": true,
+      "reason": "매 타격마다 흔들면 방치형에서 멀미난다. 화면을 오래 켜두는 장르다."
+    },
+    "speedUp": [
+      1,
+      2,
+      3
+    ],
+    "skipBattle": {
+      "enabled": true,
+      "effect": "렌더를 멈추고 결과만 반영",
+      "reason": "방치형은 화면을 오래 켜둔다. 배터리·발열 대응."
+    },
+    "targetFps": 60,
+    "fallbackFps": 30
+  },
+  "todo": [
+    "시뮬레이터로 스킬 8칸 + 장비 세트 포함 상태에서 직군 편차 재검증",
+    "무작위 파티 500개로 CP 순위 vs 실제 클리어 시간 순위 상관계수 측정 (목표 0.9 이상)",
+    "웨이브 5마리 동시 등장이 맞는지, 순차 등장이 나은지 체감 확인",
+    "아레나 HP바 연출 로그 생성기 구현 및 체감 검증 (연출 길이 6~14초가 적절한지)"
+  ],
+  "stageRules": {
+    "model": "dps_check_with_soft_hp",
+    "description": "스테이지는 제한 시간 안의 DPS 체크다. 다만 체력·방어력을 끄지 않는다 — 끄면 방어 스탯과 방어 스킬이 통째로 장식이 된다. 대신 잡몹 피해에 스케일을 걸어 사실상 죽지 않게 한다. 참조: 버섯커 키우기도 스탯은 전부 공식 안에 살아 있고, 수치가 압도적이라 안 죽는 것뿐이다.",
+    "allyInvulnerable": false,
+    "allyInvulnerableNote": "v1 은 무적이었다. 방어 스탯이 전부 죽어 상관계수가 0.86 → 0.75 로 붕괴했다.",
+    "mitigationApplies": true,
+    "mitigationAppliesNote": "DEF 감산을 되살린다. DEF 가 실제로 작동해야 환산 패시브도 의미가 있다.",
+    "failCondition": "boss_timeout_or_wipe",
+    "timeLimitSeconds": null,
+    "bossTimeSeconds": 20,
+    "bossTimeSecondsNote": "보스 웨이브 진입 시 남은 시간을 이 값으로 다시 세팅한다. 잡몹 3웨이브를 아무리 오래 끌어도 보스에게는 항상 20초가 주어진다. 10초로 하면 스킬 쿨(6~11초)이 한 번밖에 안 돌아 bossDamageScale 1.0 으로 되살린 방어 스탯 검증 구간이 사라진다.",
+    "enemyHpScale": 1,
+    "enemyHpScaleNote": "아군 무적(v1) 때문에 넣었던 보정. 감산과 아군 피해를 되살린 지금은 1.0 이 맞다. 원 곡선이 이미 체력 소모전 기준으로 잡혀 있다.",
+    "mobDamageScale": 0.05,
+    "mobDamageScaleNote": "잡몹이 주는 피해 배율. 감산 뒤에 곱한다. 이 값이 낮아서 일반 웨이브에서는 사실상 죽지 않는다. sim/run.js 로 보정한다 — 목표는 \"3웨이브 동안 파티 HP 손실 10% 미만\".",
+    "bossDamageScale": 1,
+    "bossDamageScaleNote": "보스는 그대로 때린다. 여기서만 체력·방어력이 실제로 물린다.",
+    "failConditionNote": "보스 시간 초과가 주 실패 조건이다. 전멸도 보스전에서만 현실적으로 일어난다.",
+    "timeLimitSecondsNote": "잡몹 웨이브에는 제한이 없다. 시간에 쫓기는 구간은 보스뿐이다 — 잡몹은 mobDamageScale 0.05 라 어차피 안 죽고, 카운트다운만 띄우면 압박만 주고 판정에는 아무 영향이 없다."
+  },
+  "arenaRules": {
+    "statsMatter": true,
+    "note": "DEF/HP 가 실제로 작동하는 유일한 곳이다. 구 설계에서 아레나 틱 시뮬은 직군 편차 65~82%p 로 기각됐는데, 그 원인이 직군별 스탯 비대칭이었다. 스탯을 통일한 지금은 그 문제가 사라지므로 cp_probability 대신 실제 시뮬로 되돌릴 수 있다.",
+    "todo": "arena.json > resolution 을 cp_probability 에서 tick_sim 으로 전환할지 결정"
+  },
+  "enemyAttack": {
+    "description": "적 공격 연출 유형. 원화를 보고 분류했다. 컷아웃(무기 팔 분리)은 하지 않는다 — 적은 종류가 많고 화면에서 작게 나와 팔 하나 도는 것보다 몸 전체 연출이 더 잘 읽힌다.",
+    "kinds": {
+      "charge": "무기 없는 놈. 웅크렸다 몸으로 들이받는다.",
+      "thrust": "무기를 든 놈. 제자리에서 몸을 기울여 내지른다.",
+      "projectile": "원거리. 투사체가 날아가 명중에서 터진다."
+    },
+    "byId": {
+      "E-01": "charge",
+      "E-02": "charge",
+      "E-03": "thrust",
+      "E-04": "charge",
+      "E-05": "thrust",
+      "E-06": "charge",
+      "E-07": "thrust",
+      "E-08": "projectile",
+      "E-09": "projectile",
+      "E-10": "charge",
+      "E-11": "projectile",
+      "E-12": "thrust",
+      "B-01": "charge",
+      "B-02": "thrust",
+      "B-03": "projectile",
+      "B-04": "thrust",
+      "B-05": "thrust",
+      "B-06": "projectile"
+    },
+    "projectileFx": {
+      "E-08": "PJ-01",
+      "E-09": "PJ-02",
+      "E-11": "PJ-03",
+      "B-03": "PJ-04",
+      "B-06": "PJ-05",
+      "fallback": "PJ-06"
+    },
+    "projectileFallback": {
+      "PJ-01": "HIT-05",
+      "PJ-02": "HIT-02",
+      "PJ-03": "HIT-05",
+      "PJ-04": "HIT-05",
+      "PJ-05": "HIT-01",
+      "PJ-06": "HIT-04"
+    },
+    "projectileNote": "PJ-* 는 전용 투사체(에셋_생성_프롬프트.md STEP 14). 아직 없으면 projectileFallback 의 HIT-* 로 떨어진다."
+  },
+  "allyAttack": {
+    "description": "용병 직군별 공격 연출. 전사는 근접, 궁수·마법사는 투사체를 쏜다.",
+    "byClass": {
+      "warrior": "melee",
+      "archer": "projectile",
+      "mage": "projectile"
+    },
+    "projectileFx": {
+      "archer": "PJ-07",
+      "mage": "PJ-08",
+      "fallback": "PJ-09"
+    },
+    "projectileFallback": {
+      "PJ-07": "HIT-04",
+      "PJ-08": "HIT-05",
+      "PJ-09": "HIT-04"
+    },
+    "projectileNote": "발사점은 rig.weaponTip() — 활 끝·지팡이 머리다. 팔이 도는 각도를 따라가므로 무기에서 나가는 것처럼 보인다. 명중 시점에 피해와 타격 이펙트가 터진다.",
+    "speedNote": "투사체 비행은 260ms 로 적 것(300ms)보다 살짝 빠르다. 내가 쏘는 건 시원해야 하고 맞는 건 피할 틈이 보여야 한다."
+  }
+}

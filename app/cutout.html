@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>컷아웃 편집기 — 무기 팔 분리</title>
+<style>
+  :root{--bg:#0e131c;--panel:#18202e;--line:#2c3850;--txt:#e8edf5;--dim:#8fa0ba;--gold:#ffc94a;--up:#5ad86a;--warn:#ff5a6a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:"Malgun Gothic",system-ui,sans-serif;overflow:hidden}
+  #wrap{display:flex;height:100%}
+  #stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;
+    background:#0a0e15;min-width:0}
+  #cv{background:
+      linear-gradient(45deg,#1a2030 25%,transparent 25%,transparent 75%,#1a2030 75%),
+      linear-gradient(45deg,#1a2030 25%,#141a26 25%,#141a26 75%,#1a2030 75%);
+    background-size:22px 22px;background-position:0 0,11px 11px;cursor:crosshair;
+    box-shadow:0 0 0 1px var(--line)}
+  #side{width:270px;flex:0 0 270px;background:var(--panel);border-left:1px solid var(--line);
+    padding:12px;overflow-y:auto}
+  h1{font-size:14px;margin:0 0 3px}
+  .sub{font-size:11px;color:var(--dim);line-height:1.55;margin-bottom:11px}
+  select,button{font-family:inherit}
+  select{width:100%;background:#222c40;border:1px solid var(--line);color:var(--txt);
+    border-radius:6px;padding:7px;font-size:12px;margin-bottom:8px}
+  .grp{font-size:10px;color:var(--dim);letter-spacing:.5px;margin:14px 0 6px;
+    border-bottom:1px solid var(--line);padding-bottom:4px}
+  .mode{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}
+  .mode button{background:#222c40;border:1px solid var(--line);color:var(--txt);
+    border-radius:6px;padding:7px 3px;font-size:11px;font-weight:700;cursor:pointer}
+  .mode button.on{background:var(--gold);color:#000;border-color:var(--gold)}
+  .btn{width:100%;background:#222c40;border:1px solid var(--line);color:var(--txt);
+    border-radius:7px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px}
+  .btn.primary{background:linear-gradient(#3c5ea8,#2c4680);border-color:#4a6fc0}
+  .btn.danger{border-color:#7a3b46;color:#ffb3bd}
+  .btn:disabled{opacity:.4;cursor:default}
+  .kv{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);
+    padding:4px 2px;border-bottom:1px solid #1e2636}
+  .kv b{color:var(--txt)}
+  #msg{font-size:11px;margin-top:8px;line-height:1.5;min-height:32px}
+  #preview{margin-top:8px;display:flex;gap:6px;justify-content:center}
+  #preview canvas{background:#141a26;border:1px solid var(--line);border-radius:6px}
+  .hint{font-size:10px;color:var(--dim);line-height:1.5;margin-top:8px}
+  .hint b{color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="side">
+    <h1>컷아웃 편집기</h1>
+    <div class="sub">무기 팔을 떼어 어깨 중심으로 회전시킨다.<br>
+      관절 주변을 <b>넉넉히</b> 감싸면 회전해도 구멍이 안 보인다.</div>
+
+    <select id="pick"></select>
+
+    <div class="grp">1. 팔 영역</div>
+    <div class="mode">
+      <button data-m="poly" class="on">다각형</button>
+      <button data-m="pivot">어깨</button>
+      <button data-m="tip">무기끝</button>
+    </div>
+    <button class="btn" id="undo">마지막 점 취소</button>
+    <button class="btn danger" id="clear">전부 지우기</button>
+
+    <label class="chk" style="display:flex;align-items:center;gap:7px;font-size:12px;
+      padding:6px 2px;cursor:pointer">
+      <input type="checkbox" id="mirror" checked> 좌우 반전 (적 방향으로)
+    </label>
+
+    <div class="grp">2. 확인</div>
+    <button class="btn" id="test">회전 미리보기</button>
+    <div id="preview"></div>
+
+    <div class="grp">3. 저장</div>
+    <button class="btn primary" id="save">저장</button>
+    <div id="msg"></div>
+
+    <div class="grp">현재 값</div>
+    <div class="kv"><span>점</span><b id="k_pts">0</b></div>
+    <div class="kv"><span>어깨</span><b id="k_pivot">—</b></div>
+    <div class="kv"><span>무기끝</span><b id="k_tip">—</b></div>
+
+    <div class="hint">
+      <b>순서</b><br>
+      1. 다각형으로 팔+무기를 감싼다 (클릭으로 점 추가)<br>
+      2. <b>어깨</b> 모드로 회전 중심을 찍는다<br>
+      3. <b>무기끝</b> 모드로 칼끝·활끝을 찍는다 (트레일 시작점)<br>
+      4. 회전 미리보기로 구멍이 안 보이는지 확인<br>
+      5. 저장 → <code>assets/cutout/&lt;ID&gt;.json</code>
+    </div>
+  </div>
+</div>
+<script type="module" src="./src/cutout.js"></script>
+</body>
+</html>

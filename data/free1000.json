@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "무료 1000뽑 - 스테이지 도달 시마다 소환권 증정, 누적 정확히 1000장",
+    "purpose": "신규 유저 획득 후크 + 온보딩 + 스테이지 진행 동기. 스토어 페이지 대표 문구."
+  },
+
+  "totalTickets": 1000,
+
+  "economyImpact": {
+    "warning": "이것은 '추가 재화'가 아니라 '다이아 배출의 재배치'다. 총량은 유지하고 배출 타이밍만 스테이지 진도에 묶어 앞당긴다.",
+    "compensation": {
+      "target": "dungeons.json > crystal_cave.baseYield",
+      "from": 250,
+      "to": 190,
+      "reason": "보정 없이 넣으면 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다."
+    },
+    "afterCompensation": {
+      "f2p_D180_cumulativePulls": 4050,
+      "f2p_D180_mercSummonLv": 34,
+      "monetizationGap": "3.0배속 유지"
+    }
+  },
+
+  "unlockGating": {
+    "note": "미해금 트랙의 소환권을 주면 유저가 혼란스러워한다. 해금 시점에 맞춰 종류를 배분한다.",
+    "mercenary": "stage_1",
+    "equipment": "stage_10",
+    "skill": "stage_25"
+  },
+
+  "distribution": [
+    {
+      "band": "St 1-9",
+      "fromStage": 1,
+      "toStage": 9,
+      "interval": 1,
+      "ticketsPerGrant": 5,
+      "grants": 9,
+      "subtotal": 45,
+      "split": { "merc_ticket": 1.0 },
+      "intent": "첫 로그인 직후 연속 지급. 소환 시스템 즉시 체험"
+    },
+    {
+      "band": "St 10-25",
+      "fromStage": 10,
+      "toStage": 25,
+      "interval": 1,
+      "ticketsPerGrant": 5,
+      "grants": 16,
+      "subtotal": 80,
+      "split": { "merc_ticket": 0.6, "equip_ticket": 0.4 },
+      "intent": "장비 소환 해금(St10) 반영"
+    },
+    {
+      "band": "St 26-30",
+      "fromStage": 26,
+      "toStage": 30,
+      "interval": 1,
+      "ticketsPerGrant": 5,
+      "grants": 5,
+      "subtotal": 25,
+      "split": { "merc_ticket": 0.45, "skill_ticket": 0.35, "equip_ticket": 0.2 },
+      "intent": "스킬 소환 해금(St25) 반영. 3종 혼합 시작"
+    },
+    {
+      "band": "St 31-100",
+      "fromStage": 35,
+      "toStage": 100,
+      "interval": 5,
+      "ticketsPerGrant": 25,
+      "grants": 14,
+      "subtotal": 350,
+      "split": { "merc_ticket": 0.45, "skill_ticket": 0.35, "equip_ticket": 0.2 },
+      "intent": "간격을 벌리고 덩어리를 키운다. 마일스톤 체감 유지"
+    },
+    {
+      "band": "St 101-200",
+      "fromStage": 110,
+      "toStage": 200,
+      "interval": 10,
+      "ticketsPerGrant": 50,
+      "grants": 10,
+      "subtotal": 500,
+      "split": { "merc_ticket": 0.45, "skill_ticket": 0.35, "equip_ticket": 0.2 },
+      "intent": "후반 대형 지급. 정체 구간의 돌파 보상"
+    }
+  ],
+
+  "totals": {
+    "grants": 54,
+    "tickets": 1000,
+    "byType": { "merc_ticket": 450, "skill_ticket": 350, "equip_ticket": 200 }
+  },
+
+  "ui": {
+    "progressBar": true,
+    "displayFormat": "무료 1000뽑  247 / 1000",
+    "nextGrantHint": "다음 지급: 스테이지 35 (소환권 25장)",
+    "requirement": "남은 수량이 항상 보여야 한다. 이게 마케팅 후크의 핵심이자 스테이지 진행 동기다.",
+    "placement": ["메인 HUD 상단", "스테이지 화면", "소환 화면"]
+  },
+
+  "legalNotice": {
+    "risk": "스토어/광고 문구로 '무료 1000뽑'을 쓰면 표시광고법상 오인 유발 소지가 있다. 조건 없이 즉시 1000회를 준다고 읽힐 수 있다.",
+    "requirement": "반드시 조건을 병기한다. 예: '스테이지 진행 시 최대 1000회 무료 소환권 지급'",
+    "alsoApplies": ["스토어 소개글", "인게임 배너", "외부 광고 소재"]
+  },
+
+  "serverAuthority": {
+    "requirement": "지급 이력을 서버가 기록해 중복 수령을 막는다. 스테이지 도달 판정도 서버 기준.",
+    "verse8Api": "$global.updateMyState (claimedFreePullMilestones 배열)"
+  }
+}
