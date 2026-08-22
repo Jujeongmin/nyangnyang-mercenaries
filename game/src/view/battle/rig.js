@@ -49,6 +49,22 @@ export class UnitRig {
     // 궤도 입자 — UR·LR 전용. 32종 중 5종에만 붙어 상한이 잡힌다.
     // 몸 주위를 도는 점 3개라 파티클 시스템 없이 Graphics 로 그린다
     this.orbs = !!opt.orbs;
+    // 몸 주변 오라 — SSR+ 전용. 비용 통제:
+    //   · 글로우는 **공유 방사형 텍스처 1장**을 등급색 tint 로 쓴다 (유닛당 스프라이트 1)
+    //   · 프레임 작업은 알파/스케일 값 대입뿐, 생성·파괴 없음
+    //   · 상승 불씨는 이미 매 프레임 그리는 gradeRing Graphics 에 원 3개 얹는다
+    this.aura = null;
+    if (opt.aura && this.ringColor) {
+      const tex = UnitRig.glowTexture(PIXI);
+      this.aura = new PIXI.Sprite(tex);
+      this.aura.anchor.set(0.5);
+      this.aura.tint = this.ringColor;
+      this.aura.blendMode = 'add';
+      // 여기서 addChild 하면 순서가 shadow → ring → **aura** → rigRoot(아래에서 추가)
+      // 가 되어 자연히 몸 뒤에 깔린다. rigRoot 는 아직 안 만들어졌으므로
+      // 인덱스 조회는 불가능하고, 필요도 없다
+      this.view.addChild(this.aura);
+    }
 
     // 몸통 아래에 팔이 오는 경우가 없도록 컨테이너로 묶는다
     this.rigRoot = new PIXI.Container();
@@ -342,6 +358,14 @@ export class UnitRig {
     if (this.opts.shadow) this.drawShadow(alpha);
     else this.shadow.clear();
     this.drawGradeRing(alpha);
+    if (this.aura) {
+      // 숨쉬는 글로우. 링과 같은 위상이라 한 생명체로 읽힌다
+      const pulse = 0.16 + (Math.sin(this.ringT) + 1) * 0.05;
+      this.aura.alpha = pulse * alpha;
+      const w = this.w * 1.5;
+      this.aura.width = w; this.aura.height = this.h * 1.25;
+      this.aura.position.set(0, -this.h * 0.5);
+    }
   }
 
   /**
@@ -380,6 +404,22 @@ export class UnitRig {
       .fill({ color: 0x000000, alpha: 0.30 * k * alpha });
   }
 
+  /** 공유 글로우 텍스처 — 흰 방사형 원 1장. tint 로 등급색을 입힌다 */
+  static glowTexture(PIXI) {
+    if (UnitRig._glowTex) return UnitRig._glowTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const rg = g.createRadialGradient(64, 64, 6, 64, 64, 62);
+    rg.addColorStop(0, 'rgba(255,255,255,.9)');
+    rg.addColorStop(0.55, 'rgba(255,255,255,.28)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 128, 128);
+    UnitRig._glowTex = PIXI.Texture.from(c);
+    return UnitRig._glowTex;
+  }
+
   /**
    * 발밑 등급 링. 정지 그림에 회전하는 이중 타원 — 파티클 없이 도는 느낌을 낸다.
    * 프레임마다 정점 몇 개짜리 타원 두 개라 부하가 사실상 없다. 방치형은 화면을
@@ -398,6 +438,17 @@ export class UnitRig {
     g.ellipse(0, 0, rx, ry).stroke({ color: this.ringColor, width: 2, alpha: 0.75 * pulse * alpha });
     g.ellipse(0, 0, rx * 0.8, ry * 0.8)
       .stroke({ color: this.ringColor, width: 1, alpha: 0.4 * pulse * alpha });
+    // 상승 불씨 — 오라 유닛(SSR+)만. 몸 옆에서 피어올라 사라지는 원 3개.
+    // 위상만 다른 같은 수식이라 상태 저장이 없다
+    if (this.aura) {
+      for (let i = 0; i < 3; i++) {
+        const ph = (this.ringT * 0.55 + i / 3) % 1;
+        const ex = Math.sin((this.ringT + i * 2.1) * 1.7) * this.w * 0.34;
+        const ey = -this.h * (0.15 + ph * 0.85);
+        g.circle(ex, ey, 1.6 + (1 - ph) * 1.2)
+          .fill({ color: this.ringColor, alpha: (1 - ph) * 0.5 * alpha });
+      }
+    }
     if (!this.orbs) return;
     // 입자 3개가 몸 높이 중간쯤의 타원 궤도를 돈다. 뒤로 돌 때(sin<0) 는
     // 몸에 가려야 하지만 z 분리 비용이 커서 알파를 낮추는 것으로 눈속임한다

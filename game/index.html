@@ -112,7 +112,7 @@
   /* 절전 덮개 — AOD 풍. 새카만 바탕에 시계·달만 */
   /* 완전 불투명 검정 — OLED 에서 검은 픽셀은 꺼진 픽셀이다. 캔버스도
      stage.visible=false 로 안 그린다 (scene.setPowerSave) */
-  #pwrveil{position:absolute;inset:0;z-index:27;display:none;flex-direction:column;
+  #pwrveil{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
     align-items:center;justify-content:center;gap:7px;background:#000;
     touch-action:none}
   #pwrveil.show{display:flex}
@@ -154,11 +154,28 @@
   #alField::before{content:"";position:absolute;inset:0;
     background:linear-gradient(#0b101877 0%, #0000 30%, #0000 62%, #0b1018aa 100%)}
   #alGround{position:absolute;left:0;right:0;bottom:0;height:8%}
-  .al-bd{position:absolute;width:88px;text-align:center;cursor:pointer;
-    filter:drop-shadow(0 6px 14px #000a)}
-  .al-bd img{width:74px;height:74px;object-fit:contain;pointer-events:none}
-  .al-bd b{display:block;font-size:10px;background:#0b0f17d8;border:1px solid #ffffff22;
-    border-radius:7px;padding:2px 0;margin-top:-6px}
+  /* 광장·길 — 흙길. 배경 그림 위에 반투명 띠라 어떤 BG 에도 얹힌다 */
+  #alPlaza{position:absolute;left:50%;top:56%;width:44%;height:15%;
+    margin-left:-22%;border-radius:50%;
+    background:radial-gradient(ellipse at center,#c9a86855,#a8894e33 62%,#0000 74%)}
+  .al-path{position:absolute;height:26px;border-radius:13px;
+    background:linear-gradient(#c9a86844,#a8894e2e);pointer-events:none}
+  .al-bush{position:absolute;width:64px;height:34px;pointer-events:none;
+    background:radial-gradient(ellipse at 30% 70%,#3f7d3d,#28572c 70%,#0000 74%),
+      radial-gradient(ellipse at 72% 76%,#4a8a44,#2c5c2e 66%,#0000 72%);
+    filter:drop-shadow(0 4px 6px #0007)}
+
+  /* 건물 — 마을의 주인공이라 크게. big 은 뒷줄 랜드마크 */
+  .al-bd{position:absolute;width:118px;text-align:center;cursor:pointer;
+    filter:drop-shadow(0 8px 18px #000b)}
+  .al-bd img{width:112px;height:112px;object-fit:contain;pointer-events:none}
+  .al-bd.big{width:150px}
+  .al-bd.big img{width:146px;height:146px}
+  .al-bd b{display:block;font-size:11px;background:#0b0f17d8;border:1px solid #ffffff22;
+    border-radius:8px;padding:3px 0;margin-top:-10px;position:relative}
+  /* 건물 발밑 접지 그림자 — 배경에 붙어 보인다 */
+  .al-bd::after{content:"";position:absolute;left:12%;right:12%;bottom:14px;height:12px;
+    border-radius:50%;background:#00000038;z-index:-1}
   .al-bd:active{transform:scale(.96)}
   #alCap{position:absolute;width:62px;margin-left:-31px;pointer-events:none;
     filter:drop-shadow(0 4px 8px #0009)}
@@ -176,6 +193,15 @@
     color:#dbe4f2;text-shadow:0 1px 3px #000;margin-top:-3px}
   #alDemoNote{position:absolute;right:8px;bottom:6px;font-size:9px;color:#ffffff77;
     pointer-events:none}
+  /* 가상 조이스틱 — 원 안에 원. 누른 자리에 뜬다 */
+  #alJoy{position:absolute;width:92px;height:92px;margin:-46px 0 0 -46px;
+    border-radius:50%;border:2px solid #ffffff2e;background:#0b0f1740;
+    pointer-events:none;opacity:0;transition:opacity .12s;z-index:120}
+  #alJoy.show{opacity:1}
+  #alJoyKnob{position:absolute;left:50%;top:50%;width:40px;height:40px;
+    margin:-20px 0 0 -20px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#3a4a6a,#1d2739);
+    border:1px solid #ffffff44;box-shadow:0 2px 8px #0008}
   .al-dn{display:flex;align-items:center;gap:10px;background:#141c2a;
     border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
   .al-dn>div{flex:1}
@@ -1818,6 +1844,13 @@
   #skAuto i{font-style:normal;font-size:8px}
   #skAuto.on{color:#3a2a08;background:radial-gradient(circle at 40% 35%,#ffe9a8,#e8a72c);
     border-color:#ffd76a;box-shadow:0 0 8px #ffc94a88}
+  /* 쿨타임 와이프 — 시전 직후 어두운 원뿔이 시계 방향으로 걷힌다.
+     --cd 는 남은 각도(360deg → 0). rAF 가 깎는다 */
+  .sk .cdwipe{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    display:none;background:conic-gradient(#0009 var(--cd,0deg),#0000 0)}
+  .sk.cool .cdwipe{display:block}
+  .sk.flash{box-shadow:0 0 12px #ffe9a8cc!important;border-color:#ffe9a8!important}
+
   /* 수동 모드에서 준비된 스킬 — 눌러 달라고 빛난다 */
   .sk.ready{cursor:pointer;box-shadow:0 0 10px #ffc94aaa!important;border-color:var(--gold)!important}
 
@@ -1907,16 +1940,6 @@
     <button id="chest"><img id="chestImg" src="/assets/ui/CH-01.png" alt=""><span id="chestT">0분</span></button>
     <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div></div><span id="dpsInfo"></span></div>
     <div id="result"></div>
-    <!-- 절전 덮개 — 밀어서 해제. 탭 해제는 주머니 오터치로 꺼진다.
-         어둡게 가려서 "렌더가 멈췄다"가 아니라 "절전 중"으로 읽히게 한다 -->
-    <div id="pwrveil">
-      <div class="pv-moon">🌙</div>
-      <div class="pv-clock">00:00</div>
-      <b>절전 중</b>
-      <span>전투·보상은 계속 진행됩니다</span>
-      <div class="pv-stats"><span id="pvStage"></span><span id="pvGold"></span></div>
-      <div id="pvTrack"><div id="pvHandle">💤</div><i>밀어서 해제</i></div>
-    </div>
     <!-- 벽 안내 — 보스 실패 뒤 요구/현재 CP 와 탈출구. 탭하면 닫힌다 -->
     <div id="wall">
       <div id="wallCard">
@@ -2036,7 +2059,17 @@
       color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit">닫기</button>
   </div></div>
   <div id="lvup"><div><b></b><span></span></div></div>
-  <div id="toast"></div>
+  <!-- 절전 덮개 — #app **밖**이다. 안에 두면 VS(z30)·상단바·네비가 덮개 위로
+     새고, #app 을 통째로 숨기는 것도 불가능해진다. 밀어서 해제 -->
+<div id="pwrveil">
+  <div class="pv-moon">🌙</div>
+  <div class="pv-clock">00:00</div>
+  <b>절전 중</b>
+  <span>전투·보상은 계속 진행됩니다</span>
+  <div class="pv-stats"><span id="pvStage"></span><span id="pvGold"></span></div>
+  <div id="pvTrack"><div id="pvHandle">💤</div><i>밀어서 해제</i></div>
+</div>
+<div id="toast"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>

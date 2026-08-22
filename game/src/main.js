@@ -624,8 +624,10 @@ function renderSkills() {
       d.style.borderColor = GC[s.grade];
       d.style.boxShadow = `0 0 6px ${GC[s.grade]}55`;
       // 신규 스킬은 그림이 아직 없을 수 있다. 깨진 아이콘 대신 빼 버린다
-      d.innerHTML = `<img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">`;
+      d.innerHTML = `<img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">`
+        + '<i class="cdwipe"></i>';
       d.title = `${s.nameKo} ${s.grade} Lv${s.level}`;
+      d.dataset.sid = s.id;
     } else {
       d.title = `${kind} ${i + 1}번 칸 — 비어 있음`;
     }
@@ -635,13 +637,19 @@ function renderSkills() {
     const d = mk(s, i, '액티브');
     // 수동 모드에서는 탭이 곧 발동이다. 준비 표시는 scene 이 ready 클래스로 준다.
     if (s) d.addEventListener('click', () => {
+      // 수동 모드에서 탭 = 발동. 자동 모드에서는 발동할 게 없으니 탭 = 설명이다
       if (!S.skillAuto) scene.castSkillManual?.(i);
+      else openUnitInfo('skill', s.id);
     });
     d.dataset.si = i;
     box.appendChild(d);
   });
   const gap = document.createElement('div'); gap.className = 'skgap'; box.appendChild(gap);
-  S.skills.passive.forEach((s, i) => box.appendChild(mk(s, i, '패시브')));
+  S.skills.passive.forEach((s, i) => {
+    const d = mk(s, i, '패시브');
+    if (s) d.addEventListener('click', () => openUnitInfo('skill', s.id));
+    box.appendChild(d);
+  });
 }
 
 /** equipment.json 의 assetPrefix(equip_EQW) → 파일명(EQ-W) */
@@ -1429,6 +1437,51 @@ const ELEM_KO = { fire: '불', water: '물', nature: '풀', light: '빛', dark: 
 const SKILL_CAT_KO = { attack: '공격', buff: '버프', survival: '생존', summon: '소환',
   stat: '능력치', special: '특수' };
 
+/**
+ * 스킬 설명 문장. skills.json 에 서술 필드가 없으므로 effect 에서 만든다 —
+ * 데이터에 문장을 넣으면 수치를 고칠 때마다 문장이 낡는다. kind 가 곧 문법이다.
+ */
+function skillDesc(sk, level) {
+  const e = sk.effect || {};
+  const mult = D.skills.gradeCoef[sk.grade] * (1 + (level || 0) * 0.06)
+    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
+  const x = v => (v * mult).toFixed(2).replace(/\.?0+$/, '');
+  const pct = v => (v * mult * 100).toFixed(0) + '%';
+  const rawPct = v => (v * 100).toFixed(0) + '%';
+  const STAT = { atk: '공격력', def: '방어력', hp: '체력', atkSpeed: '공격 속도',
+    dmgTaken: '받는 피해' };
+  switch (e.kind) {
+    case 'aoe_damage': return `적 ${e.targets}체에게 공격력의 ${x(e.atkRatio)}배 피해`
+      + (e.burnPct ? ` + ${e.burnSec}초간 화상(${pct(e.burnPct)})` : '');
+    case 'single_damage': return `적 하나에게 공격력의 ${x(e.atkRatio)}배 피해`
+      + (e.slowPct ? ` + ${e.slowSec}초간 둔화 ${rawPct(e.slowPct)}` : '');
+    case 'pierce_damage': return `일직선 ${e.targets}체를 관통해 공격력의 ${x(e.atkRatio)}배 피해`;
+    case 'chain_damage': return `번개가 ${e.targets}체를 연쇄해 공격력의 ${x(e.atkRatio)}배 피해`
+      + ` (연쇄마다 ${rawPct(e.chainFalloff)}로 감소)`;
+    case 'party_buff': return `${e.durationSec}초간 아군 전체 ${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
+    case 'cooldown_reduce': return `${e.durationSec}초간 아군 스킬 쿨타임 ${x(e.pct)}배 가속`;
+    case 'party_heal': return `아군 전체를 최대 체력의 ${pct(e.maxHpRatio)}만큼 회복`;
+    case 'party_shield': return `${e.durationSec}초간 아군 전체에 최대 체력 ${pct(e.maxHpRatio)} 보호막`;
+    case 'summon': return `${e.durationSec}초간 소환수 ${e.count}기 (공격력의 ${x(e.atkRatio)}배로 공격)`;
+    case 'enemy_debuff': return `${e.durationSec}초간 적 전체 ${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
+    case 'enemy_stun': return `적 전체를 ${e.durationSec}초간 정지`;
+    case 'stat_pct': return `${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
+    case 'crit_chance': return `치명타 확률 +${pct(e.add)}`;
+    case 'crit_damage': return `치명타 피해 +${pct(e.add)}`;
+    case 'evade_chance': return `회피 확률 +${pct(e.add)}`;
+    case 'def_pierce': return `적 방어력 ${pct(e.pct)} 무시`;
+    case 'lifesteal': return `피해의 ${pct(e.pct)}만큼 흡혈`;
+    case 'reflect': return `받은 피해의 ${pct(e.pct)}를 반사`;
+    case 'execute': return `체력 ${rawPct(e.hpThreshold)} 이하의 적을 ${rawPct(e.chance)} 확률로 즉시 처치`;
+    case 'double_hit': return `${rawPct(e.chance)} 확률로 공격력의 ${x(e.atkRatio)}배 추가 타격`;
+    case 'regen': return `초당 최대 체력의 ${(e.maxHpRatioPerSec * mult * 100).toFixed(1)}% 재생`;
+    case 'revive_once': return `전투당 ${e.perBattle}회, 쓰러질 때 체력 ${pct(e.healRatio)}로 부활`;
+    case 'kill_stack_atk': return `처치마다 공격력 +${rawPct(e.pctPerStack)} (최대 ${e.maxStacks}중첩)`;
+    case 'damage_amplify': return `${rawPct(e.chance)} 확률로 피해 ${e.mult}배`;
+    default: return '';
+  }
+}
+
 /** 스킬 효과를 사람이 읽는 줄들로. 수치는 effectScaling 이 등급·레벨로 곱한 실효값 */
 function skillEffectRows(sk, level) {
   const e = sk.effect || {};
@@ -1583,6 +1636,8 @@ function openUnitInfo(kind, id) {
     ? [def.type === 'active' ? '액티브' : '패시브', SKILL_CAT_KO[def.category] || def.category]
     : [CLASS_KO[def.class] || def.class, ELEM_KO[def.element] || def.element];
   $('#unitTags').innerHTML = tags.map(t => `<span>${t}</span>`).join('');
+  $('#unitDesc').textContent = isSkill ? skillDesc(def, level) : '';
+  $('#unitDesc').style.display = isSkill ? '' : 'none';
 
   const rows = [];
   rows.push(['레벨', held ? `Lv ${level} / ${cap}` : '미보유 (도감 등록)']);
@@ -2605,6 +2660,25 @@ function questGoto(t) {
 }
 
 function onEvent(e) {
+  if (e.type === 'skillCast') {
+    // 자동 발동이 보이게 — 시전된 칸에 쿨타임 와이프를 돌린다.
+    // 원뿔 그라데이션 각도를 CSS 변수로 깎는 rAF 하나. 칸당 동시 1개
+    const cell = document.querySelector(`#skills .sk[data-sid="${e.id}"]`);
+    if (cell) {
+      cell.classList.add('cool');
+      const t0 = performance.now(), dur = e.sec * 1000;
+      cancelAnimationFrame(cell._cdRaf);
+      const step = now => {
+        const p = Math.min(1, (now - t0) / dur);
+        cell.style.setProperty('--cd', (360 - p * 360) + 'deg');
+        if (p < 1) cell._cdRaf = requestAnimationFrame(step);
+        else { cell.classList.remove('cool'); cell.classList.add('flash');
+               setTimeout(() => cell.classList.remove('flash'), 500); }
+      };
+      cell._cdRaf = requestAnimationFrame(step);
+    }
+    return;
+  }
   if (e.type === 'wave') {
     markEncounter(e.encounter);
     // 보스전이 시작되면 도전 버튼을 숨긴다
@@ -2870,6 +2944,16 @@ function rollSkills() {
     scene.setPowerSave(on);
     $('#pwrveil').classList.toggle('show', on);
     $('#pwrSave').classList.toggle('on', on);
+    // #app 전체를 렌더 트리에서 뺀다. veil 로 가리기만 하면 그 밑에서
+    // CSS 애니메이션(제작대 시트·재화 반짝임)과 페인트가 계속 돌아 배터리를 먹는다.
+    // display:none 은 서브트리의 CSS 애니·레이아웃·페인트를 전부 멈춘다.
+    // WebGL 캔버스 컨텍스트는 유지되고, 시뮬 ticker 는 DOM 과 무관하게 돈다
+    $('#app').style.display = on ? 'none' : '';
+    if (!on) {
+      // 숨긴 동안 뷰포트가 바뀌었을 수 있다 — 캔버스 크기를 다시 잡게 한다
+      window.dispatchEvent(new Event('resize'));
+      renderTop();
+    }
     clearInterval(pvTimer); pvTimer = null;
     if (on) {
       // 켠 시점을 기억해 두고 경과 시간·그동안 번 골드를 보여 준다.

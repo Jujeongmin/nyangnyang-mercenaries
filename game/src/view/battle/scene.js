@@ -237,6 +237,7 @@ export class BattleScene {
         motion: motionForClass(m.class), arm, trim: TR[m.id],
         ringColor: this.ringColorOf(m.grade),
         orbs: m.grade === 'UR' || m.grade === 'LR',
+        aura: ['SSR', 'UR', 'LR'].includes(m.grade),
       });
       this.field.addChild(rig.view);
       this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5), skillCd: rnd(4, 9) });
@@ -512,6 +513,10 @@ export class BattleScene {
         ? this.activeSkills[(Math.random() * this.activeSkills.length) | 0]
         : (u.pendingSkill || null);   // 수동 발동분
       u.pendingSkill = null;
+      // 스킬바가 쿨타임 와이프를 그리게 알린다. 실시간 = 데이터 초 / 배속
+      if (u.usingSkill) this.onEvent({ type: 'skillCast', id: u.usingSkill.id,
+        sec: (this.D.skills.skills.find(k => k.id === u.usingSkill.id)?.effect?.cooldownSec || 8)
+          / (this.speed || 1) });
       const target = alive[0];
       // 원거리 직군은 무기 끝에서 투사체가 나간다. 즉발이면 거리가 안 읽힌다.
       const A = this.D.combat.allyAttack;

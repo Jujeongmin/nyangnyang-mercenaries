@@ -27,21 +27,36 @@ export class AllianceVillage {
         <span id="alCoin"></span>
       </div>
       <div id="alField">
-        <div id="alGround"></div>
-        <div class="al-bd" data-b="boss"   style="left:6%;top:17%">
-          <img src="/assets/boss/B-01.png" alt="" onerror="this.remove()">
+        <!-- 길 — 중앙 광장에서 네 건물로 갈라진다. 길이 있어야 "마을"이지
+             그림 위에 아이콘을 얹은 화면이 아니게 된다 -->
+        <div id="alPlaza"></div>
+        <div class="al-path" style="left:16%;top:40%;width:28%;transform:rotate(-34deg)"></div>
+        <div class="al-path" style="right:16%;top:38%;width:28%;transform:rotate(32deg)"></div>
+        <div class="al-path" style="left:18%;top:68%;width:24%;transform:rotate(16deg)"></div>
+        <div class="al-path" style="right:18%;top:68%;width:24%;transform:rotate(-15deg)"></div>
+        <!-- 덤불 — 경계 장식. 걷는 범위의 가장자리를 시각으로도 알려준다 -->
+        <div class="al-bush" style="left:-3%;top:30%"></div>
+        <div class="al-bush" style="right:-4%;top:33%;transform:scale(1.3)"></div>
+        <div class="al-bush" style="left:34%;top:26%;transform:scale(.75)"></div>
+        <div class="al-bush" style="left:-2%;bottom:2%;transform:scale(1.5)"></div>
+        <div class="al-bush" style="right:-3%;bottom:0;transform:scale(1.6)"></div>
+
+        <div class="al-bd big" data-b="boss" style="left:2%;top:6%">
+          <img src="/assets/alliance/AL-01.png" alt="" onerror="this.remove()">
           <b>보스 소굴</b></div>
-        <div class="al-bd" data-b="donate" style="right:7%;top:15%">
-          <img src="/assets/ui/CH-01.png" alt="" onerror="this.remove()">
+        <div class="al-bd big" data-b="donate" style="right:3%;top:5%">
+          <img src="/assets/alliance/AL-02.png" alt="" onerror="this.remove()">
           <b>기부 창고</b></div>
-        <div class="al-bd" data-b="shop"   style="left:8%;top:46%">
-          <img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.remove()">
+        <div class="al-bd" data-b="shop" style="left:4%;top:42%">
+          <img src="/assets/alliance/AL-03.png" alt="" onerror="this.remove()">
           <b>연합 상점</b></div>
-        <div class="al-bd" data-b="member" style="right:8%;top:47%">
-          <img src="/assets/ui/IC-RANK.png" alt="" onerror="this.remove()">
+        <div class="al-bd" data-b="member" style="right:5%;top:43%">
+          <img src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
           <b>게시판</b></div>
         <div id="alCap"><img src="/assets/captain/captain_warrior.png" alt=""></div>
         <div id="alDemoNote">주민은 서버 연동 전 데모입니다</div>
+        <!-- 가상 조이스틱 — 누른 자리에 뜨고, 안쪽 원이 손가락을 따라온다 -->
+        <div id="alJoy"><div id="alJoyKnob"></div></div>
       </div>`;
     root.appendChild(this.el);
     $(this.el, '.sh-back').addEventListener('click', () => this.close());
@@ -49,28 +64,81 @@ export class AllianceVillage {
     this.field = $(this.el, '#alField');
     this.cap = $(this.el, '#alCap');
     this.capPos = { x: 50, y: 78 };            // % 좌표. y 는 마을 길 위
-    this.walkT = null;
     this.bots = [];
     this.botTimer = null;
 
-    // 바닥 탭 → 걸어간다. 건물 탭 → 그 앞까지 걸어간 뒤 연다.
-    this.field.addEventListener('click', e => {
-      const bd = e.target.closest('.al-bd');
+    // 이동은 **가상 조이스틱**이다 — 아무 데나 누르면 그 자리에 스틱이 뜨고,
+    // 안쪽 원을 민 방향·거리만큼 단장이 걷는다. 떼면 선다.
+    // 짧은 탭(220ms 미만)은 이동이 아니라 건물 열기다.
+    this.joy = $(this.el, '#alJoy');
+    this.knob = $(this.el, '#alJoyKnob');
+    this.stick = null;                         // {cx, cy, dx, dy} px — 스틱 중심·기울기
+    this.moveRaf = null;
+    const JOY_R = 46;                          // 스틱 반경(px). 이 이상은 최대 속도
+    this.field.addEventListener('pointerdown', e => {
+      this.holdAt = performance.now();
+      this.holdBd = e.target.closest('.al-bd');
       const r = this.field.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width * 100;
-      const y = (e.clientY - r.top) / r.height * 100;
-      if (bd) {
-        const br = bd.getBoundingClientRect();
-        const bx = (br.left + br.width / 2 - r.left) / r.width * 100;
-        const by = (br.bottom - r.top) / r.height * 100 + 6;
-        this.walkTo(bx, Math.max(30, Math.min(88, by)),
-          () => this.api.openPanel(bd.dataset.b));
-      } else {
-        // 길 밖(하늘)은 무시 — 단장이 지붕 위로 올라가면 마을이 장난감이 된다
-        if (y < 26) return;
-        this.walkTo(x, Math.max(30, Math.min(88, y)));
-      }
+      this.stick = { cx: e.clientX - r.left, cy: e.clientY - r.top, dx: 0, dy: 0 };
+      this.joy.style.left = this.stick.cx + 'px';
+      this.joy.style.top = this.stick.cy + 'px';
+      this.knob.style.transform = 'translate(0,0)';
+      try { this.field.setPointerCapture(e.pointerId); } catch { /* noop */ }
+      this.startMoveLoop();
     });
+    this.field.addEventListener('pointermove', e => {
+      if (!this.stick) return;
+      const r = this.field.getBoundingClientRect();
+      let dx = (e.clientX - r.left) - this.stick.cx;
+      let dy = (e.clientY - r.top) - this.stick.cy;
+      const d = Math.hypot(dx, dy);
+      if (d > JOY_R) { dx *= JOY_R / d; dy *= JOY_R / d; }
+      this.stick.dx = dx / JOY_R;              // -1 ~ 1
+      this.stick.dy = dy / JOY_R;
+      this.knob.style.transform = `translate(${dx}px,${dy}px)`;
+      // 조금이라도 밀었으면 이동이다 — 탭 판정을 깬다
+      if (Math.hypot(dx, dy) > 9) this.joy.classList.add('show');
+    });
+    const up = () => {
+      if (!this.stick) return;
+      const wasTap = performance.now() - this.holdAt < 220
+        && Math.hypot(this.stick.dx, this.stick.dy) < 0.2;
+      this.stick = null;
+      this.joy.classList.remove('show');
+      this.cap.classList.remove('walk');
+      if (wasTap && this.holdBd) this.api.openPanel(this.holdBd.dataset.b);
+      this.holdBd = null;
+    };
+    this.field.addEventListener('pointerup', up);
+    this.field.addEventListener('pointercancel', up);
+  }
+
+  /** 조이스틱 이동 루프 — 기울인 방향·세기로 걷는다 */
+  startMoveLoop() {
+    if (this.moveRaf) return;
+    let last = performance.now();
+    const SPEED = 30;                          // 최대 %/초
+    const step = now => {
+      this.moveRaf = null;
+      if (!this.el.classList.contains('show')) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (this.stick) {
+        const { dx, dy } = this.stick;
+        const mag = Math.hypot(dx, dy);
+        if (mag > 0.12) {                      // 데드존 — 미세 떨림에 안 걷는다
+          const c = this.capPos;
+          c.x = Math.max(3, Math.min(97, c.x + dx * SPEED * dt));
+          // 세로는 원근 때문에 살짝 느리게. 하늘(30%) 위로는 못 간다
+          c.y = Math.max(30, Math.min(88, c.y + dy * SPEED * 0.75 * dt));
+          this.cap.classList.add('walk');
+          if (Math.abs(dx) > 0.08) this.cap.classList.toggle('flip', dx < 0);
+          this.cap.style.transition = 'none';
+          this.place(this.cap, c.x, c.y);
+        } else this.cap.classList.remove('walk');
+        this.moveRaf = requestAnimationFrame(step);
+      }
+    };
+    this.moveRaf = requestAnimationFrame(step);
   }
 
   open() {
@@ -82,6 +150,9 @@ export class AllianceVillage {
 
   close() {
     this.el.classList.remove('show');
+    this.stick = null;
+    this.joy?.classList.remove('show');
+    if (this.moveRaf) { cancelAnimationFrame(this.moveRaf); this.moveRaf = null; }
     clearInterval(this.botTimer); this.botTimer = null;
     for (const b of this.bots) b.el.remove();
     this.bots = [];
@@ -97,22 +168,6 @@ export class AllianceVillage {
     el.style.left = x + '%';
     el.style.top = y + '%';
     el.style.zIndex = 10 + Math.round(y);
-  }
-
-  walkTo(x, y, then) {
-    const c = this.capPos;
-    const dist = Math.hypot(x - c.x, (y - c.y) * 1.6);
-    const dur = Math.max(240, dist * 26);          // 거리 비례 시간
-    this.cap.classList.add('walk');
-    this.cap.classList.toggle('flip', x < c.x);
-    this.cap.style.transition = `left ${dur}ms linear, top ${dur}ms linear`;
-    this.place(this.cap, x, y);
-    this.capPos = { x, y };
-    clearTimeout(this.walkT);
-    this.walkT = setTimeout(() => {
-      this.cap.classList.remove('walk');
-      then?.();
-    }, dur + 40);
   }
 
   /** 데모 주민 — 몇 초마다 아무 데나 걸어 다닌다 */
