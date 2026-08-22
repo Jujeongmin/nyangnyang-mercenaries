@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { bgeditPlugin } from './tools/bgedit-plugin.js';
 
 // Verse8 은 Vite 프로젝트를 전제로 한다 (docs.verse8.io — "Vite 기반").
 //
@@ -14,6 +15,8 @@ import { resolve } from 'node:path';
 //             import 로 바꾸면 번들에 박혀서 JSON 만 고쳐 배포하는 길이 막힌다
 // 그래서 코드에서는 절대경로(`/assets/...`, `/data/...`)로 참조한다.
 export default defineConfig({
+  // 배경 지우개(`/bgedit.html`)의 저장 API. dev 에서만 붙는다
+  plugins: [bgeditPlugin(__dirname)],
   root: 'game',
   publicDir: 'public',
   build: {

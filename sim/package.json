@@ -1,0 +1,4 @@
+{
+  "//": "루트 package.json 이 type:module 이라 CommonJS 인 sim/*.js 가 전부 죽었다 (Vite 이전 잔재). 디렉터리 오버라이드로 되살린다.",
+  "type": "commonjs"
+}

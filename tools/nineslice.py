@@ -20,7 +20,11 @@ import os
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'assets', 'ui')
+# 에셋 실물은 Vite 이전(42a129f) 후 game/public/ 아래다. 저장소 루트의
+# assets/ 는 더 이상 없다 — vite.config.js > publicDir 참조.
+ASSETS = os.path.join('game', 'public', 'assets')
+
+SRC = os.path.join(ROOT, ASSETS, 'ui')
 OUT = os.path.join(SRC, '9s')
 ALPHA = 24
 

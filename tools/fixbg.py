@@ -23,6 +23,10 @@ import rembg
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 에셋 실물은 Vite 이전(42a129f) 후 game/public/ 아래다. 저장소 루트의
+# assets/ 는 더 이상 없다 — vite.config.js > publicDir 참조.
+ASSETS = os.path.join('game', 'public', 'assets')
+
 CATS = ["char", "enemy", "boss", "captain"]
 
 # 뚫을 후보 조건 — 밝고(LIGHT 이상) 채도가 낮은(SAT 이하) 픽셀만.
@@ -105,7 +109,7 @@ def main():
     total = touched = 0
 
     for cat in ([args.cat] if args.cat else CATS):
-        d = os.path.join(ROOT, "assets", cat)
+        d = os.path.join(ROOT, ASSETS, cat)
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):

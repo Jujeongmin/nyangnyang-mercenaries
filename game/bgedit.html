@@ -1,0 +1,377 @@
+<meta charset="utf-8">
+<title>배경 지우개</title>
+<!--
+  에셋의 **닫힌 배경**(활대 안쪽, 후광 안쪽 등)을 손으로 지운다.
+
+  왜 손으로 하나 — 색으로도 rembg 로도 못 가른다는 걸 확인했다.
+  · 색: 배경 잔여가 (255,255,255) 인데 캐릭터 흰 털도 거의 같은 값이라 같이 지워진다
+  · rembg(u2net/isnet/u2netp): 활 안쪽을 셋 다 "전경"으로 판단한다
+
+  그래서 **어디를** 지울지는 사람이 정하고, **무엇을** 지울지만 색 규칙이 돕는다.
+  기본은 안전 모드 — 칠한 영역 안에서도 밝은 무채색만 지운다.
+
+  픽셀 작업은 전부 이 페이지에서 하고, 서버(tools/bgedit-plugin.js)는
+  완성된 PNG 를 받아 쓰기만 한다. 덮어쓰기 전에 자동 백업된다.
+-->
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#e3b341; --danger:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;background:var(--bg);color:var(--txt);
+    font:13px/1.5 system-ui,"Malgun Gothic",sans-serif;overflow:hidden}
+
+  /* ── 좌측: 파일 목록 ───────────────────────────── */
+  #side{flex:0 0 220px;display:flex;flex-direction:column;border-right:1px solid var(--line);
+    background:var(--panel)}
+  #side h1{margin:0;padding:12px 12px 8px;font-size:14px;letter-spacing:.5px}
+  #q{margin:0 12px 8px;padding:6px 8px;background:#0d1117;border:1px solid var(--line);
+    border-radius:6px;color:var(--txt);font:inherit}
+  #files{flex:1;overflow-y:auto;padding:0 6px 12px}
+  .fi{display:flex;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:6px;
+    cursor:pointer;white-space:nowrap}
+  .fi:hover{background:#21262d}
+  .fi.on{background:#1f6feb33;outline:1px solid #1f6feb}
+  .fi small{color:var(--dim)}
+  .fi.edited::after{content:'●';color:var(--acc)}
+
+  /* ── 우측: 작업 영역 ───────────────────────────── */
+  #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  #bar{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+    padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .grp{display:flex;align-items:center;gap:5px}
+  .grp>span{color:var(--dim)}
+  button{background:#21262d;border:1px solid var(--line);color:var(--txt);border-radius:6px;
+    padding:5px 10px;cursor:pointer;font:inherit}
+  button:hover{border-color:#8b949e}
+  button.on{background:#1f6feb;border-color:#1f6feb}
+  button.go{background:var(--acc);border-color:var(--acc);color:#241a00;font-weight:700}
+  button.warn{border-color:var(--danger);color:var(--danger)}
+  button:disabled{opacity:.4;cursor:default}
+  input[type=range]{width:96px}
+  label{display:flex;align-items:center;gap:5px;cursor:pointer}
+
+  #wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair}
+  #view{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:pixelated}
+  #status{flex:0 0 auto;padding:6px 12px;border-top:1px solid var(--line);
+    background:var(--panel);color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+  #status b{color:var(--txt)}
+  #status .err{color:var(--danger)}
+  kbd{background:#21262d;border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:4px;padding:0 4px;font-size:11px}
+</style>
+
+<div id="side">
+  <h1>배경 지우개</h1>
+  <input id="q" placeholder="파일 검색 (예: UR-03)">
+  <div id="files"></div>
+</div>
+
+<div id="main">
+  <div id="bar">
+    <div class="grp">
+      <button id="t-brush" class="on" data-tool="brush">브러시</button>
+      <button id="t-erase" data-tool="erase">지우개</button>
+      <button id="t-wand" data-tool="wand">마술봉</button>
+    </div>
+    <div class="grp"><span>크기</span>
+      <input type="range" id="size" min="2" max="160" value="28"><b id="sizeV">28</b></div>
+    <div class="grp"><span>마술봉 허용</span>
+      <input type="range" id="tol" min="0" max="60" value="14"><b id="tolV">14</b></div>
+    <div class="grp">
+      <label><input type="checkbox" id="safe" checked> 밝은 무채색만</label>
+      <span>밝기</span><input type="range" id="bright" min="180" max="255" value="246"><b id="brightV">246</b>
+      <span>채도</span><input type="range" id="chroma" min="0" max="40" value="6"><b id="chromaV">6</b>
+    </div>
+    <div class="grp">
+      <button id="undo">되돌리기 <kbd>Z</kbd></button>
+      <button id="clear">선택 해제</button>
+      <button id="fit">화면 맞춤</button>
+    </div>
+    <div class="grp">
+      <button id="save" class="go">저장</button>
+      <button id="revert" class="warn">파일 복구</button>
+    </div>
+  </div>
+
+  <div id="wrap"><canvas id="view"></canvas></div>
+
+  <div id="status">
+    <span id="file">파일을 골라라</span>
+    <span>선택 <b id="selN">0</b>px</span>
+    <span>지워질 <b id="delN">0</b>px</span>
+    <span>확대 <b id="zoomV">100%</b></span>
+    <span><kbd>휠</kbd> 확대 · <kbd>스페이스+드래그</kbd> 이동 · <kbd>[</kbd><kbd>]</kbd> 브러시</span>
+    <span id="msg"></span>
+  </div>
+</div>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+
+// ── 상태 ────────────────────────────────────────────────
+let cur = null;          // {cat, id}
+let W = 0, H = 0;
+let src = null;          // 원본 ImageData (알파 포함)
+let sel = null;          // Uint8Array — 1 이면 사용자가 칠한 곳
+let hist = [];           // 되돌리기 스택 (sel 스냅샷)
+let zoom = 1, panX = 0, panY = 0;
+let tool = 'brush', painting = false, panning = false, lastPt = null;
+
+const view = $('#view'), ctx = view.getContext('2d', { willReadFrequently: true });
+// 오프스크린: 원본 + 오버레이를 1:1 로 그린 뒤 확대해서 화면에 올린다
+const off = document.createElement('canvas'), octx = off.getContext('2d');
+
+const num = n => n.toLocaleString();
+const msg = (t, err) => { const e = $('#msg'); e.textContent = t; e.className = err ? 'err' : ''; };
+
+// ── 파일 목록 ───────────────────────────────────────────
+let allFiles = [];
+const edited = new Set();
+
+async function loadList() {
+  const r = await fetch('/__bgedit/list');
+  const j = await r.json();
+  allFiles = j.files;
+  renderList();
+}
+function renderList() {
+  const q = $('#q').value.trim().toLowerCase();
+  const rows = allFiles.filter(f => !q || (f.cat + '/' + f.id).toLowerCase().includes(q));
+  $('#files').innerHTML = rows.map(f =>
+    `<div class="fi${cur && cur.cat === f.cat && cur.id === f.id ? ' on' : ''}${
+      edited.has(f.cat + '/' + f.id) ? ' edited' : ''}" data-cat="${f.cat}" data-id="${f.id}">
+       <span>${f.id}</span><small>${f.cat}</small></div>`).join('');
+}
+$('#q').addEventListener('input', renderList);
+$('#files').addEventListener('click', e => {
+  const el = e.target.closest('.fi');
+  if (el) open(el.dataset.cat, el.dataset.id);
+});
+
+// ── 열기 ────────────────────────────────────────────────
+async function open(cat, id) {
+  const im = new Image();
+  // 저장 직후 다시 열 때 캐시가 옛 그림을 주지 않게 한다
+  im.src = `/assets/${cat}/${id}.png?t=${Date.now()}`;
+  await im.decode();
+  cur = { cat, id };
+  W = im.naturalWidth; H = im.naturalHeight;
+  off.width = view.width = W; off.height = view.height = H;
+  octx.clearRect(0, 0, W, H);
+  octx.drawImage(im, 0, 0);
+  src = octx.getImageData(0, 0, W, H);
+  sel = new Uint8Array(W * H);
+  hist = [];
+  $('#file').textContent = `${cat}/${id}.png  ${W}×${H}`;
+  msg('');
+  renderList();
+  fit();
+  draw();
+}
+
+// ── 지울 픽셀 판정 ──────────────────────────────────────
+// 안전 모드면 칠한 영역 안에서도 **밝은 무채색**만 지운다.
+// 캐릭터의 흰 털은 (247,242,246) 처럼 미세하게 유채색이라 채도 문턱으로 갈린다.
+function willDelete(i) {
+  if (!sel[i]) return false;
+  const d = src.data, p = i * 4;
+  if (d[p + 3] === 0) return false;                 // 이미 투명
+  if (!$('#safe').checked) return true;
+  const r = d[p], g = d[p + 1], b = d[p + 2];
+  const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
+  return mn >= +$('#bright').value && (mx - mn) <= +$('#chroma').value;
+}
+
+// ── 그리기 ──────────────────────────────────────────────
+function draw() {
+  if (!src) return;
+  const out = octx.createImageData(W, H);
+  const s = src.data, o = out.data;
+  let selN = 0, delN = 0;
+  for (let i = 0; i < W * H; i++) {
+    const p = i * 4;
+    o[p] = s[p]; o[p + 1] = s[p + 1]; o[p + 2] = s[p + 2]; o[p + 3] = s[p + 3];
+    if (!sel[i]) continue;
+    selN++;
+    if (willDelete(i)) {                 // 지워질 곳 — 진한 빨강
+      delN++;
+      o[p] = 248; o[p + 1] = 30; o[p + 2] = 60; o[p + 3] = 255;
+    } else {                             // 칠했지만 규칙에 안 걸린 곳 — 옅은 파랑
+      o[p] = (o[p] + 80) >> 1; o[p + 1] = (o[p + 1] + 140) >> 1; o[p + 2] = (o[p + 2] + 255) >> 1;
+      o[p + 3] = Math.max(o[p + 3], 110);
+    }
+  }
+  octx.putImageData(out, 0, 0);
+  // 화면 캔버스: 체커보드 위에 얹어 알파가 보이게 한다
+  ctx.clearRect(0, 0, W, H);
+  const c = 16;
+  for (let y = 0; y < H; y += c) for (let x = 0; x < W; x += c) {
+    ctx.fillStyle = ((x / c + y / c) & 1) ? '#20262e' : '#2a313a';
+    ctx.fillRect(x, y, c, c);
+  }
+  ctx.drawImage(off, 0, 0);
+  $('#selN').textContent = num(selN);
+  $('#delN').textContent = num(delN);
+}
+
+function applyTransform() {
+  view.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+  $('#zoomV').textContent = Math.round(zoom * 100) + '%';
+}
+function fit() {
+  const r = $('#wrap').getBoundingClientRect();
+  zoom = Math.min(r.width / W, r.height / H) * 0.92;
+  panX = (r.width - W * zoom) / 2;
+  panY = (r.height - H * zoom) / 2;
+  applyTransform();
+}
+$('#fit').addEventListener('click', fit);
+
+// ── 입력 ────────────────────────────────────────────────
+const toPix = e => {
+  const r = $('#wrap').getBoundingClientRect();
+  return { x: Math.floor((e.clientX - r.left - panX) / zoom),
+           y: Math.floor((e.clientY - r.top - panY) / zoom) };
+};
+const push = () => { hist.push(sel.slice()); if (hist.length > 40) hist.shift(); };
+
+function stamp(x, y, on) {
+  const rad = +$('#size').value / 2, r2 = rad * rad;
+  const x0 = Math.max(0, Math.floor(x - rad)), x1 = Math.min(W - 1, Math.ceil(x + rad));
+  const y0 = Math.max(0, Math.floor(y - rad)), y1 = Math.min(H - 1, Math.ceil(y + rad));
+  for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) {
+    const dx = xx - x, dy = yy - y;
+    if (dx * dx + dy * dy <= r2) sel[yy * W + xx] = on;
+  }
+}
+/** 선을 이어 칠한다. 안 하면 빠르게 움직일 때 점선이 된다 */
+function stroke(a, b, on) {
+  const n = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y) | 0);
+  for (let i = 0; i <= n; i++) stamp(a.x + (b.x - a.x) * i / n, a.y + (b.y - a.y) * i / n, on);
+}
+
+/** 마술봉 — 클릭한 색과 비슷하고 이어진 영역을 고른다 */
+function wand(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const d = src.data, tol = +$('#tol').value;
+  const i0 = y * W + x, p0 = i0 * 4;
+  const r0 = d[p0], g0 = d[p0 + 1], b0 = d[p0 + 2], a0 = d[p0 + 3];
+  const seen = new Uint8Array(W * H);
+  const st = [i0];
+  seen[i0] = 1;
+  while (st.length) {
+    const i = st.pop();
+    sel[i] = 1;
+    const yy = (i / W) | 0, xx = i % W;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = xx + dx, ny = yy + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const ni = ny * W + nx;
+      if (seen[ni]) continue;
+      const np = ni * 4;
+      if (Math.abs(d[np] - r0) > tol || Math.abs(d[np + 1] - g0) > tol
+       || Math.abs(d[np + 2] - b0) > tol || Math.abs(d[np + 3] - a0) > tol) continue;
+      seen[ni] = 1; st.push(ni);
+    }
+  }
+}
+
+$('#wrap').addEventListener('pointerdown', e => {
+  if (!src) return;
+  if (e.button === 1 || panning) { panning = true; lastPt = { x: e.clientX, y: e.clientY }; return; }
+  const p = toPix(e);
+  push();
+  if (tool === 'wand') { wand(p.x, p.y); draw(); return; }
+  painting = true; lastPt = p;
+  stamp(p.x, p.y, tool === 'brush' ? 1 : 0);
+  draw();
+  $('#wrap').setPointerCapture(e.pointerId);
+});
+$('#wrap').addEventListener('pointermove', e => {
+  if (panning && lastPt) {
+    panX += e.clientX - lastPt.x; panY += e.clientY - lastPt.y;
+    lastPt = { x: e.clientX, y: e.clientY }; applyTransform(); return;
+  }
+  if (!painting) return;
+  const p = toPix(e);
+  stroke(lastPt, p, tool === 'brush' ? 1 : 0);
+  lastPt = p;
+  draw();
+});
+addEventListener('pointerup', () => { painting = false; if (!spaceDown) panning = false; });
+$('#wrap').addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = $('#wrap').getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const k = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const z2 = Math.min(24, Math.max(0.05, zoom * k));
+  panX = mx - (mx - panX) * (z2 / zoom);
+  panY = my - (my - panY) * (z2 / zoom);
+  zoom = z2; applyTransform();
+}, { passive: false });
+
+let spaceDown = false;
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { spaceDown = panning = true; e.preventDefault(); }
+  if (e.key === 'z' || e.key === 'Z') undo();
+  if (e.key === '[') setSize(+$('#size').value - 4);
+  if (e.key === ']') setSize(+$('#size').value + 4);
+});
+addEventListener('keyup', e => { if (e.code === 'Space') { spaceDown = false; panning = false; } });
+
+function setSize(v) {
+  $('#size').value = Math.max(2, Math.min(160, v));
+  $('#sizeV').textContent = $('#size').value;
+}
+for (const [id, out] of [['size', 'sizeV'], ['tol', 'tolV'], ['bright', 'brightV'], ['chroma', 'chromaV']]) {
+  $('#' + id).addEventListener('input', () => { $('#' + out).textContent = $('#' + id).value; draw(); });
+}
+$('#safe').addEventListener('change', draw);
+
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
+  tool = b.dataset.tool;
+  document.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('on', x === b));
+}));
+function undo() { if (!hist.length) return; sel = hist.pop(); draw(); }
+$('#undo').addEventListener('click', undo);
+$('#clear').addEventListener('click', () => { if (!sel) return; push(); sel.fill(0); draw(); });
+
+// ── 저장 ────────────────────────────────────────────────
+$('#save').addEventListener('click', async () => {
+  if (!cur) return;
+  let n = 0;
+  const out = new ImageData(new Uint8ClampedArray(src.data), W, H);
+  for (let i = 0; i < W * H; i++) if (willDelete(i)) { out.data[i * 4 + 3] = 0; n++; }
+  if (!n) return msg('지울 픽셀이 없다', true);
+
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  cv.getContext('2d').putImageData(out, 0, 0);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const r = await fetch(`/__bgedit/save?cat=${cur.cat}&id=${cur.id}`,
+    { method: 'POST', body: blob });
+  const j = await r.json();
+  if (!r.ok) return msg(j.error || '저장 실패', true);
+  msg(`${num(n)}px 지움 · 백업 ${j.backup}`);
+  edited.add(cur.cat + '/' + cur.id);
+  // 저장한 결과를 다시 원본으로 삼는다. 이어서 다른 곳을 더 칠할 수 있다
+  src = out; sel.fill(0); hist = [];
+  renderList(); draw();
+});
+
+$('#revert').addEventListener('click', async () => {
+  if (!cur) return;
+  const r = await fetch(`/__bgedit/revert?cat=${cur.cat}&id=${cur.id}`, { method: 'POST' });
+  const j = await r.json();
+  if (!r.ok) return msg(j.error || '복구 실패', true);
+  // open() 이 msg('') 로 지우므로 **연 다음에** 알린다
+  edited.delete(cur.cat + '/' + cur.id);
+  await open(cur.cat, cur.id);
+  msg(`복구함 ← ${j.from}`);
+});
+
+addEventListener('resize', () => { if (src) applyTransform(); });
+loadList();
+</script>

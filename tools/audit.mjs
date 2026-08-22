@@ -29,7 +29,9 @@ const UNDECIDED = new Set([]);
 
 // 서버가 붙어야 담을 수 있는 재화. 클라 혼자서는 상태를 가질 수 없다
 // (연합 상태는 개인 세이브가 아니라 컬렉션이다 — alliance.json > verse8).
-const SERVER_ONLY = new Set(['alliance_coin']);
+// alliance_coin 은 마을 기부 프로토타입이 S.allyCoin 으로 임시 보유한다 (2026-08-23).
+// 서버 연동 때 net/backend.js 로 옮기면 다시 이 목록으로 돌아온다.
+const SERVER_ONLY = new Set([]);
 
 // 아직 안 그린 에셋. 프롬프트는 이미 나갔고 그리기만 남았다 — 코드 오류가 아니다.
 const TODO_ART = ['ui/IC-SHOP.png', 'ui/CU-11.png', 'ui/CU-12.png'];

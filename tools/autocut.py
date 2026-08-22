@@ -24,6 +24,10 @@ import sys
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 에셋 실물은 Vite 이전(42a129f) 후 game/public/ 아래다. 저장소 루트의
+# assets/ 는 더 이상 없다 — vite.config.js > publicDir 참조.
+ASSETS = os.path.join('game', 'public', 'assets')
+
 ALPHA = 40          # 이 값 이하는 배경으로 본다
 BODY_RATIO = 0.30   # 최대 열두께의 30% 이상이면 몸통
 PAD = 26            # 다각형 여유
@@ -156,8 +160,8 @@ def main():
     want_sheet = '--sheet' in sys.argv
     side = SIDE.get(cat, 'right')
 
-    src_dir = os.path.join(ROOT, 'assets', cat)
-    out_dir = os.path.join(ROOT, 'assets', 'cutout')
+    src_dir = os.path.join(ROOT, ASSETS, cat)
+    out_dir = os.path.join(ROOT, ASSETS, 'cutout')
     os.makedirs(out_dir, exist_ok=True)
     sheets = []
 

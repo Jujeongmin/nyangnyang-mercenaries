@@ -20,6 +20,10 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 에셋 실물은 Vite 이전(42a129f) 후 game/public/ 아래다. 저장소 루트의
+# assets/ 는 더 이상 없다 — vite.config.js > publicDir 참조.
+ASSETS = os.path.join('game', 'public', 'assets')
+
 CATS = ["char", "enemy", "boss", "captain"]
 
 # 원본 배경은 단색이 아니다 — 254/253/248 이 섞인 압축 노이즈다.
@@ -66,7 +70,7 @@ def components(mask):
 
 
 def fix(cat, uid, dry=False):
-    p = os.path.join(ROOT, "assets", cat, uid + ".png")
+    p = os.path.join(ROOT, ASSETS, cat, uid + ".png")
     raw = os.path.join(ROOT, "assets_raw", cat, uid + ".png")
     if not os.path.exists(raw):
         return 0
@@ -112,7 +116,7 @@ def main():
 
     total = touched = 0
     for cat in CATS:
-        d = os.path.join(ROOT, "assets", cat)
+        d = os.path.join(ROOT, ASSETS, cat)
         if not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):

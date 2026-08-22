@@ -19,3 +19,6 @@ assets_bak/
 assets_raw/
 assets_legacy/
 .claude/
+
+# 배경 지우개 백업 — 로컬 보관
+.bgedit-backup/

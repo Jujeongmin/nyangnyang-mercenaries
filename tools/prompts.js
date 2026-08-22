@@ -110,6 +110,9 @@ const T = {
 thick clean dark outlines, flat cel shading, vibrant saturated colors,
 strong glow effect. Square 1:1 composition, symbol fills the frame with a
 small even margin. Simple dark radial-gradient circular backdrop behind the symbol.
+The circular backdrop must be a CLIPPED DISC on a fully transparent background —
+the four corners outside the circle must be 100% transparent alpha, not black.
+PNG with alpha channel. No square background plate.
 No text, no border frame, no watermark.`,
   equip: `Mobile game equipment item icon. Single object, cute stylized cartoon style,
 thick clean dark outlines, flat cel shading, vibrant colors, subtle glow.
@@ -311,7 +314,7 @@ for (const [cat, list, fn] of SETS) {
   }
   todo += `\n## ${cat} — ${left.length} / ${list.length}\n\n`;
   for (const [mark, it] of left) {
-    todo += `- ${mark} \`${it.id}\` ${it.name} → \`assets/${ASSET_DIR[cat]}/${it.id}.png\`\n`;
+    todo += `- ${mark} \`${it.id}\` ${it.name} → \`game/public/assets/${ASSET_DIR[cat]}/${it.id}.png\`\n`;
   }
 }
 
