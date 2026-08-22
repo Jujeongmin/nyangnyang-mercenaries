@@ -10,6 +10,11 @@
     --bg:#0e131c; --panel:#18202e; --panel2:#212b3d; --line:#2c3850;
     --txt:#e8edf5; --dim:#8fa0ba; --gold:#ffc94a; --dia:#5ad8ff; --ore:#ff8a4a;
     --up:#5ad86a; --warn:#ff5a6a;
+    /* 파생 토큰 — 아래 셋이 화면의 실질 표면색이다. 하드코딩 51종을 이 셋으로
+       정규화했다 (2026-08-23). 새 카드·칸을 만들 때도 이걸 쓴다:
+         --card  일반 카드·칸 바탕      --ink  깊은 바탕(캡슐·게이지 홈)
+         --ink2  카드 안의 한 단계 깊은 칸 */
+    --card:#141c2a; --ink:#0b0f17; --ink2:#0d131f;
   }
   /* 텍스트 선택·이미지 끌기 차단. 모바일에서 길게 누르면 UI 가 잡혀 끌린다 */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
@@ -52,8 +57,12 @@
     border:2px solid var(--gold)}
   #cp{font-weight:800;font-size:18px;color:var(--gold);line-height:1}
   .sub{font-size:11px;color:var(--dim)}
-  .cur{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--dim)}
-  .cur b{color:var(--txt);font-weight:700}
+  /* 재화 캡슐 — 아이콘이 왼쪽에 겹쳐 올라탄 어두운 pill. 숫자가 판 위에 앉는다 */
+  .cur{display:flex;align-items:center;gap:0;font-size:12px;color:var(--dim);
+    background:#0b0f17c8;border:1px solid #ffffff1c;border-radius:12px;
+    padding:2px 10px 2px 2px;box-shadow:inset 0 1px 3px #0008}
+  .cur b{color:var(--txt);font-weight:800;margin-left:4px;
+    font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
   .dot{width:9px;height:9px;border-radius:50%}
   .cui{width:17px;height:17px;object-fit:contain}
 
@@ -94,7 +103,7 @@
   .sbtn.on{background:var(--gold);color:#000;border-color:var(--gold)}
   /* 출석 — 7일 격자 + 월 누적 줄 */
   .at-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
-  .at-cell{position:relative;background:#141c2a;border:1px solid var(--line);border-radius:9px;
+  .at-cell{position:relative;background:var(--card);border:1px solid var(--line);border-radius:9px;
     padding:7px 6px;text-align:center;min-height:64px}
   .at-cell b{display:block;font-size:10px;margin-bottom:3px;color:var(--dim)}
   .at-cell em{display:flex;align-items:center;justify-content:center;gap:3px;
@@ -104,8 +113,8 @@
   .at-cell.done{opacity:.55}
   .at-cell.done i{position:absolute;right:5px;top:4px;font-style:normal;color:#8cf59a}
   .at-cell.now{border-color:var(--gold);box-shadow:0 0 8px -2px var(--gold)}
-  .at-cell.hi{background:linear-gradient(140deg,#2a2412,#141c2a 70%)}
-  .at-cum{display:flex;align-items:center;gap:8px;background:#141c2a;border:1px solid var(--line);
+  .at-cell.hi{background:linear-gradient(140deg,#2a2412,var(--card) 70%)}
+  .at-cum{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
     border-radius:9px;padding:6px 10px;margin-bottom:6px;font-size:11px}
   .at-cum span:first-child{flex:0 0 44px;font-weight:800}
   .at-cum em{display:flex;align-items:center;gap:3px;font-style:normal;font-weight:800;
@@ -142,12 +151,12 @@
   /* 언어 선택 — 진행이 끝나면 첫 실행에만 뜬다 */
   #bootLang{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     display:none;flex-direction:column;gap:7px;align-items:center;
-    background:#141c2af2;border:1px solid var(--gold);border-radius:14px;
+    background:var(--card)f2;border:1px solid var(--gold);border-radius:14px;
     padding:16px 22px;box-shadow:0 16px 50px #000c;z-index:2}
   #bootLang.show{display:flex}
   #bootLang>b{font-size:13px}
   #bootLang button{width:170px;padding:9px 0;font:inherit;font-size:13px;font-weight:800;
-    background:#0d131f;border:1px solid #33405c;border-radius:9px;color:var(--txt);
+    background:var(--ink2);border:1px solid #33405c;border-radius:9px;color:var(--txt);
     cursor:pointer}
   #bootLang button:active{transform:translateY(1px)}
   #bootLang>span{font-size:9px;color:var(--dim)}
@@ -168,7 +177,7 @@
   .pv-stats{display:flex;gap:14px;font-size:11px;color:#66738c;margin-top:2px}
   /* 밀어서 해제 트랙 */
   #pvTrack{position:relative;width:200px;height:44px;margin-top:16px;border-radius:22px;
-    background:#0d131f;border:1px solid #232d40;overflow:hidden}
+    background:var(--ink2);border:1px solid #232d40;overflow:hidden}
   #pvTrack i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-style:normal;font-size:11px;color:#556077;letter-spacing:1px;
     animation:pvHint 2.2s ease-in-out infinite}
@@ -251,19 +260,19 @@
     background:radial-gradient(circle at 35% 30%,#3a4a6a,#1d2739);
     border:1px solid #ffffff44;box-shadow:0 2px 8px #0008}
   /* 연합 홈 — 길드 카드 */
-  .al-hero{display:flex;gap:11px;align-items:center;background:#141c2a;
+  .al-hero{display:flex;gap:11px;align-items:center;background:var(--card);
     border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
   .al-emblem{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 4px 8px #0009)}
   .al-hero-t{flex:1;min-width:0}
   .al-hero-t b{font-size:14px;display:flex;align-items:center;gap:6px}
-  .al-lv{font-style:normal;font-size:10px;color:#0b0f17;background:var(--gold);
+  .al-lv{font-style:normal;font-size:10px;color:var(--ink);background:var(--gold);
     border-radius:5px;padding:1px 5px;font-weight:900}
   .al-hero-t>span{display:block;font-size:10px;color:var(--dim);margin-top:2px;
     display:flex;align-items:center;gap:3px}
   .al-hero-t em{display:block;font-style:normal;font-size:10px;color:#9fb0c8;
     margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .al-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .al-sum>div{background:#0d131f;border:1px solid #232d40;border-radius:9px;
+  .al-sum>div{background:var(--ink2);border:1px solid #232d40;border-radius:9px;
     padding:7px 4px;text-align:center}
   .al-sum span{display:block;font-size:9px;color:var(--dim);margin-bottom:2px}
   .al-sum b{font-size:12px;display:flex;align-items:center;justify-content:center;gap:3px}
@@ -274,14 +283,14 @@
     filter:drop-shadow(0 6px 14px #000b)}
   .al-boss-t b{font-size:14px;display:block}
   .al-boss-t span{font-size:10px;color:var(--dim)}
-  .al-hpbar{position:relative;height:16px;background:#0b0f17;border:1px solid #3a2430;
+  .al-hpbar{position:relative;height:16px;background:var(--ink);border:1px solid #3a2430;
     border-radius:9px;overflow:hidden;margin-bottom:8px}
   .al-hpbar i{display:block;height:100%;
     background:linear-gradient(90deg,#c62828,#ff7a6a);border-radius:8px}
   .al-hpbar b{position:absolute;inset:0;display:flex;align-items:center;
     justify-content:center;font-size:10px;text-shadow:0 1px 2px #000}
   /* 단원 */
-  .al-mem{display:flex;align-items:center;gap:9px;background:#141c2a;
+  .al-mem{display:flex;align-items:center;gap:9px;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px;
     font-size:12px}
   .al-mem.me{border-color:var(--gold)}
@@ -294,7 +303,7 @@
   .al-on{flex:0 0 auto;font-size:9px;color:#8cf59a}
   .al-on.off{color:var(--dim)}
 
-  .al-dn{display:flex;align-items:center;gap:10px;background:#141c2a;
+  .al-dn{display:flex;align-items:center;gap:10px;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
   .al-dn>div{flex:1}
   .al-dn b{display:block;font-size:12px}
@@ -324,10 +333,10 @@
   #unitBody{padding:11px 14px 14px}
   #unitHead{display:flex;align-items:baseline;gap:8px}
   #unitHead b{font-size:17px}
-  #unitHead i{font-style:normal;font-size:11px;font-weight:900;color:#0b0f17;
+  #unitHead i{font-style:normal;font-size:11px;font-weight:900;color:var(--ink);
     padding:1px 7px;border-radius:6px;background:var(--ug,#9aa4b5)}
   #unitTags{display:flex;gap:5px;margin:6px 0 8px;flex-wrap:wrap}
-  #unitTags span{font-size:10px;color:var(--dim);background:#0d131f;
+  #unitTags span{font-size:10px;color:var(--dim);background:var(--ink2);
     border:1px solid #232d40;border-radius:6px;padding:2px 7px}
   #unitRows .frow{padding:6px 2px}
   #unitAct{margin-top:9px}
@@ -343,11 +352,11 @@
   .w-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
   .w-row span{color:var(--dim)}
   .w-row i{font-style:normal;font-weight:800}
-  .w-barbox{height:7px;background:#0b0f17;border-radius:4px;overflow:hidden;margin:6px 0}
+  .w-barbox{height:7px;background:var(--ink);border-radius:4px;overflow:hidden;margin:6px 0}
   #wallBar{height:100%;background:var(--gold);border-radius:4px}
   #wallGate{font-size:10px;color:var(--dim);line-height:1.5}
   #wallGo{display:flex;flex-direction:column;gap:5px}
-  #wallGo button{background:#141c2a;border:1px solid var(--line);color:var(--txt);
+  #wallGo button{background:var(--card);border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:8px;font:inherit;font-size:12px;cursor:pointer;text-align:left}
   #wallGo button:active{transform:translateY(1px)}
   #result.show{display:flex}
@@ -417,7 +426,7 @@
 
   /* 소환 결과 비교 — 현재 vs 신규 */
   .er-wrap{display:flex;gap:8px;align-items:stretch}
-  .er-card{flex:1 1 0;min-width:0;background:#141c2a;border:2px solid var(--line);
+  .er-card{flex:1 1 0;min-width:0;background:var(--card);border:2px solid var(--line);
     border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer;
     transition:transform .12s,box-shadow .2s}
   .er-card.new{border-color:var(--gold);box-shadow:0 0 14px #ffc94a33}
@@ -519,7 +528,7 @@
   /* 자동소환 설정 패널 */
   .as-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
   .as-row>span{font-size:11px;color:var(--dim);width:100%}
-  .as-g{flex:1 1 auto;min-width:52px;background:#141c2a;border:1px solid var(--line);
+  .as-g{flex:1 1 auto;min-width:52px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:7px 4px;font-size:11px;font-weight:800;
     cursor:pointer;font-family:inherit}
   .as-g.on{border-color:var(--gold);background:#221c0c}
@@ -670,7 +679,7 @@
     background:linear-gradient(180deg,#ffd76a,#e8a72c);border:1px solid #ffe9a8}
   .mdBuy.off{background:#232c3c;border-color:var(--line);color:var(--dim)}
   .mdBack{width:100%;margin-top:12px;padding:10px;border-radius:9px;cursor:pointer;
-    background:#141c2a;border:1px solid var(--line);color:var(--dim);
+    background:var(--card);border:1px solid var(--line);color:var(--dim);
     font-family:inherit;font-size:12px}
   #ovinfo{display:none;border-top:1px solid var(--line);padding:10px 12px;
     max-height:44%;overflow-y:auto;background:#0d1320}
@@ -690,7 +699,7 @@
   #fgTap{margin-top:6px;font-size:11px;font-weight:800;color:var(--gold);
     display:flex;align-items:center;gap:4px}
   #fgTap img{width:14px;height:14px}
-  #fgLvBadge{position:absolute;top:0;right:2%;background:#0b0f17;border:2px solid var(--ore);
+  #fgLvBadge{position:absolute;top:0;right:2%;background:var(--ink);border:2px solid var(--ore);
     border-radius:9px;padding:3px 9px;font-size:13px;font-weight:900;color:var(--ore)}
   /* 탭 히어로 — 망치 오버레이는 폐기. 타격의 주역은 하단 독의 스트립이고,
      탭은 불똥 + 흔들림만 받는다 */
@@ -724,7 +733,7 @@
   /* 모래시계 사용 개수 선택 */
   /* 모래시계 개수 스테퍼 */
   .hg-row{display:flex;align-items:center;gap:5px;margin:8px 0 7px}
-  .hg-step{flex:0 0 auto;width:38px;background:#141c2a;border:1px solid var(--line);
+  .hg-step{flex:0 0 auto;width:38px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:8px 0;font-size:13px;font-weight:900;
     cursor:pointer;font-family:inherit}
   .hg-step:active{background:#222c40}
@@ -739,7 +748,7 @@
   /* 골드 투입 칸 게이지 — 1/4 면 네 칸 중 한 칸 */
   .fg-cells{display:inline-flex;gap:3px;vertical-align:-2px}
   .fg-cells i{display:block;width:16px;height:9px;border-radius:3px;
-    background:#0b0f17;border:1px solid var(--line)}
+    background:var(--ink);border:1px solid var(--line)}
   .fg-cells i.on{background:linear-gradient(#ffd76a,#c8922e);border-color:#ffd76a;
     box-shadow:0 0 6px #ffc94a66}
 
@@ -779,7 +788,7 @@
     justify-content:center;gap:9px;opacity:0}
   .rv-info.go{animation:rvInfo .4s ease-out both}
   @keyframes rvInfo{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-  .rv-grade{font-size:15px;font-weight:900;color:#0b0f17;padding:3px 12px;border-radius:7px}
+  .rv-grade{font-size:15px;font-weight:900;color:var(--ink);padding:3px 12px;border-radius:7px}
   .rv-name{font-size:16px;font-weight:800;text-shadow:0 2px 6px #000}
   .rv-grid{position:absolute;left:0;right:0;top:74%;display:flex;flex-wrap:wrap;gap:6px;
     justify-content:center;padding:0 14px}
@@ -805,7 +814,7 @@
     cursor:pointer;padding:0 6px;font-family:inherit}
   .sh-title{flex:1;font-size:16px;font-weight:800}
   .sh-cur{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;
-    background:#0b0f17;border:1px solid var(--line);border-radius:20px;padding:4px 12px}
+    background:var(--ink);border:1px solid var(--line);border-radius:20px;padding:4px 12px}
   .sh-cur img{width:15px;height:15px}
   .sh-tabs{flex:0 0 auto;display:flex;gap:4px;padding:8px 10px;overflow-x:auto;
     background:#101724;border-bottom:1px solid var(--line)}
@@ -866,15 +875,15 @@
   .sh-price img{width:13px;height:13px}
   .sh-price.big{padding:9px 22px;font-size:13px}
 
-  .sh-card{background:#141c2a;border:1px solid var(--line);border-radius:11px;
+  .sh-card{background:var(--card);border:1px solid var(--line);border-radius:11px;
     padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
   .sh-card b{font-size:13px}
   .sh-card .sh-desc{flex:1;margin:0}
   .sh-card.deal{border-left:3px solid var(--gold)}
   /* 3배속 해금 — 다이아 탭에서 유일한 "성능" 상품이라 눈에 띄게 */
   .sh-card.speed3{border:1px solid var(--gold);
-    background:linear-gradient(120deg,#2a2412,#141c2a 60%)}
-  .sh-card.speed3.owned{border-color:var(--line);background:#141c2a}
+    background:linear-gradient(120deg,#2a2412,var(--card) 60%)}
+  .sh-card.speed3.owned{border-color:var(--line);background:var(--card)}
 
   .sh-hero{position:relative;background:linear-gradient(120deg,#3b2a6b,#1d2a52);
     border:1px solid #6a5ac0;border-radius:14px;padding:16px;text-align:center;
@@ -883,7 +892,7 @@
   .sh-hero b{font-size:18px;font-weight:900}
   .sh-hero span{font-size:11px;color:#c9d2e8}
   .sh-benefit{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
-  .sh-benefit div{background:#141c2a;border:1px solid var(--line);border-radius:9px;
+  .sh-benefit div{background:var(--card);border:1px solid var(--line);border-radius:9px;
     padding:8px 10px;display:flex;justify-content:space-between;font-size:11px}
   .sh-benefit span{color:var(--dim)}
   .sh-benefit b{font-weight:800}
@@ -917,7 +926,7 @@
   .id-card h3{margin:0 0 4px;font-size:17px;font-weight:900;color:var(--gold)}
   .id-time{font-size:11px;color:var(--dim);margin-bottom:14px}
   .id-row{display:flex;align-items:center;justify-content:center;gap:8px;
-    background:#0b0f17;border:1px solid var(--line);border-radius:11px;
+    background:var(--ink);border:1px solid var(--line);border-radius:11px;
     padding:11px;margin-bottom:8px}
   .id-row img{width:26px;height:26px}
   .id-row b{font-size:17px;font-weight:900}
@@ -929,7 +938,7 @@
 
   /* 단장 프로필 — 레벨 + 경험치 바 */
   #capbox{position:relative;flex:0 0 auto}
-  #caplv{position:absolute;left:-3px;bottom:-3px;background:#0b0f17;border:1.5px solid var(--gold);
+  #caplv{position:absolute;left:-3px;bottom:-3px;background:var(--ink);border:1.5px solid var(--gold);
     border-radius:8px;padding:0 5px;font-size:9px;font-weight:900;color:var(--gold);line-height:14px}
   #xpbar{height:4px;background:#0006;border-radius:2px;overflow:hidden;margin-top:3px}
   #xpfill{height:100%;width:0;background:linear-gradient(90deg,#ffc94a,#ffe9a8);
@@ -972,7 +981,7 @@
   /* 한 줄 5칸. 4칸이면 칸은 크지만 한 화면에 11칸뿐이라 32종을 훑는 데
      스크롤이 길다. 5칸이면 375 기준 칸이 65px 로 줄고 한 화면에 20칸이 들어온다 */
   .cx-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px 8px}
-  .cx-cell{position:relative;aspect-ratio:.86;background:#141c2a;border:2px solid var(--line);
+  .cx-cell{position:relative;aspect-ratio:.86;background:var(--card);border:2px solid var(--line);
     border-radius:10px;overflow:hidden;display:flex;flex-direction:column;
     align-items:center;justify-content:flex-end}
   .cx-cell img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
@@ -980,7 +989,7 @@
   .cx-cell span{position:relative;width:100%;text-align:center;font-size:9px;font-weight:700;
     padding:2px 1px;background:linear-gradient(#0000,#0b0f17e8 40%);text-shadow:0 1px 3px #000}
   .cx-cell i{position:absolute;top:3px;left:3px;font-style:normal;font-size:8px;font-weight:900;
-    color:#0b0f17;padding:1px 5px;border-radius:5px}
+    color:var(--ink);padding:1px 5px;border-radius:5px}
   .cx-cell.lock img{filter:brightness(0) invert(.18)}
   .cx-cell.lock span{color:var(--dim)}
   /* 미보유 칸에는 **프레임을 주지 않는다.**
@@ -1009,9 +1018,9 @@
   /* 랭킹 */
   #rkMine{flex:0 0 auto;padding:8px 12px 12px;background:#101724;border-top:1px solid var(--line)}
   .rk-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:5px;
-    background:#141c2a;border:1px solid var(--line);border-radius:10px;font-size:12px}
-  .rk-row.top{background:linear-gradient(90deg,#1e2740,#141c2a)}
-  .rk-row.mine{margin:0;border-color:var(--gold);background:linear-gradient(90deg,#2a2412,#141c2a)}
+    background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
+  .rk-row.top{background:linear-gradient(90deg,#1e2740,var(--card))}
+  .rk-row.mine{margin:0;border-color:var(--gold);background:linear-gradient(90deg,#2a2412,var(--card))}
   .rk-n{flex:0 0 30px;text-align:center;font-weight:900;color:var(--dim)}
   .rk-1{color:#ffd24a}.rk-2{color:#d7dde8}.rk-3{color:#d4915a}
   /* 1~3위는 숫자 대신 메달. 색 글자보다 한눈에 읽힌다 */
@@ -1040,7 +1049,7 @@
   /* 설정 */
   .st-h{font-size:10px;color:var(--dim);letter-spacing:.5px;margin:16px 0 7px}
   .st-row{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;
-    background:#141c2a;border:1px solid var(--line);border-radius:10px;font-size:12px}
+    background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
   .st-row > span:first-child{flex:1}
   .st-row.link{cursor:pointer}
   .st-row.link b{color:var(--dim);font-weight:700}
@@ -1059,7 +1068,7 @@
     padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit}
   .ml-all:disabled{opacity:.35}
   .ml-row{display:flex;align-items:center;gap:10px;padding:11px 12px;margin-bottom:7px;
-    background:#141c2a;border:1px solid var(--line);border-radius:11px}
+    background:var(--card);border:1px solid var(--line);border-radius:11px}
   .ml-info{flex:1;min-width:0}
   .ml-info b{font-size:13px;display:block}
   .ml-grants{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
@@ -1084,18 +1093,18 @@
     font-family:inherit;padding:0}
   #pfEdit:active{transform:translateY(1px)}
   .pf-title{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;color:var(--gold);
-    background:#0b0f17;border:1px solid var(--gold);border-radius:12px;padding:2px 12px}
+    background:var(--ink);border:1px solid var(--gold);border-radius:12px;padding:2px 12px}
   .pf-cp{margin-top:12px;padding-top:11px;border-top:1px solid #ffffff14}
   .pf-cp span{display:block;font-size:10px;color:var(--dim);letter-spacing:2px}
   .pf-cp b{font-family:"Black Han Sans",system-ui,sans-serif;font-size:30px;color:var(--gold);
     text-shadow:0 2px 10px #ffc94a55}
   .pf-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
-  .pf-stats div{background:#141c2a;border:1px solid var(--line);border-radius:9px;
+  .pf-stats div{background:var(--card);border:1px solid var(--line);border-radius:9px;
     padding:9px 11px;display:flex;justify-content:space-between;font-size:11px}
   .pf-stats span{color:var(--dim)}
   .pf-stats b{font-weight:900;color:var(--txt)}
   .pf-titles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .pf-t{background:#141c2a;border:1px solid var(--line);border-radius:9px;padding:8px 9px;
+  .pf-t{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 9px;
     text-align:left;cursor:pointer;font-family:inherit;color:var(--txt)}
   .pf-t b{display:block;font-size:12px;font-weight:800}
   .pf-t span{font-size:9px;color:var(--dim)}
@@ -1103,12 +1112,12 @@
   .pf-t.lock{opacity:.4;cursor:default}
   .pf-mercs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
   .pf-m{aspect-ratio:1;border:2px solid var(--line);border-radius:9px;overflow:hidden;
-    background:#141c2a;cursor:pointer;padding:0}
+    background:var(--card);cursor:pointer;padding:0}
   .pf-m img{width:130%;height:130%;object-fit:contain;object-position:center 25%;margin:-15%}
   .pf-m.on{box-shadow:0 0 0 2px var(--gold) inset}
 
   /* 퀘스트 화면 */
-  .q-hero{background:linear-gradient(#1e2740,#141c2a);border:1px solid #4a6fc0;
+  .q-hero{background:linear-gradient(#1e2740,var(--card));border:1px solid #4a6fc0;
     border-radius:14px;padding:16px;text-align:center;box-shadow:0 8px 26px #0008}
   .q-no{font-size:11px;font-weight:900;color:var(--dia);letter-spacing:1px}
   .q-name{font-size:19px;font-weight:900;margin-top:2px}
@@ -1118,7 +1127,7 @@
   .q-bar i{display:block;height:100%;background:linear-gradient(90deg,#4a6fc0,#5ad8ff)}
   .q-rewards{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-bottom:12px}
   .q-rw{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:800;color:var(--gold);
-    background:#0b0f17;border:1px solid var(--line);border-radius:14px;padding:3px 10px}
+    background:var(--ink);border:1px solid var(--line);border-radius:14px;padding:3px 10px}
   .q-rw img{width:14px;height:14px}
   .q-go{width:100%;padding:12px;border-radius:10px;font-size:13px;font-weight:800;
     cursor:pointer;font-family:inherit;border:1px solid #4a6fc0;
@@ -1147,10 +1156,10 @@
   @keyframes chBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
   @keyframes chGlow{0%,100%{opacity:.35}50%{opacity:.9}}
   #chestT{position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);
-    background:#0b0f17;border:1px solid var(--gold);border-radius:9px;padding:0 6px;
+    background:var(--ink);border:1px solid var(--gold);border-radius:9px;padding:0 6px;
     font-size:9px;font-weight:900;color:var(--gold);white-space:nowrap;line-height:15px}
 
-  .id-alt{display:flex;align-items:center;gap:8px;background:#0b0f17;border:1px solid var(--line);
+  .id-alt{display:flex;align-items:center;gap:8px;background:var(--ink);border:1px solid var(--line);
     border-radius:11px;padding:9px 11px;margin-top:9px;font-size:11px;text-align:left}
   .id-alt b{color:var(--txt);font-size:12px;display:block}
   .id-alt span{color:var(--dim);font-size:10px}
@@ -1268,7 +1277,7 @@
   .tw-reach{font-size:11px;color:var(--dim);margin-top:9px}
   .tw-reach b{color:var(--gold)}
   .tw-row{display:flex;align-items:center;gap:8px;padding:9px 11px;margin-bottom:6px;
-    background:#141c2a;border:1px solid var(--line);border-radius:10px;font-size:12px}
+    background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
   .tw-row.now{border-color:#a06ae0;background:#1e1630}
   .tw-row.lock{opacity:.45}
   .tw-f{font-weight:900;width:46px;flex:0 0 auto}
@@ -1337,7 +1346,14 @@
   /* 닫기 버튼이 프레임 두께 때문에 36px 이라 34px 머리띠를 2px 뚫었다.
      좌우 18px 은 카드 네 귀 장식(::before/::after, 26px) 몫 — 안 비우면
      제목 글자가 장식 위에 올라탄다. 무기·던전 등 #ovcard 전 패널 공통. */
-  #ovh{background:none;border-bottom:none;padding:0 18px 4px;min-height:42px;align-items:center}
+  /* 팝업 타이틀은 **중앙 리본**이다 — 키우기 장르에서 창의 이름은 문패처럼
+     가운데 걸린다. i·X 버튼은 양끝에 그대로 */
+  #ovh{background:none;border-bottom:none;padding:0 18px 4px;min-height:42px;
+    align-items:center;position:relative}
+  #ovt{text-align:center;color:var(--gold);letter-spacing:1px;
+    text-shadow:0 1px 3px #000, 0 0 12px #ffc94a44}
+  #ovt::after{content:"";display:block;width:56%;height:2px;margin:3px auto 0;
+    background:linear-gradient(90deg,#0000,#ffc94a88,#0000)}
   #ovx{border-width:8px;padding:0 3px;font-size:11px}
   #ovt{line-height:1.2}
   #ovb{padding:2px}
@@ -1406,7 +1422,13 @@
      선택은 **아이콘이 밝아지고 글자가 금색이 되는 것**으로만 말한다. */
   .nv{text-shadow:0 1px 2px #000a}
   .nv.on{color:var(--gold)}
-  .nv.on img{filter:drop-shadow(0 0 6px #ffc94a66);opacity:1;transform:translateY(-2px) scale(1.06)}
+  /* 선택 탭은 **자리에서 솟는다** — 키우기 장르 공통 문법. 발밑에 골드 빛받침 */
+  .nv.on img{filter:drop-shadow(0 0 8px #ffc94a99);opacity:1;
+    transform:translateY(-7px) scale(1.22)}
+  .nv.on{color:var(--gold);font-weight:800;overflow:visible}
+  .nv.on::before{content:"";position:absolute;left:14%;right:14%;bottom:2px;height:22px;
+    border-radius:50%;background:radial-gradient(ellipse at 50% 100%,#ffc94a3e,#0000 70%);
+    pointer-events:none}
 
   /* ── 게이지 ──
      4~9px 짜리 얇은 바에 9-slice 를 물리면 테두리가 높이를 다 먹는다.
@@ -1497,7 +1519,7 @@
   /* 액자가 소켓 프레임과 겹치면 지저분하다. 액자가 있는 칸은 소켓을 뺀다.
      overflow:hidden 이면 바깥으로 나가는 액자가 잘려 아예 안 보인다 — .pf-m 에서 실제로 났다 */
   .cx-cell[class*="g-"],.pf-m[class*="g-"],.rt-slot[class*="g-"]{border-image:none;border:0;
-    background:#141c2a;border-radius:9px;overflow:visible}
+    background:var(--card);border-radius:9px;overflow:visible}
   /* 액자가 레벨 글자를 덮으면 몇 레벨인지 못 읽는다 */
   .rt-slot b{z-index:4}
   .pf-m[class*="g-"] img{border-radius:8px}
@@ -1519,7 +1541,7 @@
      회색 금속으로 그려져 있다. 색이 아니라 **장식의 양**이 등급이다 —
      아이템 색·프레임 색이 이미 따로 있어서 액자까지 색을 넣으면 신호가 둘로 갈린다.
      T1~3 단순 / T4~7 리벳 / T8~10 화려. 색은 기존 오라(--au)가 계속 맡는다. */
-  .slot[class*="fre-"]{border-image:none;border:0;background:#141c2a;border-radius:9px}
+  .slot[class*="fre-"]{border-image:none;border:0;background:var(--card);border-radius:9px}
   .slot[class*="fre-"]::after{content:"";position:absolute;inset:-7%;pointer-events:none;
     z-index:3;background:var(--fre-img) center/100% 100% no-repeat}
   .fre-1{--fre-img:url(/assets/ui/FRE-01.png)}
@@ -1634,7 +1656,7 @@
 
   /* 받을 게 있다는 빨간 점. 자동 지급이 아니라 눌러서 받는다 */
   .dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
-    background:var(--warn);border:1.5px solid #0b0f17;
+    background:var(--warn);border:1.5px solid var(--ink);
     box-shadow:0 0 6px #ff5a6aaa;animation:dotPulse 1.3s ease-in-out infinite}
   @keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
   .sm-claim{position:relative;width:100%;margin:8px 0 0;padding:2px 6px;min-height:38px;
@@ -1692,7 +1714,7 @@
   #shHeadL{flex:1;min-width:0}
   #shPre{display:flex;gap:5px;padding:0 12px 7px;align-items:center}
   #shPre .pr{flex:0 0 auto;min-width:44px;padding:4px 9px;font-size:11px;font-weight:800;
-    background:#0d131f;border:1px solid #232d40;border-radius:7px;color:var(--dim);
+    background:var(--ink2);border:1px solid #232d40;border-radius:7px;color:var(--dim);
     cursor:pointer;font-family:inherit}
   #shPre .pr.has{color:var(--txt);border-color:var(--line)}
   #shPre .pr.on{border-color:var(--gold);color:var(--gold)}
@@ -1702,7 +1724,7 @@
   #shT i{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);margin-left:6px}
   #shX{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit}
-  .sh-go{flex:0 0 auto;width:36px;height:36px;background:#141c2a;border:1px solid var(--line);
+  .sh-go{flex:0 0 auto;width:36px;height:36px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:9px;padding:3px;cursor:pointer;font-size:11px;font-family:inherit}
   .sh-go img{width:100%;height:100%;object-fit:contain;pointer-events:none;
     filter:drop-shadow(0 1px 3px #000a)}
@@ -1711,7 +1733,7 @@
   /* 장착 줄 — 가로 아이콘. 세로 카드로 하면 5줄이 시트 상단을 다 먹는다 */
   #shEq{flex:0 0 auto;display:flex;gap:5px;padding:0 12px 9px}
   .rt-slot{position:relative;flex:1 1 0;min-width:0;aspect-ratio:.9;border-radius:9px;
-    background:#141c2a;border:2px solid var(--line);overflow:hidden}
+    background:var(--card);border:2px solid var(--line);overflow:hidden}
   .rt-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
     object-position:center 26%}
   .rt-slot b{position:absolute;left:0;right:0;bottom:0;text-align:center;
@@ -1896,7 +1918,7 @@
   .ps-buy .fgbtn{flex:1;min-height:42px}
   .ps-buy .mdBuy{flex:0 0 auto;min-height:42px;padding:1px 12px}
   .ps-own{flex:1;display:flex;align-items:center;justify-content:center;font-size:12px;
-    font-weight:800;color:var(--gold);background:#141c2a;border:1px solid var(--gold);
+    font-weight:800;color:var(--gold);background:var(--card);border:1px solid var(--gold);
     border-radius:9px;min-height:42px}
   .ps-head{display:grid;grid-template-columns:44px 1fr 1fr;gap:5px;
     font-size:10px;color:var(--dim);text-align:center;padding-bottom:4px}
@@ -1904,7 +1926,7 @@
     align-items:stretch}
   .ps-row.now .ps-tier{border-color:var(--gold);color:var(--gold)}
   .ps-tier{display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:#141c2a;border:1px solid var(--line);border-radius:9px;padding:6px 0}
+    background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 0}
   .ps-tier b{font-size:14px;font-weight:900;line-height:1}
   .ps-tier span{font-size:9px;color:var(--dim)}
   .ps-cell{position:relative;display:flex;flex-wrap:wrap;align-items:center;
@@ -1951,7 +1973,7 @@
   #skRow{display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:auto}
   #skAuto{flex:0 0 auto;width:40px;height:40px;border-radius:50%;cursor:pointer;
     font-family:inherit;font-size:9px;font-weight:900;line-height:1.1;color:var(--dim);
-    background:#141c2acc;border:2px solid var(--line);padding:0;
+    background:var(--card)cc;border:2px solid var(--line);padding:0;
     display:flex;flex-direction:column;align-items:center;justify-content:center}
   #skAuto i{font-style:normal;font-size:8px}
   #skAuto.on{color:#3a2a08;background:radial-gradient(circle at 40% 35%,#ffe9a8,#e8a72c);
