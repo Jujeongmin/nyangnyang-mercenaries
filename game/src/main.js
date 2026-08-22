@@ -2247,6 +2247,8 @@ function renderTop() {
   // 소환 레벨 보상이 밀려 있으면 하단 네비 상점에 빨간 점
   $('.nv[data-tab="shop"]')?.classList.toggle('hasnew', summonRewardWaiting());
   $('.side [data-s="pass"]')?.classList.toggle('hasnew', passWaiting());
+  // 오늘 출석을 아직 안 받았으면 점이 켜진다 — 일일 루틴의 첫 신호
+  $('.side [data-s="attend"]')?.classList.toggle('hasnew', attendReady());
   renderRosterDots();
   renderMailDot();
   $('#dpsInfo').textContent = `초당 피해 ${num(partyDps())}`;
@@ -3036,6 +3038,8 @@ function bootLangPick() {
 
   // 설정은 사이드 열에서 상단바로 옮겼다. 스테이지 표시는 HUD 진행도와 중복이라 뺐다.
   $('#topSet').addEventListener('click', () => settings.open());
+  // 다이아 [+] — 상점 다이아 탭 지름길
+  $('#diaPlus')?.addEventListener('click', () => shop.open('diamond'));
   // 스킬 자동 토글. 기본 ON — 방치형이라 손을 떼도 돌아가야 한다.
   $('#skAuto').addEventListener('click', () => {
     S.skillAuto = !S.skillAuto;

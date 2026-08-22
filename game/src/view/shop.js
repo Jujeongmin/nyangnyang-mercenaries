@@ -64,7 +64,10 @@ export class ShopScreen {
 
   /** track 을 주면 소환 탭의 그 트랙을 펼친 채로 연다 (퀘스트에서 바로 이동) */
   open(track) {
-    if (track) { this.tab = 'summon'; this.track = track === 'skill' ? 'skill' : 'mercenary'; }
+    // 'diamond' 같은 탭 id 를 직접 주면 그 탭으로 연다 (다이아 [+] 지름길).
+    // 소환 트랙 이름이면 기존대로 소환 탭 + 트랙 선택이다
+    if (track === 'diamond' || track === 'deal' || track === 'exchange') this.tab = track;
+    else if (track) { this.tab = 'summon'; this.track = track === 'skill' ? 'skill' : 'mercenary'; }
     this.el.classList.add('show');
     this.render();
   }
