@@ -66,7 +66,7 @@ export async function run() {
     const s = strict(el);
     const c = check(name);
     const msgs = [
-      ...s.bad, ...s.clipped,
+      ...s.bad, ...s.clipped, ...(s.wrap || []).map(x => '줄바꿈 ' + x),
       ...c.overlaps.map(x => '겹침 ' + x),
       ...c.off.map(x => '화면밖 ' + x),
     ];

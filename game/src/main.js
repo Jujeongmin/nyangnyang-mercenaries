@@ -22,6 +22,7 @@ import { questAt, questProgress, QUEST_TYPE } from './view/quest.js';
 import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
 import { AllianceVillage } from './view/alliance.js';
+import { t, tn, loadLang, LANGS } from './core/i18n.js';
 import { showRewarded, initAds, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM } from './net/ads.js';
 
 const $ = s => document.querySelector(s);
@@ -160,7 +161,7 @@ function speedMax() {
  * 이 분기가 아예 안 들어간다 (net/ads.js 의 unsupported_env 처리와 같은 방식).
  */
 function buySpeed3() {
-  if (S.speed3) return toast('이미 해금되어 있습니다');
+  if (S.speed3) return toast(t('이미 해금되어 있습니다'));
   if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
   S.speed3 = true;
   S.speed = 3;
@@ -373,7 +374,18 @@ function qProgress(def) {
   return questProgress(S, def);
 }
 
-const QUEST_CUR = { diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket', speedup_5m: 'hourglass' };
+/**
+ * 퀘스트 보상 → 세이브 필드.
+ *
+ * **소환권 3종이 빠져 있었다** (2026-08-23 발견). quests.json 은 Q1 에
+ * merc_ticket 10 을 주는데 여기 없는 키는 지급 코드가 조용히 무시한다 —
+ * Q2(용병 소환 10회)의 재료가 통째로 증발해 사슬이 첫 칸에서 끊겼다.
+ * audit.mjs 가 못 잡은 이유: 그쪽은 MAIL_CUR 만 본다.
+ * **새 재화를 만들면 이 표에도 넣는다.**
+ */
+const QUEST_CUR = { diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket',
+  speedup_5m: 'hourglass', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket',
+  arena_medal: 'medal', alliance_coin: 'allyCoin' };
 
 // ─────────────────────────────────────────────
 // 해금 — **퀘스트 진행도가 기준이다.** 전투력이 아니다.
@@ -422,7 +434,7 @@ function slotsOf(kind) {
 /** 보상 수령. 실제로는 서버 함수다 (net/backend.js > claimQuest). */
 function claimQuest() {
   const def = questAt(D, S.quest);
-  if (qProgress(def) < def.target) return toast('아직 조건 미달');
+  if (qProgress(def) < def.target) return toast(t('아직 조건 미달'));
   for (const [k, v] of Object.entries(def.rewards)) {
     const bag = QUEST_CUR[k];
     if (bag) S[bag] += v;
@@ -915,14 +927,14 @@ async function claimInstant(useAd) {
   idleResetIfNeeded();
   const inst = instDef();
   if (useAd) {
-    if (S.idle.freeUsed < inst.freeDaily) return toast('무료 수령을 먼저 사용하세요');
-    if (S.idle.adUsed >= inst.adDaily) return toast('오늘 광고 수령을 모두 사용했습니다');
+    if (S.idle.freeUsed < inst.freeDaily) return toast(t('무료 수령을 먼저 사용하세요'));
+    if (S.idle.adUsed >= inst.adDaily) return toast(t('오늘 광고 수령을 모두 사용했습니다'));
     // 횟수는 광고를 **끝까지 본 뒤에** 깎는다. 먼저 깎으면 중간에 닫았을 때
     // 보상도 못 받고 일일 횟수만 사라진다
     if (!await playAd(AD_INSTANT_CLAIM)) return;
     S.idle.adUsed++;
   } else {
-    if (S.idle.freeUsed >= inst.freeDaily) return toast('오늘 무료 수령을 모두 사용했습니다');
+    if (S.idle.freeUsed >= inst.freeDaily) return toast(t('오늘 무료 수령을 모두 사용했습니다'));
     S.idle.freeUsed++;
   }
   const g = idleGold(inst.hoursPerClaim);
@@ -1295,7 +1307,7 @@ function passReward(tier, track) {
   return band ? band[track] : {};
 }
 
-/** 지급. 재화가 아닌 것(프레임·칭호)은 아직 붙일 데가 없어 토스트만 띄운다. */
+/** 지급. 시즌 장식은 보유 목록에 영구 등록하고 즉시 착용한다. */
 function passGrant(g) {
   const bag = { diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket',
     speedup_5m: 'hourglass', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket',
@@ -1307,6 +1319,11 @@ function passGrant(g) {
       S[bag[k]] = (S[bag[k]] || 0) + v;
       got.push(`${CUR_KO[k] || k} +${num(v)}`);
       got.pairs.push([k, v]);
+    } else if (k === 'profile_frame' && typeof v === 'string') {
+      S.profile = S.profile || {};
+      S.profile.ownedFrames = S.profile.ownedFrames || [];
+      if (!S.profile.ownedFrames.includes(v)) S.profile.ownedFrames.push(v);
+      S.profile.frameId = v;
     }
   }
   return got;
@@ -1319,7 +1336,7 @@ function passGrant(g) {
  */
 function passClaim(tier, track) {
   S.pass = S.pass || { bought: false, free: [], paid: [] };
-  if (track === 'paid' && !S.pass.bought) return toast('프리미엄을 구매하면 열립니다');
+  if (track === 'paid' && !S.pass.bought) return toast(t('프리미엄을 구매하면 열립니다'));
   if (tier > passTier()) return toast(`스테이지 ${tier * D.pass.progress.tierEvery} 도달 필요`);
   const pairs = claimPassTrack(track);
   if (!pairs.length) return;
@@ -1353,7 +1370,7 @@ function passClaimAll() {
     if (track === 'paid' && !S.pass.bought) continue;
     pairs.push(...claimPassTrack(track));
   }
-  if (!pairs.length) return toast('받을 것이 없습니다');
+  if (!pairs.length) return toast(t('받을 것이 없습니다'));
   save(); renderTop(); openPass();
   gainToast(mergePairs(pairs));
 }
@@ -1541,7 +1558,7 @@ function equipUnit(kind, id) {
     const isActive = it.id.startsWith('SK-A');
     const arr = isActive ? S.skills.active : S.skills.passive;
     const slots = slotsOf(isActive ? 'skillActive' : 'skillPassive');
-    if (!slots) return toast('아직 열린 칸이 없습니다');
+    if (!slots) return toast(t('아직 열린 칸이 없습니다'));
     let idx = arr.findIndex((x, k) => k < slots && !x);
     if (idx < 0) {
       // 꽉 참 — 최저 CP 와 교체
@@ -1582,7 +1599,7 @@ function unequipUnit(kind, id) {
   } else {
     const i = S.party.findIndex(x => x && x.id === id);
     if (i < 0) return;
-    if (S.party.filter(Boolean).length <= 1) return toast('마지막 용병은 해제할 수 없습니다');
+    if (S.party.filter(Boolean).length <= 1) return toast(t('마지막 용병은 해제할 수 없습니다'));
     S.own.mercenary.push(S.party[i]);
     S.party.splice(i, 1);
   }
@@ -1643,7 +1660,7 @@ function openUnitInfo(kind, id) {
 
   const card = $('#unitCard');
   card.style.setProperty('--ug', GC[def.grade]);
-  $('#unitName').textContent = def.nameKo;
+  $('#unitName').textContent = tn(def.id, def.nameKo);
   $('#unitGrade').textContent = def.grade;
 
   const art = $('#unitArt'), img = $('#unitImg');
@@ -1710,7 +1727,7 @@ const attendReady = () => attendState().lastAt !== attendToday();
 
 function claimAttend() {
   const a = attendState();
-  if (!attendReady()) return toast('오늘 출석은 이미 받았습니다');
+  if (!attendReady()) return toast(t('오늘 출석은 이미 받았습니다'));
   const def = D.dailies.attendance;
   const r = def.cycle.rewards[a.day % def.cycle.lengthDays];
   const got = passGrant(r.grant || {});
@@ -1718,7 +1735,7 @@ function claimAttend() {
   a.lastAt = attendToday();
   a.monthDays++;
   save(); renderTop(); openAttend();
-  if (got.pairs.length) gainToast(got.pairs); else toast('출석 완료');
+  if (got.pairs.length) gainToast(got.pairs); else toast(t('출석 완료'));
 }
 
 function claimAttendCum(days) {
@@ -2023,7 +2040,7 @@ function donate(kind) {
   const today = new Date().toISOString().slice(0, 10);
   if (a.day !== today) { a.day = today; a.gold = 0; a.eq = 0; }
   const key = kind === 'gold' ? 'gold' : 'eq';
-  if (a[key] >= d.dailyLimit) return toast('오늘 기부 한도를 다 썼습니다');
+  if (a[key] >= d.dailyLimit) return toast(t('오늘 기부 한도를 다 썼습니다'));
   if (kind === 'gold') {
     if (S.gold < d.unit) return toast(`골드가 부족합니다 (${num(d.unit)} 필요)`);
     S.gold -= d.unit;
@@ -2871,12 +2888,17 @@ function bootStep(pct, msg) {
  */
 function bootLangPick() {
   return new Promise(res => {
-    if (S.lang) return res();
     const box = $('#bootLang');
+    // 이미 고른 적 있으면 그 사전만 불러오고 넘어간다
+    if (S.lang) return loadLang(S.lang).then(res);
+    // 버튼은 i18n 의 LANGS 가 만든다 — 언어를 늘릴 때 HTML 을 안 고쳐도 된다
+    const btns = box.querySelector('#bootLangBtns');
+    btns.innerHTML = LANGS.map(l => `<button data-lang="${l.id}">${l.label}</button>`).join('');
     box.classList.add('show');
-    box.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    btns.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', async () => {
       S.lang = b.dataset.lang;
       save();
+      await loadLang(S.lang);
       box.classList.remove('show');
       res();
     }));
@@ -2889,10 +2911,15 @@ function bootLangPick() {
   initAds();
 
   bootStep(12);
+  // **세이브를 먼저 읽는다.** 언어 선택은 S.lang 을 보고 "첫 실행인지"를 판단하는데,
+  // load() 앞에서 물으면 S.lang 이 늘 비어 있어 매번 다시 묻고 거기서 멈춘다.
+  // localStorage 라 동기이고, loadData 보다 앞서도 안전하다
+  load();
+  await bootLangPick();
   await loadData('/data');
   $('#cap').src = '/assets/captain/captain_warrior.png';
 
-  load();
+  // load() 는 위(언어 선택 앞)에서 이미 했다. 아래는 읽은 값의 유효성 검사다.
   // 배속 오염 방어. NaN 이 JSON 을 거치면 null 이 되고, 그대로 scene.speed 에
   // 들어가면 전투가 0배속으로 영영 멈춘다 — 유효값(1·2·3) 아니면 1로 되돌린다
   if (![1, 2, 3].includes(S.speed)) S.speed = 1;
@@ -3190,9 +3217,7 @@ function bootLangPick() {
   }, 1000);
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
-  bootStep(100, '출격 준비 완료!');
-  // 첫 실행이면 언어부터 고르게 한다. 로딩 화면이 곧 첫 문이다
-  await bootLangPick();
+  bootStep(100, t('출격 준비 완료!'));
   $('#boot')?.classList.add('hide');
   setTimeout(() => $('#boot')?.remove(), 500);
   await runStage();

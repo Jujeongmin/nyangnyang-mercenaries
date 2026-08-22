@@ -17,6 +17,16 @@ const txt = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const main = txt('game/src/main.js');
 const i0 = main.indexOf('const MAIL_CUR');
 const BAGS = new Set([...main.slice(i0, i0 + 400).matchAll(/(\w+):\s*'(\w+)'/g)].map(m => m[1]));
+
+// 지급 표가 MAIL_CUR 하나가 아니다. QUEST_CUR 에서 소환권이 빠져 Q1 보상이
+// 통째로 증발한 적이 있다 (2026-08-23) — 표들이 서로 어긋나는지도 본다
+const i1 = main.indexOf('const QUEST_CUR');
+const QUEST_BAGS = new Set([...main.slice(i1, i1 + 400).matchAll(/(\w+):\s*'(\w+)'/g)].map(m => m[1]));
+for (const k of BAGS) {
+  if (k !== 'gold' && k !== 'diamond' && !QUEST_BAGS.has(k)) {
+    console.log(`[!] QUEST_CUR 에 ${k} 가 없다 — 퀘스트가 이 재화를 주면 조용히 사라진다`);
+  }
+}
 for (const k of ['gold', 'diamond']) BAGS.add(k);   // 소모·표시만 하는 것도 살아 있다
 
 const NOT_CURRENCY = new Set([

@@ -220,10 +220,11 @@
       "type": "mercenary_summon",
       "target": 30,
       "rewards": {
-        "skill_ticket": 15,
+        "skill_ticket": 17,
         "diamond": 200
       },
-      "feedsInto": 9
+      "feedsInto": 9,
+      "rewardsNote": "skill_ticket 15 → 17. Q9(스킬 소환 24회) 기준 누적 공급이 23 이라 1장이 모자라 사슬이 끊겼다 (feedsInto 검산, 2026-08-23). 여유 2장을 둔다"
     },
     {
       "q": 9,
@@ -527,5 +528,6 @@
       "mult": 2
     },
     "speed3": "구매 해금 (shop.json > packages > speed3_unlock). 퀘스트로는 안 열린다"
-  }
+  },
+  "chainInvariant": "퀘스트 N 의 목표 재화는 **N 이전 퀘스트들의 누적 지급으로 달성 가능해야 한다.** 안 그러면 뽑기 운이나 과금 없이는 사슬이 멈춘다. 검산: sim 없이 quests.json 만으로 계산되므로 보상을 고치면 tools/validate.mjs 가 잡는다."
 }

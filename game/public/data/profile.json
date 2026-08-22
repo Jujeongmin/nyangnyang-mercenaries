@@ -189,6 +189,24 @@
         "tier": 4,
         "color": "#00E5FF",
         "condition": "용병 도감 100%"
+      },
+      {
+        "id": "pf_season1",
+        "nameKo": "시즌 1 서리 테두리",
+        "tier": 4,
+        "color": "#74D7FF",
+        "asset": "PF-S1",
+        "condition": "시즌 1 무료 패스 최종 보상",
+        "seasonStamped": true
+      },
+      {
+        "id": "pf_season1_gold",
+        "nameKo": "시즌 1 황금 테두리",
+        "tier": 4,
+        "color": "#FFD54A",
+        "asset": "PF-S1G",
+        "condition": "시즌 1 프리미엄 패스 최종 보상",
+        "seasonStamped": true
       }
     ],
     "permanent": true,

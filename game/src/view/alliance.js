@@ -30,30 +30,19 @@ export class AllianceVillage {
         <!-- 월드 — 뷰포트보다 큰 마을. 카메라(transform)가 단장을 따라간다.
              % 좌표는 전부 월드 기준이라 카메라가 생겨도 배치 코드는 안 바뀐다 -->
         <div id="alWorld">
-        <!-- 길 — 중앙 광장에서 네 건물로 갈라진다. 길이 있어야 "마을"이지
-             그림 위에 아이콘을 얹은 화면이 아니게 된다 -->
-        <div id="alPlaza"></div>
-        <div class="al-path" style="left:16%;top:40%;width:28%;transform:rotate(-34deg)"></div>
-        <div class="al-path" style="right:16%;top:38%;width:28%;transform:rotate(32deg)"></div>
-        <div class="al-path" style="left:18%;top:68%;width:24%;transform:rotate(16deg)"></div>
-        <div class="al-path" style="right:18%;top:68%;width:24%;transform:rotate(-15deg)"></div>
-        <!-- 덤불 — 경계 장식. 걷는 범위의 가장자리를 시각으로도 알려준다 -->
-        <div class="al-bush" style="left:-3%;top:30%"></div>
-        <div class="al-bush" style="right:-4%;top:33%;transform:scale(1.3)"></div>
-        <div class="al-bush" style="left:34%;top:26%;transform:scale(.75)"></div>
-        <div class="al-bush" style="left:-2%;bottom:2%;transform:scale(1.5)"></div>
-        <div class="al-bush" style="right:-3%;bottom:0;transform:scale(1.6)"></div>
-
-        <div class="al-bd big" data-b="boss" style="left:2%;top:6%">
+        <!-- 길·광장·덤불은 **배경(AL-BG)에 이미 그려져 있다.** CSS 로 덧그리면
+             두 겹이 어긋나 지저분해진다. 건물은 배경의 빈 터 4곳에 앉힌다:
+             상단 좌우 터 / 중단 좌우 터 (중앙 원형 광장이 마을의 중심) -->
+        <div class="al-bd big" data-b="boss" style="left:12%;top:11%">
           <img src="/assets/alliance/AL-01.png" alt="" onerror="this.remove()">
           <b>보스 소굴</b></div>
-        <div class="al-bd big" data-b="donate" style="right:3%;top:5%">
+        <div class="al-bd big" data-b="donate" style="right:12%;top:11%">
           <img src="/assets/alliance/AL-02.png" alt="" onerror="this.remove()">
           <b>기부 창고</b></div>
-        <div class="al-bd" data-b="shop" style="left:4%;top:42%">
+        <div class="al-bd" data-b="shop" style="left:6%;top:30%">
           <img src="/assets/alliance/AL-03.png" alt="" onerror="this.remove()">
           <b>연합 상점</b></div>
-        <div class="al-bd" data-b="member" style="right:5%;top:43%">
+        <div class="al-bd" data-b="member" style="right:6%;top:30%">
           <img src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
           <b>게시판</b></div>
         <div id="alCap"><img src="/assets/captain/captain_warrior.png" alt=""></div>
@@ -68,7 +57,9 @@ export class AllianceVillage {
     this.field = $(this.el, '#alField');
     this.world = $(this.el, '#alWorld');
     this.cap = $(this.el, '#alCap');
-    this.capPos = { x: 50, y: 78 };            // % 좌표. y 는 마을 길 위
+    // 중앙 원형 광장에서 시작한다 — 배경의 발바닥 문양 자리(월드 기준 y≈47%).
+    // 구석에서 시작하면 첫 화면이 마을의 끝을 보여 준다
+    this.capPos = { x: 50, y: 47 };
     this.bots = [];
     this.botTimer = null;
 
@@ -122,7 +113,9 @@ export class AllianceVillage {
   startMoveLoop() {
     if (this.moveRaf) return;
     let last = performance.now();
-    const SPEED = 30;                          // 최대 %/초
+    // 최대 %/초. 월드가 뷰포트의 150%x175% 라 화면 기준 체감은 이보다 느리다.
+    // 30 은 마을을 순식간에 가로질러 "돌아다니는" 맛이 없었다
+    const SPEED = 18;
     const step = now => {
       this.moveRaf = null;
       if (!this.el.classList.contains('show')) return;
@@ -134,7 +127,7 @@ export class AllianceVillage {
           const c = this.capPos;
           c.x = Math.max(3, Math.min(97, c.x + dx * SPEED * dt));
           // 세로는 원근 때문에 살짝 느리게. 하늘(30%) 위로는 못 간다
-          c.y = Math.max(30, Math.min(88, c.y + dy * SPEED * 0.75 * dt));
+          c.y = Math.max(22, Math.min(92, c.y + dy * SPEED * 0.75 * dt));
           this.cap.classList.add('walk');
           if (Math.abs(dx) > 0.08) this.cap.classList.toggle('flip', dx < 0);
           this.cap.style.transition = 'none';

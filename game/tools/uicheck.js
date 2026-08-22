@@ -131,8 +131,12 @@ const BLEED_OK = [
   'lockIc', 'aShop',
   'chestImg',    // 보물상자는 일부러 위아래로 통통 튄다 (chBob)
 ];
+// 부모가 이 목록이면 자식의 넘침도 의도된 것으로 본다 — 선택 탭 아이콘은
+// 일부러 상자 위로 솟는다 (.nv.on img translateY). 자식 자신에는 표시가 없다
+const BLEED_OK_PARENT = ['nv'];
 const bleedOk = el =>
   BLEED_OK.some(c => el.id === c || el.classList.contains(c)) ||
+  (el.parentElement && BLEED_OK_PARENT.some(c => el.parentElement.classList.contains(c))) ||
   getComputedStyle(el).position === 'absolute';
 
 /** 스크롤 컨테이너는 세로로 넘치는 게 정상이다. 가로만 본다. */
@@ -144,6 +148,7 @@ const scrollsY = el => {
 export function strict(root = document.body) {
   const bad = [];
   const clipped = [];
+  const wrap = [];      // 줄바꿈이 어색한 것 (고아 글자·과다 줄)
 
   const walk = el => {
     for (const kid of el.children) {
@@ -177,12 +182,50 @@ export function strict(root = document.body) {
       if (!bleeder && kid.scrollWidth > kid.clientWidth + 1 && !scrollsX(kid) && hasText(kid)) {
         clipped.push(`${tag(kid)} 글자 잘림 ${kid.scrollWidth}>${kid.clientWidth}`);
       }
+      // 줄바꿈 어색함 — 눈에는 "글자가 이상하게 접힌다"로 보이는 것들.
+      //   · 고아 줄: 마지막 줄에 한 글자만 떨어짐 (예: "자동장" / "착")
+      //   · 과다 줄: 버튼·칩처럼 한 줄이어야 하는 것이 3줄 이상
+      // 실제 줄 수는 Range 로 잰다 — scrollHeight 는 padding 이 섞여 못 믿는다
+      if (hasText(kid)) {
+        const bx = wrapInfo(kid);
+        if (bx) {
+          if (bx.lines >= 2 && bx.lastRatio < 0.14 && bx.chars > 6) {
+            wrap.push(`${tag(kid)} 마지막 줄에 글자가 조금만 남음 (${bx.lines}줄)`);
+          }
+          if (bx.lines >= 3 && isChip(kid)) {
+            wrap.push(`${tag(kid)} 버튼/칩이 ${bx.lines}줄로 접힘`);
+          }
+        }
+      }
       walk(kid);
     }
   };
   walk(root);
-  return { bad: [...new Set(bad)], clipped: [...new Set(clipped)] };
+  return { bad: [...new Set(bad)], clipped: [...new Set(clipped)], wrap: [...new Set(wrap)] };
 }
+
+/** 텍스트 노드의 실제 줄 수·마지막 줄 폭 비율. 못 재면 null */
+function wrapInfo(el) {
+  const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+  if (!node) return null;
+  const r = document.createRange();
+  r.selectNodeContents(node);
+  const rects = [...r.getClientRects()].filter(x => x.width > 0);
+  if (rects.length < 1) return null;
+  // 같은 y 를 한 줄로 묶는다
+  const lines = [];
+  for (const x of rects) {
+    const L = lines.find(l => Math.abs(l.top - x.top) < 3);
+    if (L) { L.w += x.width; } else lines.push({ top: x.top, w: x.width });
+  }
+  const widest = Math.max(...lines.map(l => l.w));
+  return { lines: lines.length, lastRatio: lines[lines.length - 1].w / widest,
+           chars: node.textContent.trim().length };
+}
+
+/** 버튼·칩처럼 한 줄을 전제로 만든 것 */
+const isChip = el => /BUTTON/.test(el.tagName)
+  || /(rt-b|fgbtn|sh-price|sbtn|al-t|sh-tabs|nv|pr|sh-go)/.test(el.className || '');
 
 const scrollsX = el => {
   const o = getComputedStyle(el).overflowX;

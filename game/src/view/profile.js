@@ -122,7 +122,8 @@ export class ProfileScreen {
 
     this.el.querySelector('#pfBody').innerHTML = `
       <div class="pf-card" style="--fr:${frame.color}">
-        <div class="pf-ava pfr-${frame.tier || 1}" title="${frame.nameKo}">
+        <div class="pf-ava pfr-${frame.tier || 1}" title="${frame.nameKo}"
+          ${frame.asset ? `style="--pfr-img:url(/assets/ui/${frame.asset}.png)"` : ''}>
           ${fc ? `<img src="/assets/char/${fc.id}.png" alt="">`
                : `<img src="/assets/captain/captain_warrior.png" alt="">`}
         </div>

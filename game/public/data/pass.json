@@ -125,7 +125,7 @@
   },
   "openQuestions": [
     "시즌 2 이후의 가격·기간은 시즌 1 실적을 보고 정한다.",
-    "pf_season1 / pf_season1_gold 프레임과 t_season1 칭호는 profile.json 에 아직 없다.",
+    "t_season1 칭호는 profile.json 에 아직 없다.",
     "시즌 종료 시 미수령 보상 소멸 — 우편으로 밀어 넣는 방식도 있다. 소멸이 구매 압박은 크지만 민원도 크다."
   ]
 }

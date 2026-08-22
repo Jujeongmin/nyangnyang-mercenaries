@@ -7,14 +7,21 @@
 <link rel="stylesheet" href="/assets/font/fonts.css">
 <style>
   :root{
-    --bg:#0e131c; --panel:#18202e; --panel2:#212b3d; --line:#2c3850;
-    --txt:#e8edf5; --dim:#8fa0ba; --gold:#ffc94a; --dia:#5ad8ff; --ore:#ff8a4a;
-    --up:#5ad86a; --warn:#ff5a6a;
+    /* ── 리스킨 v2 (2026-08-23) ───────────────────────────────────
+       전 버전은 차가운 청회색(#0e131c 계열)이었다. 게임은 초원·냥이·나무 방패의
+       따뜻한 판타지인데 UI 는 SF 대시보드 색이라 그림과 화면이 따로 놀았다.
+       기준을 **따뜻한 갈색 목재 + 황동**으로 옮긴다. 구조·레이아웃은 그대로다 —
+       토큰 값만 갈면 전 화면이 같이 바뀐다 (그래서 색을 토큰으로 모아 둔 것이다). */
+    --bg:#1a1410; --panel:#2a2018; --panel2:#3a2c20; --line:#5a4632;
+    --txt:#f5ecdc; --dim:#b09a7e; --gold:#ffc94a; --dia:#5ad8ff; --ore:#ff8a4a;
+    --up:#7fd86a; --warn:#ff6b5a;
     /* 파생 토큰 — 아래 셋이 화면의 실질 표면색이다. 하드코딩 51종을 이 셋으로
        정규화했다 (2026-08-23). 새 카드·칸을 만들 때도 이걸 쓴다:
          --card  일반 카드·칸 바탕      --ink  깊은 바탕(캡슐·게이지 홈)
          --ink2  카드 안의 한 단계 깊은 칸 */
-    --card:#141c2a; --ink:#0b0f17; --ink2:#0d131f;
+    --card:#33261b; --ink:#150f0b; --ink2:#241a12;
+    /* 강조 라인 — 황동. 카드 위쪽 하이라이트와 활성 테두리에 쓴다 */
+    --brass:#c9a227;
   }
   /* 텍스트 선택·이미지 끌기 차단. 모바일에서 길게 누르면 UI 가 잡혀 끌린다 */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
@@ -23,10 +30,15 @@
   button img,#fgObj img{pointer-events:none}
   input,textarea{-webkit-user-select:text;user-select:text}
 
-  /* 크게 박히는 숫자는 굵은 디스플레이체로 — Jua 는 굵기가 하나뿐이라 힘이 안 실린다 */
-  #cp,#timer,#stgNum,.q-prog,#idGold,.er-card .er-d,.er-card b{
-    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
-  html,body{margin:0;height:100%;background:#070a10;color:var(--txt);overflow:hidden;
+  /* 숫자는 전부 굵은 디스플레이체(Black Han Sans) — Jua 는 굵기가 하나뿐이라
+     힘이 안 실린다. **수량·전투력·가격처럼 "읽고 비교하는 숫자"가 대상**이고,
+     문장 안 숫자는 본문체 그대로다. tabular-nums 로 자릿수가 흔들리지 않게 한다 */
+  #cp,#timer,#stgNum,.q-prog,#idGold,.er-card .er-d,.er-card b,
+  .cur b,#caplv,.gain,.rk-sc,.al-sum b,.al-mem-c,.at-cell em,.at-cum em,
+  .sh-price,.sh-cur b,#fgLv,.tw-rw,#bootTitle,#pvGold,#wallNeed,#wallMy{
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;
+    font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  html,body{margin:0;height:100%;background:#0f0b08;color:var(--txt);overflow:hidden;
     font-family:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
 
   /* 스킬 아이콘 — 22종 중 14종이 **투명 배경 없이 사각 통짜**로 생성됐다.
@@ -46,7 +58,9 @@
      개별 화면에서 다시 노출시키지 않는다. */
   *{scrollbar-width:none;-ms-overflow-style:none}
   *::-webkit-scrollbar{width:0;height:0;display:none}
-  #app{position:relative;width:100%;height:100%;max-width:480px;margin:0 auto;
+  /* container 선언 — 아래 좁은화면 규칙이 뷰포트가 아니라 **앱 폭**을 본다 */
+  #app{container:app / inline-size;
+    position:relative;width:100%;height:100%;max-width:480px;margin:0 auto;
     background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 
   /* 상단 12% */
@@ -73,7 +87,7 @@
   .cui{width:17px;height:17px;object-fit:contain}
 
   /* 전투 40% */
-  #battle{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#16202f}
+  #battle{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#1e1710}
   #cv{display:block;width:100%;height:100%}
   #hud{position:absolute;inset:0;pointer-events:none;padding:6px 9px;
     display:flex;flex-direction:column;justify-content:space-between}
@@ -135,7 +149,7 @@
     background:url(/assets/bg/BG-01.png) center/cover}
   /* 배경 그림 위에 어둑한 비네트 — 타이틀이 그림을 이긴다 */
   #boot::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(circle at 50% 34%,#0b101822,#0b1018cc 78%)}
+    background:radial-gradient(circle at 50% 34%,#150f0b22,#150f0bcc 78%)}
   #boot.hide{opacity:0;pointer-events:none;transition:opacity .4s}
   #bootMain{position:relative;flex:1;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:4px}
@@ -161,8 +175,9 @@
     padding:16px 22px;box-shadow:0 16px 50px #000c;z-index:2}
   #bootLang.show{display:flex}
   #bootLang>b{font-size:13px}
+  #bootLangBtns{display:flex;flex-direction:column;gap:7px}
   #bootLang button{width:170px;padding:9px 0;font:inherit;font-size:13px;font-weight:800;
-    background:var(--ink2);border:1px solid #33405c;border-radius:9px;color:var(--txt);
+    background:var(--ink2);border:1px solid #6b543a;border-radius:9px;color:var(--txt);
     cursor:pointer}
   #bootLang button:active{transform:translateY(1px)}
   #bootLang>span{font-size:9px;color:var(--dim)}
@@ -183,13 +198,13 @@
   .pv-stats{display:flex;gap:14px;font-size:11px;color:#66738c;margin-top:2px}
   /* 밀어서 해제 트랙 */
   #pvTrack{position:relative;width:200px;height:44px;margin-top:16px;border-radius:22px;
-    background:var(--ink2);border:1px solid #232d40;overflow:hidden}
+    background:var(--ink2);border:1px solid var(--line);overflow:hidden}
   #pvTrack i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     font-style:normal;font-size:11px;color:#556077;letter-spacing:1px;
     animation:pvHint 2.2s ease-in-out infinite}
   @keyframes pvHint{0%,100%{opacity:.45}50%{opacity:.95}}
   #pvHandle{position:absolute;left:3px;top:3px;width:38px;height:38px;border-radius:50%;
-    background:#1d2739;border:1px solid #33405c;display:flex;align-items:center;
+    background:#3a2c20;border:1px solid #6b543a;display:flex;align-items:center;
     justify-content:center;font-size:16px;cursor:grab;z-index:2;
     transition:left .18s ease;touch-action:none}
   #pvHandle.drag{transition:none;cursor:grabbing}
@@ -215,25 +230,16 @@
       url(/assets/bg/BG-01.png) center/cover;will-change:transform}
   /* 하늘과 땅을 가르는 어둑한 그라데 — 건물·글자가 배경에서 분리된다 */
   #alField::before{content:"";position:absolute;inset:0;
-    background:linear-gradient(#0b101877 0%, #0000 30%, #0000 62%, #0b1018aa 100%)}
+    background:linear-gradient(#150f0b77 0%, #0000 30%, #0000 62%, #150f0baa 100%)}
   #alGround{position:absolute;left:0;right:0;bottom:0;height:8%}
-  /* 광장·길 — 흙길. 배경 그림 위에 반투명 띠라 어떤 BG 에도 얹힌다 */
-  #alPlaza{position:absolute;left:50%;top:56%;width:44%;height:15%;
-    margin-left:-22%;border-radius:50%;
-    background:radial-gradient(ellipse at center,#c9a86855,#a8894e33 62%,#0000 74%)}
-  .al-path{position:absolute;height:26px;border-radius:13px;
-    background:linear-gradient(#c9a86844,#a8894e2e);pointer-events:none}
-  .al-bush{position:absolute;width:64px;height:34px;pointer-events:none;
-    background:radial-gradient(ellipse at 30% 70%,#3f7d3d,#28572c 70%,#0000 74%),
-      radial-gradient(ellipse at 72% 76%,#4a8a44,#2c5c2e 66%,#0000 72%);
-    filter:drop-shadow(0 4px 6px #0007)}
+  /* 길·광장·덤불은 AL-BG 배경에 그려져 있다 — CSS 로 덧그리지 않는다 */
 
   /* 건물 — 마을의 주인공이라 크게. big 은 뒷줄 랜드마크 */
-  .al-bd{position:absolute;width:118px;text-align:center;cursor:pointer;
-    filter:drop-shadow(0 8px 18px #000b)}
-  .al-bd img{width:112px;height:112px;object-fit:contain;pointer-events:none}
-  .al-bd.big{width:150px}
-  .al-bd.big img{width:146px;height:146px}
+  .al-bd{position:absolute;width:158px;text-align:center;cursor:pointer;
+    filter:drop-shadow(0 10px 22px #000b)}
+  .al-bd img{width:152px;height:152px;object-fit:contain;pointer-events:none}
+  .al-bd.big{width:200px}
+  .al-bd.big img{width:196px;height:196px}
   .al-bd b{display:block;font-size:11px;background:#0b0f17d8;border:1px solid #ffffff22;
     border-radius:8px;padding:3px 0;margin-top:-10px;position:relative}
   /* 건물 발밑 접지 그림자 — 배경에 붙어 보인다 */
@@ -263,7 +269,7 @@
   #alJoy.show{opacity:1}
   #alJoyKnob{position:absolute;left:50%;top:50%;width:40px;height:40px;
     margin:-20px 0 0 -20px;border-radius:50%;
-    background:radial-gradient(circle at 35% 30%,#3a4a6a,#1d2739);
+    background:radial-gradient(circle at 35% 30%,#3a4a6a,#3a2c20);
     border:1px solid #ffffff44;box-shadow:0 2px 8px #0008}
   /* 연합 홈 — 길드 카드 */
   .al-hero{display:flex;gap:11px;align-items:center;background:var(--card);
@@ -278,7 +284,7 @@
   .al-hero-t em{display:block;font-style:normal;font-size:10px;color:#9fb0c8;
     margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .al-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .al-sum>div{background:var(--ink2);border:1px solid #232d40;border-radius:9px;
+  .al-sum>div{background:var(--ink2);border:1px solid var(--line);border-radius:9px;
     padding:7px 4px;text-align:center}
   .al-sum span{display:block;font-size:9px;color:var(--dim);margin-bottom:2px}
   .al-sum b{font-size:12px;display:flex;align-items:center;justify-content:center;gap:3px}
@@ -328,7 +334,7 @@
   #unitX{position:absolute;right:9px;top:9px;z-index:3;width:30px;height:30px;
     border-radius:50%;background:#0b0f17c8;border:1px solid var(--line);
     color:var(--txt);font-size:13px;cursor:pointer}
-  #unitArt{position:relative;height:300px;background:#0d1320;overflow:hidden}
+  #unitArt{position:relative;height:300px;background:var(--ink);overflow:hidden}
   #unitArt img{width:100%;height:100%;object-fit:cover;object-position:center top}
   /* 그림 아래를 패널색으로 녹여 글 영역과 잇는다 */
   #unitArt::after{content:"";position:absolute;inset:0;
@@ -343,7 +349,7 @@
     padding:1px 7px;border-radius:6px;background:var(--ug,#9aa4b5)}
   #unitTags{display:flex;gap:5px;margin:6px 0 8px;flex-wrap:wrap}
   #unitTags span{font-size:10px;color:var(--dim);background:var(--ink2);
-    border:1px solid #232d40;border-radius:6px;padding:2px 7px}
+    border:1px solid var(--line);border-radius:6px;padding:2px 7px}
   #unitRows .frow{padding:6px 2px}
   #unitAct{margin-top:9px}
   #unitAct .rt-b{width:100%}
@@ -380,7 +386,7 @@
   #sideL{left:6px}
   #sideR{right:6px}
   .side button{width:38px;padding:5px 0;font-size:9px;font-weight:700;cursor:pointer;
-    color:var(--txt);background:#0b111ccc;border:1px solid #ffffff22;border-radius:8px;
+    color:var(--txt);background:var(--ink)cc;border:1px solid #ffffff22;border-radius:8px;
     box-shadow:0 2px 6px #0007}
   .side button img{display:block;width:30px;height:30px;margin:0 auto 1px;
     object-fit:contain;filter:drop-shadow(0 1px 3px #000a);pointer-events:none}
@@ -424,7 +430,7 @@
   /* 장비 정보 */
   .ei-top{display:flex;align-items:center;gap:13px;padding:4px 0 12px}
   .ei-ic{width:74px;height:74px;flex:0 0 auto;border-radius:13px;border:2px solid var(--line);
-    background:#0b111c;display:flex;align-items:center;justify-content:center}
+    background:var(--ink);display:flex;align-items:center;justify-content:center}
   .ei-ic img{width:56px;height:56px;object-fit:contain}
   .ei-name b{display:block;font-size:18px;font-weight:900}
   .ei-name span{font-size:12px;color:var(--dim)}
@@ -452,7 +458,7 @@
   .er-pick{width:100%;margin-top:6px;border-radius:8px;padding:8px;font-size:11px;
     font-weight:800;cursor:pointer;font-family:inherit;border:1px solid #4a6fc0;
     background:linear-gradient(#3c5ea8,#2c4680);color:var(--txt)}
-  .er-pick.scrap{background:#222c40;border-color:var(--line);color:var(--dim)}
+  .er-pick.scrap{background:var(--panel2);border-color:var(--line);color:var(--dim)}
   .er-note{font-size:10px;color:var(--dim);text-align:center;margin-top:9px;line-height:1.5}
 
   /* 제작대 도크 — 인벤토리 아래 가운데. 탭이 곧 소환이다 */
@@ -467,7 +473,7 @@
   #fgTicket{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);z-index:3;
     display:flex;align-items:center;gap:5px;padding:3px 12px;min-width:74px;
     justify-content:center;border-radius:13px;
-    background:#0b111ce8;border:1px solid var(--gold);box-shadow:0 2px 8px #000a}
+    background:var(--ink)e8;border:1px solid var(--gold);box-shadow:0 2px 8px #000a}
   #fgTicket .tk-bg{position:absolute;inset:0;width:100%;height:100%;
     object-fit:fill;border-radius:13px}
   #fgTicket .tk-ic{position:relative;width:15px;height:15px;object-fit:contain}
@@ -510,7 +516,7 @@
 
   #fgLv{position:absolute;left:calc(50% + 56px);top:10px;z-index:2;
     min-height:32px;display:flex;align-items:center;
-    background:#0b111ce6;border:1px solid var(--gold);color:var(--gold);
+    background:var(--ink)e6;border:1px solid var(--gold);color:var(--gold);
     border-radius:11px;padding:2px 9px;font-size:10px;font-weight:900;
     cursor:pointer;font-family:inherit}
   #fgLv.busy{border-color:var(--dia);color:var(--dia)}
@@ -520,7 +526,7 @@
   /* 자동 소환 — 톱니 하나로 상태를 말한다. 돌면 켜짐, 멈춰 있으면 꺼짐. */
   #b_auto{position:absolute;left:calc(50% + 58px);top:48px;z-index:3;
     width:38px;height:38px;display:flex;align-items:center;justify-content:center;
-    background:#222c40;border:1px solid var(--line);border-radius:50%;
+    background:var(--panel2);border:1px solid var(--line);border-radius:50%;
     padding:0;cursor:pointer;font-family:inherit;color:var(--dim)}
   #b_auto img,#b_auto .gear{width:24px;height:24px;font-size:22px;line-height:24px;
     object-fit:contain;pointer-events:none;display:block;text-align:center}
@@ -585,7 +591,7 @@
     text-shadow:0 2px 5px #000d}
   /* 열쇠 — 상단바 재화와 같은 알약 칩. 보유량이 곧 입장 가능 횟수다 */
   .dg .keys{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;
-    background:#0b111ce0;border:1px solid var(--gold);border-radius:12px;padding:3px 9px}
+    background:var(--ink)e0;border:1px solid var(--gold);border-radius:12px;padding:3px 9px}
   .dg .keys img{width:16px;height:16px;object-fit:contain}
   .dg .keys b{display:inline;font-size:12px;font-weight:900;color:var(--gold)}
   .dg .keys i{font-style:normal;font-size:10px;font-weight:700;color:var(--dim)}
@@ -610,15 +616,15 @@
 
   /* 채팅 — 하단 패널과 네비 사이 독립 바. 가로 전체를 쓴다 */
   #chat{flex:0 0 auto;display:flex;align-items:center;gap:8px;
-    padding:10px 12px;background:#0b111c;border-top:1px solid var(--line);
+    padding:10px 12px;background:var(--ink);border-top:1px solid var(--line);
     font-size:13px;color:#b9c6dc;white-space:nowrap;overflow:hidden}
   #chat .who{flex:0 0 auto;color:var(--gold);font-weight:800;font-size:12px;
     background:#1a2233;border:1px solid var(--line);border-radius:7px;padding:3px 8px}
   #chat #chatline{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}
-  #quest{background:#0b111ccc;border:1px solid #ffffff1c;border-radius:6px;
+  #quest{background:var(--ink)cc;border:1px solid #ffffff1c;border-radius:6px;
     min-height:26px;
     padding:2px 6px;display:flex;align-items:center;gap:5px}
-  #qtop{display:flex;justify-content:space-between;font-size:8px;flex:1;gap:5px;min-width:0}
+  #corner{position:absolute;font-size:8px;flex:1;gap:5px;min-width:0}
   #qname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
   #qprog{color:var(--dim);flex:0 0 auto}
   #qbar{height:3px;background:#0007;border-radius:2px;overflow:hidden;flex:0 0 38px;margin:0}
@@ -643,7 +649,7 @@
 
   /* 네비 8% */
   #nav{flex:0 0 8%;display:grid;grid-template-columns:repeat(5,1fr);
-    background:#121826;border-top:1px solid var(--line)}
+    background:#241a12;border-top:1px solid var(--line)}
   /* 아이콘 위 · 글자 아래. 아이콘이 없으면(onerror 로 제거) 글자만 가운데 남는다 */
   /* 아이콘을 네비 높이가 허용하는 만큼 키운다. 글자는 이름표 역할만 하므로
      아이콘이 주인공이고 글자는 그 아래 작게 붙는다. */
@@ -679,7 +685,7 @@
   #ovb{flex:1;overflow-y:auto;overflow-x:hidden;font-size:13px;padding:12px}
   /* 훈장 상점 — 아레나 화면 안의 작은 아이콘. 버는 곳과 쓰는 곳을 붙여 둔다 */
   #aShop{width:22px;height:22px;margin-left:6px;padding:0;vertical-align:-5px;
-    background:#0b111c;border:1px solid var(--gold);border-radius:6px;cursor:pointer;
+    background:var(--ink);border:1px solid var(--gold);border-radius:6px;cursor:pointer;
     font-size:12px;line-height:1;color:var(--gold)}
   #aShop img{width:14px;height:14px;object-fit:contain;display:block;margin:auto}
   #aShop:active{transform:translateY(1px)}
@@ -691,7 +697,7 @@
     background:var(--card);border:1px solid var(--line);color:var(--dim);
     font-family:inherit;font-size:12px}
   #ovinfo{display:none;border-top:1px solid var(--line);padding:10px 12px;
-    max-height:44%;overflow-y:auto;background:#0d1320}
+    max-height:44%;overflow-y:auto;background:var(--ink)}
   #ovinfo.show{display:block}
   .frow{background:var(--panel);border:1px solid var(--line);border-radius:9px;
     padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
@@ -726,13 +732,13 @@
   .fgbtn:disabled{opacity:.4;cursor:default}
   /* 패널 헤더의 재화 — 그 화면에서만 쓰는 것만 올린다 */
   #ovcur{display:none;align-items:center;gap:5px;margin-left:10px;
-    background:#0b111c;border:1px solid var(--line);border-radius:11px;padding:3px 10px}
+    background:var(--ink);border:1px solid var(--line);border-radius:11px;padding:3px 10px}
   #ovh.has-cur #ovcur{display:flex}
   #ovcur img{width:16px;height:16px;object-fit:contain}
   #ovcur b{font-size:12px;font-weight:900;color:var(--gold)}
 
   /* 남은 시간 옆 단축 버튼 */
-  .hg-open{flex:0 0 auto;margin-left:8px;background:#222c40;border:1px solid var(--line);
+  .hg-open{flex:0 0 auto;margin-left:8px;background:var(--panel2);border:1px solid var(--line);
     color:var(--txt);border-radius:9px;padding:5px 9px;font-size:11px;font-weight:800;
     cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px}
   .hg-open.on{border-color:var(--gold);background:#221c0c;color:var(--gold)}
@@ -745,11 +751,11 @@
   .hg-step{flex:0 0 auto;width:38px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:8px 0;font-size:13px;font-weight:900;
     cursor:pointer;font-family:inherit}
-  .hg-step:active{background:#222c40}
+  .hg-step:active{background:var(--panel2)}
   .hg-val{flex:1 1 auto;text-align:center;font-size:16px;font-weight:900;color:var(--gold);
     font-family:"Black Han Sans",system-ui,sans-serif}
   .hg-val i{font-style:normal;font-size:11px;font-weight:400;color:var(--dim);margin-left:4px}
-  .hg-max{flex:0 0 auto;background:#222c40;border:1px solid var(--line);color:var(--dim);
+  .hg-max{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
     border-radius:8px;padding:8px 10px;font-size:11px;font-weight:900;cursor:pointer;
     font-family:inherit;letter-spacing:.5px}
   .hg-max.on{border-color:var(--gold);background:#221c0c;color:var(--gold)}
@@ -802,7 +808,7 @@
   .rv-grid{position:absolute;left:0;right:0;top:74%;display:flex;flex-wrap:wrap;gap:6px;
     justify-content:center;padding:0 14px}
   .rv-cell{position:relative;width:50px;height:50px;border:2px solid var(--line);
-    border-radius:9px;background:#0b111ccc;display:flex;align-items:center;
+    border-radius:9px;background:var(--ink)cc;display:flex;align-items:center;
     justify-content:center;font-size:10px;font-weight:800;opacity:0;overflow:hidden;
     animation:rvCell .34s cubic-bezier(.16,1.4,.3,1) both}
   .rv-cell img{width:100%;height:100%;object-fit:contain;object-position:center 30%}
@@ -813,7 +819,7 @@
   @keyframes rvHint{0%,100%{opacity:.4}50%{opacity:1}}
 
   /* 상점 — 전체 화면 (ui.json > navBar.behavior: full_screen_overlay) */
-  #shop{position:absolute;inset:0;z-index:70;background:#0b1018;display:none;
+  #shop{position:absolute;inset:0;z-index:70;background:#150f0b;display:none;
     flex-direction:column;transform:translateY(100%);
     transition:transform .26s cubic-bezier(.2,.9,.3,1)}
   #shop.show{display:flex;transform:none}
@@ -826,15 +832,17 @@
     background:var(--ink);border:1px solid var(--line);border-radius:20px;padding:4px 12px}
   .sh-cur img{width:15px;height:15px}
   .sh-tabs{flex:0 0 auto;display:flex;gap:4px;padding:8px 10px;overflow-x:auto;
-    background:#101724;border-bottom:1px solid var(--line)}
+    background:var(--ink2);border-bottom:1px solid var(--line)}
   .sh-tabs button{flex:0 0 auto;background:none;border:1px solid transparent;color:var(--dim);
     border-radius:18px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;
     font-family:inherit;white-space:nowrap}
   .sh-tabs button.on{background:var(--gold);color:#000}
   .sh-body{flex:1;overflow-y:auto;padding:12px}
   .sh-empty{color:var(--dim);text-align:center;padding:40px 0;font-size:13px}
+  /* 안내문은 낱말이 쪼개지지 않게. 마지막 줄에 한 글자만 남는 꼴을 막는다 */
+  .sh-note,.sh-desc{word-break:keep-all;overflow-wrap:break-word;text-wrap:pretty}
   .sh-note{font-size:10px;color:var(--dim);line-height:1.6;margin-top:12px;
-    background:#101724;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+    background:var(--ink2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .sh-note b{color:var(--gold)}
   .sh-h2{font-size:11px;color:var(--dim);letter-spacing:.5px;margin:14px 0 7px}
 
@@ -844,7 +852,7 @@
   .sh-art{position:absolute;inset:0;background-size:cover;background-position:center 28%;
     filter:brightness(.6) saturate(1.1)}
   .sh-sgrad{position:absolute;inset:0;
-    background:linear-gradient(180deg,#0b101800 0%,#0b1018cc 52%,#0b1018f2 100%)}
+    background:linear-gradient(180deg,#150f0b00 0%,#150f0bcc 52%,#150f0bf2 100%)}
   .sh-sbody{position:relative;padding:64px 12px 12px}
   .sh-srow{display:flex;align-items:baseline;gap:8px}
   .sh-srow b{font-size:17px;font-weight:900;text-shadow:0 2px 8px #000}
@@ -942,7 +950,7 @@
   .id-btns{display:grid;grid-template-columns:1fr 1.3fr;gap:7px;margin-top:12px}
   .id-btns button{border-radius:10px;padding:11px 4px;font-size:12px;font-weight:800;
     cursor:pointer;font-family:inherit;border:1px solid var(--line);
-    background:#222c40;color:var(--txt)}
+    background:var(--panel2);color:var(--txt)}
   .id-btns .ad{background:linear-gradient(#3f8a4f,#2c6a3c);border-color:#5ad86a}
 
   /* 단장 프로필 — 레벨 + 경험치 바 */
@@ -978,7 +986,7 @@
     100%{opacity:1;transform:none}}
 
   /* 전체 화면 공통 (상점/도감) */
-  .fullscr{position:absolute;inset:0;z-index:70;background:#0b1018;display:none;
+  .fullscr{position:absolute;inset:0;z-index:70;background:#150f0b;display:none;
     flex-direction:column;transform:translateY(100%);
     transition:transform .26s cubic-bezier(.2,.9,.3,1)}
   .fullscr.show{display:flex;transform:none}
@@ -1025,7 +1033,7 @@
   .tc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#ffe9a8)}
 
   /* 랭킹 */
-  #rkMine{flex:0 0 auto;padding:8px 12px 12px;background:#101724;border-top:1px solid var(--line)}
+  #rkMine{flex:0 0 auto;padding:8px 12px 12px;background:var(--ink2);border-top:1px solid var(--line)}
   .rk-row{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:5px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
   .rk-row.top{background:linear-gradient(90deg,#1e2740,var(--card))}
@@ -1073,7 +1081,7 @@
     cursor:pointer;font-family:inherit}
 
   /* 우편함 */
-  .ml-all{background:#222c40;border:1px solid var(--line);color:var(--txt);border-radius:8px;
+  .ml-all{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;
     padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit}
   .ml-all:disabled{opacity:.35}
   .ml-row{display:flex;align-items:center;gap:10px;padding:11px 12px;margin-bottom:7px;
@@ -1098,7 +1106,7 @@
   .pf-nick{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px}
   .pf-nick b{font-size:19px;font-weight:900}
   #pfEdit{width:24px;height:24px;flex:0 0 auto;border-radius:50%;cursor:pointer;
-    background:#0b111c;border:1px solid var(--line);color:var(--dim);font-size:12px;
+    background:var(--ink);border:1px solid var(--line);color:var(--dim);font-size:12px;
     font-family:inherit;padding:0}
   #pfEdit:active{transform:translateY(1px)}
   .pf-title{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;color:var(--gold);
@@ -1174,7 +1182,7 @@
   .id-alt span{color:var(--dim);font-size:10px}
   .id-alt button{margin-left:auto;border-radius:9px;padding:8px 13px;font-size:11px;
     font-weight:800;cursor:pointer;font-family:inherit;border:1px solid var(--line);
-    background:#222c40;color:var(--txt);flex:0 0 auto}
+    background:var(--panel2);color:var(--txt);flex:0 0 auto}
   .id-alt button.ad{background:linear-gradient(#3f8a4f,#2c6a3c);border-color:#5ad86a}
   .id-alt button:disabled{opacity:.35;cursor:default}
 
@@ -1357,7 +1365,7 @@
      제목 글자가 장식 위에 올라탄다. 무기·던전 등 #ovcard 전 패널 공통. */
   /* 팝업 타이틀은 **중앙 리본**이다 — 키우기 장르에서 창의 이름은 문패처럼
      가운데 걸린다. i·X 버튼은 양끝에 그대로 */
-  #ovh{background:none;border-bottom:none;padding:0 18px 4px;min-height:42px;
+  #ovh{background:none;border-bottom:none;padding:0 18px 6px;min-height:50px;
     align-items:center;position:relative}
   #ovt{text-align:center;color:var(--gold);letter-spacing:1px;
     text-shadow:0 1px 3px #000, 0 0 12px #ffc94a44}
@@ -1434,6 +1442,9 @@
   /* 선택 탭은 **자리에서 솟는다** — 키우기 장르 공통 문법. 발밑에 골드 빛받침 */
   .nv.on img{filter:drop-shadow(0 0 8px #ffc94a99);opacity:1;
     transform:translateY(-7px) scale(1.22)}
+  /* 솟는 아이콘이 상자를 넘지 않게 위쪽 여유를 준다. overflow:visible 만으로는
+     "밖으로 나갔다"가 사실이라 검사기가 계속 잡는다 */
+  .nv{padding-top:8px}
   .nv.on{color:var(--gold);font-weight:800;overflow:visible}
   .nv.on::before{content:"";position:absolute;left:14%;right:14%;bottom:2px;height:22px;
     border-radius:50%;background:radial-gradient(ellipse at 50% 100%,#ffc94a3e,#0000 70%);
@@ -1723,12 +1734,12 @@
   #shHeadL{flex:1;min-width:0}
   #shPre{display:flex;gap:5px;padding:0 12px 7px;align-items:center}
   #shPre .pr{flex:0 0 auto;min-width:44px;padding:4px 9px;font-size:11px;font-weight:800;
-    background:var(--ink2);border:1px solid #232d40;border-radius:7px;color:var(--dim);
+    background:var(--ink2);border:1px solid var(--line);border-radius:7px;color:var(--dim);
     cursor:pointer;font-family:inherit}
   #shPre .pr.has{color:var(--txt);border-color:var(--line)}
   #shPre .pr.on{border-color:var(--gold);color:var(--gold)}
   #shPre .pr-save{margin-left:auto;font-size:10px;padding:4px 8px;background:none;
-    border:1px dashed #33405c;border-radius:7px;color:var(--dim);cursor:pointer;font-family:inherit}
+    border:1px dashed #6b543a;border-radius:7px;color:var(--dim);cursor:pointer;font-family:inherit}
   #shT{flex:1;font-size:15px;font-weight:900;color:var(--gold);text-shadow:0 1px 3px #000}
   #shT i{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);margin-left:6px}
   #shX{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--txt);
@@ -2010,6 +2021,82 @@
     box-shadow:0 0 14px -2px var(--au)}
   .ei-ic img{width:64px;height:64px}
 
+
+  /* ══ 좁은 화면(360×640) 최종 보정 ═════════════════════════════
+     UI 킷 규칙 **뒤**라야 이긴다 — 앞에 두면 킷이 덮어써서 겹침이 남는다.
+     360 에서 실측으로 잡힌 것: 사이드열 x 퀘스트/스킬바/보물상자,
+     스테이지 텍스트 x 배속 버튼, 스킬 행이 스킬바 밖으로 39px.
+
+     **@media 가 아니라 @container 다.** 게임은 #app 안에서 살고 데스크톱에서는
+     뷰포트가 넓어도 앱이 480px 로 잘린다 — 뷰포트를 재면 정작 좁은 건 앱인데
+     규칙이 안 걸린다 (검사기가 그래서 같은 겹침을 계속 뱉었다). */
+  @container app (max-width: 440px){
+    /* 사이드 열 — 더 작게 + 위로. 전투 중앙을 비운다.
+       문턱이 440 인 이유: 앱 최대폭이 480 이고 412(픽셀7 계열)에서도 같은
+       겹침이 났다. 480 미만은 사실상 전부 "좁은 폰"이다 */
+    .side button{width:30px;height:30px}
+    .side button img{width:22px;height:22px}
+    .side button span{display:none}
+    #sideL,#sideR{gap:3px}
+    /* 우측 열을 조금 더 위로 — 스킬바 상단과 6px 스치던 것 */
+    #sideR{top:52px}
+    /* 퀘스트·상자를 사이드 안쪽으로 더 밀고 낮춘다 */
+    #corner{left:40px;max-width:112px;bottom:96px}
+    #chest{right:40px;bottom:100px;width:38px;height:38px}
+    /* HUD 상단 — 스테이지 글자와 배속 줄을 세로로 분리 */
+    #hudTop{align-items:flex-start}
+    #stg{font-size:10px;max-width:40cqw}
+    #enc{font-size:9px}
+    /* 배속은 절대배치 그대로 둔다 — static 으로 풀면 HUD 흐름에 들어가
+       사이드열·보물상자와 새로 겹친다 (실측). 자리만 왼쪽·위로 당긴다 */
+    /* 배속·타이머를 사이드 열 **왼쪽**으로 완전히 뺀다. 우측 사이드가 44px 이라
+       right:40px 은 여전히 그 밑이었다 */
+    /* 폭을 안 묶으면 #hudTop 의 flex 늘어남 때문에 133px 까지 벌어져
+       중앙 스테이지 글자를 침범한다 (실측) */
+    #speed{right:auto;left:44px;top:2px;width:auto;max-width:104px;gap:2px}
+    #speed .sbtn{padding:1px 5px;font-size:9px;flex:0 0 auto}
+    #timer{position:absolute;top:2px;right:44px;font-size:15px;margin:0}
+    /* 중앙 HUD 는 배속 줄(≈96px)과 사이드(40px)를 뺀 폭 안에서만 산다.
+       안 그러면 스테이지 글자가 배속 버튼 밑으로 파고든다 */
+    /* 중앙 HUD 는 좌(배속 96px)·우(타이머+사이드 80px)를 뺀 폭 안에서만 산다 */
+    #hudC{max-width:calc(100cqw - 200px);margin:0 auto}
+    #stg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+    /* 퀘스트 이름이 37px 폭에서 잘렸다 — 배너를 넓히고 글자를 줄인다 */
+    /* 조우 아이콘 줄이 아래로 자라 퀘스트 배너와 부딪힌다 — 크기와 간격을 줄여
+       HUD 상단 안에 가둔다 (360 실측) */
+    #enc{margin-top:0;gap:3px;transform:scale(.72);transform-origin:top center}
+    /* 640 높이에서는 전투 패널이 ~205px 라 HUD(위)와 퀘스트 배너(아래)가
+       어디에 두든 부딪힌다. 배너를 **전투 영역 밖(하단 패널 위)** 로 옮겨
+       충돌원 자체를 없앤다 — 세로가 모자랄 때는 자리를 옮기는 게 답이다 */
+    #corner{top:auto;bottom:2px;left:4px;right:4px;width:auto;max-width:none;
+      z-index:22}
+    #quest{padding:3px 8px}
+    #qbar{height:4px}
+    /* 배너가 하단을 쓰므로 스킬바를 그 위로 올린다 (배너 높이 ≈28px + 여유) */
+    #skillbar{bottom:34px}
+    #qname{max-width:none}
+    /* 퀘스트 이름은 줄이지 말고 **말줄임**으로. 폰트를 더 줄이면 안 읽힌다 */
+    /* 이름은 배너 폭을 다 쓰고 넘치면 말줄임. 진행도(#qprog)가 자리를 먼저 잡는다 */
+    #qname{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      flex:1 1 auto;min-width:0;display:block}
+    #qtop{display:flex;gap:4px;align-items:baseline}
+    #qprog{flex:0 0 auto}
+    /* 스킬바는 폭을 줄이면 8칸이 안쪽에서 넘친다. 대신 **사이드 열을 위로**
+       끌어올려 스킬바 높이대(하단)와 안 겹치게 한다 */
+    #sideL,#sideR{max-height:52cqh;overflow:visible}
+    /* 스킬바가 우측 사이드 아래를 스친다 — 스킬 행만 안쪽으로 (바 자체는 그대로) */
+    /* 스킬 8칸 + AUTO. 칸 폭 계산이 max-width 와 어긋나면 마지막 칸이 삐져나온다
+       — 둘을 같은 식으로 묶는다 (여백 96px = 사이드 2 x 30 + 간격) */
+    #skills{max-width:calc(100cqw - 96px);flex-wrap:nowrap}
+    /* 네비 아이콘이 빨간 점 배지 상자를 넘던 것 */
+    .nv.hasnew{overflow:visible}
+    /* 스킬바 — 8칸이 가로로 안 넘치게. bottom 은 위(배너 자리 확보)에서 정한다 */
+    #skRow{max-width:100%;flex-wrap:nowrap}
+    #skills{gap:3px}
+    .sk{width:clamp(18px,calc((100cqw - 150px)/8),30px)}
+    #skAuto{width:26px;height:26px;font-size:7px}
+    #dpsInfo{font-size:9px}
+  }
 </style>
 </head>
 <body>
@@ -2206,6 +2293,9 @@
       color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit">닫기</button>
   </div></div>
   <div id="lvup"><div><b></b><span></span></div></div>
+</div><!-- /#app — 아래 넷은 **app 밖**이다. 절전이 #app 을 display:none 하므로
+     안에 두면 덮개까지 같이 사라진다 (실제로 그랬다) -->
+
   <!-- 부트 로딩 — 데이터·씬이 서기 전까지 이게 화면의 전부다.
      첫 실행이면 진행이 끝난 뒤 언어 선택이 겹쳐 뜬다 -->
 <div id="boot">
@@ -2222,10 +2312,9 @@
   </div>
   <div id="bootLang">
     <b>언어 / Language</b>
-    <button data-lang="ko">한국어</button>
-    <button data-lang="en">English</button>
-    <button data-lang="ja">日本語</button>
-    <span>번역은 준비 중입니다 — 지금은 한국어로 표시됩니다</span>
+    <!-- 버튼은 i18n.js > LANGS 가 만든다 -->
+    <div id="bootLangBtns"></div>
+    <span>부분 번역입니다 — 없는 문구는 한국어로 표시됩니다</span>
   </div>
 </div>
 
@@ -2241,7 +2330,6 @@
 </div>
 <div id="toast"></div>
 <div id="gains"></div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
 <script type="module" src="./src/main.js"></script>
