@@ -27,6 +27,9 @@ export class AllianceVillage {
         <span id="alCoin"></span>
       </div>
       <div id="alField">
+        <!-- 월드 — 뷰포트보다 큰 마을. 카메라(transform)가 단장을 따라간다.
+             % 좌표는 전부 월드 기준이라 카메라가 생겨도 배치 코드는 안 바뀐다 -->
+        <div id="alWorld">
         <!-- 길 — 중앙 광장에서 네 건물로 갈라진다. 길이 있어야 "마을"이지
              그림 위에 아이콘을 얹은 화면이 아니게 된다 -->
         <div id="alPlaza"></div>
@@ -54,14 +57,16 @@ export class AllianceVillage {
           <img src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
           <b>게시판</b></div>
         <div id="alCap"><img src="/assets/captain/captain_warrior.png" alt=""></div>
+        </div>
         <div id="alDemoNote">주민은 서버 연동 전 데모입니다</div>
-        <!-- 가상 조이스틱 — 누른 자리에 뜨고, 안쪽 원이 손가락을 따라온다 -->
+        <!-- 조이스틱은 월드 밖 — 화면 좌표에 떠야 카메라와 같이 안 밀린다 -->
         <div id="alJoy"><div id="alJoyKnob"></div></div>
       </div>`;
     root.appendChild(this.el);
     $(this.el, '.sh-back').addEventListener('click', () => this.close());
 
     this.field = $(this.el, '#alField');
+    this.world = $(this.el, '#alWorld');
     this.cap = $(this.el, '#alCap');
     this.capPos = { x: 50, y: 78 };            // % 좌표. y 는 마을 길 위
     this.bots = [];
@@ -134,6 +139,7 @@ export class AllianceVillage {
           if (Math.abs(dx) > 0.08) this.cap.classList.toggle('flip', dx < 0);
           this.cap.style.transition = 'none';
           this.place(this.cap, c.x, c.y);
+          this.updateCamera();
         } else this.cap.classList.remove('walk');
         this.moveRaf = requestAnimationFrame(step);
       }
@@ -145,7 +151,23 @@ export class AllianceVillage {
     this.el.classList.add('show');
     this.render();
     this.place(this.cap, this.capPos.x, this.capPos.y);
+    this.updateCamera(true);
     this.spawnBots();
+  }
+
+  /**
+   * 카메라 — 단장이 화면 중앙 근처에 오도록 월드를 transform 으로 민다
+   * (컴포지터 처리라 리플로우 없음). 월드 끝에서는 클램프해 바깥이 안 보인다.
+   */
+  updateCamera(snap) {
+    const fw = this.field.clientWidth, fh = this.field.clientHeight;
+    const ww = this.world.offsetWidth, wh = this.world.offsetHeight;
+    let tx = fw / 2 - this.capPos.x / 100 * ww;
+    let ty = fh * 0.55 - this.capPos.y / 100 * wh;
+    tx = Math.min(0, Math.max(fw - ww, tx));
+    ty = Math.min(0, Math.max(fh - wh, ty));
+    this.world.style.transition = snap ? 'none' : 'transform .18s linear';
+    this.world.style.transform = `translate(${tx}px, ${ty}px)`;
   }
 
   close() {

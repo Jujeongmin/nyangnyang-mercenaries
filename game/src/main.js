@@ -182,7 +182,7 @@ function claimSpeed3Daily() {
   S.speed3DailyAt = today;
   S.dia += n;
   save(); renderTop(); shop.render();
-  toast(`다이아 +${n}`);
+  gainToast([['diamond', n]]);
 }
 
 /** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
@@ -346,7 +346,7 @@ function claimMail(i) {
   m0.claimed = true;
   // 우편 빨간 점은 renderCaptain 이 계산한다. 여기서 안 부르면 다 받아도 점이 남는다
   save(); mail.render(); renderCaptain(); renderTop();
-  toast(`${m0.title} 수령`);
+  gainToast(Object.entries(m0.grants).filter(([k]) => MAIL_CUR[k]));
 }
 
 /** 던전 일일 수령·아레나 티어 보상이 우편으로 온다. 데모용 지급. */
@@ -433,7 +433,8 @@ function claimQuest() {
   renderQuest(); renderTop();
   // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
   syncSpeedBtns();
-  toast(`Q${def.q} 완료 — 보상 수령`);
+  gainToast(Object.entries(def.rewards).filter(([k]) => QUEST_CUR[k]));
+  toast(`퀘스트 ${def.q} 완료`);
   if (speedMax() > before) setTimeout(() => toast(`${speedMax()}배속 해금!`), 1400);
 }
 
@@ -897,7 +898,7 @@ async function claimIdle(mult) {
   S.idle.lastClaimAt = Date.now();
   $('#idle').classList.remove('show');
   save(); renderTop(); renderChest();
-  toast(`골드 +${num(g)}`);
+  gainToast([['gold', g]]);
 }
 
 /** 광고를 끝까지 보여 주고 보상을 줘도 되는지 판정한다. 실패 사유는 토스트로 알린다 */
@@ -926,7 +927,7 @@ async function claimInstant(useAd) {
   const g = idleGold(inst.hoursPerClaim);
   S.gold += g;
   save(); renderTop(); openIdle();
-  toast(`${inst.hoursPerClaim}시간 보상 — 골드 +${num(g)}`);
+  gainToast([['gold', g]]);
 }
 
 
@@ -1299,38 +1300,61 @@ function passGrant(g) {
     speedup_5m: 'hourglass', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket',
     alliance_coin: 'allyCoin' };
   const got = [];
+  got.pairs = [];
   for (const [k, v] of Object.entries(g)) {
-    if (bag[k] && typeof v === "number") { S[bag[k]] = (S[bag[k]] || 0) + v; got.push(`${CUR_KO[k] || k} +${num(v)}`); }
+    if (bag[k] && typeof v === "number") {
+      S[bag[k]] = (S[bag[k]] || 0) + v;
+      got.push(`${CUR_KO[k] || k} +${num(v)}`);
+      got.pairs.push([k, v]);
+    }
   }
   return got;
 }
 
+/**
+ * 어느 티어의 [받기]를 눌러도 **그 트랙에서 열린 것 전부**를 받는다.
+ * 티어를 하나씩 누르게 하면 20티어 = 탭 20번 — 수령이 노동이 된다.
+ * 개별 수령이 필요한 경우가 없어 버튼 하나가 곧 일괄이다.
+ */
 function passClaim(tier, track) {
   S.pass = S.pass || { bought: false, free: [], paid: [] };
   if (track === 'paid' && !S.pass.bought) return toast('프리미엄을 구매하면 열립니다');
   if (tier > passTier()) return toast(`스테이지 ${tier * D.pass.progress.tierEvery} 도달 필요`);
-  if (S.pass[track].includes(tier)) return;
-  const got = passGrant(passReward(tier, track));
-  S.pass[track].push(tier);
+  const pairs = claimPassTrack(track);
+  if (!pairs.length) return;
   save(); renderTop(); openPass();
-  toast(got.join(' · ') || `${tier}티어 수령`);
+  gainToast(mergePairs(pairs));
+}
+
+/** 한 트랙의 열린 티어 전부 수령. 받은 [재화, 수량] 목록을 돌려준다 */
+function claimPassTrack(track) {
+  const max = passTier();
+  const pairs = [];
+  for (let t = 1; t <= max; t++) {
+    if (S.pass[track].includes(t)) continue;
+    pairs.push(...passGrant(passReward(t, track)).pairs);
+    S.pass[track].push(t);
+  }
+  return pairs;
+}
+
+/** 같은 재화를 합산한다 — 티어 12개에서 다이아가 12줄 뜨면 배너가 벽이 된다 */
+function mergePairs(pairs) {
+  const m = new Map();
+  for (const [k, v] of pairs) m.set(k, (m.get(k) || 0) + v);
+  return [...m];
 }
 
 function passClaimAll() {
   S.pass = S.pass || { bought: false, free: [], paid: [] };
-  const max = passTier();
-  const got = [];
+  const pairs = [];
   for (const track of ['free', 'paid']) {
     if (track === 'paid' && !S.pass.bought) continue;
-    for (let t = 1; t <= max; t++) {
-      if (S.pass[track].includes(t)) continue;
-      got.push(...passGrant(passReward(t, track)));
-      S.pass[track].push(t);
-    }
+    pairs.push(...claimPassTrack(track));
   }
-  if (!got.length) return toast('받을 것이 없습니다');
+  if (!pairs.length) return toast('받을 것이 없습니다');
   save(); renderTop(); openPass();
-  toast(`${got.length}건 수령`);
+  gainToast(mergePairs(pairs));
 }
 
 /** 받을 게 남았나. 사이드 패스 아이콘의 빨간 점에 쓴다. */
@@ -1693,7 +1717,7 @@ function claimAttend() {
   a.lastAt = attendToday();
   a.monthDays++;
   save(); renderTop(); openAttend();
-  toast(got.length ? `출석 ${got.join(' · ')}` : '출석 완료');
+  if (got.pairs.length) gainToast(got.pairs); else toast('출석 완료');
 }
 
 function claimAttendCum(days) {
@@ -1703,28 +1727,31 @@ function claimAttendCum(days) {
   a.cumClaimed.push(days);
   const got = passGrant(m.grant || {});
   save(); renderTop(); openAttend();
-  toast(got.join(' · '));
+  gainToast(got.pairs);
 }
 
 function openAttend() {
   const a = attendState();
   const def = D.dailies.attendance;
-  const gtxt = g => Object.entries(g || {})
-    .map(([k, v]) => `${CUR_KO[k] || k} ${num(v)}`).join('<br>') || '—';
+  // 보상은 글자가 아니라 **그림**으로 — 재화 아이콘 + 수량.
+  // 글줄로 쓰면 칸마다 문장을 읽어야 하는데, 아이콘이면 훑기만 하면 된다
+  const gicons = g => Object.entries(g || {}).map(([k, v]) =>
+    `<em>${CUR_ICON[k] ? `<img src="/assets/ui/${CUR_ICON[k]}.png" alt="" onerror="this.remove()">` : ''}${num(v)}</em>`
+  ).join('') || '<em>—</em>';
 
   const cells = def.cycle.rewards.map((r, i) => {
     const cur = i === a.day && attendReady();
     return `<div class="at-cell${i < a.day ? ' done' : ''}${cur ? ' now' : ''}${r.highlight ? ' hi' : ''}">
-      <b>${i + 1}일</b><span>${gtxt(r.grant)}</span>${i < a.day ? '<i>✓</i>' : ''}</div>`;
+      <b>${i + 1}일</b>${gicons(r.grant)}${i < a.day ? '<i>✓</i>' : ''}</div>`;
   }).join('');
 
   const cums = def.monthlyCumulative.map(m => {
     const got = a.cumClaimed.includes(m.days);
     const can = !got && a.monthDays >= m.days;
     return `<div class="at-cum${got ? ' done' : ''}">
-      <span>누적 ${m.days}일</span><span>${gtxt(m.grant)}</span>
+      <span>${m.days}일</span>${gicons(m.grant)}
       <button class="rt-b" data-cum="${m.days}" ${can ? '' : 'disabled'}>
-        ${got ? '수령함' : '받기'}</button></div>`;
+        ${got ? '✓' : '받기'}</button></div>`;
   }).join('');
 
   $('#ovt').textContent = '출석';
@@ -2006,9 +2033,17 @@ function donate(kind) {
   a[key]++;
   S.allyCoin = (S.allyCoin || 0) + d.coin;
   save(); renderTop(); alli.render();
-  toast(`기부 완료 — 연합 코인 +${d.coin}`);
+  gainToast([['alliance_coin', d.coin]]);
   if ($('#ov').classList.contains('show')) openAlliance('donate');
 }
+
+/** 서버 연동 전 데모 단원. 마을 산책 봇과 같은 얼굴을 쓴다 */
+const ALLY_DEMO = [
+  { ava: 'SR-03', name: '펭귄대장', role: '부단장', coin: 320, on: true },
+  { ava: 'R-02', name: '멍뭉이', role: '단원', coin: 210, on: true },
+  { ava: 'N-03', name: '개굴개굴', role: '단원', coin: 180, on: false, last: '3시간 전' },
+  { ava: 'SR-06', name: '숲사슴', role: '단원', coin: 95, on: false, last: '어제' },
+];
 
 function openAlliance(tab = 'home') {
   const A = D.alliance;
@@ -2018,42 +2053,50 @@ function openAlliance(tab = 'home') {
   const head = `<div class="al-tabs">${tabs.map(([k, n]) =>
     `<button class="al-t${k === tab ? ' on' : ''}" data-al="${k}">${n}</button>`).join('')}</div>`;
 
+  // 길드 홈의 관례(버섯커·AFK·세나키): 엠블럼 + 이름 + Lv + 인원 + 공지 한 줄,
+  // 그 아래 내 요약(코인·오늘 기부). 설계 수치 나열은 유저 화면이 아니다
   const home = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const dn = S.allyDonate.day === today ? S.allyDonate : { gold: 0, eq: 0 };
     const d = A.contribution.donate;
-    return '<div class="lbl" style="margin:2px 0 6px">기부</div>'
-      + `<div class="frow"><span class="k">골드 ${num(d.gold.unit)}</span>
-          <span class="v">${coin}${d.gold.coin} <span class="k">일일 ${d.gold.dailyLimit}회</span></span></div>`
-      + `<div class="frow"><span class="k">장비 소환권 ${d.equip_ticket.unit}</span>
-          <span class="v">${coin}${d.equip_ticket.coin} <span class="k">일일 ${d.equip_ticket.dailyLimit}회</span></span></div>`
-      + `<div class="sh-note">${A.contribution.donateNote}</div>`
-      + '<div class="lbl" style="margin:12px 0 6px">가입 조건</div>'
-      + `<div class="frow"><span class="k">최소 스테이지</span>
-          <span class="v">${A.membership.joinRequirement.minStage}</span></div>`
-      + `<div class="frow"><span class="k">정원</span>
-          <span class="v">${A.membership.maxMembers}명</span></div>`
-      + `<div class="frow"><span class="k">창설 비용</span>
-          <span class="v">${num(A.membership.createCost.gold)} 골드</span></div>`
-      + `<div class="sh-note">${A.meta.roleSeparation}</div>`;
+    const doneN = dn.gold + dn.eq, capN = d.gold.dailyLimit + d.equip_ticket.dailyLimit;
+    return `<div class="al-hero">
+        <img class="al-emblem" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
+        <div class="al-hero-t">
+          <b>냥냥 용병단 <i class="al-lv">Lv 3</i></b>
+          <span>단원 ${ALLY_DEMO.length + 1} / ${A.membership.maxMembers} · 주간 기여 ${coin}${num((S.allyCoin || 0))}</span>
+          <em>"매일 기부하고 주말엔 보스! (서버 연동 전 데모)"</em>
+        </div>
+      </div>
+      <div class="al-sum">
+        <div><span>내 연합 코인</span><b>${coin}${num(S.allyCoin || 0)}</b></div>
+        <div><span>오늘 기부</span><b>${doneN} / ${capN}</b></div>
+        <div><span>보스 단계</span><b>${(S.allyBossTier || 0) + 1}단계</b></div>
+      </div>
+      <button class="rt-b go" data-al-go="donate" style="width:100%;margin-top:8px">기부하러 가기</button>`;
   };
 
+  // 보스전 관례: 보스가 화면의 주인공 + 남은 HP 바 + 내 시도 + [도전] 큰 버튼.
+  // HP 계수·배수 표 같은 설계 수치는 유저 화면에서 뺐다
   const boss = () => {
     const B = A.boss;
-    return `<div class="frow"><span class="k">주기</span>
-        <span class="v">주 ${B.attemptsPerWeek}회 · ${B.resetAt} 초기화</span></div>`
-      + `<div class="frow"><span class="k">체력</span>
-          <span class="v" style="font-size:11px">연합 CP 합 × ${B.hp.coefficient} × 단계</span></div>`
-      + `<div class="frow"><span class="k">단계 배수</span>
-          <span class="v" style="font-size:11px">${B.hp.tierMultiplier.join(' → ')}</span></div>`
-      + '<div class="lbl" style="margin:12px 0 6px">보상</div>'
-      + `<div class="frow"><span class="k">참가</span>
-          <span class="v">${coin}${B.rewards.participation.alliance_coin}
-            · ${num(B.rewards.participation.gold)} 골드</span></div>`
-      + `<div class="frow"><span class="k">처치 (연합 전체)</span>
-          <span class="v">${coin}${B.rewards.clearBonus.alliance_coin}
-            · ${num(B.rewards.clearBonus.gold)} 골드</span></div>`
-      + B.rewards.rankBonus.map(r => `<div class="frow"><span class="k">딜 ${r.top}위 이내</span>
-          <span class="v">${coin}${r.alliance_coin}</span></div>`).join('')
-      + `<div class="sh-note">${B.rewards.participationNote}</div>`;
+    const tier = (S.allyBossTier || 0) + 1;
+    const hpLeft = S.allyBossHp ?? 0.72;         // 데모 진행도. 서버 연동 시 컬렉션 값
+    const tries = S.allyBossTries ?? 0;
+    return `<div class="al-boss">
+        <img src="/assets/boss/B-0${Math.min(6, tier)}.png" alt="" onerror="this.remove()">
+        <div class="al-boss-t"><b>${tier}단계 심연의 군주</b>
+          <span>주 ${B.attemptsPerWeek}회 도전 · ${B.resetAt} 초기화</span></div>
+      </div>
+      <div class="al-hpbar"><i style="width:${hpLeft * 100}%"></i>
+        <b>${Math.round(hpLeft * 100)}%</b></div>
+      <div class="al-sum">
+        <div><span>내 도전</span><b>${tries} / ${B.attemptsPerWeek}</b></div>
+        <div><span>참가 보상</span><b>${coin}${B.rewards.participation.alliance_coin}</b></div>
+        <div><span>처치 보상</span><b>${coin}${B.rewards.clearBonus.alliance_coin}</b></div>
+      </div>
+      <button class="rt-b go" data-al-fight style="width:100%;margin-top:9px">도전 (60초 전력전)</button>
+      <div class="sh-note">${B.rewards.participationNote}</div>`;
   };
 
   const shop = () => {
@@ -2070,12 +2113,20 @@ function openAlliance(tab = 'home') {
       + `<div class="sh-note">${S2.excludedReason}</div>`;
   };
 
+  // 단원 리스트 관례: 아바타 + 이름/직위 + 기여도 + 접속 표시.
+  // 진짜 명단은 서버 컬렉션이다 — 그때까지 데모 주민으로 화면 문법만 세워 둔다
   const member = () =>
-    `<div class="frow" style="padding:12px"><span class="k" style="line-height:1.6">
-      단원 목록은 <b>서버에 연결된 뒤</b>에 뜬다.<br>
-      연합 상태는 개인 세이브가 아니라 컬렉션이라 클라가 흉내 낼 수 없다.</span></div>`
-    + `<div class="sh-note">${A.ui.showContribution}</div>`
-    + `<div class="sh-note">${A.verse8.concurrency}</div>`;
+    `<div class="al-mem me">
+       <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
+       <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
+       <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
+       <span class="al-on">접속 중</span></div>`
+    + ALLY_DEMO.map(m => `<div class="al-mem">
+       <span class="rk-ava"><img src="/assets/char/${m.ava}.png" alt=""></span>
+       <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
+       <span class="al-mem-c">${coin}${num(m.coin)}</span>
+       <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('')
+    + '<div class="sh-note">서버 연동 전 데모 명단입니다. 실명단은 연합 컬렉션에서 온다.</div>';
 
   // 기부 — 마을 창고에서 온다. 보기만 하는 표가 아니라 실제 실행 버튼이다
   const donateTab = () => {
@@ -2102,6 +2153,10 @@ function openAlliance(tab = 'home') {
   $('#ovb').innerHTML = head + ({ home, boss, donate: donateTab, shop, member }[tab] || home)();
   $('#ovb').querySelectorAll('[data-dn]').forEach(b =>
     b.addEventListener('click', () => donate(b.dataset.dn)));
+  $('#ovb').querySelectorAll('[data-al-go]').forEach(b =>
+    b.addEventListener('click', () => openAlliance(b.dataset.alGo)));
+  $('#ovb').querySelector('[data-al-fight]')?.addEventListener('click', () =>
+    toast('보스전은 서버 연동 후 열립니다 — 판정이 연합 공유 HP 라 클라 혼자 못 굴린다'));
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">왜 이렇게 짰나</div>'
     + `<div class="sub" style="line-height:1.6">${A.meta.designNote}</div>`
     + `<div class="sub" style="line-height:1.6;margin-top:8px">
@@ -2212,6 +2267,33 @@ function toast(msg) {
   t.classList.add('show');
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+/** 재화 id → 아이콘. 획득 배너·우편 등 공용 */
+const CUR_ICON = {
+  diamond: 'CU-01', gold: 'CU-04', merc_ticket: 'CU-05', skill_ticket: 'CU-06',
+  equip_ticket: 'CU-07', speedup_5m: 'CU-10', arena_medal: 'CU-11', alliance_coin: 'CU-12',
+};
+
+/**
+ * 획득 배너 — 상단에서 내려와 쌓이는 [아이콘 이름 +수량] 줄.
+ * "무엇을 받았다"는 전부 이걸로 띄운다. 문장형 안내만 toast() 로 남는다.
+ * @param pairs [[curId, qty], ...] 또는 [[curId, qty, label]] (label 이 이름을 대체)
+ */
+function gainToast(pairs) {
+  const box = $('#gains');
+  for (const [id, qty, label] of pairs) {
+    if (!qty) continue;
+    const el = document.createElement('div');
+    el.className = 'gain';
+    const ic = CUR_ICON[id];
+    el.innerHTML = (ic ? `<img src="/assets/ui/${ic}.png" alt="" onerror="this.remove()">` : '')
+      + `<i>${label || CUR_KO[id] || id}</i> +${num(qty)}`;
+    el.addEventListener('animationend', e => { if (e.animationName === 'gainOut') el.remove(); });
+    box.appendChild(el);
+  }
+  // 폭주 방지 — 6줄 넘으면 오래된 것부터 지운다
+  while (box.children.length > 6) box.firstChild.remove();
 }
 
 /**
@@ -2516,16 +2598,15 @@ function openEquipResult(it) {
   $('#ov').classList.add('show', 'forced');   // 닫기 없음 — 반드시 고른다
 
   const finish = (wear) => {
-    const before = totalCp();
     const drop = wear ? S.equip[it.slot] : it;
     if (wear) S.equip[it.slot] = it;
     if (drop) S.gold += scrapGold(drop.tier);
     $('#ov').classList.remove('show', 'forced');
     save(); renderEquip(); renderTop(); renderForgeDock();
     scene.partyDps = partyDps();
-    const d = Math.round(totalCp() - before);
-    toast(wear ? `착용 · 전투력 ${d >= 0 ? '+' : ''}${cpNum(d)}`
-               : `분해 · 골드 +${num(scrapGold(it.tier))}`);
+    // 착용은 토스트를 안 띄운다 — CP 상승은 상단 CP 배지(+n ▲)가 이미 알린다.
+    // 분해만 획득 배너
+    if (!wear) gainToast([['gold', scrapGold(it.tier)]]);
   };
   $('#erWear')?.addEventListener('click', () => finish(true));
   $('#erScrap')?.addEventListener('click', () => finish(false));

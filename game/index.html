@@ -96,17 +96,22 @@
   .at-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
   .at-cell{position:relative;background:#141c2a;border:1px solid var(--line);border-radius:9px;
     padding:7px 6px;text-align:center;min-height:64px}
-  .at-cell b{display:block;font-size:11px;margin-bottom:3px}
-  .at-cell span{font-size:10px;color:var(--dim);line-height:1.35}
+  .at-cell b{display:block;font-size:10px;margin-bottom:3px;color:var(--dim)}
+  .at-cell em{display:flex;align-items:center;justify-content:center;gap:3px;
+    font-style:normal;font-size:11px;font-weight:800;color:#ffe9a8;margin-top:2px}
+  .at-cell em img{width:22px;height:22px;object-fit:contain;
+    filter:drop-shadow(0 2px 4px #0008)}
   .at-cell.done{opacity:.55}
   .at-cell.done i{position:absolute;right:5px;top:4px;font-style:normal;color:#8cf59a}
   .at-cell.now{border-color:var(--gold);box-shadow:0 0 8px -2px var(--gold)}
   .at-cell.hi{background:linear-gradient(140deg,#2a2412,#141c2a 70%)}
   .at-cum{display:flex;align-items:center;gap:8px;background:#141c2a;border:1px solid var(--line);
-    border-radius:9px;padding:7px 10px;margin-bottom:6px;font-size:11px}
-  .at-cum span:first-child{flex:0 0 68px;font-weight:700}
-  .at-cum span:nth-child(2){flex:1;color:var(--dim)}
-  .at-cum button{min-height:30px;font-size:11px;flex:0 0 74px}
+    border-radius:9px;padding:6px 10px;margin-bottom:6px;font-size:11px}
+  .at-cum span:first-child{flex:0 0 44px;font-weight:800}
+  .at-cum em{display:flex;align-items:center;gap:3px;font-style:normal;font-weight:800;
+    color:#ffe9a8;margin-right:6px}
+  .at-cum em img{width:19px;height:19px;object-fit:contain}
+  .at-cum button{min-height:30px;font-size:11px;flex:0 0 62px;margin-left:auto}
   .at-cum.done{opacity:.55}
 
   /* 절전 덮개 — AOD 풍. 새카만 바탕에 시계·달만 */
@@ -148,8 +153,12 @@
   #alli .sh-head #alCoin{margin-left:auto;font-size:12px;font-weight:800;color:var(--gold);
     display:flex;align-items:center;gap:4px}
   #alli .sh-head #alCoin img{width:16px;height:16px}
-  #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;
-    background:url(/assets/bg/BG-01.png) center/cover}
+  #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;background:#1a2a1a}
+  /* 월드 — 뷰포트보다 크다. 카메라(updateCamera)가 transform 으로 민다.
+     배경은 월드에 깐다 — 카메라와 같이 움직여야 마을이 "넓다"로 읽힌다 */
+  #alWorld{position:absolute;left:0;top:0;width:170%;height:145%;
+    background:url(/assets/alliance/AL-BG.png) center/cover,
+      url(/assets/bg/BG-01.png) center/cover;will-change:transform}
   /* 하늘과 땅을 가르는 어둑한 그라데 — 건물·글자가 배경에서 분리된다 */
   #alField::before{content:"";position:absolute;inset:0;
     background:linear-gradient(#0b101877 0%, #0000 30%, #0000 62%, #0b1018aa 100%)}
@@ -202,6 +211,50 @@
     margin:-20px 0 0 -20px;border-radius:50%;
     background:radial-gradient(circle at 35% 30%,#3a4a6a,#1d2739);
     border:1px solid #ffffff44;box-shadow:0 2px 8px #0008}
+  /* 연합 홈 — 길드 카드 */
+  .al-hero{display:flex;gap:11px;align-items:center;background:#141c2a;
+    border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .al-emblem{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 4px 8px #0009)}
+  .al-hero-t{flex:1;min-width:0}
+  .al-hero-t b{font-size:14px;display:flex;align-items:center;gap:6px}
+  .al-lv{font-style:normal;font-size:10px;color:#0b0f17;background:var(--gold);
+    border-radius:5px;padding:1px 5px;font-weight:900}
+  .al-hero-t>span{display:block;font-size:10px;color:var(--dim);margin-top:2px;
+    display:flex;align-items:center;gap:3px}
+  .al-hero-t em{display:block;font-style:normal;font-size:10px;color:#9fb0c8;
+    margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .al-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .al-sum>div{background:#0d131f;border:1px solid #232d40;border-radius:9px;
+    padding:7px 4px;text-align:center}
+  .al-sum span{display:block;font-size:9px;color:var(--dim);margin-bottom:2px}
+  .al-sum b{font-size:12px;display:flex;align-items:center;justify-content:center;gap:3px}
+  .al-sum img{width:13px;height:13px}
+  /* 보스 */
+  .al-boss{display:flex;gap:11px;align-items:center;margin-bottom:8px}
+  .al-boss img{width:84px;height:84px;object-fit:contain;
+    filter:drop-shadow(0 6px 14px #000b)}
+  .al-boss-t b{font-size:14px;display:block}
+  .al-boss-t span{font-size:10px;color:var(--dim)}
+  .al-hpbar{position:relative;height:16px;background:#0b0f17;border:1px solid #3a2430;
+    border-radius:9px;overflow:hidden;margin-bottom:8px}
+  .al-hpbar i{display:block;height:100%;
+    background:linear-gradient(90deg,#c62828,#ff7a6a);border-radius:8px}
+  .al-hpbar b{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:10px;text-shadow:0 1px 2px #000}
+  /* 단원 */
+  .al-mem{display:flex;align-items:center;gap:9px;background:#141c2a;
+    border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-bottom:5px;
+    font-size:12px}
+  .al-mem.me{border-color:var(--gold)}
+  .al-mem-t{flex:1;min-width:0}
+  .al-mem-t b{display:block;font-size:12px}
+  .al-mem-t i{font-style:normal;font-size:9px;color:var(--dim)}
+  .al-mem-c{display:flex;align-items:center;gap:3px;font-weight:800;color:var(--gold);
+    font-size:11px}
+  .al-mem-c img{width:13px;height:13px}
+  .al-on{flex:0 0 auto;font-size:9px;color:#8cf59a}
+  .al-on.off{color:var(--dim)}
+
   .al-dn{display:flex;align-items:center;gap:10px;background:#141c2a;
     border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
   .al-dn>div{flex:1}
@@ -1182,10 +1235,28 @@
   .tw-rw{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:800;color:var(--gold)}
   .tw-rw img{width:13px;height:13px;object-fit:contain}
 
-  #toast{position:absolute;left:50%;top:26%;transform:translateX(-50%);z-index:99;
-    background:#000c;border:1px solid var(--gold);border-radius:10px;padding:9px 15px;
-    font-size:13px;font-weight:800;opacity:0;transition:opacity .25s;pointer-events:none}
-  #toast.show{opacity:1}
+  /* 안내 pill — 화면 중하단. 시선(전투·버튼)과 겹치지 않는 자리다.
+     중앙 상단 큰 토스트는 전부 여기로 왔다 — 그 자리는 연출(레벨업·VS)의 것 */
+  #toast{position:absolute;left:50%;bottom:33%;transform:translateX(-50%) translateY(6px);
+    z-index:99;background:#0b0f17e6;border:1px solid #ffffff2a;border-radius:18px;
+    padding:8px 16px;font-size:12px;font-weight:700;color:#e8eef8;
+    opacity:0;transition:opacity .2s, transform .2s;pointer-events:none;
+    max-width:82%;text-align:center;box-shadow:0 4px 14px #0009}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* 획득 스택 — 상단에서 내려와 쌓이는 줄들. 실게임 표준 문법:
+     [아이콘] 이름 +수량. 겹치지 않고 아래로 쌓이며 각자 사라진다 */
+  #gains{position:absolute;left:50%;top:15%;transform:translateX(-50%);z-index:98;
+    display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
+  .gain{display:flex;align-items:center;gap:7px;background:#0b0f17e0;
+    border:1px solid #ffffff24;border-radius:11px;padding:5px 13px 5px 8px;
+    font-size:12px;font-weight:800;color:#ffe9a8;box-shadow:0 4px 12px #0008;
+    animation:gainIn .22s ease-out, gainOut .3s ease-in forwards;
+    animation-delay:0s, var(--stay,1.6s)}
+  .gain img{width:20px;height:20px;object-fit:contain}
+  .gain i{font-style:normal;color:#c8d2e2;font-weight:700}
+  @keyframes gainIn{from{opacity:0;transform:translateY(-9px)}to{opacity:1;transform:none}}
+  @keyframes gainOut{to{opacity:0;transform:translateY(-7px)}}
 
   /* ═══ UI 킷 (UI-*) ═══════════════════════════════════════════════════
      여태 패널·버튼·칸이 전부 CSS 그라디언트에 1px 선이었다. 재질이 없어서
@@ -1306,10 +1377,7 @@
   .sh-cur{background:none;border-style:solid;border-width:9px 14px;border-radius:0;
     border-image:var(--f-pill) 92 133 fill stretch;padding:1px 4px}
 
-  /* ── 토스트 ── */
-  #toast{background:none;border-style:solid;border-width:12px 16px;border-radius:0;
-    border-image:var(--f-toast) 143 fill stretch;padding:2px 8px;
-    filter:drop-shadow(0 6px 14px #000a)}
+  /* 토스트 9-slice 는 뺐다 — pill 은 프레임 없이 얇아야 안내로 읽힌다 */
 
 
   /* ── 2차: 남은 버튼·행·칸 ──────────────────────────────────────────
@@ -2070,6 +2138,7 @@
   <div id="pvTrack"><div id="pvHandle">💤</div><i>밀어서 해제</i></div>
 </div>
 <div id="toast"></div>
+<div id="gains"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
