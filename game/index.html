@@ -25,13 +25,14 @@
     font-family:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
 
   /* 스킬 아이콘 — 22종 중 14종이 **투명 배경 없이 사각 통짜**로 생성됐다.
-     그대로 두면 소환 연출에서 검은 네모가 통째로 뜬다. 모서리를 원형으로 페이드해
-     나머지 8종(투명 배경 원형 디스크)과 같아 보이게 맞춘다.
-     에셋을 다시 뽑아 전부 투명해져도 이 규칙은 무해하다 — 깎일 모서리가 없다.
-     근본 해결은 에셋_생성_프롬프트.md STEP 7 재생성이다. */
+     **에셋은 전부 원형으로 정리됐다** (사각 14종을 원형으로 클립, 2026-08-22).
+     그래서 페이드를 82% 에서 99% 로 좁혔다 — 옛 값은 정상 아이콘의 바깥 18% 까지
+     같이 흐려서 아이콘이 실제보다 작아 보였다.
+     규칙 자체는 남긴다. 새로 뽑은 아이콘이 또 사각으로 나와도 모서리만 잘리고
+     원형 디스크는 그대로 통과한다 — 안전망이 공짜다. */
   img[src*="/skill/"]{
-    -webkit-mask-image:radial-gradient(circle closest-side,#000 82%,#0000 99%);
-    mask-image:radial-gradient(circle closest-side,#000 82%,#0000 99%)}
+    -webkit-mask-image:radial-gradient(circle closest-side,#000 99%,#0000 100%);
+    mask-image:radial-gradient(circle closest-side,#000 99%,#0000 100%)}
 
   /* 스크롤바 — 전역으로 감춘다.
      OS 기본 스크롤바는 회색 각진 막대라 어느 화면에 떠도 판타지 UI 킷과 안 맞고,
@@ -91,8 +92,146 @@
   .sbtn{background:#0009;border:1px solid var(--line);color:var(--txt);border-radius:6px;
     padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
   .sbtn.on{background:var(--gold);color:#000;border-color:var(--gold)}
+  /* 출석 — 7일 격자 + 월 누적 줄 */
+  .at-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+  .at-cell{position:relative;background:#141c2a;border:1px solid var(--line);border-radius:9px;
+    padding:7px 6px;text-align:center;min-height:64px}
+  .at-cell b{display:block;font-size:11px;margin-bottom:3px}
+  .at-cell span{font-size:10px;color:var(--dim);line-height:1.35}
+  .at-cell.done{opacity:.55}
+  .at-cell.done i{position:absolute;right:5px;top:4px;font-style:normal;color:#8cf59a}
+  .at-cell.now{border-color:var(--gold);box-shadow:0 0 8px -2px var(--gold)}
+  .at-cell.hi{background:linear-gradient(140deg,#2a2412,#141c2a 70%)}
+  .at-cum{display:flex;align-items:center;gap:8px;background:#141c2a;border:1px solid var(--line);
+    border-radius:9px;padding:7px 10px;margin-bottom:6px;font-size:11px}
+  .at-cum span:first-child{flex:0 0 68px;font-weight:700}
+  .at-cum span:nth-child(2){flex:1;color:var(--dim)}
+  .at-cum button{min-height:30px;font-size:11px;flex:0 0 74px}
+  .at-cum.done{opacity:.55}
+
+  /* 절전 덮개 — AOD 풍. 새카만 바탕에 시계·달만 */
+  /* 완전 불투명 검정 — OLED 에서 검은 픽셀은 꺼진 픽셀이다. 캔버스도
+     stage.visible=false 로 안 그린다 (scene.setPowerSave) */
+  #pwrveil{position:absolute;inset:0;z-index:27;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:7px;background:#000;
+    touch-action:none}
+  #pwrveil.show{display:flex}
+  .pv-moon{font-size:38px;filter:drop-shadow(0 0 18px #7d8ba877);
+    animation:pvBob 3.2s ease-in-out infinite}
+  @keyframes pvBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .pv-clock{font-size:34px;font-weight:200;letter-spacing:3px;color:#dbe4f2}
+  #pwrveil b{font-size:13px;color:#8b98ad;font-weight:700}
+  #pwrveil>span{font-size:11px;color:#556077}
+  .pv-stats{display:flex;gap:14px;font-size:11px;color:#66738c;margin-top:2px}
+  /* 밀어서 해제 트랙 */
+  #pvTrack{position:relative;width:200px;height:44px;margin-top:16px;border-radius:22px;
+    background:#0d131f;border:1px solid #232d40;overflow:hidden}
+  #pvTrack i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-style:normal;font-size:11px;color:#556077;letter-spacing:1px;
+    animation:pvHint 2.2s ease-in-out infinite}
+  @keyframes pvHint{0%,100%{opacity:.45}50%{opacity:.95}}
+  #pvHandle{position:absolute;left:3px;top:3px;width:38px;height:38px;border-radius:50%;
+    background:#1d2739;border:1px solid #33405c;display:flex;align-items:center;
+    justify-content:center;font-size:16px;cursor:grab;z-index:2;
+    transition:left .18s ease;touch-action:none}
+  #pvHandle.drag{transition:none;cursor:grabbing}
+  #pwrSave.on{background:#2b3650;border-color:#7d8ba8;color:var(--txt)}
+
+  /* 잠긴 배속 — 숨기지 않는다. 안 보이면 해금이 보상으로 안 읽힌다 */
+  .sbtn.lock{opacity:.45;border-style:dashed}
+  .sbtn.lock::after{content:'🔒';font-size:9px;margin-left:3px}
   #result{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
     background:#0009;font-size:26px;font-weight:900;letter-spacing:2px}
+
+  /* ── 연합 마을 ─────────────────────────────────────────────
+     탭하면 단장이 걸어가고, 건물이 곧 메뉴다. 하늘(상단 26%)은 클릭을 안 받는다 */
+  #alli .sh-head #alCoin{margin-left:auto;font-size:12px;font-weight:800;color:var(--gold);
+    display:flex;align-items:center;gap:4px}
+  #alli .sh-head #alCoin img{width:16px;height:16px}
+  #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;
+    background:url(/assets/bg/BG-01.png) center/cover}
+  /* 하늘과 땅을 가르는 어둑한 그라데 — 건물·글자가 배경에서 분리된다 */
+  #alField::before{content:"";position:absolute;inset:0;
+    background:linear-gradient(#0b101877 0%, #0000 30%, #0000 62%, #0b1018aa 100%)}
+  #alGround{position:absolute;left:0;right:0;bottom:0;height:8%}
+  .al-bd{position:absolute;width:88px;text-align:center;cursor:pointer;
+    filter:drop-shadow(0 6px 14px #000a)}
+  .al-bd img{width:74px;height:74px;object-fit:contain;pointer-events:none}
+  .al-bd b{display:block;font-size:10px;background:#0b0f17d8;border:1px solid #ffffff22;
+    border-radius:7px;padding:2px 0;margin-top:-6px}
+  .al-bd:active{transform:scale(.96)}
+  #alCap{position:absolute;width:62px;margin-left:-31px;pointer-events:none;
+    filter:drop-shadow(0 4px 8px #0009)}
+  #alCap img{width:100%;display:block}
+  #alCap.flip img{transform:scaleX(-1)}
+  #alCap.walk img{animation:alWalk .34s ease-in-out infinite}
+  @keyframes alWalk{0%,100%{transform:translateY(0) scaleX(var(--fx,1))}
+    50%{transform:translateY(-5px) scaleX(var(--fx,1))}}
+  #alCap.walk.flip img{--fx:-1}
+  #alCap.flip img{transform:scaleX(-1)}
+  .al-bot{position:absolute;width:40px;margin-left:-20px;pointer-events:none;opacity:.92}
+  .al-bot img{width:100%;display:block}
+  .al-bot.flip img{transform:scaleX(-1)}
+  .al-bot i{display:block;font-style:normal;font-size:8px;text-align:center;
+    color:#dbe4f2;text-shadow:0 1px 3px #000;margin-top:-3px}
+  #alDemoNote{position:absolute;right:8px;bottom:6px;font-size:9px;color:#ffffff77;
+    pointer-events:none}
+  .al-dn{display:flex;align-items:center;gap:10px;background:#141c2a;
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
+  .al-dn>div{flex:1}
+  .al-dn b{display:block;font-size:12px}
+  .al-dn span{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:3px}
+  .al-dn span img{width:13px;height:13px}
+  .al-dn button{flex:0 0 76px;min-height:34px;font-size:12px}
+
+  /* 유닛 상세 — 일러가 주인공이다. 카드 위쪽 60% 를 그림에 준다 */
+  #unit{position:absolute;inset:0;z-index:76;display:none;align-items:center;
+    justify-content:center;background:#060a12d8}
+  #unit.show{display:flex}
+  #unitCard{position:relative;width:86%;max-width:330px;max-height:86%;overflow:hidden;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    display:flex;flex-direction:column;
+    box-shadow:0 18px 60px #000c, 0 0 24px -6px var(--ug, #0000)}
+  #unitX{position:absolute;right:9px;top:9px;z-index:3;width:30px;height:30px;
+    border-radius:50%;background:#0b0f17c8;border:1px solid var(--line);
+    color:var(--txt);font-size:13px;cursor:pointer}
+  #unitArt{position:relative;height:300px;background:#0d1320;overflow:hidden}
+  #unitArt img{width:100%;height:100%;object-fit:cover;object-position:center top}
+  /* 그림 아래를 패널색으로 녹여 글 영역과 잇는다 */
+  #unitArt::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(#0000 72%, var(--panel))}
+  /* 스킬 등 일러가 없는 것 — 아이콘을 가운데 크게 */
+  #unitArt.icon img{width:52%;height:auto;margin:11% auto 0;display:block;object-fit:contain;
+    filter:drop-shadow(0 8px 24px #000a)}
+  #unitBody{padding:11px 14px 14px}
+  #unitHead{display:flex;align-items:baseline;gap:8px}
+  #unitHead b{font-size:17px}
+  #unitHead i{font-style:normal;font-size:11px;font-weight:900;color:#0b0f17;
+    padding:1px 7px;border-radius:6px;background:var(--ug,#9aa4b5)}
+  #unitTags{display:flex;gap:5px;margin:6px 0 8px;flex-wrap:wrap}
+  #unitTags span{font-size:10px;color:var(--dim);background:#0d131f;
+    border:1px solid #232d40;border-radius:6px;padding:2px 7px}
+  #unitRows .frow{padding:6px 2px}
+  #unitAct{margin-top:9px}
+  #unitAct .rt-b{width:100%}
+
+  /* 벽 안내 — 전투 영역 위 오버레이. z 는 result(기본) 위, VS(30) 아래 */
+  #wall{position:absolute;inset:0;z-index:28;display:none;align-items:center;
+    justify-content:center;background:#060a12c8}
+  #wall.show{display:flex}
+  #wallCard{width:82%;max-width:300px;background:var(--panel);border:1px solid var(--line);
+    border-radius:13px;padding:13px 14px}
+  #wallCard>b{display:block;font-size:14px;color:var(--warn);margin-bottom:8px}
+  .w-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
+  .w-row span{color:var(--dim)}
+  .w-row i{font-style:normal;font-weight:800}
+  .w-barbox{height:7px;background:#0b0f17;border-radius:4px;overflow:hidden;margin:6px 0}
+  #wallBar{height:100%;background:var(--gold);border-radius:4px}
+  #wallGate{font-size:10px;color:var(--dim);line-height:1.5}
+  #wallGo{display:flex;flex-direction:column;gap:5px}
+  #wallGo button{background:#141c2a;border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:8px;font:inherit;font-size:12px;cursor:pointer;text-align:left}
+  #wallGo button:active{transform:translateY(1px)}
   #result.show{display:flex}
 
   /* 하단 40% */
@@ -611,6 +750,10 @@
   .sh-card b{font-size:13px}
   .sh-card .sh-desc{flex:1;margin:0}
   .sh-card.deal{border-left:3px solid var(--gold)}
+  /* 3배속 해금 — 다이아 탭에서 유일한 "성능" 상품이라 눈에 띄게 */
+  .sh-card.speed3{border:1px solid var(--gold);
+    background:linear-gradient(120deg,#2a2412,#141c2a 60%)}
+  .sh-card.speed3.owned{border-color:var(--line);background:#141c2a}
 
   .sh-hero{position:relative;background:linear-gradient(120deg,#3b2a6b,#1d2a52);
     border:1px solid #6a5ac0;border-radius:14px;padding:16px;text-align:center;
@@ -705,7 +848,9 @@
   .cx-h{display:flex;align-items:baseline;gap:8px;margin:14px 0 7px;font-size:13px;font-weight:900}
   .cx-h .cx-cnt{font-size:11px;color:var(--txt);font-weight:800}
   .cx-h .cx-sub{margin-left:auto;font-size:10px;color:var(--dim);font-weight:600}
-  .cx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  /* 한 줄 5칸. 4칸이면 칸은 크지만 한 화면에 11칸뿐이라 32종을 훑는 데
+     스크롤이 길다. 5칸이면 375 기준 칸이 65px 로 줄고 한 화면에 20칸이 들어온다 */
+  .cx-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px 8px}
   .cx-cell{position:relative;aspect-ratio:.86;background:#141c2a;border:2px solid var(--line);
     border-radius:10px;overflow:hidden;display:flex;flex-direction:column;
     align-items:center;justify-content:flex-end}
@@ -717,6 +862,20 @@
     color:#0b0f17;padding:1px 5px;border-radius:5px}
   .cx-cell.lock img{filter:brightness(0) invert(.18)}
   .cx-cell.lock span{color:var(--dim)}
+  /* 미보유 칸에는 **프레임을 주지 않는다.**
+     보유 칸은 등급 액자(FR-*)라 border:0 인데 미보유 칸만 9-slice 소켓 10px 을
+     쓰고 있었다. 한 그리드 안에서 미보유 쪽이 시각적으로 더 무거워져 — 못 가진
+     칸이 가진 칸보다 튀었다. 미보유는 배경으로 물러나야 액자가 상이 된다.
+     기하(9px 라운드)는 액자 칸과 같게 맞춰 격자가 흔들리지 않게 한다 */
+  /* 등급을 모르는 미보유 칸 — 스킬은 뽑을 때 등급을 굴리므로 아직 등급이 없다.
+     그렇다고 액자를 빼면 스킬 탭만 테두리 없는 판이 돼 그리드가 무너진다.
+     N 액자를 회색으로 깐다 — 회색이라 등급이 아니라 "아직 없음"으로 읽힌다 */
+  .cx-cell.lock:not([class*="g-"]){--fr-img:url(/assets/ui/FR-N.png);
+    border-image:none;border:0;border-radius:9px;overflow:visible;background:#0f141d}
+  .cx-cell.lock:not([class*="g-"])::after{content:"";position:absolute;inset:-4px;
+    pointer-events:none;z-index:3;
+    background:var(--fr-img) center/100% 100% no-repeat;
+    filter:grayscale(1) brightness(.62)}
 
   /* 훈련소 */
   .tc-hero{text-align:center;padding:6px 0 12px}
@@ -734,6 +893,12 @@
   .rk-row.mine{margin:0;border-color:var(--gold);background:linear-gradient(90deg,#2a2412,#141c2a)}
   .rk-n{flex:0 0 30px;text-align:center;font-weight:900;color:var(--dim)}
   .rk-1{color:#ffd24a}.rk-2{color:#d7dde8}.rk-3{color:#d4915a}
+  /* 1~3위는 숫자 대신 메달. 색 글자보다 한눈에 읽힌다 */
+  .rk-1::before{content:'🥇'}.rk-2::before{content:'🥈'}.rk-3::before{content:'🥉'}
+  .rk-1,.rk-2,.rk-3{font-size:0}
+  .rk-1::before,.rk-2::before,.rk-3::before{font-size:17px}
+  .rk-row.top:first-of-type{border-color:#ffd24a66;
+    box-shadow:0 0 12px -4px #ffd24a88}
   .rk-ava{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:2px solid var(--line);
     overflow:hidden;background:radial-gradient(circle at 50% 35%,#33405a,#1a2233)}
   .rk-ava img{width:150%;height:150%;object-fit:contain;object-position:center 22%;margin:-25%}
@@ -1148,9 +1313,16 @@
   .tw-row.now,.pf-t.on{filter:drop-shadow(0 0 6px #ffc94a66)}
   .tw-row.now b,.pf-t.on b{color:var(--gold)}
 
-  /* 도감 칸 — 인벤토리 칸과 같은 소켓 */
-  .cx-cell,.pf-m{background:none;border-style:solid;border-width:10px;border-radius:0;
-    border-image:var(--f-slot) 41 fill stretch}
+  /* 도감 칸 · 인벤토리 칸 · 편성 시트의 장착 칸 — 전부 같은 소켓이다.
+     장착 줄만 2px 실선으로 두면 같은 화면에 테두리가 두 종류가 되고,
+     잠금 칸의 점선까지 합쳐 셋이 된다 */
+  .cx-cell,.pf-m,.rt-slot{background:none;border-style:solid;border-width:10px;
+    border-radius:0;border-image:var(--f-slot) 41 fill stretch}
+  .rt-slot{border-width:8px}
+  /* 스킬 트랙은 한 줄에 8칸이라 칸이 38px 밖에 안 된다. 소켓을 8px 로 두면
+     아이콘이 22px 로 쪼그라든다 — 그 줄만 테두리를 얇게 준다.
+     .rt-gap 은 액티브/패시브를 가르는 간격이라 스킬 트랙에만 있다 */
+  #shEq:has(.rt-gap) .rt-slot{border-width:5px}
   /* 도감의 등급 테두리 색은 프레임이 덮으므로 좌상단 등급 글자로 남긴다 */
   .cx-cell i{text-shadow:0 1px 3px #000,0 0 6px currentColor}
 
@@ -1176,7 +1348,8 @@
      테두리 색 1px 으로만 구분하던 걸 대신한다. 스크린샷에서 UR 과 SSR 이
      구분이 안 되면 자랑할 이유가 없어진다. */
   .cx-cell,.pf-m{position:relative}
-  .cx-cell[class*=" g-"]::after,.pf-m[class*=" g-"]::after,.pf-m[class^="pf-m g-"]::after{
+  .cx-cell[class*=" g-"]::after,.pf-m[class*=" g-"]::after,.pf-m[class^="pf-m g-"]::after,
+  .rt-slot[class*=" g-"]::after{
     content:"";position:absolute;inset:-4px;pointer-events:none;z-index:3;
     background:var(--fr-img) center/100% 100% no-repeat}
   .g-N{--fr-img:url(/assets/ui/FR-N.png)}
@@ -1187,8 +1360,10 @@
   .g-LR{--fr-img:url(/assets/ui/FR-LR.png)}
   /* 액자가 소켓 프레임과 겹치면 지저분하다. 액자가 있는 칸은 소켓을 뺀다.
      overflow:hidden 이면 바깥으로 나가는 액자가 잘려 아예 안 보인다 — .pf-m 에서 실제로 났다 */
-  .cx-cell[class*="g-"],.pf-m[class*="g-"]{border-image:none;border:0;
+  .cx-cell[class*="g-"],.pf-m[class*="g-"],.rt-slot[class*="g-"]{border-image:none;border:0;
     background:#141c2a;border-radius:9px;overflow:visible}
+  /* 액자가 레벨 글자를 덮으면 몇 레벨인지 못 읽는다 */
+  .rt-slot b{z-index:4}
   .pf-m[class*="g-"] img{border-radius:8px}
   /* 액자가 이름을 덮으면 누가 누군지 못 읽는다. 글자를 액자 위로 올린다 */
   .cx-cell span{z-index:4}
@@ -1196,6 +1371,12 @@
   /* 상위 등급은 은은하게 빛난다 */
   .g-UR::after{filter:drop-shadow(0 0 5px #ffb64888)}
   .g-LR::after{filter:drop-shadow(0 0 7px #ff7ad688)}
+
+  /* 미보유 칸도 같은 등급 액자를 쓰고 색만 죽인다. 액자를 빼면 한 그리드에
+     테두리가 두 종류가 되고, 액자가 곧 "뽑으면 이 등급"이라는 예고를 겸한다.
+     **UR/LR 발광 규칙 뒤에 와야 한다** — 앞에 두면 안 가진 UR 이 색을 띠고 빛난다 */
+  .cx-cell.lock[class*="g-"]{background:#0f141d}
+  .cx-cell.lock[class*="g-"]::after{filter:grayscale(1) brightness(.62)}
 
 
   /* ── 장비 액자 (FRE-*) / 프로필 액자 (PFRAME-*) ────────────────────
@@ -1277,6 +1458,20 @@
 
   /* 화면 네 귀 장식 — 오버레이 카드에만. 전투 화면에 두면 캐릭터를 가린다 */
   #ovcard{position:relative}
+
+  /* ── 화면별 스킨 — 오버레이가 전부 같은 얼굴이면 어디에 있는지 잊는다.
+     프레임(9-slice)은 공용으로 두고, 카드 위쪽에 색 띠와 은은한 발광만 차등한다.
+     색은 그 화면의 성격에서 온다: 출석 초록(성장/일일) · 패스 금(프리미엄) ·
+     아레나 적(경쟁) · 훈련소 청동(단련) · 연합 보라(집단) */
+  #ovcard::before{content:"";position:absolute;left:15px;right:15px;top:15px;height:52px;
+    pointer-events:none;z-index:0;opacity:.5;
+    background:linear-gradient(var(--ov-tone,#0000), #0000)}
+  #ovcard[data-skin="attend"]{--ov-tone:#2e7d3288}
+  #ovcard[data-skin="pass"]{--ov-tone:#b8860b88}
+  #ovcard[data-skin="arena"]{--ov-tone:#c6282888}
+  #ovcard[data-skin="training"]{--ov-tone:#8d6e6388}
+  #ovcard[data-skin="alliance"]{--ov-tone:#6a1b9a88}
+  #ovcard[data-skin] #ovt{text-shadow:0 1px 3px #000, 0 0 14px var(--ov-tone)}
   #ovcard::before,#ovcard::after{content:"";position:absolute;width:26px;height:26px;
     pointer-events:none;z-index:5;opacity:.85;
     background:url(/assets/ui/UI-CORNER.png) center/contain no-repeat}
@@ -1348,18 +1543,32 @@
   #sheetBg{position:absolute;left:0;right:0;top:0;bottom:var(--navh,8%);z-index:64;
     background:#060a12b0;display:none}
   #sheetBg.show{display:block}
-  #sheet{position:absolute;left:0;right:0;bottom:var(--navh,8%);height:60%;z-index:65;
+  #sheet{position:absolute;left:0;right:0;bottom:var(--navh,8%);height:70%;z-index:65;
     display:none;flex-direction:column;background:var(--bg);
     border-top:1px solid var(--line);border-radius:16px 16px 0 0;
     box-shadow:0 -12px 40px #000a;
     transform:translateY(100%);transition:transform .24s cubic-bezier(.2,.9,.3,1)}
   #sheet.show{display:flex;transform:none}
 
-  #shHead{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px 8px}
+  /* 껍데기(헤드·장착·액션)가 시트의 44% 를 먹고 목록이 2.8행만 보이던 것을 줄였다.
+     헤드는 [제목+요약] 한 덩어리와 닫기 버튼 두 칸이다 */
+  #shHead{flex:0 0 auto;display:flex;align-items:flex-start;gap:8px;padding:9px 12px 6px}
+  #shHeadL{flex:1;min-width:0}
+  #shPre{display:flex;gap:5px;padding:0 12px 7px;align-items:center}
+  #shPre .pr{flex:0 0 auto;min-width:44px;padding:4px 9px;font-size:11px;font-weight:800;
+    background:#0d131f;border:1px solid #232d40;border-radius:7px;color:var(--dim);
+    cursor:pointer;font-family:inherit}
+  #shPre .pr.has{color:var(--txt);border-color:var(--line)}
+  #shPre .pr.on{border-color:var(--gold);color:var(--gold)}
+  #shPre .pr-save{margin-left:auto;font-size:10px;padding:4px 8px;background:none;
+    border:1px dashed #33405c;border-radius:7px;color:var(--dim);cursor:pointer;font-family:inherit}
   #shT{flex:1;font-size:15px;font-weight:900;color:var(--gold);text-shadow:0 1px 3px #000}
   #shT i{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);margin-left:6px}
   #shX{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit}
+  .sh-go{flex:0 0 auto;background:#141c2a;border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:6px 9px;cursor:pointer;font-size:12px;font-family:inherit}
+  .sh-go:active{transform:translateY(1px)}
 
   /* 장착 줄 — 가로 아이콘. 세로 카드로 하면 5줄이 시트 상단을 다 먹는다 */
   #shEq{flex:0 0 auto;display:flex;gap:5px;padding:0 12px 9px}
@@ -1372,14 +1581,19 @@
     background:linear-gradient(#0000,#0b0f17e8 45%);text-shadow:0 1px 3px #000}
   .rt-slot.empty::after{content:"+";position:absolute;inset:0;display:flex;
     align-items:center;justify-content:center;font-size:17px;color:var(--dim)}
-  /* 아직 안 열린 칸. 빈 칸(+)과 달라 보여야 "더 열린다"가 읽힌다 */
-  .rt-slot.locked{background:#0b0f17;border-style:dashed;border-color:#2a3446}
-  .rt-slot.locked .lockIc{position:absolute;inset:0;margin:auto;width:15px;height:15px;
-    opacity:.6}
+  /* 아직 안 열린 칸. 빈 칸(+)과 달라 보여야 "더 열린다"가 읽힌다.
+     **점선을 쓰지 않는다** — 킷은 전부 9-slice 소켓인데 여기만 CSS 점선이라
+     한 칸만 웹 폼처럼 보였다. 소켓은 그대로 두고 안쪽을 눌러 어둡게 한다 */
+  .rt-slot.locked{filter:saturate(.25) brightness(.62)}
+  .rt-slot.locked::before{content:"";position:absolute;inset:0;z-index:1;
+    background:radial-gradient(circle at 50% 45%,#0b0f1755,#0b0f17cc 78%)}
+  .rt-slot.locked .lockIc{position:absolute;inset:0;margin:auto;z-index:2;
+    width:44%;max-width:22px;height:auto;opacity:.85;
+    filter:drop-shadow(0 1px 3px #000)}
   /* 액티브/패시브 사이를 벌린다. 안 벌리면 8칸이 한 덩어리로 보인다 */
   .rt-gap{flex:0 0 7px}
 
-  #shSum{flex:0 0 auto;padding:0 12px 8px;font-size:11px;color:var(--dim)}
+  #shSum{padding:2px 0 0;font-size:11px;color:var(--dim);line-height:1.25}
   #shSum b{color:var(--gold);font-weight:900}
   #shBody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 10px}
   /* 장착 중인 칸 — 목록에서 눈에 띄어야 "이미 낀 것"을 다시 안 찾는다 */
@@ -1394,8 +1608,8 @@
 
   /* 액션바 — 고정. 목록과 같이 스크롤되면 눌러야 할 때 화면 밖에 있다 */
   #shAct{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;gap:7px;
-    padding:8px 12px 12px;border-top:1px solid #ffffff1a}
-  .rt-b{padding:2px 4px;min-height:42px;font-size:13px;font-weight:800;cursor:pointer;
+    padding:5px 12px 6px;border-top:1px solid #ffffff1a}
+  .rt-b{padding:2px 4px;min-height:36px;font-size:13px;font-weight:800;cursor:pointer;
     font-family:inherit;color:var(--txt);text-shadow:0 1px 2px #0009;
     background:none;border-style:solid;border-width:10px;border-radius:0;
     border-image:var(--f-btn) 127 163 fill stretch}
@@ -1404,7 +1618,8 @@
   .rt-b:disabled{opacity:.4;cursor:default}
 
   /* 던전 모드 — 장착 줄·이월·액션바가 없다. 시트 껍데기만 같이 쓴다 */
-  #sheet.mode-dg #shEq,#sheet.mode-dg #shSum,#sheet.mode-dg #shAct{display:none}
+  #sheet.mode-dg #shEq,#sheet.mode-dg #shSum,#sheet.mode-dg #shAct,
+  #sheet.mode-dg #shPre{display:none}
   #sheet.mode-dg #shBody{padding-bottom:12px}
 
 
@@ -1520,12 +1735,17 @@
 
   /* 상단바 설정 버튼 — 스테이지 텍스트 자리를 물려받았다.
      같은 정보(스테이지)가 전투 화면 진행도에 이미 크게 떠 있어 두 번 적을 이유가 없다. */
-  #topSet{flex:0 0 auto;width:34px;height:34px;padding:0;cursor:pointer;
+  /* 우편도 같은 규격으로 옆에 선다 */
+  .topIc{position:relative;flex:0 0 auto;width:34px;height:34px;padding:0;cursor:pointer;
     background:none;border:0;border-radius:9px;font-size:18px;color:var(--dim);
     line-height:34px;text-align:center}
-  #topSet img{width:100%;height:100%;object-fit:contain;
+  .topIc img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 2px 4px #000a)}
-  #topSet:active{transform:translateY(1px) scale(.94)}
+  .topIc:active{transform:translateY(1px) scale(.94)}
+  /* 안 읽은 우편 빨간 점. 사이드 버튼의 .hasnew 와 같은 규칙이다 */
+  .topIc.hasnew::after{content:'';position:absolute;top:0;right:0;
+    width:9px;height:9px;border-radius:50%;background:var(--warn);
+    box-shadow:0 0 6px var(--warn)}
 
   /* ── 시즌 패스 ─────────────────────────────────────────────────
      한 줄에 [티어][무료][프리미엄]. 유료를 오른쪽에 두는 이유 — 무료를 누르러 오면
@@ -1567,12 +1787,11 @@
   /* ── 좁은 세로(≤720px) 최종 조정 ───────────────────────────────
      반드시 파일 끝. 패널 마감 블록이 .side button 을 44px 로 다시 키우므로
      그보다 뒤에서 줄여야 이긴다 — 한 번 당한 특이도/순서 함정이다.
-     5개 x 34px + 4 x 3px = 182px → 56~238. 배속(≈120~140)과 겹치지 않게
-     사이드 열을 배속 아래(top 88)에서 시작한다. 88+182=270, 스킬바(≈306) 위. */
+     좌 3개 x 34px + 2 x 3px = 108px. 우 2개 = 71px. 배속(≈120~140)과 겹치지 않게
+     우측 열을 배속 아래에서 시작한다. */
   @media (max-height: 720px){
-    /* 전투 패널이 205px 까지 줄어든다. 5버튼이 그 안에 들어가려면 26px 가 상한이고
-       (5*26+4*2=138 → 92~230), 인벤토리 미래 줄은 접는다 — 미래 예고보다
-       지금 화면이 안 겹치는 게 먼저다. */
+    /* 전투 패널이 205px 까지 줄어든다. 사이드가 9개에서 5개로 줄어 26px 상한은
+       필요 없어졌지만, 좁은 화면에서 글자를 접는 규칙은 그대로 둔다 */
     .side{top:3px;gap:2px}
     /* 우측은 배속(4)·타이머(34~56) 아래서 시작해야 한다 */
     #sideR{top:60px}
@@ -1627,7 +1846,12 @@
         <div id="cpwrap"><span id="cp">0</span></div>
         <div id="xpbar"><div id="xpfill"></div></div>
       </div>
-      <button id="topSet" title="설정"><img src="/assets/ui/IC-SETTINGS.png" alt=""
+      <!-- 우편은 사이드가 아니라 프로필 줄이다. 사이드는 "지금 눌러야 하는 것"만
+           남기고, 우편처럼 언제 봐도 되는 수령함은 프로필 옆에 둔다 -->
+      <button id="topMail" class="topIc" data-s="mail" title="우편"><img
+        src="/assets/ui/IC-MAIL.png" alt=""
+        onerror="this.replaceWith(document.createTextNode('✉'))"></button>
+      <button id="topSet" class="topIc" title="설정"><img src="/assets/ui/IC-SETTINGS.png" alt=""
         onerror="this.replaceWith(document.createTextNode('⚙'))"></button>
     </div>
     <div class="row" style="gap:13px">
@@ -1649,6 +1873,8 @@
             <button class="sbtn on" data-sp="1">1x</button>
             <button class="sbtn" data-sp="2">2x</button>
             <button class="sbtn" data-sp="3">3x</button>
+            <!-- 절전 — 렌더만 6fps. 방치형은 화면을 몇 시간씩 켜 둔다 (skipBattle) -->
+            <button class="sbtn" id="pwrSave" title="절전 모드">💤</button>
           </div>
         </div>
       </div>
@@ -1666,22 +1892,43 @@
         <div id="qbar"><div id="qfill"></div></div>
       </div>
     </div>
+    <!-- 사이드는 축으로 가른다. 좌 = 기간이 있는 것(놓치면 사라진다 → 빨간 점이
+         의미를 갖는다), 우 = 경쟁·수령. 훈련소·도감은 성장 시스템이라 용병 시트
+         안으로, 우편은 프로필 줄로 옮겼다. 9개 → 5개 -->
     <div class="side" id="sideL">
       <button data-s="attend"><img src="/assets/ui/IC-ATTEND.png" alt="" onerror="this.remove()"><span>출석</span></button>
-      <button data-s="mail"><img src="/assets/ui/IC-MAIL.png" alt="" onerror="this.remove()"><span>우편</span></button>
       <button data-s="event"><img src="/assets/ui/IC-EVENT.png" alt="" onerror="this.remove()"><span>이벤트</span></button>
-      <button data-s="training"><img src="/assets/ui/IC-TRAIN.png" alt="" onerror="this.remove()"><span>훈련소</span></button>
-      <!-- 패스가 우측에 있으면 열이 5개가 돼 보물상자와 겹친다. 좌우 4/4 로 맞춘다 -->
       <button data-s="pass"><img src="/assets/ui/IC-PASS.png" alt="" onerror="this.remove()"><span>패스</span></button>
     </div>
     <div class="side" id="sideR">
       <button data-s="arena"><img src="/assets/ui/IC-ARENA.png" alt="" onerror="this.remove()"><span>아레나</span></button>
-      <button data-s="codex"><img src="/assets/ui/IC-CODEX.png" alt="" onerror="this.remove()"><span>도감</span></button>
       <button data-s="rank"><img src="/assets/ui/IC-RANK.png" alt="" onerror="this.remove()"><span>랭킹</span></button>
     </div>
     <button id="chest"><img id="chestImg" src="/assets/ui/CH-01.png" alt=""><span id="chestT">0분</span></button>
     <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div></div><span id="dpsInfo"></span></div>
     <div id="result"></div>
+    <!-- 절전 덮개 — 밀어서 해제. 탭 해제는 주머니 오터치로 꺼진다.
+         어둡게 가려서 "렌더가 멈췄다"가 아니라 "절전 중"으로 읽히게 한다 -->
+    <div id="pwrveil">
+      <div class="pv-moon">🌙</div>
+      <div class="pv-clock">00:00</div>
+      <b>절전 중</b>
+      <span>전투·보상은 계속 진행됩니다</span>
+      <div class="pv-stats"><span id="pvStage"></span><span id="pvGold"></span></div>
+      <div id="pvTrack"><div id="pvHandle">💤</div><i>밀어서 해제</i></div>
+    </div>
+    <!-- 벽 안내 — 보스 실패 뒤 요구/현재 CP 와 탈출구. 탭하면 닫힌다 -->
+    <div id="wall">
+      <div id="wallCard">
+        <b>전투력이 부족합니다</b>
+        <div class="w-row"><span>요구</span><i id="wallNeed"></i></div>
+        <div class="w-row"><span>현재</span><i id="wallMy"></i></div>
+        <div class="w-barbox"><div id="wallBar"></div></div>
+        <div id="wallGate"></div>
+        <div class="lbl" style="margin:8px 0 4px">추천</div>
+        <div id="wallGo"></div>
+      </div>
+    </div>
   </div>
 
   <div id="bottom">
@@ -1724,15 +1971,36 @@
   <div id="sheetBg"></div>
   <div id="sheet">
     <div id="shHead">
-      <span id="shT"></span>
+      <!-- 제목과 요약은 한 덩어리다. 요약을 독립 줄로 두면 22px 를 통째로 먹는데
+           담는 건 회색 한 줄이라, 그만큼 목록에서 빠진다 -->
+      <div id="shHeadL"><span id="shT"></span><div id="shSum"></div></div>
+      <!-- 훈련소·도감은 사이드에서 여기로 왔다. 둘 다 용병·스킬 성장이라
+           편성 화면이 제자리다 -->
+      <button class="sh-go" data-go="training">훈련소</button>
+      <button class="sh-go" data-go="codex">도감</button>
       <button id="shX">닫기</button>
     </div>
+    <!-- 프리셋 3칸 — 탭하면 불러오고 [저장]으로 현재 편성을 기록한다 -->
+    <div id="shPre"></div>
     <div id="shEq"></div>
-    <div id="shSum"></div>
     <div id="shBody"></div>
     <div id="shAct">
       <button class="rt-b" id="shEqBtn">자동장착</button>
       <button class="rt-b go" id="shUp">자동강화</button>
+    </div>
+  </div>
+
+  <!-- 유닛 상세 — 용병은 도감 일러(-ART)를 배경으로 크게. 시트(z65) 위 -->
+  <div id="unit">
+    <div id="unitCard">
+      <button id="unitX">✕</button>
+      <div id="unitArt"><img id="unitImg" src="" alt=""></div>
+      <div id="unitBody">
+        <div id="unitHead"><b id="unitName"></b><i id="unitGrade"></i></div>
+        <div id="unitTags"></div>
+        <div id="unitRows"></div>
+        <div id="unitAct"></div>
+      </div>
     </div>
   </div>
 

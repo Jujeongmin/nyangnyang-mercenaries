@@ -518,5 +518,14 @@
       "quest": 150,
       "dungeon": "trial_tower"
     }
-  ]
+  ],
+  "speedUnlockQuests": {
+    "canonicalSource": true,
+    "note": "combat.json > clientRendering.speedUp 의 afterQuest 와 같은 값이어야 한다. 이 표가 단일 소스다",
+    "speed2": {
+      "afterQuest": 5,
+      "mult": 2
+    },
+    "speed3": "구매 해금 (shop.json > packages > speed3_unlock). 퀘스트로는 안 열린다"
+  }
 }

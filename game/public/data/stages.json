@@ -504,9 +504,12 @@
     "stagesPerHourNote": "1스테이지 23초 => 시간당 156.5회 (combat.json > stagePresentation.timing)",
     "offlineEfficiency": 0.35,
     "offlineEfficiencyReason": "1.0이면 방치가 능동 플레이를 완전히 대체해 게임을 켤 이유가 사라진다. 0.35면 방치가 주력이되 능동 파밍에도 의미가 남는다.",
-    "hourlyFormula": "stageGold(최고돌파스테이지) * 156.5 * 0.35",
+    "hourlyFormula": "stageGold(최고돌파스테이지) * 156.5 * 해금최고배속 * 0.35",
     "dailyEquivalentClears": 696,
-    "dailyEquivalentClearsNote": "능동 39회(15분) + 방치 12시간 x 156.5 x 0.35 = 696회. 일일 배출 계산의 기준값.",
-    "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다."
+    "dailyEquivalentClearsNote": "2배속 해금 기준. 온라인 39회(15분) + 방치 9시간 × 156.5 × 2 × 0.35 = 약 1,025회. 3배속 구매자는 1,518회. 예산은 goldsinks.json > budget 을 이 값으로 다시 확인한다.",
+    "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다.",
+    "stagesPerHourAt1x": 156.5,
+    "speedBasis": "unlockedMax",
+    "speedBasisNote": "시간당 클리어 수 = 156.5 × **해금된 최고 배속**. 전에는 1배속으로 고정돼 있어서, 3배속으로 켜두고 파밍하면 방치보다 시간당 8.6배를 벌었다 (156.5×3 vs 156.5×0.35). 방치형인데 화면을 켜두는 쪽이 압도적으로 이득이었다. 배속을 곱하면 격차가 offlineEfficiency 가 의도한 2.9배로 돌아온다."
   }
 }

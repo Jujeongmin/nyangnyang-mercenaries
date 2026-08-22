@@ -8,6 +8,7 @@
 // stages.json 의 곡선·벽·St200 목표가 전부 재계산 대상이 된다.
 
 const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 const pct = v => (v * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
 
 export class CodexScreen {
@@ -64,6 +65,9 @@ export class CodexScreen {
 
     this.el.querySelector('#cxBody').innerHTML =
       this.tab === 'mercenary' ? this.mercTab(b) : this.skillTab(b);
+    // 등록된 칸을 누르면 상세 — 도감이 곧 컬렉션 뷰어다
+    if (this.api.openUnitInfo) this.el.querySelectorAll('[data-info]').forEach(el =>
+      el.addEventListener('click', () => this.api.openUnitInfo(el.dataset.kind, el.dataset.info)));
   }
 
   mercTab(b) {
@@ -83,8 +87,10 @@ export class CodexScreen {
         </div>
         <div class="cx-grid">` + list.map(c => {
           const has = own.has(c.id);
-          return `<div class="cx-cell${has ? ' g-' + g : ' lock'}"
-              title="${c.nameKo}">
+          // 미보유여도 등급 액자를 쓴다 (색만 죽인다). 용병은 등급이 고정이라
+          // 안 뽑아도 무엇인지 알고, 액자가 곧 "이걸 뽑으면 이 등급"이라는 예고다
+          return `<div class="cx-cell g-${g}${has ? '' : ' lock'}"
+              ${has ? `data-info="${c.id}" data-kind="merc"` : ''} title="${c.nameKo}">
             <img src="/assets/char/${c.id}.png" alt="">
             <span>${has ? c.nameKo : '???'}</span>
           </div>`;
@@ -101,17 +107,20 @@ export class CodexScreen {
     const kinds = [['SK-A', '액티브'], ['SK-P', '패시브']];
 
     return kinds.map(([pre, label]) => {
-      const list = D.skills.skills.filter(s => s.id.startsWith(pre));
+      // 등급순으로 세운다. 등급이 종류에 고정이라 이제 정렬이 가능하다
+      const list = D.skills.skills.filter(s => s.id.startsWith(pre))
+        .sort((a, b) => GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade));
       const got = list.filter(s => S.codex.skill[s.id]).length;
       return `<div class="cx-h"><span>${label}</span>
           <span class="cx-cnt">${got}/${list.length}</span></div>
         <div class="cx-grid">` + list.map(s => {
-          const g = S.codex.skill[s.id];
-          return `<div class="cx-cell${g ? ' g-' + g : ' lock'}"
-              title="${s.nameKo}${g ? ' — 최고 ' + g : ''}">
-            <img src="/assets/skill/${s.id}.png" alt="">
-            <span>${g ? s.nameKo : '???'}</span>
-            ${g ? `<i style="background:${GC[g]}">${g}</i>` : ''}
+          const has = !!S.codex.skill[s.id];
+          // 등급은 미보유여도 안다 — 액자를 깔고 색만 죽인다 (.cx-cell.lock)
+          return `<div class="cx-cell g-${s.grade}${has ? '' : ' lock'}"
+              ${has ? `data-info="${s.id}" data-kind="skill"` : ''} title="${s.nameKo} — ${s.grade}">
+            <img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">
+            <span>${has ? s.nameKo : '???'}</span>
+            <i style="background:${GC[s.grade]}">${s.grade}</i>
           </div>`;
         }).join('') + `</div>`;
     }).join('')

@@ -178,6 +178,33 @@ export class BattleScene {
    * 단장은 파티와 별개다 — characters.json > captain.combatParticipation: false.
    * 전투에 참여하지 않고 좌측 맨 앞에 지휘 포즈로 선다.
    */
+  /**
+   * 등급 링 색. SR 부터 보인다 — N·R 까지 칠하면 전원이 빛나서 아무도 안 빛난다.
+   * UR·LR 은 진하게. 도감·목록의 GC 팔레트와 같은 색이라 화면 간 신호가 일치한다.
+   */
+  ringColorOf(grade) {
+    return { SR: 0x2196F3, SSR: 0x9C27B0, UR: 0xFF9800, LR: 0xE91E63 }[grade] ?? null;
+  }
+
+  /**
+   * 등급별 타격 연출 계수. 좋은 유닛일수록 화면이 화려해야 뽑는 보람이
+   * 전투에서 회수된다. 다만 방치형은 화면을 몇 시간씩 켜 두므로 추가 비용은
+   * 스프라이트 1~2장 + 짧은 입자까지만 — 상시 파티클은 안 쓴다.
+   *   size  타격 이펙트 크기 배수
+   *   echo  등급색 잔상(같은 이펙트를 등급색으로 한 번 더) 여부
+   *   motes 명중 시 등급색 입자 수 (0 = 없음)
+   */
+  gradeFx(grade) {
+    return {
+      N: { size: 0.88, echo: false, motes: 0 },
+      R: { size: 0.96, echo: false, motes: 0 },
+      SR: { size: 1.04, echo: false, motes: 0 },
+      SSR: { size: 1.14, echo: true, motes: 0 },
+      UR: { size: 1.28, echo: true, motes: 5 },
+      LR: { size: 1.42, echo: true, motes: 8 },
+    }[grade] || { size: 1, echo: false, motes: 0 };
+  }
+
   async setParty(party) {
     for (const u of this.units) u.rig.view.destroy({ children: true });
     this.units = [];
@@ -208,6 +235,8 @@ export class BattleScene {
       const rig = new UnitRig(PIXI(), t, {
         size: this.allySize(), facing: 1, grid: [5, 9],
         motion: motionForClass(m.class), arm, trim: TR[m.id],
+        ringColor: this.ringColorOf(m.grade),
+        orbs: m.grade === 'UR' || m.grade === 'LR',
       });
       this.field.addChild(rig.view);
       this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5), skillCd: rnd(4, 9) });
@@ -353,6 +382,22 @@ export class BattleScene {
     }
     this.phase = 'walk';
     this.phaseT = 0;
+  }
+
+  /**
+   * 절전 — 렌더만 6fps 로 줄인다. combat.json > clientRendering.skipBattle
+   * ("렌더를 멈추고 결과만 반영. 배터리·발열 대응").
+   * 시뮬은 deltaMS 로 흐르므로 프레임이 줄어도 전투 결과·보상은 동일하다.
+   * 완전 정지(0fps)로 안 하는 이유 — 시뮬이 같은 ticker 에 있어 같이 멈춘다.
+   */
+  setPowerSave(on) {
+    if (!this.app) return;
+    this.powerSave = !!on;
+    // maxFPS 는 minFPS(기본 10) 아래로 안 내려간다 — 10 이 실효 하한이다
+    this.app.ticker.maxFPS = on ? 10 : 0;  // 0 = 제한 없음 (모니터 주사율)
+    // 화면 자체를 안 그린다. 덮개가 어차피 캔버스를 가리므로 GPU 는 클리어만
+    // 하게 두는 것이 배터리에 최선이다. 시뮬(tick)은 stage 가림과 무관하게 돈다
+    this.app.stage.visible = !on;
   }
 
   tick(rawMs) {
@@ -501,8 +546,18 @@ export class BattleScene {
         this.damageParty(f);
         t.rig.hit(-1);
         this.impact.flash(t.rig);
+        // 보스 타격은 커야 한다 — 위협은 화면 언어로도 전달된다.
+        // 붉은 기운 + 흔들림. 잡몹은 기존 그대로 가볍게
+        const boss = !!f.boss;
         this.fx.play('HIT-07', t.rig.view.x, t.rig.view.y - t.rig.h * 0.5,
-          { size: this.fxSize(t.rig.h * 0.6, 0.16), dur: 260, to: 1.1 });
+          { size: this.fxSize(t.rig.h * (boss ? 1.05 : 0.6), boss ? 0.26 : 0.16),
+            dur: boss ? 380 : 260, to: boss ? 1.35 : 1.1,
+            tint: boss ? 0xff7a6a : 0xffffff });
+        if (boss) {
+          this.impact.shake(9, 1);
+          this.fx.motes(t.rig.view.x, t.rig.view.y - t.rig.h * 0.4, 4,
+            { color: 0xff6a5a, spread: t.rig.w * 0.35 });
+        }
       };
 
       if (f.atk === 'projectile') {
@@ -629,14 +684,22 @@ export class BattleScene {
 
     // 타격 지점 — 몸통 중앙보다 조금 위가 잘 읽힌다
     const hx = foe.rig.view.x, hy = foe.rig.view.y - foe.rig.h * 0.52;
-    const size = this.fxSize(foe.rig.h * (skill ? 1.15 : 0.95), 0.30);
+    // 화려함은 등급에서 온다. 스킬이면 **스킬의 등급**, 평타면 용병 등급
+    const gfx = this.gradeFx(skill && from.usingSkill ? from.usingSkill.grade : from.grade);
+    const gcol = this.ringColorOf(skill && from.usingSkill ? from.usingSkill.grade : from.grade);
+    const size = this.fxSize(foe.rig.h * (skill ? 1.15 : 0.95) * gfx.size, 0.30);
 
     // 스킬이면 스킬 전용 이펙트가 우선한다. 평타 이펙트와 겹치면 뭉개진다.
     const sfx = skill && from.usingSkill ? skillFx(from.usingSkill.id) : null;
     if (sfx) {
       // 스킬은 대상 전체를 덮을 만큼 크게. 이게 스킬을 특별하게 만든다
       this.fx.play(sfx, hx, hy - foe.rig.h * 0.05, {
-        size: this.fxSize(foe.rig.h * 1.45, 0.40), dur: 520, from: 0.45, to: 1.2, hold: 0.3,
+        size: this.fxSize(foe.rig.h * 1.45 * gfx.size, 0.40), dur: 520, from: 0.45, to: 1.2, hold: 0.3,
+      });
+      // 상위 등급 스킬은 등급색 잔상이 반 박자 늦게 한 번 더 퍼진다
+      if (gfx.echo && gcol) this.fx.play(sfx, hx, hy - foe.rig.h * 0.05, {
+        size: this.fxSize(foe.rig.h * 1.7 * gfx.size, 0.44), dur: 620, from: 0.6, to: 1.5,
+        hold: 0.15, tint: gcol, spin: rnd(-0.6, 0.6),
       });
       // 시전자 발밑에도 작게 — 누가 썼는지 읽히게
       this.fx.play(sfx, from.rig.view.x, from.rig.view.y - from.rig.h * 0.25, {
@@ -650,7 +713,14 @@ export class BattleScene {
         size, dur: 300, rot: rnd(-0.22, 0.22),
         flip: from.rig.facing < 0, to: 1.35,
       });
+      // SSR+ 평타는 등급색 잔상. 같은 그림이 색만 바뀌어 늦게 퍼지므로
+      // 추가 에셋 없이 "이 유닛은 다르다"가 읽힌다
+      if (gfx.echo && gcol) this.fx.play(id, hx, hy, {
+        size: size * 1.25, dur: 380, rot: rnd(-0.3, 0.3),
+        flip: from.rig.facing < 0, from: 0.7, to: 1.6, tint: gcol,
+      });
     }
+    if (gfx.motes && gcol) this.fx.motes(hx, hy, gfx.motes, { color: gcol, spread: foe.rig.w * 0.3 });
     if (crit) {
       this.fx.play('HIT-06', hx, hy, { size: this.fxSize(size * 1.2, 0.34), dur: 420, to: 1.3, spin: rnd(-1, 1) });
     }

@@ -325,17 +325,33 @@
       "reason": "매 타격마다 흔들면 방치형에서 멀미난다. 화면을 오래 켜두는 장르다."
     },
     "speedUp": [
-      1,
-      2,
-      3
+      {
+        "mult": 1,
+        "unlock": "default"
+      },
+      {
+        "mult": 2,
+        "unlock": "quest",
+        "afterQuest": 5,
+        "note": "튜토리얼 직후. 23초/스테이지가 답답해지기 시작하는 지점에서 풀어 준다. 해금 자체가 첫 \"확 빨라졌다\" 순간이 된다"
+      },
+      {
+        "mult": 3,
+        "unlock": "purchase",
+        "productId": "speed3_unlock",
+        "note": "shop.json > packages. 영구 해금이고 계정당 1회다"
+      }
     ],
     "skipBattle": {
       "enabled": true,
       "effect": "렌더를 멈추고 결과만 반영",
-      "reason": "방치형은 화면을 오래 켜둔다. 배터리·발열 대응."
+      "reason": "방치형은 화면을 오래 켜둔다. 배터리·발열 대응.",
+      "implemented": true,
+      "implementation": "절전 버튼(💤, 배속 옆). 렌더만 10fps 로 줄인다 — 시뮬은 deltaMS 기반이라 결과 동일. PixiJS maxFPS 는 minFPS(10) 아래로 안 내려간다."
     },
     "targetFps": 60,
-    "fallbackFps": 30
+    "fallbackFps": 30,
+    "speedUpNote": "배속은 전투 재생 속도이면서 **방치 수익의 곱셈 항**이다 (stages.json > idleReward.speedBasis). 그래서 상시 무료로 열어두면 성장축 하나가 통째로 죽는다. 해금 기준은 CP 가 아니라 퀘스트다 — 뽑기 운이 배속 순서를 흔들면 안 된다 (quests.json > slotUnlockQuests 와 같은 이유)."
   },
   "todo": [
     "시뮬레이터로 스킬 8칸 + 장비 세트 포함 상태에서 직군 편차 재검증",

@@ -21,7 +21,8 @@ import { MailScreen, ProfileScreen } from './view/profile.js';
 import { questAt, questProgress, QUEST_TYPE } from './view/quest.js';
 import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
-import { showRewarded, AD_OK, AD_SKIPPED } from './net/ads.js';
+import { AllianceVillage } from './view/alliance.js';
+import { showRewarded, initAds, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM } from './net/ads.js';
 
 const $ = s => document.querySelector(s);
 const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
@@ -65,6 +66,18 @@ const S = {
   // 시즌 패스 — 티어별 수령 기록. 무료/유료를 따로 센다 (유료는 소급 지급이라)
   pass: { bought: false, free: [], paid: [] },
   skillAuto: true,                         // 끄면 준비된 스킬을 탭해서 쓴다
+  speed: 1,                                // 배속. speedMax() 안에서만 고를 수 있다
+  speed3: false,                           // 3배속 구매 여부. 서버 권한 (save-schema)
+  speed3DailyAt: null,                     // 3배속 일일 다이아 마지막 수령일
+  // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
+  // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
+  attend: { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] },
+  // 편성 프리셋 3개. id 만 저장한다 — 실객체는 로드 때 보유·장착 풀에서 다시 찾는다.
+  // 실객체를 넣으면 레벨업·캐스케이드 뒤 프리셋 속 사본이 낡는다
+  presets: [null, null, null],
+  // 연합 코인 — 프로토타입은 로컬 보유. 서버 연동 시 net/backend.js 로 옮긴다
+  allyCoin: 0,
+  allyDonate: { day: null, gold: 0, eq: 0 },   // 일일 기부 횟수
   capLv: 1, capXp: 0,                      // 단장(계정) 레벨. 스탯 효과 없음
   codex: { mercenary: [], skill: {} },     // 1회 획득 시 영구 등록
   trainLv: 0,                              // 훈련소
@@ -76,7 +89,7 @@ const S = {
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
 
-let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster;
+let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, alli;
 
 // --- CP ---
 const cpOf = m => D.characters.gradeCoef[m.grade] * (1 + m.level * D.characters.levelGrowthPerLevel);
@@ -117,10 +130,81 @@ function totalCp() {
     * (1 + S.forgeLv * 0.008);
 }
 
+/**
+ * 지금 쓸 수 있는 최고 배속.
+ *
+ * 배속은 전투 재생 속도이면서 **방치 수익의 곱셈 항**이다
+ * (stages.json > idleReward.speedBasis). 그래서 성장·과금 축으로 쓴다:
+ *   1x 기본 / 2x 퀘스트 / 3x 구매
+ *
+ * 해금 기준이 CP 가 아니라 퀘스트인 이유는 슬롯과 같다 — 뽑기 운이 순서를 흔들면 안 된다.
+ */
+function speedMax() {
+  const tbl = D.combat.clientRendering.speedUp || [];
+  let m = 1;
+  for (const r of tbl) {
+    if (r.unlock === 'default') m = Math.max(m, r.mult);
+    else if (r.unlock === 'quest' && questCleared() >= r.afterQuest) m = Math.max(m, r.mult);
+    else if (r.unlock === 'purchase' && S.speed3) m = Math.max(m, r.mult);
+  }
+  return m;
+}
+
+/**
+ * 3배속 해금 구매.
+ *
+ * **실결제는 아직 없다** — VXShop 등록 전이라 검증할 방법이 없고, 해금 판정은
+ * 원래 서버가 쥐어야 한다 (save-schema.json > schema.speed3: "서버 권한").
+ * 그래서 개발 빌드에서만 즉시 해금해 테스트를 열어 두고, 프로덕션 번들에는
+ * 이 분기가 아예 안 들어간다 (net/ads.js 의 unsupported_env 처리와 같은 방식).
+ */
+function buySpeed3() {
+  if (S.speed3) return toast('이미 해금되어 있습니다');
+  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  S.speed3 = true;
+  S.speed = 3;
+  if (scene) scene.speed = 3;
+  save(); syncSpeedBtns(); shop.render();
+  toast('[개발 빌드] 3배속 해금');
+}
+
+/**
+ * 3배속 패키지의 일일 다이아. **자동 지급이 아니라 수령이다** —
+ * 자동이면 받은 줄도 모르고 지나가서 접속 이유가 안 된다 (소환 레벨 보상과 같은 규칙).
+ */
+function claimSpeed3Daily() {
+  if (!S.speed3) return;
+  const pk = (D.shop.packages || []).find(x => x.id === 'speed3_unlock');
+  const n = pk?.dailyGrant?.diamond ?? 0;
+  // 서버 시각이 아니라 클라 날짜다. 서버 연동 때 net/backend.js 로 옮긴다
+  const today = new Date().toISOString().slice(0, 10);
+  if (S.speed3DailyAt === today) return toast('오늘은 이미 받았습니다');
+  S.speed3DailyAt = today;
+  S.dia += n;
+  save(); renderTop(); shop.render();
+  toast(`다이아 +${n}`);
+}
+
+/** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
+function speedHint(mult) {
+  const r = (D.combat.clientRendering.speedUp || []).find(x => x.mult === mult);
+  if (!r) return '';
+  if (r.unlock === 'quest') return `퀘스트 ${r.afterQuest} 를 끝내면 ${mult}배속이 열립니다`;
+  if (r.unlock === 'purchase') return `${mult}배속은 상점에서 해금합니다`;
+  return '';
+}
+
 /** 설정과 전투 화면 버튼이 같은 값을 보게 한다 */
 function syncSpeedBtns() {
-  document.querySelectorAll('#speed .sbtn').forEach(x =>
-    x.classList.toggle('on', +x.dataset.sp === (S.speed || 1)));
+  const max = speedMax();
+  // 해금이 내려가는 일은 없지만, 세이브가 앞서 있으면 고른 값을 끌어내린다
+  if ((S.speed || 1) > max) { S.speed = max; if (scene) scene.speed = max; }
+  document.querySelectorAll('#speed .sbtn[data-sp]').forEach(x => {
+    const sp = +x.dataset.sp;
+    x.classList.toggle('on', sp === (S.speed || 1));
+    // 잠긴 배속도 **보여준다.** 숨기면 해금이 보상으로 안 읽힌다
+    x.classList.toggle('lock', sp > max);
+  });
 }
 // 진행은 항상 자동이다. 토글을 없앴으므로 이 값은 늘 true 로 둔다.
 const AUTO_ADVANCE = true;
@@ -157,7 +241,8 @@ function capGain(n = 1) {
  */
 function renderMailDot() {
   const un = (S.mailbox || []).filter(x => !x.claimed).length;
-  const mb = document.querySelector('.side button[data-s="mail"]');
+  // 우편은 사이드가 아니라 상단 프로필 줄에 있다. 자리를 안 박고 data-s 로 찾는다
+  const mb = document.querySelector('[data-s="mail"]');
   if (mb) mb.classList.toggle('hasnew', un > 0);
 }
 
@@ -210,6 +295,7 @@ function floatCurrency() {
 const MAIL_CUR = {
   diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket', speedup_5m: 'hourglass',
   arena_medal: 'medal', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket',
+  alliance_coin: 'allyCoin',   // 마을 기부 프로토타입. 서버 연동 시 net/ 으로
 };
 
 /**
@@ -340,11 +426,15 @@ function claimQuest() {
     const bag = QUEST_CUR[k];
     if (bag) S[bag] += v;
   }
+  // **올리기 전에** 잰다. 뒤에서 재면 이미 해금된 값이라 알림이 안 뜬다
+  const before = speedMax();
   S.quest++;
   save();
   renderQuest(); renderTop();
-
+  // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
+  syncSpeedBtns();
   toast(`Q${def.q} 완료 — 보상 수령`);
+  if (speedMax() > before) setTimeout(() => toast(`${speedMax()}배속 해금!`), 1400);
 }
 
 
@@ -533,7 +623,8 @@ function renderSkills() {
     if (s) {
       d.style.borderColor = GC[s.grade];
       d.style.boxShadow = `0 0 6px ${GC[s.grade]}55`;
-      d.innerHTML = `<img src="/assets/skill/${s.id}.png" alt="">`;
+      // 신규 스킬은 그림이 아직 없을 수 있다. 깨진 아이콘 대신 빼 버린다
+      d.innerHTML = `<img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">`;
       d.title = `${s.nameKo} ${s.grade} Lv${s.level}`;
     } else {
       d.title = `${kind} ${i + 1}번 칸 — 비어 있음`;
@@ -632,6 +723,7 @@ function openAutoPanel() {
     + (S.autoSummon ? '자동 소환 정지' : '자동 소환 시작') + '</button>');
 
   $('#ovt').textContent = '자동 소환';
+  delete $('#ovcard').dataset.skin;
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -728,11 +820,17 @@ function idleHours() {
   return Math.min(h, idleDef().maxAccumulationHours);
 }
 
-/** 시간당 골드 = stageGold(최고돌파) x 156.5 x 0.35 */
+/**
+ * 시간당 골드 = stageGold(최고돌파) x 156.5 x **해금 최고 배속** x 0.35
+ *
+ * 배속을 안 곱하던 때는 3배속으로 켜두고 파밍하는 쪽이 방치보다 8.6배를 벌었다.
+ * 방치형인데 화면을 켜두는 게 이득인 구조라, offlineEfficiency 0.35 가 의도한
+ * 2.9배 격차와 어긋났다 (stages.json > idleReward.speedBasisNote).
+ */
 function idleGold(hours) {
   const r = idleDef();
   const stageGold = Math.pow(requiredCp(S.maxStage), 1.35) * D.stages.rewards.repeatClear.gold.coefficient;
-  return Math.round(stageGold * r.stagesPerHour * r.offlineEfficiency * hours);
+  return Math.round(stageGold * r.stagesPerHour * speedMax() * r.offlineEfficiency * hours);
 }
 
 /**
@@ -785,7 +883,7 @@ function openIdle() {
 async function claimIdle(mult) {
   const h = idleHours();
   if (h < 0.02) return;
-  if (mult > 1 && !await playAd()) return;
+  if (mult > 1 && !await playAd(AD_IDLE_DOUBLE)) return;
   const g = idleGold(h) * mult;
   S.gold += g;
   S.idle.lastClaimAt = Date.now();
@@ -795,7 +893,7 @@ async function claimIdle(mult) {
 }
 
 /** 광고를 끝까지 보여 주고 보상을 줘도 되는지 판정한다. 실패 사유는 토스트로 알린다 */
-async function playAd(placementId = 'rewarded_1') {
+async function playAd(placementId) {
   const r = await showRewarded(placementId);
   if (r === AD_OK) return true;
   toast(r === AD_SKIPPED ? '광고를 끝까지 봐야 보상이 지급됩니다' : '지금은 광고를 볼 수 없습니다');
@@ -811,7 +909,7 @@ async function claimInstant(useAd) {
     if (S.idle.adUsed >= inst.adDaily) return toast('오늘 광고 수령을 모두 사용했습니다');
     // 횟수는 광고를 **끝까지 본 뒤에** 깎는다. 먼저 깎으면 중간에 닫았을 때
     // 보상도 못 받고 일일 횟수만 사라진다
-    if (!await playAd()) return;
+    if (!await playAd(AD_INSTANT_CLAIM)) return;
     S.idle.adUsed++;
   } else {
     if (S.idle.freeUsed >= inst.freeDaily) return toast('오늘 무료 수령을 모두 사용했습니다');
@@ -882,9 +980,12 @@ function pull(trackId, n) {
   const out = Array.from({ length: n }, () => {
     const g = roll();
     if (trackId === 'skill') {
-      const pool = D.skills.skills;
+      // 스킬도 용병과 같다 — 등급을 먼저 굴리고 **그 등급의 스킬 중에서** 하나를 고른다.
+      // 예전에는 전체 32종에서 아무거나 뽑고 등급을 따로 붙였는데, 그러면
+      // gacha.json > perItemRateFormula(등급확률 / 그 등급의 종수)가 거짓말이 된다
+      const pool = D.skills.skills.filter(x => x.grade === g);
       const sk = pool[(Math.random() * pool.length) | 0];
-      return { grade: g, name: sk.nameKo, img: `/assets/skill/${sk.id}.png`,
+      return { grade: sk.grade, name: sk.nameKo, img: `/assets/skill/${sk.id}.png`,
                id: sk.id, kind: 'skill' };
     }
     const pool = D.characters.characters.filter(c => c.grade === g);
@@ -1065,11 +1166,51 @@ function bestOf(track) {
   return { act, pas, rest: pool.filter(x => !on.has(x)) };
 }
 
-/** 지금 편성과 자동장착 결과가 다른가. 같으면 버튼을 비활성한다 */
+/**
+ * 열린 칸보다 많이 장착돼 있으면 초과분을 보유함으로 되돌린다.
+ *
+ * 정상 플레이로는 안 생긴다 — 편성 경로가 전부 slotsOf 를 지킨다. 다만
+ * quests.json > slotUnlockQuests 를 고치면 **옛 세이브가 그 상태로 남는다.**
+ * 그대로 두면 잠긴 칸에 있는 유닛이 전투에 계속 참여하면서 화면에는 안 보인다.
+ */
+function trimToSlots() {
+  const back = [];
+  const cut = (arr, n) => {
+    const keep = arr.filter(Boolean);
+    back.push(...keep.slice(n));
+    return keep.slice(0, n);
+  };
+  const over = S.party.filter(Boolean).length > slotsOf('mercenary');
+  if (over) {
+    S.party = cut(S.party, slotsOf('mercenary'));
+    S.own.mercenary = [...(S.own.mercenary || []), ...back.splice(0)];
+  }
+  const pad = arr => Array.from({ length: 4 }, (_, i) => arr[i] || null);
+  const a = cut(S.skills.active, slotsOf('skillActive'));
+  const p = cut(S.skills.passive, slotsOf('skillPassive'));
+  if (back.length) {
+    S.skills.active = pad(a);
+    S.skills.passive = pad(p);
+    S.own.skill = [...(S.own.skill || []), ...back];
+  }
+}
+
+/**
+ * 지금 편성과 자동장착 결과가 다른가. 같으면 버튼을 비활성한다.
+ *
+ * **열린 칸이 하나도 없으면 무조건 비활성이다.** 안 그러면 이런 일이 난다 —
+ * 칸이 0인데 뭔가 장착돼 있으면 "지금 ≠ 최적"이 성립해 버튼이 켜지고, 누르면
+ * 벗기기만 실행된다. 화면은 잠긴 칸만 그리므로 유저 눈에는 아무 일도 안 일어난
+ * 채 버튼만 눌린 것으로 보인다. (스킬은 퀘스트 3/9 전까지 칸이 0이라 실제로 났다.)
+ */
 function canAutoEquip(track) {
   const b = bestOf(track);
   const same = (a, c) => a.length === c.length && a.every((x, i) => x && c[i] && x.id === c[i].id);
-  if (track !== 'skill') return !same(S.party.filter(Boolean), b.party);
+  if (track !== 'skill') {
+    if (slotsOf('mercenary') === 0) return false;
+    return !same(S.party.filter(Boolean), b.party);
+  }
+  if (slotsOf('skillActive') + slotsOf('skillPassive') === 0) return false;
   return !same(S.skills.active.filter(Boolean), b.act)
       || !same(S.skills.passive.filter(Boolean), b.pas);
 }
@@ -1147,7 +1288,8 @@ function passReward(tier, track) {
 /** 지급. 재화가 아닌 것(프레임·칭호)은 아직 붙일 데가 없어 토스트만 띄운다. */
 function passGrant(g) {
   const bag = { diamond: 'dia', gold: 'gold', equip_ticket: 'eqTicket',
-    speedup_5m: 'hourglass', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket' };
+    speedup_5m: 'hourglass', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket',
+    alliance_coin: 'allyCoin' };
   const got = [];
   for (const [k, v] of Object.entries(g)) {
     if (bag[k] && typeof v === "number") { S[bag[k]] = (S[bag[k]] || 0) + v; got.push(`${CUR_KO[k] || k} +${num(v)}`); }
@@ -1223,6 +1365,7 @@ function openPass() {
   };
 
   $('#ovt').textContent = `시즌 패스 · ${P.season.nameKo}`;
+  $('#ovcard').dataset.skin = 'pass';
   $('#ovb').innerHTML =
     `<div class="ps-top">
       <div class="ps-tinfo"><b>${cur}</b><span>/ ${P.progress.maxTier} 티어</span></div>
@@ -1280,6 +1423,270 @@ const CUR_ICON2 = {
  *   골드로 전 용병 기본 스탯을 영구 강화. 파티 편성·등급과 무관.
  *   Lv200 상한 + 최대 +40%. 무한 레벨이면 CP 천장이 사라져 곡선 기준이 무너진다.
  */
+// ── 유닛 상세 ─────────────────────────────────────────────
+const CLASS_KO = { warrior: '전사', archer: '궁수', mage: '마법사' };
+const ELEM_KO = { fire: '불', water: '물', nature: '풀', light: '빛', dark: '암' };
+const SKILL_CAT_KO = { attack: '공격', buff: '버프', survival: '생존', summon: '소환',
+  stat: '능력치', special: '특수' };
+
+/** 스킬 효과를 사람이 읽는 줄들로. 수치는 effectScaling 이 등급·레벨로 곱한 실효값 */
+function skillEffectRows(sk, level) {
+  const e = sk.effect || {};
+  const mult = D.skills.gradeCoef[sk.grade] * (1 + (level || 0) * 0.06)
+    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
+  const pct = v => (v * 100).toFixed(0) + '%';
+  const rows = [];
+  if (e.atkRatio) rows.push(['위력', `공격력의 ${(e.atkRatio * mult).toFixed(2)}배`]);
+  if (e.targets) rows.push(['대상', `${e.targets}체`]);
+  if (e.pct && e.stat) rows.push(['효과', `${e.stat} +${pct(e.pct * mult)}`]);
+  else if (e.pct) rows.push(['효과', `+${pct(e.pct * mult)}`]);
+  if (e.add) rows.push(['효과', `+${pct(e.add * mult)}`]);
+  if (e.maxHpRatio) rows.push(['회복/보호', `최대 체력의 ${pct(e.maxHpRatio * mult)}`]);
+  if (e.chance) rows.push(['발동 확률', pct(e.chance)]);
+  if (e.durationSec) rows.push(['지속', `${e.durationSec}초`]);
+  if (e.cooldownSec) rows.push(['쿨타임', `${e.cooldownSec}초`]);
+  return rows;
+}
+
+/**
+ * 수동 장착. 빈 칸이 있으면 거기, 꽉 찼으면 **가장 약한 장착분과 교체**한다.
+ * 슬롯을 고르는 UI 는 안 만든다 — 칸 수가 4~5개라 "누굴 빼고 넣을까"의 답이
+ * 사실상 최저 CP 하나뿐이고, 그걸 유저 손에 맡기면 탭이 두 번 늘 뿐이다.
+ */
+function equipUnit(kind, id) {
+  const isSkill = kind === 'skill';
+  if (isSkill) {
+    const own = S.own.skill;
+    const i = own.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const it = own[i];
+    const isActive = it.id.startsWith('SK-A');
+    const arr = isActive ? S.skills.active : S.skills.passive;
+    const slots = slotsOf(isActive ? 'skillActive' : 'skillPassive');
+    if (!slots) return toast('아직 열린 칸이 없습니다');
+    let idx = arr.findIndex((x, k) => k < slots && !x);
+    if (idx < 0) {
+      // 꽉 참 — 최저 CP 와 교체
+      idx = arr.slice(0, slots).reduce((m, x, k) => skillCp(arr[m]) <= skillCp(x) ? m : k, 0);
+      own.push(arr[idx]);
+      toast(`${arr[idx].nameKo} ↔ ${it.nameKo} 교체`);
+    }
+    arr[idx] = it;
+    own.splice(i, 1);
+  } else {
+    const own = S.own.mercenary;
+    const i = own.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const it = own[i];
+    const slots = slotsOf('mercenary');
+    if (S.party.filter(Boolean).length >= slots) {
+      const w = S.party.reduce((m, x, k) => cpOf(S.party[m]) <= cpOf(x) ? m : k, 0);
+      own.push(S.party[w]);
+      toast(`${S.party[w].id} ↔ ${it.id} 교체`);
+      S.party[w] = it;
+    } else {
+      S.party.push(it);
+    }
+    own.splice(i, 1);
+  }
+  save(); refreshParty();
+  if (roster.isOpen) roster.render();
+}
+
+function unequipUnit(kind, id) {
+  const isSkill = kind === 'skill';
+  if (isSkill) {
+    for (const key of ['active', 'passive']) {
+      const arr = S.skills[key];
+      const i = arr.findIndex(x => x && x.id === id);
+      if (i >= 0) { S.own.skill.push(arr[i]); arr[i] = null; break; }
+    }
+  } else {
+    const i = S.party.findIndex(x => x && x.id === id);
+    if (i < 0) return;
+    if (S.party.filter(Boolean).length <= 1) return toast('마지막 용병은 해제할 수 없습니다');
+    S.own.mercenary.push(S.party[i]);
+    S.party.splice(i, 1);
+  }
+  save(); refreshParty();
+  if (roster.isOpen) roster.render();
+}
+
+// ── 프리셋 — 현재 편성 스냅샷 3칸 ───────────────────────────
+function savePreset(n) {
+  S.presets[n] = {
+    party: S.party.filter(Boolean).map(x => x.id),
+    active: S.skills.active.map(x => x && x.id),
+    passive: S.skills.passive.map(x => x && x.id),
+  };
+  save();
+  toast(`프리셋 ${n + 1} 저장`);
+  if (roster.isOpen) roster.render();
+}
+
+function loadPreset(n) {
+  const p = S.presets[n];
+  if (!p) return toast(`프리셋 ${n + 1} 이 비어 있습니다 — [저장] 으로 현재 편성을 기록하세요`);
+  // 지금 장착분을 전부 보유함에 합치고, 프리셋 id 를 그 풀에서 다시 찾는다.
+  // 캐스케이드로 사라진 id 는 조용히 건너뛴다 — 남은 것만으로 최대한 복원한다
+  const pool = { mercenary: [...S.party.filter(Boolean), ...S.own.mercenary],
+                 skill: [...S.skills.active, ...S.skills.passive].filter(Boolean).concat(S.own.skill) };
+  const take = (arr, id) => {
+    const i = id ? arr.findIndex(x => x.id === id) : -1;
+    return i < 0 ? null : arr.splice(i, 1)[0];
+  };
+  S.party = p.party.map(id => take(pool.mercenary, id)).filter(Boolean);
+  S.skills.active = p.active.map(id => take(pool.skill, id));
+  S.skills.passive = p.passive.map(id => take(pool.skill, id));
+  S.own.mercenary = pool.mercenary;
+  S.own.skill = pool.skill;
+  save(); refreshParty();
+  toast(`프리셋 ${n + 1} 적용`);
+  if (roster.isOpen) roster.render();
+}
+
+/**
+ * 유닛 상세. 용병은 도감 일러(-ART)를 크게, 스킬은 아이콘 확대.
+ * 목록·도감·장착 줄 어디서든 보유한 것을 누르면 여기로 온다.
+ */
+function openUnitInfo(kind, id) {
+  const isSkill = kind === 'skill';
+  const def = isSkill
+    ? D.skills.skills.find(x => x.id === id)
+    : D.characters.characters.find(x => x.id === id);
+  if (!def) return;
+  // 장착분·보유분에서 레벨을 찾는다. 도감에만 있으면 Lv 0 취급
+  const pool = isSkill
+    ? [...S.skills.active, ...S.skills.passive, ...(S.own?.skill || [])]
+    : [...S.party, ...(S.own?.mercenary || [])];
+  const held = pool.filter(Boolean).find(x => x.id === id);
+  const level = held?.level || 0;
+  const cap = (isSkill ? D.skills.levelCap : D.characters.levelCap)[def.grade];
+
+  const card = $('#unitCard');
+  card.style.setProperty('--ug', GC[def.grade]);
+  $('#unitName').textContent = def.nameKo;
+  $('#unitGrade').textContent = def.grade;
+
+  const art = $('#unitArt'), img = $('#unitImg');
+  if (isSkill) {
+    art.classList.add('icon');
+    img.src = `/assets/skill/${def.id}.png`;
+  } else {
+    art.classList.remove('icon');
+    // 도감 일러가 본체다. 없으면 전투 원화로 물러난다
+    img.src = `/assets/art/${def.id}-ART.png`;
+    img.onerror = () => { img.onerror = null; img.src = `/assets/char/${def.id}.png`; };
+  }
+
+  const tags = isSkill
+    ? [def.type === 'active' ? '액티브' : '패시브', SKILL_CAT_KO[def.category] || def.category]
+    : [CLASS_KO[def.class] || def.class, ELEM_KO[def.element] || def.element];
+  $('#unitTags').innerHTML = tags.map(t => `<span>${t}</span>`).join('');
+
+  const rows = [];
+  rows.push(['레벨', held ? `Lv ${level} / ${cap}` : '미보유 (도감 등록)']);
+  rows.push(['전투력', num(isSkill ? skillCp({ grade: def.grade, level }) : cpOf({ grade: def.grade, level }))]);
+  if (isSkill) rows.push(...skillEffectRows(def, level));
+  $('#unitRows').innerHTML = rows.map(([k, v]) =>
+    `<div class="frow"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+
+  // 수동 장착 — 자동장착과 별개로, 이 유닛을 콕 집어 넣고 뺀다
+  const worn = isSkill
+    ? [...S.skills.active, ...S.skills.passive].filter(Boolean).some(x => x.id === id)
+    : S.party.filter(Boolean).some(x => x.id === id);
+  const act = $('#unitAct');
+  if (held) {
+    act.innerHTML = worn
+      ? '<button class="rt-b" id="unitEq">장착 해제</button>'
+      : '<button class="rt-b go" id="unitEq">장착</button>';
+    $('#unitEq').addEventListener('click', () => {
+      (worn ? unequipUnit : equipUnit)(kind, id);
+      openUnitInfo(kind, id);   // 버튼 상태를 새로 그린다
+    });
+  } else act.innerHTML = '';
+
+  $('#unit').classList.add('show');
+}
+
+/**
+ * 출석 — dailies.json > attendance.
+ *
+ * 7일 주기 + 월 누적 28일 두 트랙이다. 7일 주기는 끊겨도 진행도가 남는다
+ * (resetRule: "끊섹해도 진행도는 유지") — 끊길 때 리셋하면 복귀 유저가 더 이탈한다.
+ * 월 누적은 달이 바뀌면 0에서 다시 시작하고, 수령 기록도 같이 비운다.
+ */
+const attendToday = () => new Date().toISOString().slice(0, 10);
+
+function attendState() {
+  const a = S.attend;
+  const month = attendToday().slice(0, 7);
+  if (a.month !== month) { a.month = month; a.monthDays = 0; a.cumClaimed = []; }
+  return a;
+}
+
+/** 오늘 출석분을 받을 수 있나 */
+const attendReady = () => attendState().lastAt !== attendToday();
+
+function claimAttend() {
+  const a = attendState();
+  if (!attendReady()) return toast('오늘 출석은 이미 받았습니다');
+  const def = D.dailies.attendance;
+  const r = def.cycle.rewards[a.day % def.cycle.lengthDays];
+  const got = passGrant(r.grant || {});
+  a.day = (a.day + 1) % def.cycle.lengthDays;
+  a.lastAt = attendToday();
+  a.monthDays++;
+  save(); renderTop(); openAttend();
+  toast(got.length ? `출석 ${got.join(' · ')}` : '출석 완료');
+}
+
+function claimAttendCum(days) {
+  const a = attendState();
+  const m = D.dailies.attendance.monthlyCumulative.find(x => x.days === days);
+  if (!m || a.cumClaimed.includes(days) || a.monthDays < days) return;
+  a.cumClaimed.push(days);
+  const got = passGrant(m.grant || {});
+  save(); renderTop(); openAttend();
+  toast(got.join(' · '));
+}
+
+function openAttend() {
+  const a = attendState();
+  const def = D.dailies.attendance;
+  const gtxt = g => Object.entries(g || {})
+    .map(([k, v]) => `${CUR_KO[k] || k} ${num(v)}`).join('<br>') || '—';
+
+  const cells = def.cycle.rewards.map((r, i) => {
+    const cur = i === a.day && attendReady();
+    return `<div class="at-cell${i < a.day ? ' done' : ''}${cur ? ' now' : ''}${r.highlight ? ' hi' : ''}">
+      <b>${i + 1}일</b><span>${gtxt(r.grant)}</span>${i < a.day ? '<i>✓</i>' : ''}</div>`;
+  }).join('');
+
+  const cums = def.monthlyCumulative.map(m => {
+    const got = a.cumClaimed.includes(m.days);
+    const can = !got && a.monthDays >= m.days;
+    return `<div class="at-cum${got ? ' done' : ''}">
+      <span>누적 ${m.days}일</span><span>${gtxt(m.grant)}</span>
+      <button class="rt-b" data-cum="${m.days}" ${can ? '' : 'disabled'}>
+        ${got ? '수령함' : '받기'}</button></div>`;
+  }).join('');
+
+  $('#ovt').textContent = '출석';
+  $('#ovcard').dataset.skin = 'attend';
+  $('#ovb').innerHTML = `
+    <div class="at-grid">${cells}</div>
+    <button class="fgbtn" id="atClaim" ${attendReady() ? '' : 'disabled'}>
+      ${attendReady() ? `${(a.day % 7) + 1}일차 출석 받기` : '오늘 출석 완료'}</button>
+    <div class="lbl" style="margin:10px 0 5px">이번 달 누적 <b style="color:var(--gold)">${a.monthDays}일</b></div>
+    ${cums}`;
+  $('#ovinfo').innerHTML = '';
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  $('#atClaim')?.addEventListener('click', claimAttend);
+  document.querySelectorAll('[data-cum]').forEach(b =>
+    b.addEventListener('click', () => claimAttendCum(+b.dataset.cum)));
+}
+
 function openTraining() {
   const def = trainDef();
   const lv = S.trainLv;
@@ -1289,6 +1696,7 @@ function openTraining() {
   const maxed = lv >= def.maxLevel;
 
   $('#ovt').textContent = '용병단 훈련소';
+  $('#ovcard').dataset.skin = 'training';
   $('#ovb').innerHTML = `
     <div class="tc-hero">
       <div class="tc-lv">Lv ${lv}<span class="tc-max"> / ${def.maxLevel}</span></div>
@@ -1439,6 +1847,7 @@ function openArena(view) {
   }).join('');
 
   $('#ovt').textContent = '아레나';
+  $('#ovcard').dataset.skin = 'arena';
   $('#ovb').innerHTML =
     `<div class="frow"><span class="k">내 전투력</span><span class="v">${cpNum(my)}</span></div>`
     + `<div class="frow"><span class="k">점수 · 티어</span>
@@ -1472,6 +1881,7 @@ function openArena(view) {
 function openMedalShop() {
   const sh = D.arena.medalShop;
   $('#ovt').textContent = '훈장 상점';
+  $('#ovcard').dataset.skin = 'arena';
   $('#ovb').innerHTML =
     `<div class="frow"><span class="k">보유 훈장</span>
       <span class="v">${num(S.medal)}</span></div>`
@@ -1519,11 +1929,37 @@ function grantMedalItem(id) {
  *
  * 실제 가입·보스 딜 집계는 서버가 한다 (alliance.json > verse8). 지금은 설계 노출까지.
  */
+/**
+ * 기부 — alliance.json > contribution.donate. 골드는 두 번째 무한 골드 배수구다.
+ * 일일 한도는 마을이 "매일 들를 이유"가 되는 선에서 데이터가 정한다.
+ */
+function donate(kind) {
+  const d = D.alliance.contribution.donate[kind];
+  if (!d) return;
+  const a = S.allyDonate;
+  const today = new Date().toISOString().slice(0, 10);
+  if (a.day !== today) { a.day = today; a.gold = 0; a.eq = 0; }
+  const key = kind === 'gold' ? 'gold' : 'eq';
+  if (a[key] >= d.dailyLimit) return toast('오늘 기부 한도를 다 썼습니다');
+  if (kind === 'gold') {
+    if (S.gold < d.unit) return toast(`골드가 부족합니다 (${num(d.unit)} 필요)`);
+    S.gold -= d.unit;
+  } else {
+    if (S.eqTicket < d.unit) return toast(`장비 소환권이 부족합니다 (${d.unit}장 필요)`);
+    S.eqTicket -= d.unit;
+  }
+  a[key]++;
+  S.allyCoin = (S.allyCoin || 0) + d.coin;
+  save(); renderTop(); alli.render();
+  toast(`기부 완료 — 연합 코인 +${d.coin}`);
+  if ($('#ov').classList.contains('show')) openAlliance('donate');
+}
+
 function openAlliance(tab = 'home') {
   const A = D.alliance;
   const coin = `<img src="/assets/ui/CU-12.png" alt="" onerror="this.replaceWith(document.createTextNode('\u25C6'))">`;
 
-  const tabs = [['home', '연합'], ['boss', '보스'], ['shop', '상점'], ['member', '단원']];
+  const tabs = [['home', '연합'], ['boss', '보스'], ['donate', '기부'], ['shop', '상점'], ['member', '단원']];
   const head = `<div class="al-tabs">${tabs.map(([k, n]) =>
     `<button class="al-t${k === tab ? ' on' : ''}" data-al="${k}">${n}</button>`).join('')}</div>`;
 
@@ -1550,7 +1986,7 @@ function openAlliance(tab = 'home') {
     return `<div class="frow"><span class="k">주기</span>
         <span class="v">주 ${B.attemptsPerWeek}회 · ${B.resetAt} 초기화</span></div>`
       + `<div class="frow"><span class="k">체력</span>
-          <span class="v" style="font-size:11px">연합 CP 합 × 0.55 × 단계</span></div>`
+          <span class="v" style="font-size:11px">연합 CP 합 × ${B.hp.coefficient} × 단계</span></div>`
       + `<div class="frow"><span class="k">단계 배수</span>
           <span class="v" style="font-size:11px">${B.hp.tierMultiplier.join(' → ')}</span></div>`
       + '<div class="lbl" style="margin:12px 0 6px">보상</div>'
@@ -1586,8 +2022,31 @@ function openAlliance(tab = 'home') {
     + `<div class="sh-note">${A.ui.showContribution}</div>`
     + `<div class="sh-note">${A.verse8.concurrency}</div>`;
 
+  // 기부 — 마을 창고에서 온다. 보기만 하는 표가 아니라 실제 실행 버튼이다
+  const donateTab = () => {
+    const d = A.contribution.donate;
+    const a = S.allyDonate.day === new Date().toISOString().slice(0, 10)
+      ? S.allyDonate : { gold: 0, eq: 0 };
+    return `<div class="frow"><span class="k">보유 연합 코인</span>
+        <span class="v">${coin}${num(S.allyCoin || 0)}</span></div>
+      <div class="al-dn"><div>
+          <b>골드 ${num(d.gold.unit)}</b>
+          <span>${coin}${d.gold.coin} · 오늘 ${a.gold}/${d.gold.dailyLimit}</span></div>
+        <button class="rt-b go" data-dn="gold"
+          ${a.gold >= d.gold.dailyLimit ? 'disabled' : ''}>기부</button></div>
+      <div class="al-dn"><div>
+          <b>장비 소환권 ${d.equip_ticket.unit}장</b>
+          <span>${coin}${d.equip_ticket.coin} · 오늘 ${a.eq}/${d.equip_ticket.dailyLimit}</span></div>
+        <button class="rt-b go" data-dn="equip_ticket"
+          ${a.eq >= d.equip_ticket.dailyLimit ? 'disabled' : ''}>기부</button></div>
+      <div class="sh-note">${A.contribution.donateNote}</div>`;
+  };
+
   $('#ovt').textContent = '연합';
-  $('#ovb').innerHTML = head + ({ home, boss, shop, member }[tab] || home)();
+  $('#ovcard').dataset.skin = 'alliance';
+  $('#ovb').innerHTML = head + ({ home, boss, donate: donateTab, shop, member }[tab] || home)();
+  $('#ovb').querySelectorAll('[data-dn]').forEach(b =>
+    b.addEventListener('click', () => donate(b.dataset.dn)));
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">왜 이렇게 짰나</div>'
     + `<div class="sub" style="line-height:1.6">${A.meta.designNote}</div>`
     + `<div class="sub" style="line-height:1.6;margin-top:8px">
@@ -1700,6 +2159,44 @@ function toast(msg) {
   t._t = setTimeout(() => t.classList.remove('show'), 1400);
 }
 
+/**
+ * 벽 안내 — 보스에 진 직후, 왜 막혔고 무엇을 하면 뚫리는지.
+ *
+ * 데이터는 전부 이미 있었다 (stages.json > curve.walls 의 gates,
+ * wallEscapeValves). 화면에 안 꺼내면 유저는 스테이지 번호와 CP 만 보고
+ * "왜 안 되지"에서 끝난다 — 벽에서 할 일이 안 보이면 이탈한다
+ * (wallEscapeValvesNote).
+ */
+function showWallHint() {
+  const need = requiredCp(S.stage);
+  const my = totalCp();
+  // 다음 벽 정보. 지금 스테이지가 벽이면 그 벽의 gates 를 띄운다
+  const wall = D.stages.curve.walls?.[String(S.stage)];
+  const pct = Math.min(100, my / need * 100);
+  // 탈출구 — 화면에서 바로 열 수 있는 세 개만 추린다
+  const valves = [
+    { label: '훈련소 (골드로 전 용병 강화)', go: () => openTraining() },
+    { label: '장비 소환 — 제작대', go: () => openForge() },
+    { label: '던전 (재화 수급)', go: () => openDungeons() },
+  ];
+  $('#wallNeed').textContent = num(need);
+  $('#wallMy').textContent = num(my);
+  $('#wallMy').style.color = my >= need ? 'var(--txt)' : 'var(--warn)';
+  $('#wallBar').style.width = pct + '%';
+  $('#wallGate').textContent = wall?.gates ? `이 구간: ${wall.gates}` : '';
+  const box = $('#wallGo');
+  box.innerHTML = '';
+  valves.forEach(v => {
+    const b = document.createElement('button');
+    b.textContent = v.label;
+    b.addEventListener('click', () => { $('#wall').classList.remove('show'); v.go(); });
+    box.appendChild(b);
+  });
+  $('#wall').classList.add('show');
+  clearTimeout($('#wall')._t);
+  // 자동으로 닫지 않는다 — 읽는 속도는 사람마다 다르다. 탭하면 닫힌다
+}
+
 function showResult(text, color) {
   const r = $('#result');
   r.textContent = text; r.style.color = color;
@@ -1792,6 +2289,7 @@ function openForge() {
   const reopen = () => { const y = $('#ovb').scrollTop; openForge(); $('#ovb').scrollTop = y; };
 
   $('#ovt').textContent = '제작대';
+  delete $('#ovcard').dataset.skin;
   // 모래시계는 이 화면에서만 쓰는 재화다. 헤더에 두면 본문이 안 밀린다.
   $('#ovh').classList.add('has-cur');
   $('#ovcur').innerHTML = `${cur('CU-10')}<b>${num(S.hourglass || 0)}</b>`;
@@ -1957,6 +2455,7 @@ function openEquipResult(it) {
   }
 
   $('#ovt').textContent = '장비 소환';
+  delete $('#ovcard').dataset.skin;
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.add('show', 'forced');   // 닫기 없음 — 반드시 고른다
@@ -2147,6 +2646,8 @@ function onEvent(e) {
     setTimeout(runStage, 250);
   } else if (e.type === 'lose') {
     showResult('보스 실패', '#ff5a6a');
+    // 실패 표시가 걷힌 뒤 벽 안내를 띄운다. 동시에 뜨면 서로 가린다
+    setTimeout(showWallHint, 1600);
     // 스테이지는 그대로다. 잡몹을 다시 돌면서 다음 도전을 기다린다.
     // 여기서 runStage 를 다시 안 걸면 scene.phase 가 'done' 인 채 화면이 멈춘다 —
     // 실제로 그랬다. 자동 재도전은 bossLocked 가 막는다.
@@ -2176,17 +2677,30 @@ function rollSkills() {
   const take = (src, owned) => Array.from({ length: 4 }, (_, i) => {
     if (i >= owned) return null;
     const s = src[(Math.random() * src.length) | 0];
-    return { id: s.id, nameKo: s.nameKo, grade: 'R', level: 0 };
+    // 등급은 스킬 종류에 고정이다 (skills.json > meta.gradeIsFixed).
+    // 예전에는 여기서 'R' 을 박아 첫 스킬이 항상 R 이었다
+    return { id: s.id, nameKo: s.nameKo, grade: s.grade, level: 0 };
   });
   S.skills.active = take(act, slotsOf('skillActive'));
   S.skills.passive = take(pas, slotsOf('skillPassive'));
 }
 
 (async function boot() {
+  // 광고 SDK 는 데이터 로드보다 먼저 건다 — 호스트 메시지 리스너를 일찍 걸수록
+  // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
+  initAds();
+
   await loadData('/data');
   $('#cap').src = '/assets/captain/captain_warrior.png';
 
   load();
+  // 배속 오염 방어. NaN 이 JSON 을 거치면 null 이 되고, 그대로 scene.speed 에
+  // 들어가면 전투가 0배속으로 영영 멈춘다 — 유효값(1·2·3) 아니면 1로 되돌린다
+  if (![1, 2, 3].includes(S.speed)) S.speed = 1;
+  if (!Array.isArray(S.presets) || S.presets.length !== 3) S.presets = [null, null, null];
+  if (!S.attend) S.attend = { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] };
+  // 세이브를 읽은 직후에 한 번 — 잠긴 칸에 남아 있는 유닛을 보유함으로 되돌린다
+  trimToSlots();
   if (!S.party.length) {
     rollParty(); rollSkills();
     for (const p of S.party) if (!S.codex.mercenary.includes(p.id)) S.codex.mercenary.push(p.id);
@@ -2195,11 +2709,16 @@ function rollSkills() {
 
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
-    state: S, data: D, cpOf, skillCp, toast,
+    state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
     enhance: autoEnhance, equip: applyAutoEquip, canEquip: canAutoEquip,
     dungeonHtml, bindDungeons, slotsOf,
   });
-  codex = new CodexScreen($('#app'), { state: S, data: D });
+  codex = new CodexScreen($('#app'), { state: S, data: D, openUnitInfo });
+  alli = new AllianceVillage($('#app'), {
+    state: S, data: D, toast, num,
+    // 건물 → 패널. 기부 창고만 마을 안 동작(donate 탭)이고 나머지는 기존 오버레이
+    openPanel: b => openAlliance(b === 'donate' ? 'donate' : b),
+  });
   rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp });
   mail = new MailScreen($('#app'), {
     state: S, data: D,
@@ -2237,13 +2756,18 @@ function rollSkills() {
     claimSummonLevel,
     state: S, data: D, toast,
     pull: (trackId, n) => pull(trackId, n),
+    buySpeed3, claimSpeed3Daily,
   });
   scene = new BattleScene($('#cv'), { data: D, onEvent });
   window.__scene = scene;   // 디버그용
   window.__S = S;
+  window.__wall = showWallHint;   // 디버그용 — 벽 안내를 손으로 띄워 본다
   await scene.init();
 
   renderSkills(); renderEquip(); renderQuest(); renderCaptain(); renderTop();
+  // 세이브의 배속을 화면에 반영 + 해금 안 된 값이면 끌어내린다
+  if (scene) scene.speed = Math.min(S.speed || 1, speedMax());
+  syncSpeedBtns();
   // 닉네임이 없으면 아무거나 붙여 준다. 유저는 나중에 한 번 공짜로 바꾼다.
   if (!S.nickname) { S.nickname = autoNickname(); save(); }
   seedMail();
@@ -2254,12 +2778,16 @@ function rollSkills() {
   // 길어져 고스테이지 세이브에서는 수십 초 동안 화면이 먹통이었다. 전투는 배선이
   // 다 끝난 뒤(부트 맨 끝)에 띄운다.
 
-  document.querySelectorAll('#speed .sbtn').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('#speed .sbtn').forEach(x => x.classList.remove('on'));
-    b.classList.add('on');
-    scene.speed = +b.dataset.sp;
-    S.speed = +b.dataset.sp;
-    save();
+  // [data-sp] 한정 — 절전 버튼(#pwrSave)도 #speed 안의 .sbtn 이다. 전체에 걸면
+  // 절전 클릭이 +undefined = NaN 을 배속에 넣어 전투가 0배속으로 죽는다 (실제로 났다)
+  document.querySelectorAll('#speed .sbtn[data-sp]').forEach(b => b.addEventListener('click', () => {
+    const sp = +b.dataset.sp;
+    // 잠긴 배속은 고르는 대신 **무엇을 해야 열리는지** 알린다.
+    // 버튼을 아예 숨기면 해금이 보상으로 안 읽혀서, 눌리되 안 바뀌는 쪽으로 뒀다
+    if (sp > speedMax()) return toast(speedHint(sp));
+    scene.speed = sp;
+    S.speed = sp;
+    save(); syncSpeedBtns();
   }));
 
   // 제작대 오브젝트 = 수동 1회 소환. 참고 화면과 같은 조작이다.
@@ -2283,15 +2811,24 @@ function rollSkills() {
     questGoto(QUEST_TYPE[def.type]);
   });
   document.querySelectorAll('#nav .nv').forEach(n => n.addEventListener('click', () => {
-    navTab = n.dataset.tab;
+    const t = n.dataset.tab;
+    // **켜진 탭을 다시 누르면 닫는다.** 시트 탭에서 닫는 경로가 X 버튼뿐이면
+    // 열었던 손가락이 그대로 한 번 더 눌러 닫는 자연스러운 왕복이 안 된다
+    if (navTab === t && ['merc', 'skill', 'dungeon'].includes(t) && roster.isOpen) {
+      roster.close();
+      navTab = null;
+      syncNav();
+      return;
+    }
+    navTab = t;
     // 시트는 네비 위에 떠 있다. 시트를 안 쓰는 탭으로 가면 닫아 준다
-    if (!['merc', 'skill', 'dungeon'].includes(n.dataset.tab)) roster.close();
+    if (!['merc', 'skill', 'dungeon'].includes(t)) roster.close();
     // ui.json > mainScreen.navBar.items 기준. 장비는 하단 패널에 있으므로 뺐다.
-    if (n.dataset.tab === 'shop') shop.open();
-    else if (n.dataset.tab === 'dungeon') openDungeons();
-    else if (n.dataset.tab === 'alliance') openAlliance();
-    else if (n.dataset.tab === 'merc') roster.open('mercenary');
-    else if (n.dataset.tab === 'skill') roster.open('skill');
+    if (t === 'shop') shop.open();
+    else if (t === 'dungeon') openDungeons();
+    else if (t === 'alliance') alli.open();
+    else if (t === 'merc') roster.open('mercenary');
+    else if (t === 'skill') roster.open('skill');
     else toast(`${n.textContent} 탭 — 미구현`);
     // **연 뒤에** 맞춘다. 열기 전에 부르면 아직 아무것도 안 떠 있어 바로 지워진다
     syncNav();
@@ -2307,8 +2844,10 @@ function rollSkills() {
     scene.skillAuto = S.skillAuto;
     save();
   });
-  document.querySelectorAll('.side button').forEach(b => b.addEventListener('click', () => {
+  // 사이드 열 + 상단 우편. data-s 를 가진 것은 전부 같은 경로로 연다
+  document.querySelectorAll('.side button, #top button[data-s]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.s === 'arena') openArena();
+    else if (b.dataset.s === 'attend') openAttend();
     else if (b.dataset.s === 'pass') openPass();
     else if (b.dataset.s === 'codex') codex.open();
     else if (b.dataset.s === 'training') openTraining();
@@ -2317,6 +2856,75 @@ function rollSkills() {
     else if (b.dataset.s === 'mail') mail.open();
     else toast(`${b.textContent} — 미구현`);
   }));
+  // 편성 시트 헤드의 훈련소·도감. 오버레이(#ov z-index 60)가 시트(65) 아래라
+  // 시트를 먼저 닫아야 한다 — 안 닫으면 오버레이가 시트에 가려 안 보인다
+  document.querySelectorAll('.sh-go').forEach(b => b.addEventListener('click', () => {
+    roster.close();
+    if (b.dataset.go === 'training') openTraining();
+    else if (b.dataset.go === 'codex') codex.open();
+  }));
+  // 절전 — 렌더만 10fps 로. 시뮬·보상은 계속 흐른다 (scene.setPowerSave).
+  // 해제는 **밀어서**만 한다. 탭 해제는 주머니 속 오터치로 꺼진다
+  let pvTimer = null, pvSince = 0, pvGold0 = 0;
+  const pwr = on => {
+    scene.setPowerSave(on);
+    $('#pwrveil').classList.toggle('show', on);
+    $('#pwrSave').classList.toggle('on', on);
+    clearInterval(pvTimer); pvTimer = null;
+    if (on) {
+      // 켠 시점을 기억해 두고 경과 시간·그동안 번 골드를 보여 준다.
+      // "화면을 껐는데도 벌고 있다"가 절전을 쓰는 이유 그 자체다
+      pvSince = Date.now(); pvGold0 = S.gold;
+      const tick = () => {
+        const d = new Date();
+        $('.pv-clock').textContent =
+          `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const sec = Math.floor((Date.now() - pvSince) / 1000);
+        const el = sec < 3600
+          ? `${Math.floor(sec / 60)}분 ${sec % 60}초`
+          : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec % 3600 / 60)}분`;
+        $('#pvStage').textContent = `절전 ${el}`;
+        $('#pvGold').textContent = `획득 골드 +${num(Math.max(0, S.gold - pvGold0))}`;
+      };
+      tick(); pvTimer = setInterval(tick, 1000);
+    }
+  };
+  $('#pwrSave').addEventListener('click', () => pwr(true));
+  // 밀어서 해제 — 트랙 82% 를 넘기면 풀린다. 못 미치면 제자리로
+  {
+    const track = $('#pvTrack'), handle = $('#pvHandle');
+    let startX = null;
+    const maxX = () => track.clientWidth - handle.offsetWidth - 6;
+    handle.addEventListener('pointerdown', e => {
+      startX = e.clientX;
+      handle.classList.add('drag');
+      // 캡처 실패(비표준 입력)는 무시한다 — 캡처 없이도 move 는 온다
+      try { handle.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    });
+    handle.addEventListener('pointermove', e => {
+      if (startX == null) return;
+      const x = Math.max(0, Math.min(maxX(), e.clientX - startX));
+      handle.style.left = (3 + x) + 'px';
+    });
+    handle.addEventListener('pointerup', () => {
+      const x = parseFloat(handle.style.left || '3') - 3;
+      handle.classList.remove('drag');
+      startX = null;
+      if (x >= maxX() * 0.82) pwr(false);
+      handle.style.left = '3px';
+    });
+  }
+
+  // 유닛 상세 닫기 — X 또는 카드 밖
+  $('#unitX').addEventListener('click', () => $('#unit').classList.remove('show'));
+  $('#unit').addEventListener('click', e => {
+    if (e.target.id === 'unit') $('#unit').classList.remove('show');
+  });
+
+  // 벽 안내 — 카드 밖을 탭하면 닫힌다
+  $('#wall').addEventListener('click', e => {
+    if (e.target.id === 'wall') $('#wall').classList.remove('show');
+  });
   $('#ovx').addEventListener('click', () => {
     if ($('#ov').classList.contains('forced')) return;
     $('#ov').classList.remove('show');

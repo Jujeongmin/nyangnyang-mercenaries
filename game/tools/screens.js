@@ -21,7 +21,10 @@ const closeAll = () => {
   q('#sheetBg')?.classList.remove('show');
 };
 const openShop = t => { closeAll(); q('.nv[data-tab="shop"]').click(); q(`.sh-tabs [data-t="${t}"]`)?.click(); };
-const side = s => { closeAll(); q(`.side [data-s="${s}"]`).click(); };
+// data-s 는 사이드 열과 상단 프로필 줄(우편)에 흩어져 있다. 자리를 박지 않는다
+const side = s => { closeAll(); q(`[data-s="${s}"]`).click(); };
+// 훈련소·도감은 편성 시트 헤드에서 연다. 시트를 먼저 띄워야 버튼이 있다
+const sheetGo = g => { closeAll(); q('.nv[data-tab="merc"]').click(); q(`.sh-go[data-go="${g}"]`).click(); };
 const nav = t => { closeAll(); q(`.nv[data-tab="${t}"]`).click(); };
 
 /** [이름, 여는 함수, 검사할 뿌리] */
@@ -34,22 +37,20 @@ export const SCREENS = [
   ['상점:다이아', () => openShop('diamond'), '#shop'],
   ['상점:특가', () => openShop('deal'), '#shop'],
   ['상점:교환', () => openShop('exchange'), '#shop'],
-  ['도감', () => side('codex'), '#codex'],
+  ['도감', () => sheetGo('codex'), '#codex'],
   ['프로필', () => { closeAll(); q('#capbox').click(); }, '#profile'],
   ['패스', () => side('pass'), '#ovcard'],
   ['랭킹', () => side('rank'), '#rank'],
   ['우편', () => side('mail'), '#mail'],
   ['설정', () => { closeAll(); q('#topSet').click(); }, '#settings'],
-  ['연합', () => nav('alliance'), '#ovcard'],
-  ['연합:보스', () => { nav('alliance'); q('.al-t[data-al="boss"]').click(); }, '#ovcard'],
-  ['연합:상점', () => { nav('alliance'); q('.al-t[data-al="shop"]').click(); }, '#ovcard'],
-  ['연합:단원', () => { nav('alliance'); q('.al-t[data-al="member"]').click(); }, '#ovcard'],
+  // 연합은 마을(fullscr)이 됐다. 오버레이 패널은 건물이 연다 — 검사는 마을 뿌리로
+  ['연합 마을', () => nav('alliance'), '#alli'],
   ['던전', () => nav('dungeon'), '#sheet'],
   ['탑', () => { nav('dungeon'); q('#twCard').click(); }, '#tower-scr'],
   ['아레나', () => side('arena'), '#ovcard'],
   ['훈장 상점', () => { side('arena'); q('#aShop').click(); }, '#ovcard'],
   ['제작대', () => { closeAll(); q('#fgLv').click(); }, '#ovcard'],
-  ['훈련소', () => side('training'), '#ovcard'],
+  ['훈련소', () => sheetGo('training'), '#ovcard'],
   ['출석', () => side('attend'), '#ovcard'],
   ['이벤트', () => side('event'), '#ovcard'],
 ];

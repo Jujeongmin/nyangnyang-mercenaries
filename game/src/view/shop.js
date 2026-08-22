@@ -102,7 +102,12 @@ export class ShopScreen {
       this.api.pull(b.dataset.pull, +b.dataset.n);
     }));
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
+      // 3배속만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
+      if (b.dataset.buy === 'speed3_unlock' && this.api.buySpeed3) return this.api.buySpeed3();
       this.api.toast('결제 연동 전 — VXShop 등록 후 붙는다');
+    }));
+    body.querySelectorAll('[data-claim]').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.claim === 'speed3') this.api.claimSpeed3Daily?.();
     }));
   }
 
@@ -172,10 +177,33 @@ export class ShopScreen {
         장비 소환은 <b>제작대</b>에서 한다.</div>`;
   }
 
+  /**
+   * 3배속 해금 카드. 다이아 탭 맨 위에 둔다 — 다이아 묶음보다 먼저 눈에 와야
+   * "돈으로 살 수 있는 유일한 성능"이라는 게 읽힌다.
+   * 배속은 방치 수익의 곱셈 항이라 2배속 대비 시간당 +50% 다.
+   */
+  speedCard() {
+    const D = this.api.data, S = this.api.state;
+    const pk = (D.shop.packages || []).find(x => x.id === 'speed3_unlock');
+    if (!pk) return '';
+    const owned = !!S.speed3;
+    const today = new Date().toISOString().slice(0, 10);
+    const got = S.speed3DailyAt === today;
+    const daily = pk.dailyGrant?.diamond ?? 0;
+    return `<div class="sh-card speed3${owned ? ' owned' : ''}">
+      <b>${pk.nameKo}</b>
+      <span class="sh-desc">전투·방치 수익이 3배속 기준이 된다 · 매일 다이아 ${daily}</span>
+      ${owned
+        ? `<button class="sh-price" data-claim="speed3" ${got ? 'disabled' : ''}>
+             ${got ? '오늘 수령 완료' : `오늘 다이아 ${daily} 받기`}</button>`
+        : `<button class="sh-price" data-buy="speed3_unlock">해금</button>`}
+    </div>`;
+  }
+
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return `<div class="sh-grid2">` + p.packages.map(x => {
+    return this.speedCard() + `<div class="sh-grid2">` + p.packages.map(x => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       return `<div class="sh-pack${x.oncePerAccount ? ' first' : ''}">
         ${x.oncePerAccount ? '<span class="sh-ribbon">첫 결제 2배</span>' : ''}

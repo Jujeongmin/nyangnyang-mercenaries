@@ -69,13 +69,27 @@ console.log(await s.run());        // 빈 배열이면 통과. 새 화면을 만
 - **해금 기준은 전투력이 아니라 퀘스트다.** 던전·장착 칸 전부.
   `quests.json > slotUnlockQuests` 가 단일 소스(`canonicalSource: true`).
   CP 로 열면 뽑기 운으로 순서가 깨져 `dungeons.json > unlockOrder` 가 무너진다
-- 세이브는 아직 localStorage (`nyang:proto:v1`). 서버 연동은 `app/src/net/` 참고
+- 세이브는 아직 localStorage (`nyang:proto:v1`). 서버 연동은 `game/src/net/` 참고
+- 보상형 광고는 `game/src/net/ads.js` 창구로만 부른다. `showRewarded` 에 **`timeoutMs` 를
+  넘기지 않는다** — 클라가 끊으면 광고를 끝까지 본 유저가 보상을 못 받고, 그 판정을
+  클라가 쥐어 조작 창구가 된다. 지면 id 는 `idle_double` · `instant_claim` 2개
 
-## 미결 (작업정리.md 상세)
+## 규칙 추가분
 
-- Verse8 서버 연동 — `main.js` 를 `app/src/net/` 계층 위로 올리는 리팩터링 필요
-- 보상형 광고 `@verse8/ads ^0.5.0` — 호출 자리(`app/src/net/ads.js`)만 있고 SDK 미연결.
-  붙이려면 루트 `package.json` + 번들러 도입이 먼저다 (지금은 빌드 없는 정적 파일).
-  `showRewarded` 는 **timeout 인자 없이** 부른다
+- **배속은 성장축이다.** 1x 기본 · 2x 퀘스트 Q5 · 3x 상점 일회성 패키지
+  (`combat.json > clientRendering.speedUp`, 단일 소스 `quests.json > speedUnlockQuests`).
+  방치 수익은 **해금 최고 배속**을 곱한다 (`stages.json > idleReward.speedBasis`) —
+  이걸 빼면 온라인 파밍이 방치의 8.6배가 되어 장르가 무너진다
+- 스킬 등급은 **종류에 고정**이다 (`skills.json > meta.gradeIsFixed`). 32종, 분포는 용병과 동수
+- 전투 화면 등급 표시: SR+ 발밑 링, UR/LR 궤도 입자 (`view/battle/rig.js > drawGradeRing`)
+
+## 미결 (작업정리.md 상세 — 2026-08-23 심야분 포함)
+
+- Verse8 서버 연동 — `main.js` 를 `game/src/net/` 계층 위로 올리는 리팩터링 필요
+- 보상형 광고 — SDK 연결 완료. 남은 것은 **Verse8 대시보드 지면 2개 등록**과 실호스트 검증
+- 3배속 실결제 — VXShop 등록 후. 지금은 dev 빌드만 즉시 해금 (프로덕션에 분기 없음)
 - 연합 보스 HP 계수 0.55 sim 검증 · 탈퇴 시 코인 처리
 - 사운드 엔진 (sound.json 은 정의만 있음)
+- 스킬 아이콘 신규 7장(SK-A16·P11~P16) · 도감 일러 20장 — `prompts/남은작업.md`
+- 보류 질문 6건 — `작업정리.md > 2026-08-23 > 보류` (스킬 이름 충돌 · 출석 day3 빈 보상 ·
+  캐릭터 렌더 크기 이상치 · f2p 수익 재계산 등)

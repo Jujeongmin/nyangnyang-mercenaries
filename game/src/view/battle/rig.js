@@ -40,6 +40,15 @@ export class UnitRig {
     this.view = new PIXI.Container();
     this.shadow = new PIXI.Graphics();
     this.view.addChild(this.shadow);
+    // 등급 링 — 그림자와 몸통 사이. 색이 있으면 발밑에 등급색 타원을 돌린다.
+    // 수집형에서 "좋은 걸 편성했다"가 전투 화면에 안 보이면 뽑는 보람이 죽는다.
+    this.gradeRing = new PIXI.Graphics();
+    this.view.addChild(this.gradeRing);
+    this.ringColor = opt.ringColor ?? null;
+    this.ringT = Math.random() * Math.PI * 2;
+    // 궤도 입자 — UR·LR 전용. 32종 중 5종에만 붙어 상한이 잡힌다.
+    // 몸 주위를 도는 점 3개라 파티클 시스템 없이 Graphics 로 그린다
+    this.orbs = !!opt.orbs;
 
     // 몸통 아래에 팔이 오는 경우가 없도록 컨테이너로 묶는다
     this.rigRoot = new PIXI.Container();
@@ -59,7 +68,9 @@ export class UnitRig {
     this.originX = tr.x + tr.w / 2;   // 가로 중심
     this.originY = tr.y + tr.h;       // 발밑
     this.texW = w; this.texH = h;
-    this.scale0 = (opt.size ?? 160) / tr.h;
+    // 스케일 기준은 eh(면적 등가 높이, tools/trim.py)가 있으면 그걸 쓴다.
+    // 세로 bbox 로 맞추면 귀·활이 길수록 몸이 작아진다 — 시각 질량은 면적이다.
+    this.scale0 = (opt.size ?? 160) / (tr.eh || tr.h);
     this.w = tr.w * this.scale0;
     this.h = tr.h * this.scale0;
     this.facing = opt.facing ?? 1;
@@ -330,6 +341,7 @@ export class UnitRig {
 
     if (this.opts.shadow) this.drawShadow(alpha);
     else this.shadow.clear();
+    this.drawGradeRing(alpha);
   }
 
   /**
@@ -366,6 +378,37 @@ export class UnitRig {
     this.shadow.clear();
     this.shadow.ellipse(0, 0, this.w * 0.30 * k, this.h * 0.055 * k)
       .fill({ color: 0x000000, alpha: 0.30 * k * alpha });
+  }
+
+  /**
+   * 발밑 등급 링. 정지 그림에 회전하는 이중 타원 — 파티클 없이 도는 느낌을 낸다.
+   * 프레임마다 정점 몇 개짜리 타원 두 개라 부하가 사실상 없다. 방치형은 화면을
+   * 몇 시간씩 켜 두므로 상시 이펙트는 이 정도가 상한이다 (combat.json 의
+   * screenShake 를 끈 것과 같은 이유).
+   */
+  drawGradeRing(alpha) {
+    const g = this.gradeRing;
+    if (!this.ringColor) { g.clear(); return; }
+    this.ringT += 0.03;
+    const k = 1 - Math.min(1, this.lift / (this.h * 0.5)) * 0.4;
+    const rx = this.w * 0.34 * k, ry = this.h * 0.062 * k;
+    // 회전 위상에 따라 밝기가 숨쉰다
+    const pulse = 0.55 + Math.sin(this.ringT) * 0.18;
+    g.clear();
+    g.ellipse(0, 0, rx, ry).stroke({ color: this.ringColor, width: 2, alpha: 0.75 * pulse * alpha });
+    g.ellipse(0, 0, rx * 0.8, ry * 0.8)
+      .stroke({ color: this.ringColor, width: 1, alpha: 0.4 * pulse * alpha });
+    if (!this.orbs) return;
+    // 입자 3개가 몸 높이 중간쯤의 타원 궤도를 돈다. 뒤로 돌 때(sin<0) 는
+    // 몸에 가려야 하지만 z 분리 비용이 커서 알파를 낮추는 것으로 눈속임한다
+    for (let i = 0; i < 3; i++) {
+      const a = this.ringT * 1.6 + i * (Math.PI * 2 / 3);
+      const ox = Math.cos(a) * rx * 1.05;
+      const oy = -this.h * 0.42 + Math.sin(a) * ry * 2.2;
+      const front = Math.sin(a) >= 0;
+      g.circle(ox, oy, 2.4).fill({ color: this.ringColor,
+        alpha: (front ? 0.9 : 0.35) * alpha });
+    }
   }
 }
 

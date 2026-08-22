@@ -153,6 +153,20 @@
       ],
       "availableDays": 3,
       "note": "스테이지 벽(St50/100/150)에 도달했을 때 등장한다. 벽 앞에서 정체하는 순간이 결제 전환율이 가장 높은 지점이다."
+    },
+    {
+      "id": "speed3_unlock",
+      "nameKo": "3배속 해금",
+      "type": "one_time",
+      "unlock": "speed3",
+      "dailyGrant": {
+        "diamond": 100
+      },
+      "dailyGrantNote": "수령 기한 없음. 매일 상점에서 받는다 — 자동 지급이 아니라 접속 이유를 만든다",
+      "priceTier": "중액",
+      "note": "3배속 영구 해금 + 매일 다이아 100. 배속은 방치 수익의 곱셈 항이라 2배속 대비 시간당 수익이 +50% 가 된다 (stages.json > idleReward.speedBasis).",
+      "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 (economy.json > diamondPackages.gapVerification) 의 2.3% 라 과금 격차 계산에 영향이 없다. 프리미엄 패스(일 500)와도 5배 차이라 구독을 잠식하지 않는다.",
+      "whyNotSubscription": "구독(shop.json > subscription.philosophy)은 \"성능은 팔지 않는다\"가 원칙이다. 배속은 방치 수익을 곱하므로 명백한 성능이라 구독이 아니라 일회성 상품으로 뺐다."
     }
   ],
   "subscription": {

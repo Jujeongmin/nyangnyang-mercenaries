@@ -11,15 +11,9 @@
 // 버튼은 **즉시 실행**이다. 뽑기 결과는 보유함(S.own)·강화 대기열(S.pend)에 쌓이기만
 // 하고, 여기서 눌러야 편성과 레벨에 반영된다.
 
-import { num } from '../core/fmt.js';
 
 const $ = s => document.querySelector(s);
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
-
-/** 장착 + 보유함 개수 */
-const ownedCount = (S, track) => (track === 'skill'
-  ? [...S.skills.active, ...S.skills.passive].filter(Boolean).length
-  : S.party.filter(Boolean).length) + ((S.own?.[track] || []).length);
 
 export class RosterSheet {
   /**
@@ -92,17 +86,30 @@ export class RosterSheet {
     const S = this.api.state, D = this.api.data;
     const isSkill = this.track === 'skill';
 
+    // ── 프리셋 바 ────────────────────────────────────────────
+    // 던전 모드가 아닐 때만. 탭 = 불러오기, [저장] = 현재 편성을 선택 칸에 기록
+    const pre = $('#shPre');
+    const cur = S.presetSel ?? 0;
+    pre.innerHTML = [0, 1, 2].map(i =>
+      `<button class="pr${S.presets?.[i] ? ' has' : ''}${i === cur ? ' on' : ''}"
+         data-pre="${i}">${i + 1}</button>`).join('')
+      + '<button class="pr-save" data-presave>현재 편성 저장</button>';
+    pre.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => {
+      S.presetSel = +b.dataset.pre;
+      this.api.loadPreset(+b.dataset.pre);
+    }));
+    pre.querySelector('[data-presave]').addEventListener('click', () =>
+      this.api.savePreset(S.presetSel ?? 0));
+
     // ── 장착 줄 ──────────────────────────────────────────────
     const eq = this.equipped();                       // null = 빈 칸, 'lock' = 미해금
-    const worn = eq.filter(x => x && x !== 'lock');
-    const held = ownedCount(S, this.track);
-    $('#shT').innerHTML = (isSkill ? '스킬' : '용병')
-      + `<i>장착 ${worn.length} · 보유 ${held}</i>`;
+    // 제목만 둔다. '장착 N · 보유 M' 은 바로 아래 장착 줄과 목록이 이미 보여 준다
+    $('#shT').textContent = isSkill ? '스킬' : '용병';
     const dir = isSkill ? 'skill' : 'char';
     const slot = (x) => x === 'lock'
       ? `<div class="rt-slot locked"><img class="lockIc" src="/assets/ui/UI-LOCK.png" alt="잠김"></div>`
       : x
-      ? `<div class="rt-slot g-${x.grade}">
+      ? `<div class="rt-slot g-${x.grade}" data-info="${x.id}">
            <img src="/assets/${dir}/${x.id}.png" alt="">
            <b>Lv ${x.level || 0}</b></div>`
       : '<div class="rt-slot empty"></div>';
@@ -112,37 +119,20 @@ export class RosterSheet {
         + eq.slice(4).map(slot).join('')
       : eq.map(slot).join('');
 
-    // ── 요약 ─────────────────────────────────────────────────
-    // 중복 1개 = 그 용병 1레벨이라 나눗셈이 없다. 그래서 "이월 35 / 100" 같은
-    // 환산 숫자를 띄우지 않는다 — 누가 몇 레벨 오르는지를 그대로 보여 준다.
-    const cap = isSkill ? D.skills.levelCap : D.characters.levelCap;
-    const carry = (S.carry && S.carry[this.track]) || 0;
+    // 요약 줄은 뺐다. '강화 대기 N개' 는 자동강화 버튼 라벨이 그대로 들고 있고,
+    // '강화할 중복이 없다' 같은 안내는 매번 같은 자리에서 같은 말을 해 자리만 먹었다
     const pend = (S.pend && S.pend[this.track]) || [];
-
-    // 대기열을 미리 돌려 "누가 몇 레벨 오르나"를 만든다. 실제 강화와 같은 규칙이다
-    const owned = new Map();
-    for (const x of [...worn, ...(S.own?.[this.track] || [])]) owned.set(x.id, x);
-    const gain = new Map();
-    let spill = 0;
-    for (const e of pend) {
-      const o = e.id ? owned.get(e.id) : null;
-      const room = o ? (cap[o.grade] ?? 0) - ((o.level || 0) + (gain.get(o.id) || 0)) : 0;
-      if (o && room > 0) gain.set(o.id, (gain.get(o.id) || 0) + 1);
-      else spill++;
-    }
-    const names = [...gain].slice(0, 2)
-      .map(([id, n]) => `${owned.get(id).nameKo} +${n}`).join(' · ');
-
-    $('#shSum').innerHTML = pend.length
-      ? `강화 대기 <b>${pend.length}</b>개`
-        + (names ? ` <span>${names}${gain.size > 2 ? ` 외 ${gain.size - 2}` : ''}</span>` : '')
-        + (spill ? ` <span>· 만렙 ${spill}개는 다른 대상으로</span>` : '')
-      : (carry
-        ? `<span>이관 잔여 ${num(carry)} — 다음 중복 때 합산된다</span>`
-        : '<span>강화할 중복이 없다. 같은 것을 또 뽑으면 그 레벨이 오른다</span>');
+    $('#shSum').textContent = '';
 
     // ── 전체 목록 ────────────────────────────────────────────
     $('#shBody').innerHTML = isSkill ? this.skillList() : this.mercList();
+    // 보유한 칸을 누르면 상세. 미보유(???)는 누를 것이 없다
+    const kind = isSkill ? 'skill' : 'merc';
+    $('#shBody').querySelectorAll('.cx-cell[data-info]').forEach(el =>
+      el.addEventListener('click', () => this.api.openUnitInfo(kind, el.dataset.info)));
+    // 장착 줄도 같은 상세를 연다
+    $('#shEq').querySelectorAll('.rt-slot[data-info]').forEach(el =>
+      el.addEventListener('click', () => this.api.openUnitInfo(kind, el.dataset.info)));
 
     // ── 액션바 ───────────────────────────────────────────────
     $('#shUp').textContent = pend.length ? `자동강화 (${pend.length})` : '자동강화';
@@ -191,20 +181,21 @@ export class RosterSheet {
     const onIds = new Set(held.keys());
     for (const s of (S.own?.skill || [])) if (!held.has(s.id)) held.set(s.id, s);
 
-    // 스킬 등급은 도감이 최고 등급을 들고 있다. 없으면 보유분 등급을 쓴다.
-    // 아직 못 뽑은 스킬은 등급 자체가 없다 (뽑을 때 굴린다) — 맨 위로 보낸다.
-    const gradeOf = s => S.codex.skill[s.id] || held.get(s.id)?.grade || null;
+    // 등급은 스킬 종류에 고정이다 (skills.json > meta.gradeIsFixed) — 보유 여부와
+    // 무관하게 데이터에서 온다. 그래서 미보유 칸도 제 등급 액자를 쓸 수 있다.
+    // 보유 판정은 등급이 아니라 도감 등록 또는 보유분으로 따로 본다
+    const hasOf = s => !!S.codex.skill[s.id] || held.has(s.id);
     const list = D.skills.skills.slice()
-      .sort((a, b) => GRADES.indexOf(gradeOf(a)) - GRADES.indexOf(gradeOf(b)));
-    const got = list.filter(s => gradeOf(s)).length;
+      .sort((a, b) => GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade));
+    const got = list.filter(hasOf).length;
 
     return `<div class="cx-h"><span>스킬</span>
         <span class="cx-cnt">${got}/${list.length}</span>
         </div>
       <div class="cx-grid">`
       + list.map(s => this.cell({
-          id: s.id, nameKo: s.nameKo, grade: gradeOf(s), dir: 'skill',
-          has: !!gradeOf(s), on: onIds.has(s.id), held: held.get(s.id),
+          id: s.id, nameKo: s.nameKo, grade: s.grade, dir: 'skill',
+          has: hasOf(s), on: onIds.has(s.id), held: held.get(s.id),
           // 액티브/패시브는 줄로 안 가르는 대신 칸에 표시한다. 자동장착이 둘을
           // 따로 채우므로(각 4칸) 어느 쪽인지는 여전히 알아야 한다.
           kind: s.id.startsWith('SK-A') ? '액' : '패',
@@ -214,9 +205,12 @@ export class RosterSheet {
 
   /** 목록 한 칸. 도감과 같은 클래스를 쓴다 (.cx-cell / .lock 이 ??? · 회색을 준다) */
   cell({ id, nameKo, grade, dir, has, on, held, kind }) {
-    const cls = has ? ` g-${grade}` : ' lock';
-    return `<div class="cx-cell${cls}${on ? ' on' : ''}" title="${nameKo}">
-      <img src="/assets/${dir}/${id}.png" alt="">
+    // 등급을 아는 것은 미보유여도 등급 액자를 쓴다 — 액자가 "뽑으면 이 등급"의
+    // 예고가 된다. 스킬은 뽑을 때 등급을 굴리므로 미보유면 등급 자체가 없다
+    const cls = (grade ? ` g-${grade}` : '') + (has ? '' : ' lock');
+    return `<div class="cx-cell${cls}${on ? ' on' : ''}" title="${nameKo}"${
+      has ? ` data-info="${id}"` : ''}>
+      <img src="/assets/${dir}/${id}.png" alt="" onerror="this.remove()">
       ${kind ? `<i class="rt-kind">${kind}</i>` : ''}
       ${held ? `<i class="rt-lv">Lv ${held.level || 0}</i>` : ''}
       <span>${has ? nameKo : '???'}</span>

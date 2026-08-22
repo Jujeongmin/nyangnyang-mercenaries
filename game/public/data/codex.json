@@ -170,37 +170,59 @@
     }
   },
   "skill": {
-    "registerRule": "highest_grade",
-    "registerRuleNote": "용병은 캐릭터마다 등급이 고정(냥이 검사는 항상 R)이지만, 스킬은 같은 종류가 N~LR 어느 등급으로도 나온다. 그래서 스킬 도감은 '지금까지 얻은 최고 등급'을 기록하고 그 등급에 따라 보너스를 준다. 같은 스킬을 더 높은 등급으로 뽑으면 도감이 갱신된다.",
-    "totalEntries": 22,
+    "registerRule": "1회 획득 시 영구 등록. 캐스케이드로 소모되거나 미장착이어도 유지된다.",
+    "registerRuleNote": "예전에는 같은 스킬이 N~LR 아무 등급으로나 나와서 \"지금까지 나온 최고 등급\"을 기록했다. 등급이 종류에 고정된 뒤로는 그럴 이유가 없어져 용병과 같은 규칙이 됐다 (skills.json > meta.gradeIsFixed).",
+    "totalEntries": 32,
     "individualByGrade": {
-      "N": 0.0003,
-      "R": 0.0005,
-      "SR": 0.0009,
-      "SSR": 0.0016,
-      "UR": 0.0027,
-      "LR": 0.0045
+      "N": {
+        "count": 6,
+        "bonusEach": 0.0005,
+        "subtotal": 0.003
+      },
+      "R": {
+        "count": 8,
+        "bonusEach": 0.00085,
+        "subtotal": 0.0068
+      },
+      "SR": {
+        "count": 8,
+        "bonusEach": 0.00135,
+        "subtotal": 0.0108
+      },
+      "SSR": {
+        "count": 5,
+        "bonusEach": 0.0023,
+        "subtotal": 0.0115
+      },
+      "UR": {
+        "count": 3,
+        "bonusEach": 0.0043,
+        "subtotal": 0.0129
+      },
+      "LR": {
+        "count": 2,
+        "bonusEach": 0.0075,
+        "subtotal": 0.015
+      }
     },
-    "individualTotalAtUR": 0.0594,
-    "individualTotalAtLR": 0.099,
-    "budgetedAs": 0.06,
-    "budgetNote": "22종 전부 UR 기록 시 5.94% ~= 배정치 6%. 전부 LR은 9.9%이지만 LR 스킬 확률상 사실상 도달 불가라 예산 초과분은 무시할 수 있는 수준이다.",
+    "budgetNote": "32종 전부 등록 시 6.0% = 예산 6%. 등급별 개당 보너스는 용병(codex.mercenary)의 1/3 이다 — 도감 예산이 용병 18% / 스킬 6% 로 갈려 있다.",
     "sets": [
       {
         "id": "set_skill_active",
         "nameKo": "전술 교본",
         "bonus": 0.01,
-        "condition": "액티브 12종 전부 등록"
+        "condition": "액티브 16종 전부 등록"
       },
       {
         "id": "set_skill_passive",
         "nameKo": "수련 비서",
         "bonus": 0.01,
-        "condition": "패시브 10종 전부 등록"
+        "condition": "패시브 16종 전부 등록"
       }
     ],
     "setsTotal": 0.02,
-    "setsNote": "스킬 세트는 등급 무관, 종류만 모으면 된다. 스킬은 22종뿐이라 등급 조건까지 걸면 너무 가혹하다."
+    "setsNote": "스킬 세트는 등급 무관, 종류만 모으면 된다. 스킬은 22종뿐이라 등급 조건까지 걸면 너무 가혹하다.",
+    "individualTotal": 0.06
   },
   "formula": "codexBonus = mercIndividual + mercSets + skillIndividual + skillSets   (최대 0.32)",
   "cpIntegration": "CP_총합 = CP_기본 x 장비 x (1 + codexBonus) x 소환레벨3종 x 훈련소",
