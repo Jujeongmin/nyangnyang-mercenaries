@@ -114,6 +114,44 @@
   .at-cum button{min-height:30px;font-size:11px;flex:0 0 62px;margin-left:auto}
   .at-cum.done{opacity:.55}
 
+  /* ── 부트 로딩 ── */
+  #boot{position:fixed;inset:0;z-index:210;display:flex;flex-direction:column;
+    align-items:center;
+    background:url(/assets/bg/BG-01.png) center/cover}
+  /* 배경 그림 위에 어둑한 비네트 — 타이틀이 그림을 이긴다 */
+  #boot::before{content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 34%,#0b101822,#0b1018cc 78%)}
+  #boot.hide{opacity:0;pointer-events:none;transition:opacity .4s}
+  #bootMain{position:relative;flex:1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:4px}
+  #bootCap{width:150px;filter:drop-shadow(0 12px 30px #000c);
+    animation:pvBob 2.6s ease-in-out infinite}
+  #bootTitle{font-size:34px;font-weight:900;color:var(--gold);letter-spacing:2px;
+    text-shadow:0 3px 0 #7a4a00, 0 6px 14px #000c, 0 0 30px #ffc94a66}
+  #bootSub{font-size:10px;letter-spacing:5px;color:#dbe4f2aa;
+    text-shadow:0 1px 3px #000}
+  #bootBottom{position:relative;flex:0 0 auto;width:100%;display:flex;
+    flex-direction:column;align-items:center;gap:7px;padding:0 26px 34px}
+  #bootBar{width:100%;max-width:340px;height:12px;background:#0b0f17cc;
+    border:1px solid #3a2c12;border-radius:7px;overflow:hidden;
+    box-shadow:inset 0 2px 4px #000a}
+  #bootFill{display:block;height:100%;width:0;border-radius:6px;
+    background:linear-gradient(90deg,#b8860b,var(--gold) 60%,#ffe9a8);
+    box-shadow:0 0 10px #ffc94a88;transition:width .3s}
+  #bootMsg{font-size:11px;color:#e8d9b0;text-shadow:0 1px 3px #000}
+  /* 언어 선택 — 진행이 끝나면 첫 실행에만 뜬다 */
+  #bootLang{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:none;flex-direction:column;gap:7px;align-items:center;
+    background:#141c2af2;border:1px solid var(--gold);border-radius:14px;
+    padding:16px 22px;box-shadow:0 16px 50px #000c;z-index:2}
+  #bootLang.show{display:flex}
+  #bootLang>b{font-size:13px}
+  #bootLang button{width:170px;padding:9px 0;font:inherit;font-size:13px;font-weight:800;
+    background:#0d131f;border:1px solid #33405c;border-radius:9px;color:var(--txt);
+    cursor:pointer}
+  #bootLang button:active{transform:translateY(1px)}
+  #bootLang>span{font-size:9px;color:var(--dim)}
+
   /* 절전 덮개 — AOD 풍. 새카만 바탕에 시계·달만 */
   /* 완전 불투명 검정 — OLED 에서 검은 픽셀은 꺼진 픽셀이다. 캔버스도
      stage.visible=false 로 안 그린다 (scene.setPowerSave) */
@@ -156,7 +194,8 @@
   #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;background:#1a2a1a}
   /* 월드 — 뷰포트보다 크다. 카메라(updateCamera)가 transform 으로 민다.
      배경은 월드에 깐다 — 카메라와 같이 움직여야 마을이 "넓다"로 읽힌다 */
-  #alWorld{position:absolute;left:0;top:0;width:170%;height:145%;
+  /* AL-BG 가 세로형(1024x1536)이라 월드도 세로로 길다. cover 로 꽉 채운다 */
+  #alWorld{position:absolute;left:0;top:0;width:150%;height:175%;
     background:url(/assets/alliance/AL-BG.png) center/cover,
       url(/assets/bg/BG-01.png) center/cover;will-change:transform}
   /* 하늘과 땅을 가르는 어둑한 그라데 — 건물·글자가 배경에서 분리된다 */
@@ -602,6 +641,9 @@
   .nv.on{color:var(--gold)}
 
   /* 오버레이 — 화면을 다 덮지 않는다. 가운데 카드만 띄운다 */
+  /* .over-alli — 연합 마을(fullscr z70) 위에서 열릴 때만 붙는다. 안 붙이면
+     패널이 마을 뒤에 깔려 "눌렀는데 아무 일도 없다"가 된다 (실제로 그랬다) */
+  #ov.over-alli{z-index:82}
   #ov{position:absolute;inset:0;z-index:60;background:#060a12b0;display:none;
     align-items:center;justify-content:center;padding:16px}
   #ov.show{display:flex}
@@ -1660,8 +1702,10 @@
   #shT i{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);margin-left:6px}
   #shX{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit}
-  .sh-go{flex:0 0 auto;background:#141c2a;border:1px solid var(--line);color:var(--txt);
-    border-radius:8px;padding:6px 9px;cursor:pointer;font-size:12px;font-family:inherit}
+  .sh-go{flex:0 0 auto;width:36px;height:36px;background:#141c2a;border:1px solid var(--line);
+    color:var(--txt);border-radius:9px;padding:3px;cursor:pointer;font-size:11px;font-family:inherit}
+  .sh-go img{width:100%;height:100%;object-fit:contain;pointer-events:none;
+    filter:drop-shadow(0 1px 3px #000a)}
   .sh-go:active{transform:translateY(1px)}
 
   /* 장착 줄 — 가로 아이콘. 세로 카드로 하면 5줄이 시트 상단을 다 먹는다 */
@@ -2066,9 +2110,12 @@
            담는 건 회색 한 줄이라, 그만큼 목록에서 빠진다 -->
       <div id="shHeadL"><span id="shT"></span><div id="shSum"></div></div>
       <!-- 훈련소·도감은 사이드에서 여기로 왔다. 둘 다 용병·스킬 성장이라
-           편성 화면이 제자리다 -->
-      <button class="sh-go" data-go="training">훈련소</button>
-      <button class="sh-go" data-go="codex">도감</button>
+           편성 화면이 제자리다. 글자 대신 사이드와 같은 아이콘 — 같은 그림이
+           자리만 옮겼다는 게 읽힌다 -->
+      <button class="sh-go" data-go="training" title="훈련소"><img
+        src="/assets/ui/IC-TRAIN.png" alt="훈련소" onerror="this.replaceWith(document.createTextNode('훈련소'))"></button>
+      <button class="sh-go" data-go="codex" title="도감"><img
+        src="/assets/ui/IC-CODEX.png" alt="도감" onerror="this.replaceWith(document.createTextNode('도감'))"></button>
       <button id="shX">닫기</button>
     </div>
     <!-- 프리셋 3칸 — 탭하면 불러오고 [저장]으로 현재 편성을 기록한다 -->
@@ -2127,7 +2174,30 @@
       color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit">닫기</button>
   </div></div>
   <div id="lvup"><div><b></b><span></span></div></div>
-  <!-- 절전 덮개 — #app **밖**이다. 안에 두면 VS(z30)·상단바·네비가 덮개 위로
+  <!-- 부트 로딩 — 데이터·씬이 서기 전까지 이게 화면의 전부다.
+     첫 실행이면 진행이 끝난 뒤 언어 선택이 겹쳐 뜬다 -->
+<div id="boot">
+  <!-- 표준 모바일 로딩 구도: 중앙 = 타이틀(간판), 하단 = 진행바.
+       바를 중앙에 두면 타이틀과 싸운다 -->
+  <div id="bootMain">
+    <img id="bootCap" src="/assets/captain/captain_warrior.png" alt="">
+    <b id="bootTitle">냥냥 용병단</b>
+    <span id="bootSub">NYANG NYANG MERCENARIES</span>
+  </div>
+  <div id="bootBottom">
+    <div id="bootBar"><i id="bootFill"></i></div>
+    <span id="bootMsg">냥이들을 깨우는 중…</span>
+  </div>
+  <div id="bootLang">
+    <b>언어 / Language</b>
+    <button data-lang="ko">한국어</button>
+    <button data-lang="en">English</button>
+    <button data-lang="ja">日本語</button>
+    <span>번역은 준비 중입니다 — 지금은 한국어로 표시됩니다</span>
+  </div>
+</div>
+
+<!-- 절전 덮개 — #app **밖**이다. 안에 두면 VS(z30)·상단바·네비가 덮개 위로
      새고, #app 을 통째로 숨기는 것도 불가능해진다. 밀어서 해제 -->
 <div id="pwrveil">
   <div class="pv-moon">🌙</div>

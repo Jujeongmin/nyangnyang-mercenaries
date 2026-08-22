@@ -69,6 +69,7 @@ const S = {
   speed: 1,                                // 배속. speedMax() 안에서만 고를 수 있다
   speed3: false,                           // 3배속 구매 여부. 서버 권한 (save-schema)
   speed3DailyAt: null,                     // 3배속 일일 다이아 마지막 수령일
+  lang: null,                              // 언어. 첫 부팅 로딩 화면에서 고른다
   // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
   // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
   attend: { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] },
@@ -2840,11 +2841,52 @@ function rollSkills() {
   S.skills.passive = take(pas, slotsOf('skillPassive'));
 }
 
+/**
+ * 부트 진행 표시. 문구는 단계 설명이 아니라 **게임 세계의 소리**다 —
+ * "데이터 로드 중" 같은 개발자 말은 분위기를 깬다.
+ */
+const BOOT_FLAVOR = [
+  '냥이들을 낮잠에서 깨우는 중…',
+  '수염을 고르게 빗는 중…',
+  '활시위를 팽팽하게 당겨 보는 중…',
+  '방패에 묻은 생선 냄새를 닦는 중…',
+  '보급 수레에 츄르를 싣는 중…',
+  '단장의 망토를 다림질하는 중…',
+  '초원의 슬라임에게 선전포고하는 중…',
+];
+let bootFlavorI = (Math.random() * BOOT_FLAVOR.length) | 0;
+function bootStep(pct, msg) {
+  const f = $('#bootFill'), m = $('#bootMsg');
+  if (f) f.style.width = pct + '%';
+  // msg 를 안 주면 플레이버를 순환한다
+  if (m) m.textContent = msg || BOOT_FLAVOR[bootFlavorI++ % BOOT_FLAVOR.length];
+}
+
+/**
+ * 언어 선택 — 첫 실행(세이브에 lang 없음)에만 로딩 끝에 뜬다.
+ * 실제 번역은 아직 없다 — 지금은 선택을 저장만 하고 전부 한국어로 그린다.
+ * 문구를 t() 로 감싸는 i18n 작업은 별도 결정(보류 목록) 뒤에 한다.
+ */
+function bootLangPick() {
+  return new Promise(res => {
+    if (S.lang) return res();
+    const box = $('#bootLang');
+    box.classList.add('show');
+    box.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+      S.lang = b.dataset.lang;
+      save();
+      box.classList.remove('show');
+      res();
+    }));
+  });
+}
+
 (async function boot() {
   // 광고 SDK 는 데이터 로드보다 먼저 건다 — 호스트 메시지 리스너를 일찍 걸수록
   // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
   initAds();
 
+  bootStep(12);
   await loadData('/data');
   $('#cap').src = '/assets/captain/captain_warrior.png';
 
@@ -2862,6 +2904,7 @@ function rollSkills() {
     for (const s of [...S.skills.active, ...S.skills.passive]) if (s) S.codex.skill[s.id] = s.grade;
   }
 
+  bootStep(38);
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
     state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
@@ -2871,8 +2914,8 @@ function rollSkills() {
   codex = new CodexScreen($('#app'), { state: S, data: D, openUnitInfo });
   alli = new AllianceVillage($('#app'), {
     state: S, data: D, toast, num,
-    // 건물 → 패널. 기부 창고만 마을 안 동작(donate 탭)이고 나머지는 기존 오버레이
-    openPanel: b => openAlliance(b === 'donate' ? 'donate' : b),
+    // 건물 → 패널. 마을(fullscr z70)이 열려 있으므로 패널을 그 위로 띄운다
+    openPanel: b => { $('#ov').classList.add('over-alli'); openAlliance(b); },
   });
   rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp });
   mail = new MailScreen($('#app'), {
@@ -2913,11 +2956,13 @@ function rollSkills() {
     pull: (trackId, n) => pull(trackId, n),
     buySpeed3, claimSpeed3Daily,
   });
+  bootStep(55);
   scene = new BattleScene($('#cv'), { data: D, onEvent });
   window.__scene = scene;   // 디버그용
   window.__S = S;
   window.__wall = showWallHint;   // 디버그용 — 벽 안내를 손으로 띄워 본다
   await scene.init();
+  bootStep(82);
 
   renderSkills(); renderEquip(); renderQuest(); renderCaptain(); renderTop();
   // 세이브의 배속을 화면에 반영 + 해금 안 된 값이면 끌어내린다
@@ -3092,7 +3137,7 @@ function rollSkills() {
   });
   $('#ovx').addEventListener('click', () => {
     if ($('#ov').classList.contains('forced')) return;
-    $('#ov').classList.remove('show');
+    $('#ov').classList.remove('show', 'over-alli');
     $('#ovinfo').classList.remove('show');
     $('#ovi').classList.remove('on');
   });
@@ -3141,5 +3186,10 @@ function rollSkills() {
   }, 1000);
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
+  bootStep(100, '출격 준비 완료!');
+  // 첫 실행이면 언어부터 고르게 한다. 로딩 화면이 곧 첫 문이다
+  await bootLangPick();
+  $('#boot')?.classList.add('hide');
+  setTimeout(() => $('#boot')?.remove(), 500);
   await runStage();
 })();
