@@ -108,8 +108,8 @@ const S = {
   f1k: { claimed: [], total: 0 },
   // 냥냥 주사위 — 굴림은 이벤트 미션 보상으로만 얻는다. mClaimed 는 매일 초기화
   dice: { day: null, rolls: 0, mClaimed: [], pos: 0, laps: 0 },
-  // 소환 마일리지 — 이벤트 기간 용병·스킬 소환 누계
-  mile: { n: 0, claimed: [] },
+  // 이벤트 시계의 원점 — 첫 접속 시각. D-day 가 여기서 나온다
+  evStart: null,
   mailbox: [],
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
@@ -447,7 +447,7 @@ function syncNav() {
   // 임무 수령 대기 — 사이드 아이콘 빨간 점. 놓치면 사라지는 것이라 점을 붙인다
   document.querySelector('[data-s="mission"]')?.classList.toggle('hasnew', mqWaiting());
   document.querySelector('[data-s="event"]')?.classList.toggle('hasnew',
-    ev7Ready() || f1kPendingN() > 0 || diceMissionReady() || mileClaimable());
+    f1kPendingN() > 0 || diceMissionReady());
 }
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
@@ -1085,7 +1085,6 @@ function pull(trackId, n) {
   S.dia -= cost;
   S.summonExp[trackId] = (S.summonExp[trackId] || 0) + n;   // 소환 레벨 exp
   mq('summon', n);
-  S.mile.n = (S.mile.n || 0) + n;             // 소환 마일리지 (events.json)
 
   // 소환 레벨이 오르면 확률표가 좋아지고 낮은 등급이 풀에서 영구히 빠진다
   // (gacha.json > levelEffects.gradeFloorRise). 여기가 1로 박혀 있어서 소환 레벨이
@@ -1987,10 +1986,39 @@ function diceState() {
   return S.dice;
 }
 
+/** 이벤트 남은 일수. 0 이하면 끝났다. 원점은 첫 접속(S.evStart) */
+function evDaysLeft(durationDays) {
+  if (!S.evStart) { S.evStart = Date.now(); save(); }
+  const passed = Math.floor((Date.now() - S.evStart) / 86400e3);
+  return durationDays - passed;
+}
+const diceOver = () => evDaysLeft(D.events.diceBoard.durationDays) <= 0;
+
+/** 출석 미션 — 구 7일 축제를 흡수했다. 오늘 안 받았으면 수령 가능 */
+const diceAttendReady = () => !diceOver() && S.ev7.lastAt !== attendToday();
+
+function claimDiceAttend() {
+  if (!diceAttendReady()) return;
+  const E = D.events.diceBoard;
+  S.ev7.lastAt = attendToday();
+  S.dice.rolls += E.attendMission.rolls;
+  // 7일치 축제 보상 — 아직 남았으면 그 일차 것을 같이 준다
+  const fd = D.dailies.newbie7Day.days[S.ev7.day];
+  if (fd) {
+    S.ev7.day++;
+    const got = passGrant(fd.grant || {});
+    if (got.pairs.length) gainToast(got.pairs);
+  }
+  save(); syncNav();
+  toast(t('주사위 +{0}', E.attendMission.rolls));
+  renderDiceBoard(); renderDiceMissions();
+}
+
 /** 받을 수 있는 미션이 있나 — 배너·사이드 점 */
 function diceMissionReady() {
+  if (diceOver()) return false;
   diceState(); missionState();
-  return D.events.diceBoard.missions.some((m, i) =>
+  return diceAttendReady() || D.events.diceBoard.missions.some((m, i) =>
     !S.dice.mClaimed.includes(i) && (S.dq.c[m.id] || 0) >= m.target);
 }
 
@@ -2089,7 +2117,19 @@ function renderDiceMissions() {
   const el = $('#dcMissions');
   if (!el) return;
   diceState(); missionState();
-  el.innerHTML = D.events.diceBoard.missions.map((m, i) => {
+  const E = D.events.diceBoard;
+  // 출석 미션이 맨 위 — 구 7일 축제. 7일차까지는 그 일차 축제 보상이 함께 나온다
+  const fd = D.dailies.newbie7Day.days[S.ev7.day];
+  const attended = !diceAttendReady();
+  const attRow = `<div class="mq-row${attended ? ' done' : ''}">
+    <div class="mq-h"><b>${t('매일 출석')}${fd
+      ? ` <u class="dc-fest">${t('{0}일차 축제 보상', fd.day)}</u>` : ''}</b>
+      <span>${attended ? '1/1' : '0/1'}</span></div>
+    <div class="mq-bar"><i style="width:${attended ? 100 : 0}%"></i></div>
+    <button class="dc-mbtn rt-b${attended ? '' : ' go'}" id="dcAttend"
+      ${attended ? 'disabled' : ''}>${attended ? '✓' : `🎲+${E.attendMission.rolls}`}</button>
+  </div>`;
+  el.innerHTML = attRow + D.events.diceBoard.missions.map((m, i) => {
     const cur = Math.min(m.target, S.dq.c[m.id] || 0);
     const done = S.dice.mClaimed.includes(i);
     const can = !done && cur >= m.target;
@@ -2102,52 +2142,10 @@ function renderDiceMissions() {
   }).join('');
   el.querySelectorAll('[data-dcm]').forEach(b =>
     b.addEventListener('click', () => claimDiceMission(+b.dataset.dcm)));
-}
-
-// ── 소환 마일리지 ──────────────────────────────────────────
-const mileClaimable = () =>
-  D.events.summonMileage.milestones.some((m, i) => S.mile.n >= m.n && !S.mile.claimed.includes(i));
-
-/** 등급 확정 용병 — 소환과 같은 연출·적용 경로(applyPulls)로 지급한다 */
-function grantUnitOf(grade) {
-  const pool = D.characters.characters.filter(c => c.grade === grade);
-  const c = pool[(Math.random() * pool.length) | 0];
-  const out = [{ grade, name: tn(c.id, c.nameKo), img: `/assets/char/${c.id}.png`,
-    id: c.id, cls: c.class, kind: 'merc' }];
-  reveal.play('mercenary', out, () => { applyPulls(out); renderTop(); });
-}
-
-function claimMile(i) {
-  const m = D.events.summonMileage.milestones[i];
-  if (!m || S.mile.claimed.includes(i)) return;
-  if (S.mile.n < m.n) return toast(t('소환 {0}회가 필요합니다', m.n));
-  S.mile.claimed.push(i);
-  save(); syncNav();
-  if (m.unit) grantUnitOf(m.unit);
-  else {
-    const got = passGrant(m.grant || {});
-    if (got.pairs.length) gainToast(got.pairs);
-  }
-  renderTop(); openEventDetail('mileage');
+  $('#dcAttend')?.addEventListener('click', claimDiceAttend);
 }
 
 // ── 이벤트 ────────────────────────────────────────────────
-// 출시 7일 축제 — 출석과 같은 리듬(하루 1칸)이되 보상이 훨씬 크다.
-// 데이터는 dailies.json > newbie7Day. 7칸을 다 받으면 배너가 내려간다.
-const ev7Done = () => (S.ev7?.day || 0) >= D.dailies.newbie7Day.days.length;
-const ev7Ready = () => !ev7Done() && S.ev7.lastAt !== attendToday();
-
-function claimEv7() {
-  if (ev7Done()) return;
-  if (!ev7Ready()) return toast(t('오늘 보상은 이미 받았습니다'));
-  const d = D.dailies.newbie7Day.days[S.ev7.day];
-  const got = passGrant(d.grant || {});
-  S.ev7.day++;
-  S.ev7.lastAt = attendToday();
-  save(); renderTop(); syncNav(); openEventDetail('launch7');
-  if (got.pairs.length) gainToast(got.pairs);
-}
-
 // 무료 1000뽑 — 스테이지 마일스톤 자동 지급. 수령 버튼이 없다:
 // 지급 자체가 자동이라야 "스테이지를 밀면 계속 나온다"로 읽힌다.
 function f1kSplit(tickets, split) {
@@ -2209,14 +2207,20 @@ function f1kNext() {
 function openEvents() {
   const nx = f1kNext();
   const banners = [];
-  banners.push(`<button class="evb${ev7Done() ? ' end' : ''}" data-ev="launch7"
+  // 출시 간판 — 냥냥 주사위 (7일 축제 통합). D-day 가 붙는다
+  const dd = diceState();
+  const left = evDaysLeft(D.events.diceBoard.durationDays);
+  const over = left <= 0;
+  banners.push(`<button class="evb${over ? ' end' : ''}" data-ev="dice"
       style="--img:url(/assets/art/LR-01-ART.png)">
-    <span class="evb-tag">${ev7Done() ? t('종료') : t('진행 중')}</span>
-    <b>${t('출시 기념 7일 축제')}</b>
-    <span class="evb-sub">${ev7Done() ? t('모든 보상을 받았습니다')
-      : t('{0}일차 보상 대기', Math.min(7, S.ev7.day + 1))}</span>
-    ${ev7Ready() ? `<i class="evb-dot"></i>` : ''}
+    <span class="evb-tag">${over ? t('종료') : t('출시 기념')}</span>
+    ${over ? '' : `<span class="evb-dday">D-${left}</span>`}
+    <b>${t('냥냥 주사위')}</b>
+    <span class="evb-sub">${over ? t('이벤트가 끝났습니다')
+      : t('주사위 {0}개 · {1}바퀴', dd.rolls, S.dice.laps)}</span>
+    ${!over && (dd.rolls > 0 || diceMissionReady()) ? `<i class="evb-dot"></i>` : ''}
   </button>`);
+  // 무료 1000뽑 — 진행형이라 기간이 없다
   const pendN = f1kPendingN();
   banners.push(`<button class="evb${nx || pendN ? '' : ' end'}" data-ev="free1000"
       style="--img:url(/assets/art/UR-01-ART.png)">
@@ -2227,28 +2231,6 @@ function openEvents() {
       : `${num(S.f1k.total)} / 1000${nx ? ` · ${t('다음: 스테이지 {0}', nx.stage)}` : ''}`}</span>
     <span class="evb-bar"><i style="width:${S.f1k.total / 10}%"></i></span>
     ${pendN ? `<i class="evb-dot"></i>` : ''}
-  </button>`);
-
-  // 출시 기념 · 냥냥 주사위 — 미션을 깨서 주사위를 얻는다
-  const dd = diceState();
-  banners.push(`<button class="evb" data-ev="dice"
-      style="--img:url(/assets/art/SSR-01-ART.png)">
-    <span class="evb-tag">${t('출시 기념')}</span>
-    <b>${t('냥냥 주사위')}</b>
-    <span class="evb-sub">${t('주사위 {0}개 · {1}바퀴', dd.rolls, S.dice.laps)}</span>
-    ${dd.rolls > 0 || diceMissionReady() ? `<i class="evb-dot"></i>` : ''}
-  </button>`);
-  // 소환 마일리지
-  const MM = D.events.summonMileage.milestones;
-  const mileEnd = S.mile.claimed.length >= MM.length;
-  banners.push(`<button class="evb${mileEnd ? ' end' : ''}" data-ev="mileage"
-      style="--img:url(/assets/art/UR-02-ART.png)">
-    <span class="evb-tag">${mileEnd ? t('종료') : t('진행 중')}</span>
-    <b>${t('소환 마일리지')}</b>
-    <span class="evb-sub">${t('누적 소환 {0}회', num(S.mile.n))} · ${t('다음 {0}회', num(
-      (MM.find((m, i) => !S.mile.claimed.includes(i)) || MM[MM.length - 1]).n))}</span>
-    <span class="evb-bar"><i style="width:${Math.min(100, S.mile.n / MM[MM.length - 1].n * 100)}%"></i></span>
-    ${mileClaimable() ? `<i class="evb-dot"></i>` : ''}
   </button>`);
 
   $('#ovt').textContent = t('이벤트');
@@ -2267,39 +2249,7 @@ function openEventDetail(id) {
   ).join('');
   const h = [`<button class="ev-back" id="evBack">‹ ${t('이벤트 목록')}</button>`];
 
-  if (id === 'launch7') {
-    const days = D.dailies.newbie7Day.days;
-    // 히어로 — 축하하는 단장 + 색종이. 이벤트는 첫 화면이 잔치처럼 보여야
-    // "받을 것이 있다"가 전해진다. 색종이는 CSS 조각 12개, 절전과 무관한 창 안이다
-    h.push(`<div class="ev7-hero">
-      ${Array.from({ length: 12 }, (_, i) =>
-        `<i class="cf c${i % 4}" style="left:${6 + i * 8}%;animation-delay:${(i * 0.37) % 2.2}s"></i>`).join('')}
-      <img class="ev7-cap" src="/assets/captain/captain_face_happy.png" alt=""
-        onerror="this.onerror=null;this.src='/assets/captain/captain_warrior.png'">
-      <div class="ev7-ht">
-        <b>${t('출시 기념 7일 축제')}</b>
-        <span>${t('매일 접속해 7일간 보상을 받으세요')}</span>
-        <u>${t('{0}일차 진행 중', Math.min(7, S.ev7.day + (ev7Done() ? 0 : 1)))}</u>
-      </div>
-    </div>`);
-    // 1~6일은 3칸 x 2줄, 7일차는 한 줄 전체를 쓰는 대형 카드 — 최종 보상이
-    // 목적지로 보여야 남은 날짜를 세게 된다
-    const cell = (d, i, big) => {
-      const done = i < S.ev7.day;
-      const now = i === S.ev7.day && ev7Ready();
-      return `<div class="ev7-cell${big ? ' big' : ''}${done ? ' done' : ''}${
-          now ? ' now' : ''}${d.highlight ? ' hi' : ''}">
-        <b>${big ? t('최종 보상 · {0}일', d.day) : t('{0}일', d.day)}</b>
-        <span class="ev7-rw">${gicons(d.grant)}</span>
-        ${done ? '<i>✓</i>' : ''}${now ? `<em>${t('오늘')}</em>` : ''}
-      </div>`;
-    };
-    h.push('<div class="ev7-grid">' + days.slice(0, 6).map((d, i) => cell(d, i, false)).join('')
-      + cell(days[6], 6, true) + '</div>');
-    h.push(ev7Done()
-      ? `<div class="sh-note">${t('모든 보상을 받았습니다')}</div>`
-      : `<button class="fgbtn ev7-btn" id="ev7Claim" ${ev7Ready() ? '' : 'disabled'}>
-          ${ev7Ready() ? t('{0}일차 보상 받기', S.ev7.day + 1) : t('내일 다시 받을 수 있습니다')}</button>`);
+  if (false) {
   } else {
     const F = D.free1000;
     const nx = f1kNext();
@@ -2325,7 +2275,20 @@ function openEventDetail(id) {
   if (id === 'dice') {
     const E = D.events.diceBoard;
     const d = diceState();
+    const left = evDaysLeft(E.durationDays);
     h.length = 1;
+    // 축제 히어로 — 색종이·단장. 구 7일 축제의 것을 그대로 물려받았다
+    h.push(`<div class="ev7-hero">
+      ${Array.from({ length: 12 }, (_, i) =>
+        `<i class="cf c${i % 4}" style="left:${6 + i * 8}%;animation-delay:${(i * 0.37) % 2.2}s"></i>`).join('')}
+      <img class="ev7-cap" src="/assets/captain/captain_face_happy.png" alt=""
+        onerror="this.onerror=null;this.src='/assets/captain/captain_warrior.png'">
+      <div class="ev7-ht">
+        <b>${t('출시 기념 냥냥 주사위')}</b>
+        <span>${t('미션을 깨고 주사위를 굴려 보상을 모으세요')}</span>
+        <u>${left > 0 ? `D-${left}` : t('종료')}</u>
+      </div>
+    </div>`);
     h.push(`<div class="dc-wrap">
       <div id="dcBoard"></div>
       <div class="dc-center">
@@ -2340,40 +2303,16 @@ function openEventDetail(id) {
     h.push('<div id="dcMissions"></div>');
     h.push(`<div class="sh-note">${t('미션을 깨면 주사위를 받고, 안 쓴 주사위는 내일로 이월됩니다')}</div>`);
   }
-  if (id === 'mileage') {
-    const M = D.events.summonMileage;
-    const max = M.milestones[M.milestones.length - 1].n;
-    h.length = 1;
-    h.push(`<div class="ev-big"><b>${num(S.mile.n)}</b> ${t('회 소환')}</div>`);
-    h.push(`<div class="mq-gauge" style="position:static;height:10px;margin:0 2px 12px">
-      <i style="width:${Math.min(100, S.mile.n / max * 100)}%"></i></div>`);
-    h.push(M.milestones.map((m, i) => {
-      const done = S.mile.claimed.includes(i);
-      const can = !done && S.mile.n >= m.n;
-      return `<div class="ml-row${done ? ' done' : ''}${can ? ' can' : ''}">
-        <span class="ml-n">${num(m.n)}</span>
-        <span class="ml-what">${m.unit
-          ? `<b style="color:${GC_COL[m.unit] || 'var(--gold)'}">${m.nameKo}</b>`
-          : m.nameKo}</span>
-        <button class="rt-b${can ? ' go' : ''}" data-mile="${i}" ${can ? '' : 'disabled'}>
-          ${done ? '✓' : t('받기')}</button>
-      </div>`;
-    }).join(''));
-    h.push(`<div class="sh-note">${t('용병·스킬 소환이 함께 집계됩니다. 확정 보상은 그 등급의 용병 중 무작위 1체입니다')}</div>`);
-  }
 
   $('#ovt').textContent = t('이벤트');
   $('#ovb').innerHTML = h.join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   $('#evBack').addEventListener('click', openEvents);
-  $('#ev7Claim')?.addEventListener('click', claimEv7);
   $('#f1kClaim')?.addEventListener('click', f1kClaim);
   if (id === 'dice') {
     renderDiceBoard(); renderDiceMissions();
     $('#dcRoll').addEventListener('click', rollDice);
   }
-  $('#ovb').querySelectorAll('[data-mile]').forEach(b =>
-    b.addEventListener('click', () => claimMile(+b.dataset.mile)));
 }
 
 function attendState() {
