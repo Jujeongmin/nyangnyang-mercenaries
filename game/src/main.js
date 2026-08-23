@@ -46,6 +46,10 @@ const S = {
   // 시트의 [자동강화] 를 눌러야 캐스케이드로 흘러간다.
   pend: { mercenary: [], skill: [] },
   auto: true, autoSummon: false, autoAcc: 0,
+  // 자동 소환은 **켜 둔 상태(autoWanted)** 와 **지금 도는 중(autoSummon)** 이 다르다.
+  // 좋은 장비가 나와서 서는 것은 정지가 아니라 일시정지다 — 유저가 착용·분해를
+  // 고르면 다시 돈다. 완전 정지는 AUTO 버튼을 다시 눌렀을 때만이다.
+  autoWanted: false,
   // 자동 소환 정지 기준. -1 = 지금 낀 것보다 좋으면(기본), N = 그 등급 이상.
   // 끄는 선택지는 없다 — 좋은 장비가 대기함에 묻히기 때문이다.
   autoStopTier: -1, autoBatch: 0,
@@ -740,8 +744,28 @@ function renderForgeDock() {
   const b = $('#b_auto');
   b.disabled = !autoUnlocked();
   // 상태는 톱니가 도는지로 말한다 — 글자를 안 쓴다
-  b.title = !autoUnlocked() ? '제작대 Lv 10 에 해금' : (S.autoSummon ? '자동 소환 중' : '자동 소환 꺼짐');
-  b.classList.toggle('on', !!S.autoSummon && autoUnlocked());
+  b.title = !autoUnlocked() ? '제작대 Lv 10 에 해금'
+    : (S.autoWanted ? (S.autoSummon ? '자동 소환 중 · 눌러서 정지' : '결과 대기 중') : '자동 소환 꺼짐');
+  b.classList.toggle('on', !!S.autoWanted && autoUnlocked());
+}
+
+/**
+ * 자동 소환 켜기/끄기. off=true 면 완전 정지(유저 의사), 아니면 시작.
+ * autoWanted 는 좋은 장비가 나와 잠깐 서 있는 동안에도 유지된다.
+ */
+function stopAuto(off) {
+  S.autoWanted = !off;
+  S.autoSummon = S.autoWanted;
+  save(); renderForgeDock();
+  toast(S.autoWanted ? '자동 소환 시작' : '자동 소환 정지');
+}
+
+/** 결과 창에서 착용·분해를 고른 뒤 다시 돌린다. 소환권이 없으면 그때 멈춘다 */
+function resumeAuto() {
+  if (!S.autoWanted || !autoUnlocked()) return;
+  if (S.eqTicket < 1) { S.autoWanted = false; S.autoSummon = false; renderForgeDock(); return; }
+  S.autoSummon = true;
+  save(); renderForgeDock();
 }
 
 /**
@@ -772,7 +796,7 @@ function openAutoPanel() {
   h.push(`<div class="frow"><span class="k">보유 장비 소환권</span>
     <span class="v">${num(S.eqTicket)}</span></div>`);
   h.push(`<button class="fgbtn" id="asGo" style="margin-top:8px">`
-    + (S.autoSummon ? '자동 소환 정지' : '자동 소환 시작') + '</button>');
+    + (S.autoWanted ? '자동 소환 정지' : '자동 소환 시작') + '</button>');
 
   $('#ovt').textContent = '자동 소환';
   delete $('#ovcard').dataset.skin;
@@ -787,9 +811,10 @@ function openAutoPanel() {
     S.autoStopTier = +x.dataset.t; save(); openAutoPanel();
   }));
   $('#asGo').addEventListener('click', () => {
-    S.autoSummon = !S.autoSummon;
-    save(); renderForgeDock(); openAutoPanel();
-    toast(S.autoSummon ? '자동 소환 시작' : '자동 소환 정지');
+    // 시작하면 패널을 닫는다 — 설정을 마쳤으니 볼 것은 전투 화면이지 이 창이 아니다
+    stopAuto(S.autoWanted);
+    if (S.autoWanted) $('#ov').classList.remove('show');
+    else openAutoPanel();
   });
 }
 
@@ -2743,6 +2768,7 @@ function openEquipResult(it) {
     // 착용은 토스트를 안 띄운다 — CP 상승은 상단 CP 배지(+n ▲)가 이미 알린다.
     // 분해만 획득 배너
     if (!wear) gainToast([['gold', scrapGold(it.tier)]]);
+    resumeAuto();          // 자동을 켜 둔 상태였으면 여기서 다시 돈다
   };
   $('#erWear')?.addEventListener('click', () => finish(true));
   $('#erScrap')?.addEventListener('click', () => finish(false));
@@ -2787,6 +2813,7 @@ function summonEquip(n, isAuto) {
     }
   }
   if (stopHit) {
+    // 일시정지다. autoWanted 는 그대로 두고, 결과를 고르면 resumeAuto() 가 다시 돌린다
     S.autoSummon = false;
     const g = D.equipment.grades[stopHit.tier - 1];
     // 멈춘 시점 이후로 안 돌린 만큼은 소환권을 돌려준다
@@ -3146,7 +3173,11 @@ function bootLangPick() {
   $('#bossGo').addEventListener('click', challengeBoss);
   $('#fgObj').addEventListener('click', () => pullOne('#fgObj'));   // 이벤트 객체가 인자로 새면 안 된다
   $('#fgLv').addEventListener('click', e => { e.stopPropagation(); openForge(); });
-  $('#b_auto').addEventListener('click', openAutoPanel);
+  // AUTO 버튼: 돌고 있으면 **완전 정지**하고 패널을 연다. 꺼져 있으면 패널만 연다
+  $('#b_auto').addEventListener('click', () => {
+    if (S.autoWanted && autoUnlocked()) stopAuto(true);
+    openAutoPanel();
+  });
   $('#capbox').addEventListener('click', () => profile.open());
   $('#chest').addEventListener('click', openIdle);
   $('#idOk').addEventListener('click', () => claimIdle(1));

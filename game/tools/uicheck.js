@@ -133,10 +133,13 @@ const BLEED_OK = [
 ];
 // 부모가 이 목록이면 자식의 넘침도 의도된 것으로 본다 — 선택 탭 아이콘은
 // 일부러 상자 위로 솟는다 (.nv.on img translateY). 자식 자신에는 표시가 없다
-const BLEED_OK_PARENT = ['nv'];
+// 자동 소환 톱니는 돌아간다 — 정사각 요소를 회전시키면 상자만 대각선만큼 커진다
+// (34px -> 48px). 그림 자체는 원형이라 눈에는 안 삐져나온다
+const BLEED_OK_PARENT = ['nv', 'b_auto'];
 const bleedOk = el =>
   BLEED_OK.some(c => el.id === c || el.classList.contains(c)) ||
-  (el.parentElement && BLEED_OK_PARENT.some(c => el.parentElement.classList.contains(c))) ||
+  (el.parentElement && BLEED_OK_PARENT.some(c =>
+    el.parentElement.classList.contains(c) || el.parentElement.id === c)) ||
   getComputedStyle(el).position === 'absolute';
 
 /** 스크롤 컨테이너는 세로로 넘치는 게 정상이다. 가로만 본다. */

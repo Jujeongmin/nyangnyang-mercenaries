@@ -280,12 +280,13 @@
       "category": "attack",
       "effect": {
         "kind": "aoe_damage",
-        "atkRatio": 6.0,
+        "atkRatio": 0.4,
         "targets": 5,
         "burnPct": 0.3,
         "burnSec": 5,
         "cooldownSec": 20
-      }
+      },
+      "balanceNote": "atkRatio 6.0 -> 0.40. 등급계수가 이미 SR 대비 23.3배를 곱하는데 atkRatio 까지 최고값이라 평타 대비 총 피해가 701배였다 (SSR 최고 스킬 15.2배). 등급 사다리(N 2.98 / R 4.41 / SR 9.80 / SSR 15.21, 단계당 약 1.5~2.2배)를 LR 까지 이어 47.7배로 맞췄다. 만렙 총 160배 — SSR 만렙 36.5배의 4.4배다."
     },
     {
       "id": "SK-P01",
@@ -545,5 +546,6 @@
     },
     "note": "용병 32종과 같은 분포다 (characters.json). 같은 등급의 뽑기 확률이 두 트랙에서 같은 종수로 나뉘어 \"용병은 잘 나오는데 스킬은 안 나온다\" 같은 체감 차이가 안 생긴다.",
     "assignmentRule": "기본기일수록 낮은 등급이다. 효과값(effect)은 SR 기준으로 적혀 있고 실제 값은 effectScaling 이 등급 계수로 곱한다 — 같은 참격이라도 N 이면 0.167배, LR 이면 23.3배가 된다."
-  }
+  },
+  "atkRatioNote": "atkRatio 는 **등급계수가 곱해지기 전** 값이다. 등급이 올라가면 effectScaling 이 이미 큰 배수를 곱하므로, 상위 등급 스킬의 atkRatio 는 오히려 작아야 사다리가 맞는다 (SR 소환 0.313, SSR 소환 0.379, LR 천공 붕괴 0.40). 여기에 큰 값을 넣으면 등급계수와 이중으로 곱해져 한 스킬이 전투를 통째로 끝낸다."
 }

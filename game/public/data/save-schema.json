@@ -234,6 +234,7 @@
     },
     "settings": {
       "autoSummonEnabled": "bool",
+      "autoSummonEnabledNote": "유저가 자동을 켜 둔 상태(autoWanted). 좋은 장비가 나와 잠깐 서 있는 동안에도 참이다 — 클라의 autoSummon(지금 도는 중)과 다르다. 저장은 이 값만 하면 되고, 복원 시 도는 상태는 여기서 파생된다.",
       "summonFilter": {
         "minTier": "int",
         "minCpContribution": "int",

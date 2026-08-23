@@ -525,11 +525,13 @@ export class BattleScene {
     const alive = this.foes.filter(f => f.hp > 0);
     if (!alive.length) return;
 
-    // 단장 — 전투 판정에는 안 들어가고 연출만 한다
+    // 단장 — 전투 판정에는 안 들어가고 연출만 한다.
+    // 3.5~6.5초는 화면 한가운데 주인공이 대부분 가만히 서 있는 간격이었다.
+    // 피해에 영향이 없으므로 밸런스는 그대로고 체감만 바뀐다
     if (this.captain) {
-      this.capCd = (this.capCd ?? 3) - s;
+      this.capCd = (this.capCd ?? 1.2) - s;
       if (this.capCd <= 0 && !this.captain.act) {
-        this.capCd = rnd(3.5, 6.5);
+        this.capCd = rnd(1.5, 2.7);
         this.captain.attack(null);
       }
     }
