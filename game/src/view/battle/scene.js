@@ -53,6 +53,10 @@ export class BattleScene {
     this.foes = [];
     this.tex = new Map();
     this.activeSkills = [];        // main 이 채운다. 스킬 이펙트 선택에 쓴다
+    // 스킬 쿨타임은 **스킬마다** 센다 (skills.json > effect.cooldownSec).
+    // 예전에는 유닛마다 rnd(6,11) 을 돌렸다 — 스킬바는 데이터 초로 와이프를
+    // 그리는데 실제 발동은 딴 시계를 봐서, 바가 다 찼는데 안 나가는 일이 생겼다.
+    this.skCd = new Map();         // skillId -> 남은 초 (시뮬 초, 배속 적용분)
   }
 
   async init() {
@@ -240,7 +244,7 @@ export class BattleScene {
         aura: ['SSR', 'UR', 'LR'].includes(m.grade),
       });
       this.field.addChild(rig.view);
-      this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5), skillCd: rnd(4, 9) });
+      this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5) });
     }
     this.layout();
   }
@@ -422,6 +426,11 @@ export class BattleScene {
       if (k >= 1) { this.bg.removeChild(f.old); f.old.destroy({ children: true }); this.bgFade = null; }
     }
 
+    // 스킬 쿨타임은 **걷는 동안에도** 돈다. 전투 중에만 돌리면 스킬바(실시간 와이프)와
+    // 엔진 시계가 갈라져, 바가 다 찼는데 발동이 안 되는 상태가 길게 남는다.
+    // 한 조우가 2초쯤이라 쿨 20초짜리는 실제로 40초 넘게 안 나갔다.
+    this.tickSkillCd(s);
+
     if (this.phase === 'walk') {
       this.phaseT += s;
       const W = this.app.screen.width;
@@ -486,6 +495,32 @@ export class BattleScene {
     this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
   }
 
+  /**
+   * 한 번의 타격을 낸다. 원거리 직군은 무기 끝에서 투사체가 나간다 —
+   * 즉발이면 거리가 안 읽힌다.
+   */
+  launchAttack(u, target, useSkill) {
+    if (!target) return;
+    const A = this.D.combat.allyAttack;
+    const kind = (A?.byClass || {})[u.class] || 'melee';
+    if (kind === 'projectile') {
+      u.rig.attack(() => {
+        if (!target.rig?.view || target.rig.view.destroyed || target.hp <= 0) return;
+        const tip = u.rig.weaponTip();
+        let id = (A.projectileFx || {})[u.class] || A.projectileFx.fallback;
+        if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
+        const tx = target.rig.view.x, ty = target.rig.view.y - target.rig.h * 0.5;
+        this.fx.projectile(id, tip.x, tip.y, tx, ty, {
+          size: this.fxSize(u.rig.h * 0.34, 0.12),
+          dur: 260, arc: -0.1,
+          onHit: () => this.hitFoe(u, target, useSkill),
+        });
+      });
+    } else {
+      u.rig.attack(() => this.hitFoe(u, target, useSkill));
+    }
+  }
+
   combatStep(s) {
     const alive = this.foes.filter(f => f.hp > 0);
     if (!alive.length) return;
@@ -499,44 +534,28 @@ export class BattleScene {
       }
     }
 
+    // 스킬은 **평타 차례를 안 기다린다.** 한 조우가 한두 프레임 만에 끝나는 구간이
+    // 많아서, 평타 쿨(u.cd)까지 맞아떨어지길 기다리면 발동 창이 사실상 안 열린다.
+    // 준비된 스킬이 있으면 그 프레임에 바로 쏘고, 그 유닛의 평타 차례만 뒤로 민다.
+    const cast = this.pickSkillCast();
+    if (cast) {
+      const u = cast.unit;
+      u.usingSkill = cast.skill;
+      u.cd = u.cdMax;
+      this.fireSkill(cast.skill);
+      this.launchAttack(u, alive[0], true);
+      u.skillFired = true;
+    }
+
     for (const u of this.units) {
+      if (u.skillFired) { u.skillFired = false; continue; }
       u.cd -= s;
-      u.skillCd -= s;
       if (u.cd > 0 || u.rig.act) continue;
       u.cd = u.cdMax;
-      // AUTO OFF 면 여기서 안 쏜다. 준비 표시만 밖(#skills)에 넘긴다.
-      const ready = u.skillCd <= 0 && this.activeSkills.length > 0;
-      const useSkill = ready && this.skillAuto !== false;
-      if (useSkill) u.skillCd = rnd(6, 11);
-      if (ready && this.skillAuto === false) this.anyReady = true;
-      u.usingSkill = useSkill
-        ? this.activeSkills[(Math.random() * this.activeSkills.length) | 0]
-        : (u.pendingSkill || null);   // 수동 발동분
+      u.usingSkill = u.pendingSkill || null;   // 수동 발동분
       u.pendingSkill = null;
-      // 스킬바가 쿨타임 와이프를 그리게 알린다. 실시간 = 데이터 초 / 배속
-      if (u.usingSkill) this.onEvent({ type: 'skillCast', id: u.usingSkill.id,
-        sec: (this.D.skills.skills.find(k => k.id === u.usingSkill.id)?.effect?.cooldownSec || 8)
-          / (this.speed || 1) });
-      const target = alive[0];
-      // 원거리 직군은 무기 끝에서 투사체가 나간다. 즉발이면 거리가 안 읽힌다.
-      const A = this.D.combat.allyAttack;
-      const kind = (A?.byClass || {})[u.class] || 'melee';
-      if (kind === 'projectile') {
-        u.rig.attack(() => {
-          if (!target.rig?.view || target.rig.view.destroyed || target.hp <= 0) return;
-          const tip = u.rig.weaponTip();
-          let id = (A.projectileFx || {})[u.class] || A.projectileFx.fallback;
-          if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
-          const tx = target.rig.view.x, ty = target.rig.view.y - target.rig.h * 0.5;
-          this.fx.projectile(id, tip.x, tip.y, tx, ty, {
-            size: this.fxSize(u.rig.h * 0.34, 0.12),
-            dur: 260, arc: -0.1,
-            onHit: () => this.hitFoe(u, target, useSkill),
-          });
-        });
-      } else {
-        u.rig.attack(() => this.hitFoe(u, target, useSkill));
-      }
+      if (u.usingSkill) this.fireSkill(u.usingSkill);
+      this.launchAttack(u, alive[0], !!u.usingSkill);
     }
 
     // 적 공격. 컷아웃이 없으므로 몸 전체 연출 + 투사체로 표현한다.
@@ -633,23 +652,67 @@ export class BattleScene {
    */
   castSkillManual(i) {
     const sk = this.activeSkills[i];
-    if (!sk) return false;
-    const u = this.units.find(x => x.skillCd <= 0 && x.rig);
+    if (!sk || !this.skillReady(sk)) return false;
+    const u = this.units.find(x => x.rig && !x.rig.act) || this.units[0];
     if (!u) return false;
-    u.skillCd = rnd(6, 11);
     u.pendingSkill = sk;          // update 루프의 발동 경로가 이걸 집어 쓴다
+    this.fireSkill(sk);
     this.anyReady = false;
-    document.querySelectorAll('#skills .sk.ready')
-      .forEach(el => el.classList.remove('ready'));
     return true;
+  }
+
+  /** skills.json 의 쿨타임(초). 없으면 8 */
+  cooldownOf(sk) {
+    return this.D.skills.skills.find(k => k.id === sk.id)?.effect?.cooldownSec || 8;
+  }
+
+  skillReady(sk) { return (this.skCd.get(sk.id) ?? 0) <= 0; }
+
+  /** 프레임마다 전 스킬 쿨을 깎는다. 새로 장착된 스킬은 조금씩 어긋나게 시작한다 */
+  tickSkillCd(s) {
+    this.activeSkills.forEach((sk, i) => {
+      if (!this.skCd.has(sk.id)) { this.skCd.set(sk.id, i * 0.7); return; }
+      this.skCd.set(sk.id, this.skCd.get(sk.id) - s);
+    });
+  }
+
+  /**
+   * 이번 스텝에 나갈 스킬 하나와 시전자. 준비된 것 중 **가장 오래 기다린 것**을
+   * 고른다 — 예전엔 무작위라 쿨이 끝난 스킬을 두고 다른 걸 또 뽑는 일이 있었다.
+   * 한 스텝에 하나만 내보내 여러 개가 한 프레임에 겹치는 것을 막는다.
+   */
+  pickSkillCast() {
+    if (this.skillAuto === false) {
+      this.anyReady = this.activeSkills.some(sk => this.skillReady(sk));
+      return null;
+    }
+    const ready = this.activeSkills.filter(sk => this.skillReady(sk));
+    if (!ready.length) return null;
+    // 더 많이 밀린 것(음수로 더 내려간 것)부터
+    ready.sort((a, b) => (this.skCd.get(a.id) ?? 0) - (this.skCd.get(b.id) ?? 0));
+    // 시전자는 **평타가 가장 빨리 도는 유닛**이다. 아무나 집으면 그 유닛의
+    // 평타 차례를 기다리느라 준비된 스킬이 또 밀린다
+    const unit = this.units.filter(u => u.rig && !u.rig.act)
+      .sort((a, b) => a.cd - b.cd)[0];
+    return unit ? { skill: ready[0], unit } : null;
+  }
+
+  /** 쿨타임을 걸고 스킬바에 와이프를 알린다. 실시간 = 데이터 초 / 배속 */
+  fireSkill(sk) {
+    const cd = this.cooldownOf(sk);
+    this.skCd.set(sk.id, cd);
+    this.onEvent({ type: 'skillCast', id: sk.id, sec: cd / (this.speed || 1) });
   }
 
   /** 수동 모드에서 준비 상태를 #skills 아이콘에 반영한다. 프레임마다 부른다. */
   syncReadyBadge() {
     if (this.skillAuto !== false) return;
-    const on = this.units.some(x => x.skillCd <= 0);
-    document.querySelectorAll('#skills .sk:not(.lock)')
-      .forEach(el => el.classList.toggle('ready', on));
+    this.activeSkills.forEach((sk, i) => {
+      const el = document.querySelectorAll('#skills .sk')[i];
+      if (el && !el.classList.contains('lock')) {
+        el.classList.toggle('ready', this.skillReady(sk));
+      }
+    });
   }
 
   /** 단장 머리 위 파티 체력바. 보스 바와 같은 문법을 쓰되 색만 다르다. */

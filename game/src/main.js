@@ -1519,24 +1519,27 @@ function skillDesc(sk, level) {
   const e = sk.effect || {};
   const mult = D.skills.gradeCoef[sk.grade] * (1 + (level || 0) * 0.06)
     / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
+  // 피해 배율은 **퍼센트**로 쓴다 — "1.14배"는 계산을 시키고 "114%"는 그냥 읽힌다.
+  // x() 는 배수 표기가 맞는 자리(쿨타임 가속처럼 속도를 곱하는 것)에만 남긴다.
   const x = v => (v * mult).toFixed(2).replace(/\.?0+$/, '');
+  const atk = v => (v * mult * 100).toFixed(0) + '%';
   const pct = v => (v * mult * 100).toFixed(0) + '%';
   const rawPct = v => (v * 100).toFixed(0) + '%';
   const STAT = { atk: '공격력', def: '방어력', hp: '체력', atkSpeed: '공격 속도',
     dmgTaken: '받는 피해' };
   switch (e.kind) {
-    case 'aoe_damage': return `적 ${e.targets}체에게 공격력의 ${x(e.atkRatio)}배 피해`
+    case 'aoe_damage': return `적 ${e.targets}체에게 공격력의 ${atk(e.atkRatio)} 피해`
       + (e.burnPct ? ` + ${e.burnSec}초간 화상(${pct(e.burnPct)})` : '');
-    case 'single_damage': return `적 하나에게 공격력의 ${x(e.atkRatio)}배 피해`
+    case 'single_damage': return `적 하나에게 공격력의 ${atk(e.atkRatio)} 피해`
       + (e.slowPct ? ` + ${e.slowSec}초간 둔화 ${rawPct(e.slowPct)}` : '');
-    case 'pierce_damage': return `일직선 ${e.targets}체를 관통해 공격력의 ${x(e.atkRatio)}배 피해`;
-    case 'chain_damage': return `번개가 ${e.targets}체를 연쇄해 공격력의 ${x(e.atkRatio)}배 피해`
+    case 'pierce_damage': return `일직선 ${e.targets}체를 관통해 공격력의 ${atk(e.atkRatio)} 피해`;
+    case 'chain_damage': return `번개가 ${e.targets}체를 연쇄해 공격력의 ${atk(e.atkRatio)} 피해`
       + ` (연쇄마다 ${rawPct(e.chainFalloff)}로 감소)`;
     case 'party_buff': return `${e.durationSec}초간 아군 전체 ${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
     case 'cooldown_reduce': return `${e.durationSec}초간 아군 스킬 쿨타임 ${x(e.pct)}배 가속`;
     case 'party_heal': return `아군 전체를 최대 체력의 ${pct(e.maxHpRatio)}만큼 회복`;
     case 'party_shield': return `${e.durationSec}초간 아군 전체에 최대 체력 ${pct(e.maxHpRatio)} 보호막`;
-    case 'summon': return `${e.durationSec}초간 소환수 ${e.count}기 (공격력의 ${x(e.atkRatio)}배로 공격)`;
+    case 'summon': return `${e.durationSec}초간 소환수 ${e.count}기 (공격력의 ${atk(e.atkRatio)}로 공격)`;
     case 'enemy_debuff': return `${e.durationSec}초간 적 전체 ${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
     case 'enemy_stun': return `적 전체를 ${e.durationSec}초간 정지`;
     case 'stat_pct': return `${STAT[e.stat] || e.stat} +${pct(e.pct)}`;
@@ -1547,11 +1550,11 @@ function skillDesc(sk, level) {
     case 'lifesteal': return `피해의 ${pct(e.pct)}만큼 흡혈`;
     case 'reflect': return `받은 피해의 ${pct(e.pct)}를 반사`;
     case 'execute': return `체력 ${rawPct(e.hpThreshold)} 이하의 적을 ${rawPct(e.chance)} 확률로 즉시 처치`;
-    case 'double_hit': return `${rawPct(e.chance)} 확률로 공격력의 ${x(e.atkRatio)}배 추가 타격`;
+    case 'double_hit': return `${rawPct(e.chance)} 확률로 공격력의 ${atk(e.atkRatio)} 추가 타격`;
     case 'regen': return `초당 최대 체력의 ${(e.maxHpRatioPerSec * mult * 100).toFixed(1)}% 재생`;
     case 'revive_once': return `전투당 ${e.perBattle}회, 쓰러질 때 체력 ${pct(e.healRatio)}로 부활`;
     case 'kill_stack_atk': return `처치마다 공격력 +${rawPct(e.pctPerStack)} (최대 ${e.maxStacks}중첩)`;
-    case 'damage_amplify': return `${rawPct(e.chance)} 확률로 피해 ${e.mult}배`;
+    case 'damage_amplify': return `${rawPct(e.chance)} 확률로 피해 ${(e.mult * 100).toFixed(0)}%`;
     default: return '';
   }
 }
@@ -1563,7 +1566,7 @@ function skillEffectRows(sk, level) {
     / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
   const pct = v => (v * 100).toFixed(0) + '%';
   const rows = [];
-  if (e.atkRatio) rows.push(['위력', `공격력의 ${(e.atkRatio * mult).toFixed(2)}배`]);
+  if (e.atkRatio) rows.push(['위력', `공격력의 ${(e.atkRatio * mult * 100).toFixed(0)}%`]);
   if (e.targets) rows.push(['대상', `${e.targets}체`]);
   if (e.pct && e.stat) rows.push(['효과', `${e.stat} +${pct(e.pct * mult)}`]);
   else if (e.pct) rows.push(['효과', `+${pct(e.pct * mult)}`]);
