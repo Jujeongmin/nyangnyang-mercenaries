@@ -297,7 +297,7 @@
   /* 건물 발밑 접지 그림자 — 배경에 붙어 보인다 */
   .al-bd::after{content:"";position:absolute;left:12%;right:12%;bottom:14px;height:12px;
     border-radius:50%;background:#00000038;z-index:-1}
-  .al-bd:active{transform:scale(.96)}
+  .al-bd:active{transform:translateX(-50%) scale(.96)}  /* transform 은 덮어쓰기 — 기본 translateX 를 빼먹으면 누를 때 건물이 반 폭만큼 튄다 */
   #alCap{position:absolute;width:62px;margin-left:-31px;pointer-events:none;
     filter:drop-shadow(0 4px 8px #0009)}
   #alCap img{width:100%;display:block}
