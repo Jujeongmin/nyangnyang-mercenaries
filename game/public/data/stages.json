@@ -493,6 +493,6 @@
     "speedBasis": "unlockedMax",
     "speedBasisNote": "시간당 클리어 수 = 156.5 × **해금된 최고 배속**. 전에는 1배속으로 고정돼 있어서, 3배속으로 켜두고 파밍하면 방치보다 시간당 8.6배를 벌었다 (156.5×3 vs 156.5×0.35). 방치형인데 화면을 켜두는 쪽이 압도적으로 이득이었다. 배속을 곱하면 격차가 offlineEfficiency 가 의도한 2.9배로 돌아온다."
   },
-  "f2pProgressEstimateNote": "curve.formula 로 St1~200 요구 CP 를 재구성해 f2pCpModel 의 CP 가 넘는 최대 스테이지를 찍은 값이다. **단위는 requiredCp 와 같은 v3 스케일**이다 — 구버전 표는 gradeCoef x1000 이전 값이 남아 있어 checkpoints 와 1000배 어긋나 있었다.\ngacha v3 로 D7 St49->28, D30 St104->49, D60 St141->119 로 내려간다. D120 이후는 그대로다.",
+  "f2pProgressEstimateNote": "curve.formula 로 St1~200 요구 CP 를 재구성해 f2pCpModel 의 CP 가 넘는 최대 스테이지를 찍은 값이다. **단위는 requiredCp 와 같은 v3 스케일**이다 — 구버전 표는 gradeCoef x1000 이전 값이 남아 있어 checkpoints 와 1000배 어긋나 있었다.\ngacha v3 로 D7 St49->28, D30 St104->49, D60 St141->119 로 내려갔다. D120 이후는 그대로다. 이 하락은 의도된 것이라 요구 CP 곡선으로 되돌리지 않는다 (gacha.json > rateBandsHistory.v3.f2pStance). 이 표는 목표가 아니라 **실측 추정**이다.",
   "risks": null
 }
