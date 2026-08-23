@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "운영 이벤트 2종 — 냥냥 주사위(일일 리듬) / 소환 마일리지(기간 한정 확정 획득)",
+    "designNote": "출시 7일 축제(dailies.json > newbie7Day)와 무료 1000뽑(free1000.json)은 온보딩용 일회성이라 각자의 파일에 산다. 여기는 반복 운영할 이벤트 틀이다."
+  },
+  "diceBoard": {
+    "nameKo": "출시 기념 · 냥냥 주사위",
+    "lapBonus": {
+      "diamond": 400,
+      "merc_ticket": 5
+    },
+    "lapBonusNote": "완주(12칸)당. 하루 3~5굴림 x 기대 3.5칸 = 약 하루 한 바퀴. 완주 보상이 커야 '조금만 더'가 생긴다.",
+    "cells": [
+      {
+        "type": "start",
+        "nameKo": "출발"
+      },
+      {
+        "type": "gold_h",
+        "v": 0.5,
+        "nameKo": "골드"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "diamond": 60
+        },
+        "nameKo": "다이아"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "merc_ticket": 2
+        },
+        "nameKo": "용병권"
+      },
+      {
+        "type": "gold_h",
+        "v": 1,
+        "nameKo": "골드"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "speedup_5m": 2
+        },
+        "nameKo": "모래시계"
+      },
+      {
+        "type": "again",
+        "nameKo": "한 번 더"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "equip_ticket": 12
+        },
+        "nameKo": "장비권"
+      },
+      {
+        "type": "gold_h",
+        "v": 0.5,
+        "nameKo": "골드"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "skill_ticket": 2
+        },
+        "nameKo": "스킬권"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "diamond": 120
+        },
+        "nameKo": "다이아"
+      },
+      {
+        "type": "gold_h",
+        "v": 2,
+        "nameKo": "골드"
+      }
+    ],
+    "cellsNote": "gold_h 는 고정액이 아니라 **방치 v시간 분량**(idleReward 공식)이다 — 고정 골드는 후반에 휴지조각이 된다. again 은 주사위를 소모하지 않은 셈이 된다.",
+    "budgetNote": "하루 기대치(3굴림 + 광고 2): 다이아 약 90 + 잡권 소량 + 완주 보너스 400x0.9 ≈ 다이아 450/일 상당. f2pDailyYield D30(1,400/일)의 3할 — 이벤트가 상시 수입을 넘으면 안 된다. 기간 한정(2주)으로 돌리고 내리는 전제다.",
+    "missions": [
+      {
+        "id": "dq_stage",
+        "nameKo": "스테이지 10회 클리어",
+        "target": 10,
+        "rolls": 2
+      },
+      {
+        "id": "dq_summon",
+        "nameKo": "소환 5회",
+        "target": 5,
+        "rolls": 2
+      },
+      {
+        "id": "dq_dungeon",
+        "nameKo": "던전 입장 2회",
+        "target": 2,
+        "rolls": 1
+      },
+      {
+        "id": "dq_enhance",
+        "nameKo": "자동강화 1회",
+        "target": 1,
+        "rolls": 1
+      },
+      {
+        "id": "dq_ad",
+        "nameKo": "광고 1회 시청",
+        "target": 1,
+        "rolls": 2
+      }
+    ],
+    "missionsNote": "주사위는 상점도 리필도 아니고 **이벤트 미션 보상**으로만 나온다. 미션 진행도는 일일 임무 카운터(S.dq.c — 같은 행동을 이미 센다)를 그대로 읽고, 수령 기록만 이벤트가 따로 가진다(매일 초기화). 하루 만점 = 8굴림. 안 쓴 주사위는 이월된다 — 미션을 깼는데 안 굴린 것까지 뺏으면 보상이 아니라 숙제가 된다.",
+    "launchNote": "출시 기념 이벤트. 7일 축제와 같은 기간(2주)으로 돌린다."
+  },
+  "summonMileage": {
+    "nameKo": "소환 마일리지",
+    "countsNote": "이벤트 기간의 용병·스킬 소환 횟수 합산. 장비 소환은 트랙이 달라(대량 재화) 제외.",
+    "milestones": [
+      {
+        "n": 30,
+        "grant": {
+          "merc_ticket": 10
+        },
+        "nameKo": "소환권 10장"
+      },
+      {
+        "n": 100,
+        "unit": "SR",
+        "nameKo": "SR 용병 확정"
+      },
+      {
+        "n": 300,
+        "unit": "SSR",
+        "nameKo": "SSR 용병 확정"
+      },
+      {
+        "n": 600,
+        "grant": {
+          "diamond": 2000
+        },
+        "nameKo": "다이아 2,000"
+      },
+      {
+        "n": 1000,
+        "unit": "UR",
+        "nameKo": "UR 용병 확정"
+      }
+    ],
+    "noPityNote": "gacha.json > noPity(천장 없음)는 **상시** 확정 경로 금지다. 이건 기간 한정 이벤트 마일리지라 예외로 둔다 — 라이브 방치형의 표준 장치이고, 기간이 끝나면 확정 경로도 같이 사라져 '유저가 확률을 무시하고 그 경로만 보는' 문제가 안 생긴다. 단 UR 확정(1000회)은 무과금 D60 누적(약 1,050뽑)에 겨우 닿는 깊이로 박아 뽑기 가치를 안 깎는다.",
+    "unitNote": "unit 마일스톤은 그 등급의 용병 중 무작위 1체를 소환 연출 그대로 지급한다 (applyPulls 경로 재사용 — 도감·캐스케이드 전부 정상 통과)."
+  }
+}

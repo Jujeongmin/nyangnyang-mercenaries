@@ -1038,17 +1038,26 @@
   .ev-big b{font-size:26px;color:var(--gold);
     font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
 
-  /* 전직 스킬 칩 — 스킬 8칸 옆. 액티브가 아니라 칸 문법(테두리 원)과 다르게
-     알약꼴로 둔다. 누르면 전직 화면 */
-  #csChip{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;cursor:pointer;
-    font-family:inherit;padding:2px 5px 2px 2px;min-height:24px;border-radius:13px;
-    background:var(--ink)d8;border:1px solid var(--gold);align-self:center}
-  #csChip img{width:18px;height:18px;object-fit:contain;border-radius:50%;
-    filter:drop-shadow(0 0 4px #ffc94a88)}
+  /* 전직 스킬 — 스킬 칸과 같은 원형이되 **틀이 다르다**: 금빛 점선 링이 돌고
+     레벨 배지가 아래 붙는다. 같은 줄에 서면서도 "특별한 한 칸"으로 읽힌다 */
+  #csChip{position:relative;width:clamp(28px,calc((100vw - 128px)/8),42px);aspect-ratio:1;
+    height:auto;flex:0 0 auto;cursor:pointer;font-family:inherit;padding:0;
+    border-radius:50%;overflow:visible;border:2px solid var(--gold);
+    background:radial-gradient(circle at 50% 35%,#4a3512cc,#150f0bcc);
+    box-shadow:0 0 8px #ffc94a66,0 2px 6px #0008;
+    display:flex;align-items:center;justify-content:center;align-self:center}
+  #csChip::before{content:"";position:absolute;inset:-5px;border-radius:50%;
+    border:1.5px dashed #ffc94aa8;animation:csSpin 9s linear infinite;pointer-events:none}
+  @keyframes csSpin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){#csChip::before{animation:none}}
+  #csChip img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  #csChip i{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);
+    font-style:normal;font-size:8px;font-weight:800;color:#2a1c05;white-space:nowrap;
+    background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:6px;padding:0 5px;
+    box-shadow:0 1px 3px #0009}
+  #csChip[hidden]{display:none}
   /* 칩이 8칸 옆에 낄 자리는 스킬 간격에서 얻는다 — 줄 전체가 4px 넘쳤었다 */
   #skRow:has(#csChip:not([hidden])) #skills{gap:4px}
-  #csChip i{font-style:normal;font-size:9px;font-weight:800;color:var(--gold)}
-  #csChip[hidden]{display:none}
 
   /* ── 7일 축제 ── */
   .ev7-hero{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;
@@ -1100,6 +1109,45 @@
   .ev7-cell.hi:not(.big){border-color:var(--dia);
     box-shadow:inset 0 0 14px #5ad8ff22}
   .ev7-btn{min-height:44px;font-size:14px}
+
+  /* ── 냥냥 주사위 ── 12칸을 4x4 테두리에 감고 가운데에 주사위·굴리기 */
+  .dc-wrap{position:relative;margin-bottom:10px}
+  #dcBoard{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
+    gap:5px;aspect-ratio:1;max-width:330px;margin:0 auto}
+  .dc-cell{position:relative;background:var(--card);border:2px solid var(--line);
+    border-radius:11px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:1px;min-height:0}
+  .dc-cell img{width:20px;height:20px;object-fit:contain}
+  .dc-cell b{font-size:9px;font-weight:800;color:var(--dim)}
+  .dc-cell i{font-style:normal;font-size:16px;line-height:1}
+  .dc-cell.t-start{border-color:var(--gold);background:linear-gradient(135deg,#3a2a12,var(--card))}
+  .dc-cell.t-start b{color:var(--gold)}
+  .dc-cell.t-again{border-color:var(--dia)}
+  .dc-cell.here{border-color:var(--gold);box-shadow:0 0 10px #ffc94a88;
+    animation:qDone 1.15s ease-in-out infinite}
+  .dc-tok{position:absolute;left:50%;top:-12px;transform:translateX(-50%);
+    width:26px !important;height:26px !important;border-radius:50%;
+    border:2px solid var(--gold);background:#000;z-index:3;box-shadow:0 2px 6px #000a}
+  .dc-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:flex;flex-direction:column;align-items:center;gap:7px;width:44%}
+  #dcFace{font-size:34px;line-height:1;font-family:"Black Han Sans",system-ui,sans-serif;
+    color:var(--gold);text-shadow:0 2px 0 #00000080;min-height:38px;
+    display:flex;align-items:center}
+  #dcRoll{width:100%;min-height:40px}
+  #dcRoll em{font-style:normal;font-size:11px;background:#00000040;border-radius:8px;
+    padding:1px 7px;margin-left:4px}
+  .dc-mbtn{position:absolute;right:10px;top:50%;transform:translateY(-50%);min-width:52px}
+  #dcMissions .mq-row{padding-right:70px}
+
+  /* ── 소환 마일리지 ── */
+  .ml-row{display:flex;align-items:center;gap:10px;background:var(--card);
+    border:2px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:6px}
+  .ml-row.can{border-color:var(--gold);box-shadow:0 0 8px #ffc94a44}
+  .ml-row.done{opacity:.55}
+  .ml-n{flex:0 0 44px;text-align:center;font-size:14px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .ml-what{flex:1;font-size:12px}
+  .ml-what b{font-weight:800}
 
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
   .fg-pull .fgbtn{display:flex;flex-direction:column;align-items:center;gap:2px;

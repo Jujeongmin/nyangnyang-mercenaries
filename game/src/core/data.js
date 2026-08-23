@@ -7,7 +7,7 @@
 const FILES = [
   'characters', 'skills', 'gacha', 'equipment', 'combat', 'stages', 'tower', 'dungeons',
   'quests', 'economy', 'goldsinks', 'arena', 'alliance', 'ranking', 'codex', 'dailies',
-  'free1000', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
+  'free1000', 'events', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
 ];
 
 export const D = Object.create(null);

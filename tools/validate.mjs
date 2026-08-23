@@ -11,7 +11,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = [
   'characters', 'skills', 'gacha', 'equipment', 'combat', 'stages', 'dungeons',
   'quests', 'economy', 'goldsinks', 'arena', 'alliance', 'ranking', 'codex', 'dailies',
-  'free1000', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
+  'free1000', 'events', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
 ];
 
 const D = {};
