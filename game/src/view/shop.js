@@ -229,7 +229,9 @@ export class ShopScreen {
     const pct = v => (v < 1 ? String(+v.toFixed(4)) : v.toFixed(2).replace(/\.00$/, ''));
 
     // 등급 한 줄 — 등급 확률과 개별 확률(등급확률 ÷ 종수)을 같이 준다
-    const gradeRows = b => Object.entries(b.rates).filter(([, v]) => v > 0).reverse()
+    // 낮은 등급이 위다 (제작대 확률창과 같은 순서). JSON 의 등급 순서가
+    // 그대로 N -> LR 이라 뒤집지 않는 것이 곧 오름차순이다
+    const gradeRows = b => Object.entries(b.rates).filter(([, v]) => v > 0)
       .map(([g, v]) => `<div class="sm-g"><i style="background:${GC[g]}"></i>
         <b style="color:${GC[g]}">${g}</b>
         <span class="sm-p">${pct(v)}%</span>
@@ -266,7 +268,7 @@ export class ShopScreen {
           const opened = Object.entries(ul)
             .filter(([g, lv]) => lv === b.minLevel && lv > 1 && g !== 'N' && g !== 'R')
             .map(([g]) => `<em style="color:${GC[g]}">${g} 해금</em>`).join('');
-          const rates = Object.entries(b.rates).filter(([, v]) => v > 0).reverse()
+          const rates = Object.entries(b.rates).filter(([, v]) => v > 0)
             .map(([g, v]) => `<span style="color:${GC[g]}">${g} ${pct(v)}</span>`).join('');
           return `<div class="sm-band${now ? ' now' : ''}">
             <span class="lv">Lv ${b.minLevel}${opened}</span>

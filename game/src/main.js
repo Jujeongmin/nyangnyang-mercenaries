@@ -786,7 +786,12 @@ function resumeAuto() {
 function openAutoPanel() {
   if (!autoUnlocked()) return toast(`제작대 Lv ${unlockLv('auto_summon')} 부터 자동 소환이 열립니다`);
   const maxB = batchSize();
-  const opts = [1, 10, 30, 50, 100, maxB].filter((v, i, a) => v <= maxB && a.indexOf(v) === i);
+  // 고를 수 있는 배치는 **해금된 단계들 자체**다. 임의의 눈금(10/30/50)을 두면
+  // 아직 안 열린 크기가 목록에 뜨거나(Lv9 에 10개), 열린 크기가 안 뜬다(5개)
+  const steps = [...new Set(D.equipment.summon.progression
+    .filter(p => p.pullsPerBatch && p.summonLv <= S.forgeLv)
+    .map(p => p.pullsPerBatch))].sort((a, b) => a - b);
+  const opts = steps.length ? steps : [maxB];
   const cur = S.autoBatch || maxB;
 
   const h = [];
@@ -2532,9 +2537,11 @@ function openForgeRates(idx) {
   // 레벨당 1행이라 화살표만 두면 다음 해금까지 수십 번을 눌러야 한다
   const ji = bands.findIndex((x, i) => i > fgRateIdx && x.unlocks);
   const jump = ji >= 0 ? { i: ji, b: bands[ji] } : null;
+  // 낮은 등급이 위다. 표를 읽는 사람은 "내가 주로 받는 것"부터 보고
+  // 아래로 내려가며 희귀도가 오르는 순서를 기대한다
   const rows = Object.entries(b.rates)
     .filter(([, v]) => v > 0)
-    .sort((x, y) => +y[0] - +x[0])
+    .sort((x, y) => +x[0] - +y[0])
     .map(([t, v]) => {
       const g = D.equipment.grades[+t - 1];
       // 부위는 균등 추첨이므로 개별 확률 = 등급 확률 / 부위 수
