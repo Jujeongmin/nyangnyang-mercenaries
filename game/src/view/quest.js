@@ -30,6 +30,9 @@ export const QUEST_TYPE = {
   skill_summon: { label: '스킬 소환', goto: 'shop', track: 'skill', verb: '스킬 소환으로' },
   equip_summon_level: { label: '제작대 레벨', goto: 'forge', verb: '제작대로' },
   dungeon_floor: { label: '던전 돌파', goto: 'dungeon', verb: '던전으로' },
+  // 처치 수는 방치 중에도 저절로 오른다 — "가서 뭘 해라"가 아니라
+  // "계속 돌리면 찬다". 그래서 옮길 데가 없다 (goto: null)
+  monster_kill: { label: '몬스터 처치', goto: null, verb: '' },
   // 스테이지·전투력은 이미 하고 있는 일이다. 옮길 데가 없으므로 아무 반응도 안 한다.
   power_reach: { label: '전투력 달성', goto: null, verb: '' },
 };
@@ -69,6 +72,7 @@ export function questProgress(S, def) {
     case 'equip_summon_level': return S.forgeLv;
     case 'dungeon_floor':
       return Object.values(S.dg || {}).reduce((a, d) => Math.max(a, d.floor - 1), 0);
+    case 'monster_kill': return S.kills || 0;
     case 'power_reach': return 0;   // main 이 CP 를 넣어준다
     default: return 0;
   }

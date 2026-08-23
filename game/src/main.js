@@ -83,6 +83,8 @@ const S = {
   capLv: 1, capXp: 0,                      // 단장(계정) 레벨. 스탯 효과 없음
   codex: { mercenary: [], skill: {} },     // 1회 획득 시 영구 등록
   trainLv: 0,                              // 훈련소
+  promo: { warrior: 1, archer: 1, mage: 1 },   // 직군별 전직 단계
+  kills: 0,                                // 누적 몬스터 처치 (퀘스트 monster_kill)
   nickname: null,                          // 첫 부팅에 자동 배정된다
   nickChanged: 0,                          // 변경 횟수. 0 이면 다음 변경이 무료
   nickChangedAt: 0,
@@ -94,7 +96,11 @@ const S = {
 let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, alli;
 
 // --- CP ---
-const cpOf = m => D.characters.gradeCoef[m.grade] * (1 + m.level * D.characters.levelGrowthPerLevel);
+// 전직 배수는 **그 용병의 직군**에서 온다 (goldsinks > training_camp.promotion).
+// class 가 없는 옛 세이브·스킬 객체는 배수 1 로 떨어진다
+const cpOf = m => D.characters.gradeCoef[m.grade]
+  * (1 + m.level * D.characters.levelGrowthPerLevel)
+  * (m.class ? promoMult(m.class) : 1);
 const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + s.level * 0.06);
 
 function equipBonus() {
@@ -424,6 +430,29 @@ const questDone = n => questCleared() >= (n || 0);
  * 장착 칸 수. quests.json > slotUnlockQuests
  * @param kind 'mercenary' | 'skillActive' | 'skillPassive'
  */
+/**
+ * 네비 탭이 열렸나. quests.json > navUnlockQuests 가 단일 소스다.
+ * 처음엔 전투만 보이고 퀘스트를 넘길 때마다 하나씩 열린다 — 다섯 탭을 한 번에
+ * 주면 첫 화면이 메뉴판이 되고 무엇부터 할지가 안 보인다.
+ */
+function navOpen(tab) {
+  const t = D.quests.navUnlockQuests?.tabs?.[tab];
+  return !t || questCleared() >= t.afterQuest;
+}
+
+/** 잠긴 탭에 자물쇠를 씌우고, 열리면 벗긴다 */
+function renderNavLocks() {
+  document.querySelectorAll('#nav .nv').forEach(el => {
+    const t = el.dataset.tab;
+    const open = navOpen(t);
+    el.classList.toggle('locked', !open);
+    if (!open) {
+      const need = D.quests.navUnlockQuests.tabs[t].afterQuest;
+      el.title = `퀘스트 ${need} 완료 시 열립니다`;
+    } else el.removeAttribute('title');
+  });
+}
+
 function slotsOf(kind) {
   const tbl = D.quests.slotUnlockQuests?.[kind] || [];
   let n = 0;
@@ -446,8 +475,10 @@ function claimQuest() {
   renderQuest(); renderTop();
   // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
   syncSpeedBtns();
-  // 무엇을 받았는지는 획득 배너가 말한다 — 토스트까지 띄우면 같은 말이 두 번이다
-  gainToast(Object.entries(def.rewards).filter(([k]) => QUEST_CUR[k]));
+  renderNavLocks();
+  // 퀘스트는 **아무 팝업도 안 띄운다.** 보상이 배너에 이미 아이콘+개수로 떠 있고
+  // 수령하면 그 자리가 다음 퀘스트로 바뀐다 — 그게 곧 "받았다"는 신호다.
+  // 상단 획득 배너까지 띄우면 화면 중앙이 매 퀘스트마다 가려진다
   if (speedMax() > before) setTimeout(() => toast(`${speedMax()}배속 해금!`), 1400);
 }
 
@@ -1414,7 +1445,9 @@ function openPass() {
       ${cell('free', f)}${cell('paid', p2)}</div>`;
   };
 
-  $('#ovt').textContent = `시즌 패스 · ${P.season.nameKo}`;
+  // 제목은 짧게. 시즌 이름까지 넣으면 좁은 화면에서 잘린다 —
+  // 시즌 이름은 아래 본문(진행 카드)이 이미 보여 준다
+  $('#ovt').textContent = '시즌 패스';
   $('#ovcard').dataset.skin = 'pass';
   $('#ovb').innerHTML =
     `<div class="ps-top">
@@ -1787,6 +1820,32 @@ function openAttend() {
     b.addEventListener('click', () => claimAttendCum(+b.dataset.cum)));
 }
 
+// ── 전직 ──────────────────────────────────────────────────
+// 직군 단위 승급. 게이트는 **훈련소 레벨**이다 (goldsinks > training_camp.promotion).
+// 개별 용병이 아니라 직군 전체가 같이 오른다 — 32종을 하나씩 올리게 하면
+// 자동편성 게임의 손맛과 어긋난다.
+const promoDef = () => trainDef().promotion;
+const promoTier = cls => (S.promo && S.promo[cls]) || 1;
+/** 그 직군의 스탯 배수. cpOf 곱연산 항으로 들어간다 */
+const promoMult = cls => {
+  const t = promoDef().tiers.find(x => x.tier === promoTier(cls));
+  return t ? t.statMult : 1;
+};
+const promoNext = cls => promoDef().tiers.find(x => x.tier === promoTier(cls) + 1);
+
+function doPromote(cls) {
+  const nx = promoNext(cls);
+  if (!nx) return toast('이미 최종 단계입니다');
+  if (S.trainLv < nx.trainLv) return toast(`훈련소 Lv ${nx.trainLv} 필요`);
+  if (S.gold < nx.cost.gold) return toast('골드가 부족합니다');
+  S.gold -= nx.cost.gold;
+  S.promo = S.promo || {};
+  S.promo[cls] = nx.tier;
+  save(); refreshParty(); openTraining();
+  const nm = promoDef().names[cls][nx.tier - 1];
+  toast(`${CLASS_KO[cls]} → ${nm}`);
+}
+
 function openTraining() {
   const def = trainDef();
   const lv = S.trainLv;
@@ -1813,7 +1872,25 @@ function openTraining() {
     <button class="fgbtn" id="tcUp" ${maxed || S.gold < cost ? 'disabled' : ''}>
       ${maxed ? '최대 레벨' : '강화'}</button>
     <button class="fgbtn" id="tcUp10" style="margin-top:7px" ${maxed ? 'disabled' : ''}>
-      가능한 만큼 강화</button>`;
+      가능한 만큼 강화</button>
+    <div class="lbl" style="margin:14px 0 6px">전직 — 훈련소 레벨로 열린다</div>
+    ${['warrior', 'archer', 'mage'].map(cls => {
+      const P = promoDef();
+      const cur = promoTier(cls);
+      const nx = promoNext(cls);
+      const nm = P.names[cls][cur - 1];
+      const canLv = !nx || S.trainLv >= nx.trainLv;
+      const canGold = !nx || S.gold >= nx.cost.gold;
+      return `<div class="pm-row">
+        <span class="pm-t"><b>${nm}</b>
+          <i>${nx ? `다음: ${P.names[cls][nx.tier - 1]} · 훈련소 Lv ${nx.trainLv}` : '최종 단계'}</i></span>
+        <span class="pm-m">×${promoMult(cls).toFixed(2)}</span>
+        ${nx ? `<button class="rt-b go" data-promo="${cls}"
+            ${canLv && canGold ? '' : 'disabled'}>${
+            !canLv ? `Lv ${nx.trainLv}` : `${cpNum(nx.cost.gold)}`}</button>`
+          : '<button class="rt-b" disabled>완료</button>'}
+      </div>`;
+    }).join('')}`;
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">설계 메모</div>'
     + `<div class="frow" style="padding:7px 10px"><span class="k">비용 공식</span>
         <span class="v" style="font-size:11px">${def.costFormula}</span></div>`
@@ -1836,6 +1913,8 @@ function openTraining() {
     scene.partyDps = partyDps();
     toast(`훈련소 Lv${S.trainLv} · 전투력 +${cpNum(totalCp() - before)}`);
   };
+  document.querySelectorAll('[data-promo]').forEach(b =>
+    b.addEventListener('click', () => doPromote(b.dataset.promo)));
   $('#tcUp').onclick = () => buy(false);
   $('#tcUp10').onclick = () => buy(true);
 }
@@ -2285,8 +2364,16 @@ function renderTop() {
   }
 }
 
+/**
+ * 조우 진행 표시. 지나온 것은 채우고(on), **지금 하는 것 위에 화살표**를 둔다.
+ * 점만 있으면 "몇 번째를 하는 중"이 안 읽혔다 — 채워진 마지막 점과 다음 점의
+ * 경계가 곧 현재 위치다.
+ */
 const markEncounter = i =>
-  document.querySelectorAll('#enc .dotw').forEach((e, k) => e.classList.toggle('on', k <= i));
+  document.querySelectorAll('#enc .dotw').forEach((e, k) => {
+    e.classList.toggle('on', k <= i);
+    e.classList.toggle('now', k === i + 1);
+  });
 
 function toast(msg) {
   const t = $('#toast');
@@ -2768,6 +2855,12 @@ function questGoto(t) {
 }
 
 function onEvent(e) {
+  if (e.type === 'kill') {
+    // 누적 처치. 퀘스트 진행도라 렌더까지 해야 배너가 즉시 찬다
+    S.kills = (S.kills || 0) + 1;
+    renderQuest();
+    return;
+  }
   if (e.type === 'skillCast') {
     // 자동 발동이 보이게 — 시전된 칸에 쿨타임 와이프를 돌린다.
     // 원뿔 그라데이션 각도를 CSS 변수로 깎는 rAF 하나. 칸당 동시 1개
@@ -3004,6 +3097,7 @@ function bootLangPick() {
   // 세이브의 배속을 화면에 반영 + 해금 안 된 값이면 끌어내린다
   if (scene) scene.speed = Math.min(S.speed || 1, speedMax());
   syncSpeedBtns();
+  renderNavLocks();
   // 닉네임이 없으면 아무거나 붙여 준다. 유저는 나중에 한 번 공짜로 바꾼다.
   if (!S.nickname) { S.nickname = autoNickname(); save(); }
   seedMail();
@@ -3048,6 +3142,10 @@ function bootLangPick() {
   });
   document.querySelectorAll('#nav .nv').forEach(n => n.addEventListener('click', () => {
     const t = n.dataset.tab;
+    if (!navOpen(t)) {
+      const need = D.quests.navUnlockQuests.tabs[t].afterQuest;
+      return toast(`퀘스트 ${need} 를 끝내면 열립니다`);
+    }
     // **켜진 탭을 다시 누르면 닫는다.** 시트 탭에서 닫는 경로가 X 버튼뿐이면
     // 열었던 손가락이 그대로 한 번 더 눌러 닫는 자연스러운 왕복이 안 된다
     if (navTab === t && ['merc', 'skill', 'dungeon'].includes(t) && roster.isOpen) {

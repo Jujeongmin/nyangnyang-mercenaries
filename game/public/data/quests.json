@@ -142,7 +142,7 @@
       "q": 1,
       "cycle": 1,
       "type": "stage_clear",
-      "target": 5,
+      "target": 3,
       "rewards": {
         "merc_ticket": 10,
         "gold": 30000
@@ -152,21 +152,21 @@
     {
       "q": 2,
       "cycle": 1,
-      "type": "mercenary_summon",
-      "target": 10,
+      "type": "monster_kill",
+      "target": 30,
       "rewards": {
-        "skill_ticket": 10,
-        "gold": 40000
+        "gold": 20000
       },
       "feedsInto": 3
     },
     {
       "q": 3,
       "cycle": 1,
-      "type": "skill_summon",
-      "target": 10,
+      "type": "stage_clear",
+      "target": 6,
       "rewards": {
-        "speedup_5m": 6
+        "merc_ticket": 5,
+        "gold": 30000
       },
       "feedsInto": 4,
       "targetNote": "스킬 소환 8→10. 앞 퀘스트(Q2) 보상도 10장으로 맞춰 \"받은 만큼 그대로 쓰면 끝난다\"가 성립한다"
@@ -174,11 +174,11 @@
     {
       "q": 4,
       "cycle": 1,
-      "type": "equip_summon_level",
-      "target": 2,
+      "type": "mercenary_summon",
+      "target": 10,
       "rewards": {
-        "gold": 20000,
-        "equip_ticket": 15
+        "skill_ticket": 10,
+        "gold": 40000
       },
       "feedsInto": 5
     },
@@ -186,23 +186,24 @@
       "q": 5,
       "cycle": 1,
       "type": "stage_clear",
-      "target": 8,
+      "target": 10,
       "rewards": {
-        "diamond": 300,
-        "merc_ticket": 5
+        "gold": 30000,
+        "equip_ticket": 10
       },
       "feedsInto": 6
     },
     {
       "q": 6,
       "cycle": 1,
-      "type": "power_reach",
-      "target": 3000,
+      "type": "skill_summon",
+      "target": 10,
       "rewards": {
-        "gold": 50000,
-        "equip_ticket": 20
+        "speedup_5m": 6,
+        "gold": 30000
       },
-      "feedsInto": 7
+      "feedsInto": 7,
+      "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
     },
     {
       "q": 7,
@@ -402,13 +403,14 @@
     {
       "q": 24,
       "cycle": 4,
-      "type": "power_reach",
-      "target": 90000,
+      "type": "monster_kill",
+      "target": 4200,
       "rewards": {
         "gold": 5000000,
         "equip_ticket": 150
       },
-      "feedsInto": 25
+      "feedsInto": 25,
+      "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
     }
   ],
   "generationRule": {
@@ -423,16 +425,15 @@
   },
   "trackUnlockQuests": [
     {
-      "afterQuest": 0,
-      "unlock": "mercenary_summon",
-      "note": "튜토리얼"
+      "afterQuest": 3,
+      "unlock": "mercenary_summon"
     },
     {
-      "afterQuest": 2,
+      "afterQuest": 5,
       "unlock": "skill_summon"
     },
     {
-      "afterQuest": 3,
+      "afterQuest": 6,
       "unlock": "equipment_summon"
     }
   ],
@@ -530,5 +531,35 @@
     },
     "speed3": "구매 해금 (shop.json > packages > speed3_unlock). 퀘스트로는 안 열린다"
   },
-  "chainInvariant": "퀘스트 N 의 목표 재화는 **N 이전 퀘스트들의 누적 지급으로 달성 가능해야 한다.** 안 그러면 뽑기 운이나 과금 없이는 사슬이 멈춘다. 검산: sim 없이 quests.json 만으로 계산되므로 보상을 고치면 tools/validate.mjs 가 잡는다."
+  "chainInvariant": "퀘스트 N 의 목표 재화는 **N 이전 퀘스트들의 누적 지급으로 달성 가능해야 한다.** 안 그러면 뽑기 운이나 과금 없이는 사슬이 멈춘다. 검산: sim 없이 quests.json 만으로 계산되므로 보상을 고치면 tools/validate.mjs 가 잡는다.",
+  "typeNote": "stage_clear / mercenary_summon / skill_summon / equip_summon_level / dungeon_floor / power_reach / **monster_kill**. 처치는 S.kills 누적이고 전투 중 실시간으로 오른다 (view/quest.js > questProgress)",
+  "navUnlockQuests": {
+    "canonicalSource": true,
+    "note": "하단 네비는 처음에 전투만 열려 있다. 한 번에 다섯 탭을 주면 첫 화면이 메뉴판이 되고, 무엇부터 할지가 안 보인다. 퀘스트를 넘길 때마다 하나씩 열린다.",
+    "tabs": {
+      "merc": {
+        "afterQuest": 3,
+        "nameKo": "용병"
+      },
+      "skill": {
+        "afterQuest": 5,
+        "nameKo": "스킬"
+      },
+      "shop": {
+        "afterQuest": 3,
+        "nameKo": "상점",
+        "note": "용병 탭과 같이 연다 — 소환 퀘스트(Q4)를 하려면 상점이 필요하다"
+      },
+      "dungeon": {
+        "afterQuest": 7,
+        "nameKo": "던전",
+        "note": "Q7 이 gold_mine 을 해금한다"
+      },
+      "alliance": {
+        "afterQuest": 12,
+        "nameKo": "연합",
+        "note": "연합은 남과 비교하는 곳이라 자기 용병단이 선 뒤에 연다"
+      }
+    }
+  }
 }

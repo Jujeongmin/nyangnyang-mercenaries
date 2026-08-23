@@ -99,6 +99,15 @@
   #stg{font-size:13px;font-weight:800;display:flex;align-items:baseline;gap:6px}
   #stg i{font-style:normal;font-size:10px;font-weight:600;color:#cfe0ff;opacity:.85}
   #enc{display:flex;gap:5px;margin-top:2px;justify-content:center}
+  /* 지금 진행 중인 조우 위에 작은 화살표. 점만 있으면 "몇 번째를 하는 중"이
+     안 읽힌다 — 지나온 것과 남은 것 사이 경계가 보여야 한다 */
+  #enc .dotw{position:relative}
+  /* 화살표는 점 **가운데** 위에 선다. margin 으로 중앙을 잡고 transform 은
+     애니메이션에만 쓴다 — 둘을 섞으면 keyframes 가 정렬을 덮어써서 옆으로 밀린다 */
+  #enc .dotw.now::before{content:'▾';position:absolute;left:0;right:0;top:-9px;
+    text-align:center;font-size:8px;line-height:1;color:var(--gold);
+    text-shadow:0 1px 2px #000;animation:encBob .9s ease-in-out infinite}
+  @keyframes encBob{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
   /* 보스에 진 뒤의 잡몹 반복 — 진행도 점은 의미가 없다(보스로 안 가니까).
      점을 감추고 도는 화살표로 "루프 중"임을 말한다. */
   #farmLoop{display:none;align-items:center;justify-content:center;gap:5px;margin-top:2px;
@@ -122,6 +131,18 @@
     padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
   .sbtn.on{background:var(--gold);color:#000;border-color:var(--gold)}
   /* 출석 — 7일 격자 + 월 누적 줄 */
+  /* 전직 줄 — 훈련소 화면 하단 */
+  .pm-row{display:flex;align-items:center;gap:9px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:8px 11px;margin-bottom:6px}
+  .pm-t{flex:1;min-width:0}
+  .pm-t b{display:block;font-size:13px}
+  /* 안내 줄이 좁은 화면에서 "…Lv" / "40" 처럼 접히던 것 — 낱말 유지 + 말줄임 */
+  .pm-t i{display:block;font-style:normal;font-size:10px;color:var(--dim);margin-top:1px;
+    word-break:keep-all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pm-m{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .pm-row button{flex:0 0 84px;min-height:32px;font-size:11px}
+
   .at-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
   .at-cell{position:relative;background:var(--card);border:1px solid var(--line);border-radius:9px;
     padding:7px 6px;text-align:center;min-height:64px}
@@ -462,8 +483,11 @@
   .er-note{font-size:10px;color:var(--dim);text-align:center;margin-top:9px;line-height:1.5}
 
   /* 제작대 도크 — 인벤토리 아래 가운데. 탭이 곧 소환이다 */
-  #fgDock{position:relative;display:flex;flex-direction:column;align-items:center;
-    margin-top:auto;padding-top:4px;padding-bottom:14px}
+  /* 제작대 줄 — 왼쪽 퀘스트 / 오른쪽 제작대. 둘 다 "지금 할 일"이다 */
+  /* 제작대는 **원래 자리(가운데)** 그대로다. 퀘스트는 그 왼쪽 빈 공간에
+     절대배치로 얹는다 — 흐름에 넣으면 제작대가 오른쪽으로 밀린다 */
+  #fgRow{position:relative;margin-top:auto;padding:4px 2px 12px}
+  #fgDock{position:relative;display:flex;flex-direction:column;align-items:center}
   #fgObj{border:none;background:none;padding:0;cursor:pointer;position:relative;
     width:104px;height:74px;transition:transform .12s}
   #foAnim{filter:drop-shadow(0 4px 10px #000a) drop-shadow(0 0 14px #ffb04a55)}
@@ -621,17 +645,25 @@
   #chat .who{flex:0 0 auto;color:var(--gold);font-weight:800;font-size:12px;
     background:#1a2233;border:1px solid var(--line);border-radius:7px;padding:3px 8px}
   #chat #chatline{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}
-  #quest{background:var(--ink)cc;border:1px solid #ffffff1c;border-radius:6px;
-    min-height:26px;
-    padding:2px 6px;display:flex;align-items:center;gap:5px}
-  #corner{position:absolute;font-size:8px;flex:1;gap:5px;min-width:0}
-  #qname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
-  #qprog{color:var(--dim);flex:0 0 auto}
-  #qbar{height:3px;background:#0007;border-radius:2px;overflow:hidden;flex:0 0 38px;margin:0}
+  /* 퀘스트 — 제작대 왼쪽. 전투 영역의 얇은 띠가 아니라 **카드**다.
+     세로로 [이름/진행] → [게이지] → [보상] 을 쌓아 한눈에 읽힌다 */
+  /* 제작대(가운데 104px) 왼쪽 여백에 들어간다. 제작대 왼쪽 가장자리까지가 폭 */
+  #quest{position:absolute;left:6px;top:50%;transform:translateY(-50%);
+    width:calc(50% - 66px);background:var(--card);
+    border:1px solid var(--line);border-radius:11px;
+    padding:8px 10px;display:flex;flex-direction:column;justify-content:center;gap:6px;
+    font-size:10px;cursor:pointer;pointer-events:auto;z-index:4}
+  #corner[hidden]{display:none}
+  #qtop{display:flex;align-items:baseline;gap:6px}
+  #qname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt);
+    font-size:11px;font-weight:800;flex:1;min-width:0}
+  #qprog{color:var(--gold);flex:0 0 auto;font-size:11px;font-weight:800;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  #qbar{height:5px;background:#0007;border-radius:3px;overflow:hidden;width:100%;margin:0}
   #qfill{height:100%;width:0;background:linear-gradient(90deg,#4a6fc0,#5ad8ff)}
   /* 보상 칩 — 아이콘 위에 개수를 얹는다. 가로가 좁아 글자를 옆에 못 둔다 */
-  #qrw{display:flex;gap:4px;flex:0 0 auto;align-items:center}
-  #qrw span{position:relative;width:20px;height:20px;flex:0 0 auto}
+  #qrw{display:flex;gap:5px;flex:0 0 auto;align-items:center}
+  #qrw span{position:relative;width:22px;height:22px;flex:0 0 auto}
   #qrw img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 1px 2px #000a)}
   #qrw b{position:absolute;right:-3px;bottom:-3px;font-size:8px;font-weight:400;
@@ -1376,7 +1408,9 @@
   #ovh{background:none;border-bottom:none;padding:0 18px 6px;min-height:50px;
     align-items:center;position:relative}
   #ovt{text-align:center;color:var(--gold);letter-spacing:1px;
-    text-shadow:0 1px 3px #000, 0 0 12px #ffc94a44}
+    text-shadow:0 1px 3px #000, 0 0 12px #ffc94a44;
+    /* 긴 제목("시즌 패스 · 첫 원정")이 2줄로 접히면 밑줄까지 밀려 헤더를 넘는다 */
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   #ovt::after{content:"";display:block;width:56%;height:2px;margin:3px auto 0;
     background:linear-gradient(90deg,#0000,#ffc94a88,#0000)}
   #ovx{border-width:8px;padding:0 3px;font-size:11px}
@@ -1453,6 +1487,11 @@
   /* 솟는 아이콘이 상자를 넘지 않게 위쪽 여유를 준다. overflow:visible 만으로는
      "밖으로 나갔다"가 사실이라 검사기가 계속 잡는다 */
   .nv{padding-top:8px}
+  /* 잠긴 탭 — 흐리게 + 자물쇠. 숨기지 않는다: 앞으로 뭐가 열리는지가 보여야
+     진도를 밀 이유가 된다 (배속 잠금과 같은 규칙) */
+  .nv.locked{opacity:.34;filter:grayscale(1)}
+  .nv.locked::after{content:'🔒';position:absolute;top:6px;right:22%;font-size:10px;
+    filter:none;opacity:.9}
   .nv.on{color:var(--gold);font-weight:800;overflow:visible}
   .nv.on::before{content:"";position:absolute;left:14%;right:14%;bottom:2px;height:22px;
     border-radius:50%;background:radial-gradient(ellipse at 50% 100%,#ffc94a3e,#0000 70%);
@@ -1786,6 +1825,20 @@
   #shBody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 10px}
   /* 장착 중인 칸 — 목록에서 눈에 띄어야 "이미 낀 것"을 다시 안 찾는다 */
   .cx-cell.on{border-color:var(--gold);box-shadow:0 0 10px -2px var(--gold) inset}
+  /* 칸 아래 성장 줄 — 이름 대신 "Lv 현재/상한 (+대기 중복)".
+     상한은 작게, 대기 중복은 초록으로 눈에 띄게 (지금 올릴 수 있다는 신호) */
+  .cx-cell .cx-f{position:relative;z-index:4;width:100%;text-align:center;
+    font-size:9px;font-weight:800;padding:2px 1px;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;
+    background:linear-gradient(#0000,var(--ink) 45%);
+    text-shadow:0 1px 3px #000;color:#f5ecdc}
+  .cx-cell .cx-f i{font-style:normal;font-size:8px;color:var(--dim);margin-left:1px}
+  .cx-cell .cx-f b{font-size:9px;color:var(--up);margin-left:3px}
+  .cx-cell .cx-f.dim{color:var(--dim)}
+  .cx-cell .cx-f.max{color:var(--gold)}
+  /* 올릴 게 있는 칸은 테두리가 초록으로 — 목록에서 바로 눈에 든다 */
+  .cx-cell.up{box-shadow:0 0 0 2px var(--up) inset}
+
   .cx-cell .rt-lv{position:absolute;top:3px;right:3px;left:auto;font-style:normal;
     font-size:8px;font-weight:900;color:var(--gold);background:#0b0f17d0;
     padding:1px 4px;border-radius:5px}
@@ -2158,8 +2211,11 @@
     <div id="vsCap"><img id="vsCapImg" src="/assets/captain/captain_warrior.png" alt=""></div>
     <div id="vsMark">VS</div>
     </div>
-    <div id="corner">
-      <div id="quest">
+    <!-- 퀘스트 배너는 하단 제작대 줄로 옮겼다 (아래 #fgDock 왼쪽).
+         전투 영역에 두면 사이드 열·조우 점과 자리를 다퉜고, 좁은 화면에서는
+         어디에 놓아도 부딪혔다 -->
+    <div id="corner" hidden>
+      <div id="questOld">
         <div id="qtop"><span id="qname">퀘스트 1</span><span id="qprog">0 / 0</span></div>
         <div id="qbar"><div id="qfill"></div></div>
         <!-- 보상 미리보기 — 아이콘 + 개수. "뭘 주는지"가 안 보이면 퀘스트가
@@ -2200,6 +2256,13 @@
     <div class="lbl"><span>장비</span><span id="eqInfo"></span></div>
     <div id="eq"><div id="eqL"></div><div id="eqR"></div></div>
 
+    <!-- 퀘스트 — 제작대 왼쪽. 둘 다 "지금 할 일"이라 같은 줄이 제자리다 -->
+    <div id="fgRow">
+    <div id="quest">
+      <div id="qtop"><span id="qname">퀘스트 1</span><span id="qprog">0 / 0</span></div>
+      <div id="qbar"><div id="qfill"></div></div>
+      <div id="qrw"></div>
+    </div>
     <div id="fgDock">
       <button id="fgObj" title="탭하여 장비 소환">
         <!-- 전 단계가 4프레임 시트(FO-0N-STRIP) 재생이다. 유휴 = 마지막(휴지) 프레임.
@@ -2216,6 +2279,7 @@
         <b id="fgTicketN">0</b>
       </div>
     </div>
+    </div><!-- /#fgRow -->
   </div>
 
   <!-- 채팅 — 제작대 패널 밖. 가로로 길게 한 줄 -->

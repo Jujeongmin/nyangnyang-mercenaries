@@ -205,19 +205,36 @@ export class RosterSheet {
       + '</div>';
   }
 
-  /** 목록 한 칸. 도감과 같은 클래스를 쓴다 (.cx-cell / .lock 이 ??? · 회색을 준다) */
+  /**
+   * 목록 한 칸. 도감과 같은 클래스를 쓴다 (.cx-cell / .lock 이 ??? · 회색을 준다).
+   *
+   * **아래 줄은 이름이 아니라 성장 정보다.** 이름은 칸을 눌러 상세에서 본다 —
+   * 65px 칸에서 이름은 어차피 잘리고, 정작 알아야 할 "몇 레벨이고 재료가 얼마나
+   * 모였나"가 안 보였다. 중복 1개 = 1레벨이라(economy.json > cascade.twoStepRule)
+   * 대기 중복 수가 곧 올릴 수 있는 레벨 수다.
+   */
   cell({ id, nameKo, grade, dir, has, on, held, kind }) {
-    // 이름은 사전을 거친다 — 사전에 없으면 한국어 원문 그대로 (i18n.js)
     const nm = tn(id, nameKo);
     // 등급을 아는 것은 미보유여도 등급 액자를 쓴다 — 액자가 "뽑으면 이 등급"의
     // 예고가 된다. 스킬은 뽑을 때 등급을 굴리므로 미보유면 등급 자체가 없다
     const cls = (grade ? ` g-${grade}` : '') + (has ? '' : ' lock');
-    return `<div class="cx-cell${cls}${on ? ' on' : ''}" title="${nm}"${
+    const S = this.api.state, D = this.api.data;
+    const cap = grade
+      ? ((this.track === 'skill' ? D.skills.levelCap : D.characters.levelCap)[grade] ?? 0)
+      : 0;
+    const lv = held?.level || 0;
+    // 이 유닛 앞으로 쌓인 중복 = 지금 [자동강화] 를 누르면 오를 레벨 수
+    const dupes = ((S.pend && S.pend[this.track]) || []).filter(e => e.id === id).length;
+    const maxed = has && cap && lv >= cap;
+    const foot = !has ? '<span class="cx-f dim">???</span>'
+      : maxed ? '<span class="cx-f max">MAX</span>'
+      : `<span class="cx-f">Lv ${lv}<i>/${cap}</i>${
+          dupes ? `<b>+${dupes}</b>` : ''}</span>`;
+    return `<div class="cx-cell${cls}${on ? ' on' : ''}${dupes ? ' up' : ''}" title="${nm}"${
       has ? ` data-info="${id}"` : ''}>
       <img src="/assets/${dir}/${id}.png" alt="" onerror="this.remove()">
       ${kind ? `<i class="rt-kind">${kind}</i>` : ''}
-      ${held ? `<i class="rt-lv">Lv ${held.level || 0}</i>` : ''}
-      <span>${has ? nm : '???'}</span>
+      ${foot}
     </div>`;
   }
 }

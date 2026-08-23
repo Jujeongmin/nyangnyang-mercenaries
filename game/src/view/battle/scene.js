@@ -753,6 +753,8 @@ export class BattleScene {
 
   /** 사망 — 페이드아웃 + HIT-08 + 상승 입자 */
   killFoe(foe) {
+    // 처치 수는 밖(main)이 센다 — 퀘스트 monster_kill 의 진행도다
+    this.onEvent({ type: 'kill', boss: !!foe.boss });
     foe.rig.die(foe.boss ? 1.6 : 1);
     foe.bar.clear();
     const x = foe.rig.view.x, y = foe.rig.view.y - foe.rig.h * 0.5;
