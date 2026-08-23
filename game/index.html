@@ -1037,22 +1037,69 @@
   .ev-big{text-align:center;font-size:13px;color:var(--dim);margin:2px 0 6px}
   .ev-big b{font-size:26px;color:var(--gold);
     font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
-  /* 7일 축제 그리드 — 출석 칸과 같은 문법. 7칸이라 4+3 */
-  .ev7-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+
+  /* 전직 스킬 칩 — 스킬 8칸 옆. 액티브가 아니라 칸 문법(테두리 원)과 다르게
+     알약꼴로 둔다. 누르면 전직 화면 */
+  #csChip{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;cursor:pointer;
+    font-family:inherit;padding:2px 5px 2px 2px;min-height:24px;border-radius:13px;
+    background:var(--ink)d8;border:1px solid var(--gold);align-self:center}
+  #csChip img{width:18px;height:18px;object-fit:contain;border-radius:50%;
+    filter:drop-shadow(0 0 4px #ffc94a88)}
+  /* 칩이 8칸 옆에 낄 자리는 스킬 간격에서 얻는다 — 줄 전체가 4px 넘쳤었다 */
+  #skRow:has(#csChip:not([hidden])) #skills{gap:4px}
+  #csChip i{font-style:normal;font-size:9px;font-weight:800;color:var(--gold)}
+  #csChip[hidden]{display:none}
+
+  /* ── 7일 축제 ── */
+  .ev7-hero{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;
+    background:linear-gradient(135deg,#4a2c14,#7a4a1a 55%,#a8742a);
+    border:2px solid var(--gold);border-radius:14px;padding:13px 14px;margin-bottom:11px;
+    box-shadow:inset 0 0 30px #ffd76a2e}
+  .ev7-cap{width:64px;height:64px;object-fit:contain;flex:0 0 auto;border-radius:50%;
+    background:#00000030;border:2px solid #ffd76a99;
+    filter:drop-shadow(0 3px 7px #000a)}
+  .ev7-ht{position:relative;min-width:0}
+  .ev7-ht b{display:block;font-size:17px;color:#fff;text-shadow:0 2px 0 #00000060;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .ev7-ht span{display:block;font-size:11px;color:#ffe9c4}
+  .ev7-ht u{display:inline-block;text-decoration:none;font-size:10px;font-weight:800;
+    color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:6px;
+    padding:2px 8px;margin-top:5px}
+  /* 색종이 — transform/opacity 만 움직인다 */
+  .ev7-hero .cf{position:absolute;top:-8px;width:7px;height:11px;border-radius:2px;
+    opacity:.85;animation:cfFall 2.6s linear infinite}
+  .cf.c0{background:#ffd76a}.cf.c1{background:#5ad8ff}.cf.c2{background:#ff8a9a}
+  .cf.c3{background:#7fd86a}
+  @keyframes cfFall{0%{transform:translateY(-12px) rotate(0)}
+    100%{transform:translateY(110px) rotate(300deg);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.ev7-hero .cf{animation:none;display:none}}
+
+  .ev7-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:11px}
   .ev7-cell{position:relative;background:var(--card);border:2px solid var(--line);
-    border-radius:11px;padding:8px 4px;text-align:center;min-height:60px}
-  .ev7-cell b{display:block;font-size:10px;color:var(--dim);margin-bottom:3px}
-  .ev7-cell em{font-style:normal;display:inline-flex;align-items:center;gap:2px;
-    font-size:10px;font-weight:800;margin:0 2px}
-  .ev7-cell em img{width:13px;height:13px;object-fit:contain}
+    border-radius:12px;padding:9px 5px 10px;text-align:center;min-height:64px}
+  .ev7-cell.big{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;
+    gap:12px;min-height:56px;padding:10px 8px;
+    border-color:var(--gold);background:linear-gradient(135deg,#3a2a12,var(--card));
+    box-shadow:inset 0 0 22px #ffd76a22}
+  .ev7-cell.big b{margin:0;font-size:12px;color:var(--gold)}
+  .ev7-cell b{display:block;font-size:10px;font-weight:800;color:var(--dim);margin-bottom:4px}
+  .ev7-rw{display:flex;flex-wrap:wrap;justify-content:center;gap:3px 7px}
+  .ev7-cell em{font-style:normal}
+  .ev7-rw em{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800}
+  .ev7-rw em img{width:17px;height:17px;object-fit:contain;
+    filter:drop-shadow(0 1px 2px #0009)}
   .ev7-cell.done{opacity:.5}
   .ev7-cell.done i{position:absolute;inset:0;display:flex;align-items:center;
-    justify-content:center;font-style:normal;font-size:19px;color:var(--up);
-    background:#0008;border-radius:9px}
-  .ev7-cell.now{border-color:var(--gold);box-shadow:0 0 9px #ffc94a66;
-    animation:qDone 1.15s ease-in-out infinite}
-  .ev7-cell.hi{border-color:var(--dia)}
-  .ev7-cell.hi.now{border-color:var(--gold)}
+    justify-content:center;font-style:normal;font-size:21px;color:var(--up);
+    background:#000000a0;border-radius:10px}
+  .ev7-cell.now{border-color:var(--gold);animation:qDone 1.15s ease-in-out infinite}
+  .ev7-cell.now em.ev7-today,.ev7-cell em{font-style:normal}
+  .ev7-cell>em{position:absolute;right:-5px;top:-7px;font-size:9px;font-weight:800;
+    color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:6px;
+    padding:1px 7px;box-shadow:0 1px 4px #0008}
+  .ev7-cell.hi:not(.big){border-color:var(--dia);
+    box-shadow:inset 0 0 14px #5ad8ff22}
+  .ev7-btn{min-height:44px;font-size:14px}
 
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
   .fg-pull .fgbtn{display:flex;flex-direction:column;align-items:center;gap:2px;
@@ -2610,7 +2657,7 @@
         onerror="this.remove()"><span>절전</span></button>
     </div>
     <button id="chest"><img id="chestImg" src="/assets/ui/CH-01.png" alt=""><span id="chestT">0분</span></button>
-    <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div></div><span id="dpsInfo"></span></div>
+    <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div><button id="csChip" hidden title="전직 스킬"></button></div><span id="dpsInfo"></span></div>
     <div id="result"></div>
     <!-- 벽 안내 — 보스 실패 뒤 요구/현재 CP 와 탈출구. 탭하면 닫힌다 -->
     <div id="wall">
