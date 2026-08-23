@@ -786,12 +786,10 @@ function resumeAuto() {
 function openAutoPanel() {
   if (!autoUnlocked()) return toast(`제작대 Lv ${unlockLv('auto_summon')} 부터 자동 소환이 열립니다`);
   const maxB = batchSize();
-  // 고를 수 있는 배치는 **해금된 단계들 자체**다. 임의의 눈금(10/30/50)을 두면
-  // 아직 안 열린 크기가 목록에 뜨거나(Lv9 에 10개), 열린 크기가 안 뜬다(5개)
-  const steps = [...new Set(D.equipment.summon.progression
-    .filter(p => p.pullsPerBatch && p.summonLv <= S.forgeLv)
-    .map(p => p.pullsPerBatch))].sort((a, b) => a - b);
-  const opts = steps.length ? steps : [maxB];
+  // 배치는 레벨마다 +1 로 올라가므로(Lv22 면 20단계) 해금된 값을 다 버튼으로
+  // 깔면 스무 개가 된다. **눈금 몇 개 + 항상 최대**만 보여 준다
+  const opts = [...new Set([1, 5, 10, 25, 50, 100, 250, maxB]
+    .filter(v => v >= 1 && v <= maxB))].sort((a, b) => a - b);
   const cur = S.autoBatch || maxB;
 
   const h = [];
@@ -2600,6 +2598,21 @@ function openForge() {
       <div id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</div>
     </div>`);
 
+  // 소환 버튼. 10연은 **버튼이 아예 없어서** 데이터에만 있고 쓸 수가 없었다
+  // (multiUnlocked() 도 정의만 되고 아무 데서도 안 불렸다).
+  {
+    const mlv = unlockLv('manual_multi');
+    const canMulti = multiUnlocked();
+    h.push(`<div class="fg-pull">
+      <button class="fgbtn" id="fgP1" ${S.eqTicket < 1 ? 'disabled' : ''}>1회 소환
+        <em>${cur('CU-07')}1</em></button>
+      <button class="fgbtn" id="fgP10"
+        ${!canMulti || S.eqTicket < 10 ? 'disabled' : ''}>${
+          canMulti ? '10연 소환' : `10연 소환 <i>Lv ${mlv}</i>`}
+        ${canMulti ? `<em>${cur('CU-07')}10</em>` : ''}</button>
+    </div>`);
+  }
+
 
   if (running) {
     h.push(`<div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>`);
@@ -2659,6 +2672,8 @@ function openForge() {
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#fgSummon')?.addEventListener('click', () => pullOne('#fgHero'));
+  $('#fgP1')?.addEventListener('click', () => pullOne('#fgHero'));
+  $('#fgP10')?.addEventListener('click', () => { summonEquip(10, false); openForge(); });
   // 레벨 배지를 누르면 이 레벨의 등급 확률을 편다. 제작대는 확률이 레벨로
   // 갈리는데(equipmentRateBands) 그 값을 볼 데가 없었다
   $('#fgLvBadge')?.addEventListener('click', e => { e.stopPropagation(); openForgeRates(); });

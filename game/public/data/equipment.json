@@ -169,29 +169,126 @@
         "pullsPerAction": 1
       },
       {
-        "summonLv": 6,
-        "unlock": "manual_multi",
-        "nameKo": "10연 소환",
-        "pullsPerAction": 10,
-        "discount": 0.1
-      },
-      {
-        "summonLv": 9,
+        "summonLv": 3,
         "unlock": "auto_summon",
         "nameKo": "자동 소환 해금 · 1개씩",
         "pullsPerBatch": 1
       },
       {
-        "summonLv": 13,
+        "summonLv": 4,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 2개씩",
+        "pullsPerBatch": 2
+      },
+      {
+        "summonLv": 5,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 3개씩",
+        "pullsPerBatch": 3
+      },
+      {
+        "summonLv": 6,
+        "unlock": "manual_multi",
+        "nameKo": "10연 소환",
+        "pullsPerAction": 10,
+        "discount": 0.1,
+        "pullsPerBatch": 4
+      },
+      {
+        "summonLv": 7,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 5개씩",
         "pullsPerBatch": 5
       },
       {
-        "summonLv": 19,
+        "summonLv": 8,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 6개씩",
+        "pullsPerBatch": 6
+      },
+      {
+        "summonLv": 9,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 7개씩",
+        "pullsPerBatch": 7
+      },
+      {
+        "summonLv": 10,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 8개씩",
+        "pullsPerBatch": 8
+      },
+      {
+        "summonLv": 11,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 9개씩",
+        "pullsPerBatch": 9
+      },
+      {
+        "summonLv": 12,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 10개씩",
         "pullsPerBatch": 10
+      },
+      {
+        "summonLv": 13,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 11개씩",
+        "pullsPerBatch": 11
+      },
+      {
+        "summonLv": 14,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 12개씩",
+        "pullsPerBatch": 12
+      },
+      {
+        "summonLv": 15,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 13개씩",
+        "pullsPerBatch": 13
+      },
+      {
+        "summonLv": 16,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 14개씩",
+        "pullsPerBatch": 14
+      },
+      {
+        "summonLv": 17,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 15개씩",
+        "pullsPerBatch": 15
+      },
+      {
+        "summonLv": 18,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 16개씩",
+        "pullsPerBatch": 16
+      },
+      {
+        "summonLv": 19,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 17개씩",
+        "pullsPerBatch": 17
+      },
+      {
+        "summonLv": 20,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 18개씩",
+        "pullsPerBatch": 18
+      },
+      {
+        "summonLv": 21,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 19개씩",
+        "pullsPerBatch": 19
+      },
+      {
+        "summonLv": 22,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 20개씩",
+        "pullsPerBatch": 20
       },
       {
         "summonLv": 23,
@@ -199,10 +296,16 @@
         "nameKo": "필터: 등급 하한"
       },
       {
-        "summonLv": 28,
+        "summonLv": 26,
         "unlock": "auto_scale",
-        "nameKo": "자동 소환 20개씩",
-        "pullsPerBatch": 20
+        "nameKo": "자동 소환 30개씩",
+        "pullsPerBatch": 30
+      },
+      {
+        "summonLv": 29,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 45개씩",
+        "pullsPerBatch": 45
       },
       {
         "summonLv": 33,
@@ -210,10 +313,22 @@
         "nameKo": "필터: 전투력 하한"
       },
       {
+        "summonLv": 35,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 70개씩",
+        "pullsPerBatch": 70
+      },
+      {
         "summonLv": 38,
         "unlock": "auto_scale",
-        "nameKo": "자동 소환 50개씩",
-        "pullsPerBatch": 50
+        "nameKo": "자동 소환 100개씩",
+        "pullsPerBatch": 100
+      },
+      {
+        "summonLv": 41,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 140개씩",
+        "pullsPerBatch": 140
       },
       {
         "summonLv": 43,
@@ -221,22 +336,34 @@
         "nameKo": "필터: 부위 선택"
       },
       {
+        "summonLv": 45,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 190개씩",
+        "pullsPerBatch": 190
+      },
+      {
         "summonLv": 48,
         "unlock": "auto_scale",
-        "nameKo": "자동 소환 110개씩",
-        "pullsPerBatch": 110
+        "nameKo": "자동 소환 260개씩",
+        "pullsPerBatch": 260
       },
       {
-        "summonLv": 52,
+        "summonLv": 51,
         "unlock": "auto_scale",
-        "nameKo": "자동 소환 230개씩",
-        "pullsPerBatch": 230
+        "nameKo": "자동 소환 350개씩",
+        "pullsPerBatch": 350
       },
       {
-        "summonLv": 56,
+        "summonLv": 54,
         "unlock": "auto_scale",
-        "nameKo": "자동 소환 330개씩",
-        "pullsPerBatch": 330
+        "nameKo": "자동 소환 450개씩",
+        "pullsPerBatch": 450
+      },
+      {
+        "summonLv": 57,
+        "unlock": "auto_scale",
+        "nameKo": "자동 소환 570개씩",
+        "pullsPerBatch": 570
       },
       {
         "summonLv": 60,
@@ -245,7 +372,7 @@
         "pullsPerBatch": 700
       }
     ],
-    "progressionNote": "**자동화는 손을 대신하는 것부터 열고, 규모는 나중에 준다.**\nv3 에서 자동 소환이 열리자마자 10개씩 돌았다. 방치형 표준(버섯커 류, AFK 계열)은 자동이 먼저 1회씩으로 열리고 배치 크기가 레벨과 함께 커진다 — 그래야 \"자동이 열렸다\"와 \"많이 돌릴 수 있다\"가 서로 다른 보상이 되고, 소환권이 초반에 한 번에 녹지 않는다.\n지금: Lv9 자동 1개씩 -> Lv13 5개 -> Lv19 10개 -> Lv28 20개 -> Lv38 50개 -> Lv48 110 -> 52 230 -> 56 330 -> 60 700.\n필터는 배치 사이에 끼운다 (Lv23 등급 / Lv33 전투력 / Lv43 부위). 배치가 커질수록 걸러 낼 것도 많아지므로 번갈아 오는 것이 맞다.\n확률 해금(gacha.json > equipmentRateBands: Lv7/12/18/25/32/39/47/55)과 겹치지 않게 어긋냈다 — 한 레벨에 둘이 몰리면 그 사이 레벨들이 빈다.\n누적 대기 시간: Lv6 38분 · Lv9 1.4시간 · Lv13 4.5시간 · Lv19 16.9시간 · Lv23 30시간 · Lv28 2.7일 · Lv38 11일 · Lv48 33일 · Lv60 110일",
+    "progressionNote": "**Lv3~22 는 레벨마다 자동 배치가 +1 된다.** 이 구간은 레벨이 분~시간 단위로 오르므로, 3~4레벨에 한 번씩만 보상이 오면 그 사이가 비어 보인다.\n자동 자체는 Lv3(11분)에 **1개씩**으로 열린다. 방치형 표준대로 \"자동이 열렸다\"와 \"많이 돌릴 수 있다\"를 분리한 것이다 — 열리자마자 10개씩 돌면 소환권이 한 번에 녹는다.\n수동 10연은 Lv6. 그 레벨은 배치도 4로 같이 오른다.\nLv23 이후는 레벨 하나가 몇 시간~며칠이라 간격을 벌리고 필터를 끼운다 (23 등급 / 33 전투력 / 43 부위). 그 사이 레벨도 빈손은 아니다 — gacha.json > equipmentRateBands 가 레벨당 1행이라 매 레벨 확률이 오른다.\n누적 대기: Lv3 11분 · Lv6 38분 · Lv12 3.4시간 · Lv22 30시간 · Lv33 6.2일 · Lv60 110일",
     "autoSummon": {
       "trigger": "유저가 자동 소환 ON. 황금 열쇠가 남아있는 동안 반복.",
       "batchIntervalSec": 1,
