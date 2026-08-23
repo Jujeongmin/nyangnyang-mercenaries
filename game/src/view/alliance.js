@@ -36,10 +36,10 @@ export class AllianceVillage {
         <!-- 좌표는 배경의 빈 터 실측값이다 (AL-BG 1024x1536 기준):
              상단 큰 원형 터 중심 26%/74% x 25%, 중단 작은 터 13%/86% x 50%.
              left 가 건물 중심이 되도록 CSS 가 translateX(-50%) 를 건다 -->
-        <div class="al-bd big" data-b="boss" style="left:26%;top:16%">
+        <div class="al-bd big" data-b="boss" style="left:22%;top:16%">
           <img src="/assets/alliance/AL-01.png" alt="" onerror="this.remove()">
           <b>보스 소굴</b></div>
-        <div class="al-bd big" data-b="donate" style="left:74%;top:16%">
+        <div class="al-bd big" data-b="donate" style="left:78%;top:16%">
           <img src="/assets/alliance/AL-02.png" alt="" onerror="this.remove()">
           <b>기부 창고</b></div>
         <div class="al-bd" data-b="shop" style="left:13%;top:41%">

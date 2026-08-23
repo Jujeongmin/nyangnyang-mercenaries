@@ -3387,9 +3387,11 @@ function openAlliance(tab = 'home') {
   const A = D.alliance;
   const coin = `<img src="/assets/ui/CU-12.png" alt="" onerror="this.replaceWith(document.createTextNode('\u25C6'))">`;
 
-  const tabs = [['home', '연합'], ['boss', '보스'], ['donate', '기부'], ['shop', '상점'], ['member', '단원']];
-  const head = `<div class="al-tabs">${tabs.map(([k, n]) =>
-    `<button class="al-t${k === tab ? ' on' : ''}" data-al="${k}">${n}</button>`).join('')}</div>`;
+  // 탭바 없음 — 마을의 건물이 곧 네비다. 보스 소굴 = 보스, 기부 창고 = 기부,
+  // 연합 상점 = 상점, 게시판 = 연합 정보 + 단원. 패널 안에 탭을 또 두면
+  // 마을을 걸어 다닐 이유가 없어진다
+  const TITLE = { boss: '보스 소굴', donate: '기부 창고', shop: '연합 상점', member: '게시판' };
+  const head = '';
 
   // 길드 홈의 관례(버섯커·AFK·세나키): 엠블럼 + 이름 + Lv + 인원 + 공지 한 줄,
   // 그 아래 내 요약(코인·오늘 기부). 설계 수치 나열은 유저 화면이 아니다
@@ -3476,8 +3478,8 @@ function openAlliance(tab = 'home') {
 
   // 단원 리스트 관례: 아바타 + 이름/직위 + 기여도 + 접속 표시.
   // 진짜 명단은 서버 컬렉션이다 — 그때까지 데모 주민으로 화면 문법만 세워 둔다
-  const member = () =>
-    `<div class="al-mem me">
+  const member = () => home() + `<div class="lbl" style="margin:12px 0 6px">${t('단원')}</div>`
+    + `<div class="al-mem me">
        <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
        <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
        <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
@@ -3510,9 +3512,9 @@ function openAlliance(tab = 'home') {
       <div class="sh-note">${A.contribution.donateNote}</div>`;
   };
 
-  $('#ovt').textContent = '연합';
+  $('#ovt').textContent = TITLE[tab] || '연합';
   $('#ovcard').dataset.skin = 'alliance';
-  $('#ovb').innerHTML = head + ({ home, boss, donate: donateTab, shop, member }[tab] || home)();
+  $('#ovb').innerHTML = head + ({ boss, donate: donateTab, shop, member, home: member }[tab] || member)();
   $('#ovb').querySelector('[data-al-leave]')?.addEventListener('click', allyLeave);
   $('#ovb').querySelectorAll('[data-albuy]').forEach(b =>
     b.addEventListener('click', () => allyBuy(b.dataset.albuy)));
