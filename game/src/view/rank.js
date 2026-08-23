@@ -83,7 +83,10 @@ export class RankScreen {
       x.addEventListener('click', () => { this.tab = x.dataset.t; this.render(); }));
 
     // 전투력 보드만 k/m 표기 — 자릿수가 커서 만/억 보다 한눈에 읽힌다
-    const fmt = v => this.tab === 'stage' ? `St ${v}` : this.tab === 'power' ? cpNum(v) : num(v);
+    // 오른쪽 숫자가 무엇인지 값 옆에 붙인다 — "St 12" 는 무슨 단위인지 안 읽힌다
+    const fmt = v => this.tab === 'stage' ? `${num(v)}<i>스테이지</i>`
+      : this.tab === 'power' ? cpNum(v)
+      : `${num(v)}<i>점</i>`;
     const rows = this.rows(this.tab);
     const myRank = 47;                  // 실제로는 getMyBestRank()
 

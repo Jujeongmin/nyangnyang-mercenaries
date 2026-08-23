@@ -84,7 +84,9 @@ export class BattleScene {
       'HIT-01', 'HIT-02', 'HIT-03', 'HIT-04', 'HIT-05', 'HIT-06', 'HIT-07', 'HIT-08',
       'PX-01', 'PX-02', 'PX-03',
       ...Array.from({ length: 9 }, (_, i) => `PJ-0${i + 1}`),
-      ...Array.from({ length: 12 }, (_, i) => `SFX-${String(i + 1).padStart(2, '0')}`),
+      // 액티브 스킬 수(SK-A01~A16)와 같아야 한다 — 12 로 굳어 있어서 뒤 4종은
+      // 그림이 있어도 텍스처가 없어 안 떴다
+      ...Array.from({ length: 16 }, (_, i) => `SFX-${String(i + 1).padStart(2, '0')}`),
     ]);
 
     app.ticker.add(t => this.tick(t.deltaMS));

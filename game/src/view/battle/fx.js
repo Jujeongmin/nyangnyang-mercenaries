@@ -52,11 +52,10 @@ export const SKILL_FX = {
   'SK-A10': { at: 'party', scale: 1.05 },                    // 보호막
   'SK-A11': { at: 'captain', scale: 0.9 },                   // 새끼 냥이 소환
   'SK-A12': { at: 'captain', scale: 1.0 },                   // 유령 용병
-  // ↓ 전용 에셋 없음 — 빌려 쓴다
-  'SK-A13': { at: 'foe', asset: 'SFX-01', tint: 0x9fd8ff, scale: 1.15 },  // 연쇄 번개
-  'SK-A14': { at: 'foe', asset: 'HIT-06', tint: 0xc06bff, scale: 1.0 },   // 약점 노출
-  'SK-A15': { at: 'foe', asset: 'SFX-08', tint: 0x8fe3ff, scale: 1.2 },   // 시간 정지
-  'SK-A16': { at: 'foe', asset: 'SFX-05', tint: 0xffe08a, scale: 1.5 },   // 천공 붕괴
+  'SK-A13': { at: 'foe', scale: 1.15 },  // 연쇄 번개
+  'SK-A14': { at: 'foe', scale: 1.0 },   // 약점 노출
+  'SK-A15': { at: 'foe', scale: 1.2 },   // 시간 정지
+  'SK-A16': { at: 'foe', scale: 1.5 },   // 천공 붕괴
 };
 
 /** 모션 종류 → 타격 이펙트. 크리는 따로 덧씌운다. */

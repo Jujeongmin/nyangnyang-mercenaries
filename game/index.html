@@ -30,14 +30,17 @@
   button img,#fgObj img{pointer-events:none}
   input,textarea{-webkit-user-select:text;user-select:text}
 
-  /* 숫자는 전부 굵은 디스플레이체(Black Han Sans) — Jua 는 굵기가 하나뿐이라
-     힘이 안 실린다. **수량·전투력·가격처럼 "읽고 비교하는 숫자"가 대상**이고,
-     문장 안 숫자는 본문체 그대로다. tabular-nums 로 자릿수가 흔들리지 않게 한다 */
+  /* 숫자 서체. Black Han Sans 로 두면 획이 두껍고 속공간이 좁아 11~13px 에서
+     6·8·9 가 서로 뭉갠다 — "굵다"와 "읽힌다"는 다른 문제다. 숫자는 시스템
+     굵은 산세리프로 뽑는다(속공간이 넓다). 게임 제목만 디스플레이체로 남긴다. */
   #cp,#timer,#stgNum,.q-prog,#idGold,.er-card .er-d,.er-card b,
   .cur b,#caplv,.gain,.rk-sc,.al-sum b,.al-mem-c,.at-cell em,.at-cum em,
-  .sh-price,.sh-cur b,#fgLv,.tw-rw,#bootTitle,#pvGold,#wallNeed,#wallMy{
-    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;
-    font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  .sh-price,.sh-cur b,#fgLv,.tw-rw,#pvGold,#wallNeed,#wallMy{
+    font-family:system-ui,-apple-system,"Segoe UI","Noto Sans KR",
+      "Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+  #bootTitle{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;
+    letter-spacing:.3px}
   html,body{margin:0;height:100%;background:#0f0b08;color:var(--txt);overflow:hidden;
     font-family:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
 
@@ -1712,6 +1715,9 @@
   .rk-who i{font-style:normal;font-size:9px;color:var(--gold);overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   .rk-row.top .rk-ava{width:38px;height:38px}
+  /* 단위(스테이지·점)는 숫자보다 작고 흐리게 — 값이 먼저 읽혀야 한다 */
+  .rk-sc i{font-style:normal;font-size:9px;font-weight:700;color:var(--dim);
+    margin-left:3px;letter-spacing:0}
   .rk-sc{font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
   .rk-season{background:linear-gradient(120deg,#3b2a6b,#1d2a52);border:1px solid #6a5ac0;
     border-radius:12px;padding:12px;margin-bottom:11px}
@@ -2042,9 +2048,11 @@
      한 화면에 두 세계가 섞인다 */
   #ovcard[data-skin] .frow, #ovcard[data-skin] .sh-card,
   #ovcard[data-skin] .als-card, #ovcard[data-skin] .fg-up{
-    background-color:color-mix(in srgb, var(--ov-bg) 62%, #0000)}
-  .frow,.sh-card{background:none;border-style:solid;border-width:11px;border-radius:0;
-    border-image:var(--f-card) 122 fill stretch}
+    background-color:color-mix(in srgb, var(--ov-bg) 78%, #fff1)}
+  /* 카드 프레임도 fill 을 빼야 배경색이 산다 — fill 이 있으면 그림이 가운데까지
+     칠해서 스킨 색이 그 뒤로 숨는다(패널과 같은 이유). 기본값은 --card 다 */
+  .frow,.sh-card{background:var(--card);border-style:solid;border-width:11px;
+    border-radius:0;border-image:var(--f-card) 122 stretch;background-clip:padding-box}
   .frow{padding:1px 3px;margin-bottom:5px}
   .sh-card{padding:2px 3px;margin-bottom:5px}
   /* 특가 카드의 금색 왼쪽 띠는 프레임과 겹쳐 지저분해진다. 제목을 금색으로 대신 */
@@ -2323,28 +2331,56 @@
      톤 발광을 차등한다. 이미지는 전부 기존 에셋 재사용 — 전용 헤더 아트(PN-*)가
      생기면 --ov-img 만 갈아끼운다 (에셋_생성_프롬프트.md 13절) */
   #ovskin{display:none}
+  /* 제목 줄 **뒤**에 깔리는 헤더 띠다. 예전엔 108px 이라 본문 카드가 그 위에
+     올라타 그림의 가운데 토막만 삐죽 보였다 — 배너가 아니라 얼룩으로 읽혔다.
+     제목 높이(약 50px)에 여유 22px 만 더해, 본문이 시작되기 직전에 사라진다. */
   #ovcard[data-skin] #ovskin{display:block;position:absolute;left:15px;right:15px;top:15px;
-    height:108px;z-index:0;pointer-events:none;
-    background:var(--ov-img) center var(--ov-pos,24%)/cover no-repeat;
-    -webkit-mask:linear-gradient(180deg,#000 30%,#0000 96%);
-    mask:linear-gradient(180deg,#000 30%,#0000 96%);
-    opacity:.48;filter:saturate(1.06)}
+    height:72px;z-index:0;pointer-events:none;
+    background:var(--ov-img) center var(--ov-pos,42%)/cover no-repeat;
+    -webkit-mask:linear-gradient(180deg,#000 46%,#0006 78%,#0000 100%);
+    mask:linear-gradient(180deg,#000 46%,#0006 78%,#0000 100%);
+    opacity:.62;filter:saturate(1.05)}
+  /* 그림과 제목이 겹치는 자리에만 어둠을 깐다. 안 그러면 밝은 배너 위에서
+     금색 제목이 사라진다 */
+  #ovcard[data-skin] #ovskin::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,#150f0baa,#150f0b44 60%,#0000)}
   /* 백드롭 위로 내용이 올라와야 한다 */
   #ovh,#ovinfo,#ovb{position:relative;z-index:1}
   /* 바탕색(--ov-bg)은 톤과 같은 계열의 **아주 어두운** 값이다. 채도를 올리면
      그림과 글자가 다 죽는다 — 화면이 갈렸다는 것만 읽히면 된다 */
-  #ovcard[data-skin="attend"]  {--ov-tone:#2e7d3288;--ov-bg:#16251a;--ov-img:url(/assets/bg/BG-04.png)}
-  #ovcard[data-skin="pass"]    {--ov-bg:#2b2110;--ov-tone:#b8860b88;--ov-img:url(/assets/art/UR-01-ART.png);--ov-pos:14%}
-  #ovcard[data-skin="arena"]   {--ov-bg:#2a1414;--ov-tone:#c6282888;--ov-img:url(/assets/bg/BG-03.png)}
+  #ovcard[data-skin="attend"]  {--ov-tone:#2e7d3288;--ov-bg:#16251a;--ov-img:url(/assets/ui/PN-ATTEND.png)}
+  #ovcard[data-skin="pass"]    {--ov-bg:#2b2110;--ov-tone:#b8860b88;--ov-img:url(/assets/ui/PN-PASS.png)}
+  #ovcard[data-skin="arena"]   {--ov-bg:#2a1414;--ov-tone:#c6282888;--ov-img:url(/assets/ui/PN-ARENA.png)}
   #ovcard[data-skin="training"]{--ov-bg:#241a12;--ov-tone:#8d6e6388;--ov-img:url(/assets/ui/FG-01.png)}
   #ovcard[data-skin="alliance"]{--ov-bg:#201628;--ov-tone:#6a1b9a88;--ov-img:url(/assets/alliance/AL-BG.png);--ov-pos:12%}
-  #ovcard[data-skin="forge"]   {--ov-bg:#2a1a10;--ov-tone:#ff8c4288;--ov-img:url(/assets/ui/FG-03.png)}
+  #ovcard[data-skin="forge"]   {--ov-bg:#2a1a10;--ov-tone:#ff8c4288;--ov-img:url(/assets/ui/PN-FORGE.png)}
   #ovcard[data-skin="equip"]   {--ov-bg:#1b1a2e;--ov-tone:#7e6bff88;--ov-img:url(/assets/ui/ALT-03.png);--ov-pos:30%}
-  #ovcard[data-skin="quest"]   {--ov-bg:#131e2a;--ov-tone:#3f7dd888;--ov-img:url(/assets/bg/BG-02.png)}
-  #ovcard[data-skin="event"]   {--ov-bg:#2a1620;--ov-tone:#ff5da288;--ov-img:url(/assets/ui/EV-01.png)}
+  #ovcard[data-skin="quest"]   {--ov-bg:#131e2a;--ov-tone:#3f7dd888;--ov-img:url(/assets/ui/PN-QUEST.png)}
+  #ovcard[data-skin="event"]   {--ov-bg:#2a1620;--ov-tone:#ff5da288;--ov-img:url(/assets/ui/PN-EVENT.png)}
   #ovcard[data-skin="promo"]   {--ov-bg:#2a2411;--ov-tone:#ffd75e88;--ov-img:url(/assets/captain/PR-warrior-3.png);--ov-pos:20%}
-  #ovcard[data-skin="friend"]  {--ov-bg:#2a2014;--ov-tone:#ffb64888;--ov-img:url(/assets/captain/captain_face_happy.png);--ov-pos:38%}
+  #ovcard[data-skin="friend"]  {--ov-bg:#2a2014;--ov-tone:#ffb64888;--ov-img:url(/assets/ui/PN-FRIEND.png)}
   #ovcard[data-skin] #ovt{text-shadow:0 1px 3px #000, 0 0 14px var(--ov-tone)}
+
+  /* 별도 전체화면 패널도 전용 PN 헤더를 사용한다. */
+  /* 전체화면 헤더 배너. 그림은 2:1 인데 띠는 5:1 이라 세로로 60% 가 잘린다 —
+     어디를 남길지 그림마다 정해야 머리가 안 잘린다(--pn-y). 아래쪽은 본문
+     색으로 녹여서 자른 자리가 선으로 안 보이게 한다. */
+  #shop .sh-head,#rank .sh-head,#mail .sh-head{min-height:128px;border:none;
+    padding:12px;align-items:flex-start;
+    background-position:center var(--pn-y,50%);background-size:cover;
+    background-repeat:no-repeat;position:relative;overflow:hidden}
+  #shop .sh-head::after,#rank .sh-head::after,#mail .sh-head::after{content:"";
+    position:absolute;left:0;right:0;bottom:0;height:56%;pointer-events:none;
+    background:linear-gradient(180deg,#0000,var(--bg) 92%)}
+  /* 제목·뒤로가기는 배너 위에 뜬다 — 위쪽에만 어둠을 깔아 읽히게 */
+  #shop .sh-head::before,#rank .sh-head::before,#mail .sh-head::before{content:"";
+    position:absolute;left:0;right:0;top:0;height:46px;pointer-events:none;
+    background:linear-gradient(180deg,#150f0bcc,#0000)}
+  #shop .sh-head>*,#rank .sh-head>*,#mail .sh-head>*{position:relative;z-index:1}
+  /* 시상대 위 고양이 셋이 그림의 아래쪽 절반에 있다 */
+  #rank .sh-head{background-image:url(/assets/ui/PN-RANK.png);--pn-y:58%}
+  #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.png);--pn-y:34%}
+  #mail .sh-head{background-image:url(/assets/ui/PN-MAIL.png);--pn-y:52%}
 
   /* ── 친구 — 아바타(단장 표정 + 프로필 링) ── */
   .fr-av{position:relative;display:inline-block;flex:none}
