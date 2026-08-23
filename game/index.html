@@ -1065,6 +1065,12 @@
   #csChip2::before{border-color:#ff8a4aa8}
   /* 칩이 8칸 옆에 낄 자리는 스킬 간격에서 얻는다 — 줄 전체가 4px 넘쳤었다 */
   #skRow:has(#csChip:not([hidden])) #skills{gap:4px}
+  /* 칩이 보이면 원 크기를 줄 전체로 다시 나눈다 — 8칸 기준 clamp 는 칩을 모른다.
+     칩 1개 = 9원, 2개 = 10원. 안 그러면 줄이 앱 폭(480)을 옆으로 뚫는다 (실측 +38px) */
+  #skRow:has(#csChip:not([hidden])) :is(.sk,#csChip,#csChip2){
+    width:clamp(22px,calc((100cqw - 140px)/9),38px)}
+  #skRow:has(#csChip2:not([hidden])) :is(.sk,#csChip,#csChip2){
+    width:clamp(20px,calc((100cqw - 150px)/10),34px)}
 
   /* ── 7일 축제 ── */
   .ev7-hero{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;
@@ -2638,6 +2644,10 @@
     #skRow{max-width:100%;flex-wrap:nowrap}
     #skills{gap:3px}
     .sk{width:clamp(18px,calc((100cqw - 150px)/8),30px)}
+    #skRow:has(#csChip:not([hidden])) :is(.sk,#csChip,#csChip2){
+      width:clamp(17px,calc((100cqw - 150px)/9),27px)}
+    #skRow:has(#csChip2:not([hidden])) :is(.sk,#csChip,#csChip2){
+      width:clamp(16px,calc((100cqw - 158px)/10),25px)}
     /* VS 연출 — 그림이 세로 공간을 넘지 않게 높이로도 묶는다. 폭 56% 는
        360x640(전투 영역 ~205px)에서 세로로 터졌다 */
     #vsBoss img,#vsCap img{max-height:24cqh}
