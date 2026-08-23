@@ -5,7 +5,7 @@
     "totalStages": 200
   },
   "cpCeiling": {
-    "value": 1834000000,
+    "value": 7277310000,
     "derivation": {
       "merc5xUR_Lv30": 56000000,
       "skill8xUR_Lv30": 89600000,
@@ -15,12 +15,17 @@
       "mercSummonLv50Mult": 1.25,
       "skillSummonLv50Mult": 1.25,
       "equipSummonLv60Mult": 1.48,
-      "trainingCampMult": 1.4
+      "trainingCampMult": 1.4,
+      "promotionMult_v2": 1.55,
+      "classSkillMult": 1.6,
+      "eventCosmeticMult": 1.6
     },
     "history": {
       "v1": 1310000000,
       "v2": 1834000000,
-      "reason": "goldsinks.json > training_camp 이 CP 곱연산 항으로 추가됨 (최대 +40%)"
+      "reason": "goldsinks.json > training_camp 이 CP 곱연산 항으로 추가됨 (최대 +40%)",
+      "v3": 1834000000,
+      "v3Note": "v4 (2026-08-24): 전직 개편(한 길 1.55) + 전직 스킬 만렙(x1.6) + 이벤트 한정 상품(+60%) 반영. 모노 직군 풀강 기준 x3.97. St200 요구(16억)는 이제 천장의 22% 다 — 풀과금 기준 통과의례가 되지 않게 시즌 스테이지(201+)를 라이브에서 준비해야 한다."
     },
     "note": "St200 요구 CP 1,600,000은 천장의 87%. 사실상 전 시스템 만렙 근처라야 클리어된다.",
     "st200RatioHistory": {

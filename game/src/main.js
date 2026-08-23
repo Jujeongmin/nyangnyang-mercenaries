@@ -66,6 +66,8 @@ const S = {
   // 무한의 탑 — 입장 제한 없음, 직전에 뚫은 층 다음부터
   tower: { floor: 1, best: 0 },
   dg: {}, arenaScore: 1000, medal: 0,      // 훈장은 아레나에서만 벌고 아레나에서만 쓴다
+  // 아레나 일일 — 입장 사용 수·광고 사용·티어 보상 수령일 (05:00 리셋)
+  arena: { day: null, used: 0, adUsed: 0, tierClaimedDay: null },
   mercTicket: 0, skillTicket: 0,           // 소환 1회 대체. 다이아보다 먼저 쓴다
   summonExp: { mercenary: 0, skill: 0 },   // 누적 뽑기 횟수 = 소환 레벨 exp
   summonLvClaimed: { mercenary: 1, skill: 1 },  // 레벨 보상을 어디까지 받았나
@@ -2893,51 +2895,123 @@ const tierOf = score => {
 };
 
 /** 아레나. arena.json > battle.winProbability 로 예상 승률을 보여준다. */
+function arenaState() {
+  const day = dayIdx(Date.now());
+  if (S.arena.day !== day) S.arena = { day, used: 0, adUsed: 0,
+    tierClaimedDay: S.arena.tierClaimedDay };
+  return S.arena;
+}
+const arenaLeft = () => {
+  const a = arenaState();
+  return D.arena.entries.baseDaily + (a.adUsed ? D.arena.entries.adBonus.entries : 0) - a.used;
+};
+
+/** 오늘의 상대 5명 — 날짜 시드로 고정한다. 열 때마다 바뀌면 "고르는 맛"이 없다 */
+function arenaFoes() {
+  const my = totalCp();
+  const day = dayIdx(Date.now());
+  const rng = k => { const x = Math.sin(day * 977 + k * 131) * 10000; return x - Math.floor(x); };
+  return [0.72, 0.88, 1.0, 1.14, 1.35].map((k, i) => ({
+    i, name: `단장 ${1000 + Math.floor(rng(i) * 8999)}`,
+    cp: Math.round(my * k * (0.95 + rng(i + 9) * 0.1)),
+    score: Math.max(0, S.arenaScore + Math.round((k - 1) * 400)),
+  }));
+}
+
+/**
+ * 도전 — CP 확률 판정 (arena.json > battle). 틱 시뮬이 아닌 이유는
+ * whyNotTickSim 에 있다: 5v5 단판은 CP 비교와 상관 0.97이라 계산만 비싸다.
+ */
+function arenaFight(foe) {
+  if (arenaLeft() < 1) return toast(t('오늘 입장을 다 썼습니다'));
+  arenaState().used++;
+  const a = D.arena;
+  const p = 1 / (1 + Math.pow(foe.cp / totalCp(), a.battle.winProbability.exponent));
+  const win = Math.random() < p;
+  const sc = a.scoring;
+  let delta;
+  if (win) {
+    delta = Math.max(10, Math.min(50, 30 - Math.floor((S.arenaScore - foe.score) / 50)));
+    S.arenaScore += delta;
+    mq('arena_win');
+  } else {
+    delta = -Math.max(5, Math.min(25, 15 + Math.floor((S.arenaScore - foe.score) / 50)));
+    S.arenaScore = Math.max(0, S.arenaScore + delta);
+  }
+  mq('arena');
+  save(); renderTop();
+  showResult(win ? `승리! +${delta}` : `패배 ${delta}`, win ? 'var(--up)' : '#ff5a6a');
+  setTimeout(() => openArena(), 900);
+}
+
+/** 티어 일일 보상 — 하루 1회, 현재 티어 기준 (arena.json > tiers) */
+function claimArenaDaily() {
+  const day = dayIdx(Date.now());
+  if (S.arena.tierClaimedDay === day) return toast(t('오늘 보상은 이미 받았습니다'));
+  const tier = [...D.arena.tiers].reverse().find(x => S.arenaScore >= x.minScore)
+    || D.arena.tiers[0];
+  S.arena.tierClaimedDay = day;
+  const got = passGrant({ diamond: tier.dailyDiamond });
+  S.medal += tier.dailyMedals;
+  got.pairs.push(['arena_medal', tier.dailyMedals]);
+  save(); renderTop(); openArena();
+  gainToast(got.pairs);
+}
+
+async function arenaAd() {
+  const a = arenaState();
+  if (a.adUsed) return toast(t('오늘 광고 입장은 받았습니다'));
+  if (!(await playAd('arena_entries'))) return;
+  a.adUsed = 1;
+  save(); openArena();
+}
+
 function openArena(view) {
   if (view === 'shop') return openMedalShop();
 
   const a = D.arena;
   const my = totalCp();
-  const exp = a.battle.winProbability.exponent;
-  // 상대는 내 CP 근처로 매칭된다 (실제 매칭은 globalCollection 스냅샷)
-  const foes = [0.72, 0.88, 1.0, 1.14, 1.35].map((k, i) => ({
-    name: `단장 ${1000 + i * 137}`, cp: Math.round(my * k),
-  }));
-  const winP = cp => 1 / (1 + Math.pow(cp / my, exp));
+  const day = dayIdx(Date.now());
+  const foes = arenaFoes();
+  const winP = cp => 1 / (1 + Math.pow(cp / my, a.battle.winProbability.exponent));
+  const left = arenaLeft();
 
   const rows = foes.map(f => {
     const p = winP(f.cp);
     const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
-    return `<div class="frow" style="padding:9px 11px">
+    return `<div class="frow" style="padding:8px 11px;margin-bottom:5px">
       <span><b style="font-size:12px">${f.name}</b>
-        <span class="k" style="display:block">CP ${num(f.cp)}</span></span>
-      <span class="v" style="color:${col}">${(p * 100).toFixed(0)}%</span></div>`;
+        <span class="k" style="display:block">CP ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
+      <button class="rt-b go" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
+        style="color:${col}">${t('도전')}</button></div>`;
   }).join('');
 
+  const tier = [...a.tiers].reverse().find(x => S.arenaScore >= x.minScore) || a.tiers[0];
+  const claimed = S.arena.tierClaimedDay === day;
   $('#ovt').textContent = '아레나';
   $('#ovcard').dataset.skin = 'arena';
   $('#ovb').innerHTML =
-    `<div class="frow"><span class="k">내 전투력</span><span class="v">${cpNum(my)}</span></div>`
-    + `<div class="frow"><span class="k">점수 · 티어</span>
-        <span class="v" style="font-size:12px">${S.arenaScore} · ${tierOf(S.arenaScore)}</span></div>`
+    `<div class="frow"><span class="k">점수 · 티어</span>
+        <span class="v" style="font-size:12px">${S.arenaScore} · ${tier.nameKo}</span></div>`
     + `<div class="frow"><span class="k">투기장 훈장</span>
         <span class="v">${num(S.medal)}
           <button id="aShop" title="훈장 상점">
             <img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.replaceWith(document.createTextNode('\uD83D\uDED2'))"></button>
         </span></div>`
-    + `<div class="frow"><span class="k">오늘 입장</span>
-        <span class="v" style="font-size:12px">${a.entries.baseDaily}회 (광고 +${a.entries.adBonus.entries})</span></div>`
-    + '<div class="lbl" style="margin:12px 0 6px">상대 5명</div>' + rows;
-  $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">판정 규칙</div>'
-    + `<div class="frow" style="padding:7px 10px"><span class="k">승률</span>
-        <span class="v" style="font-size:11px">${a.battle.winProbability.formula}</span></div>`
-    + `<div class="frow" style="padding:7px 10px"><span class="k">형식</span>
-        <span class="v" style="font-size:11px">${a.battle.format} · ${a.battle.type}</span></div>`
-    + `<div class="sub" style="line-height:1.5;margin-top:6px">${a.battle.defenseBonusNote}</div>`
-    + `<div class="sub" style="line-height:1.5;margin-top:6px">
-        스탯 통일로 직군 비대칭이 사라져, 이제 CP 확률 판정 대신 실제 틱 시뮬로 전환할 수 있다
-        (combat.json > arenaRules). 그때부터 DEF/HP 가 실제로 물린다.</div>`;
+    + `<div class="frow"><span class="k">${t('남은 입장')}</span>
+        <span class="v">${left} / ${a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}
+        ${arenaState().adUsed ? '' : `<button class="rt-b" id="aAd" style="margin-left:6px">${t('광고 +{0}', a.entries.adBonus.entries)}</button>`}</span></div>`
+    + `<button class="fgbtn" id="aDaily" style="margin:8px 0 10px" ${claimed ? 'disabled' : ''}>
+        ${claimed ? t('오늘 티어 보상 수령 완료')
+          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', tier.nameKo, tier.dailyMedals, tier.dailyDiamond)}</button>`
+    + '<div class="lbl" style="margin:4px 0 6px">' + t('오늘의 상대') + '</div>' + rows;
+  $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${a.battle.winProbability.note}
+    승률 공식: ${a.battle.winProbability.formula}</div>`;
   $('#aShop').addEventListener('click', () => openArena('shop'));
+  $('#aDaily').addEventListener('click', claimArenaDaily);
+  $('#aAd')?.addEventListener('click', arenaAd);
+  $('#ovb').querySelectorAll('[data-af]').forEach(b =>
+    b.addEventListener('click', () => arenaFight(arenaFoes()[+b.dataset.af])));
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 }
 
