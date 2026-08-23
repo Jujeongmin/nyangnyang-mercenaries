@@ -93,7 +93,7 @@ const S = {
   // 친구 — 선물은 보내는 쪽 코스트가 없다 (표준 문법: 서로 보내면 서로 이득).
   // sentDay/recvDay 는 dayIdx. 서버 전에는 데모 친구가 자리를 지킨다
   friends: { list: [], sentDay: null, recvDay: null },
-  allyDonate: { day: null, gold: 0, eq: 0 },   // 일일 기부 횟수
+  allyDonate: { day: null, step: 0 },       // 오늘 기부 단계 (0~5)
   allyXp: 0,                               // 연합 XP — 기부 코인 누적 (안 줄어든다)
   allyLeftAt: null,                        // 탈퇴 시각 — 24시간 재가입 쿨다운
   allyShopBuy: { week: null, n: {} },      // 연합 상점 주간 구매 횟수
@@ -1118,16 +1118,27 @@ function summonRewardWaiting() {
 }
 
 /** 소환 실행. gacha.json > rateBands 가 확률 단일 소스다. */
+/**
+ * 소환 n 회의 실제 결제 내역. **버튼 표시와 실제 차감이 같은 식이어야 한다** —
+ * 예전엔 UI 가 따로 계산해서, 소환권 10장으로 10연을 돌리는데도 버튼엔
+ * 다이아 값이 그려졌다.
+ *   { ticket, dia, bag }  ticket 장 + dia 개로 낸다
+ */
+function pullCost(trackId, n) {
+  const tr = D.gacha.tracks[trackId];
+  const bag = trackId === 'skill' ? 'skillTicket' : 'mercTicket';
+  const ticket = Math.min(S[bag] || 0, n);
+  const rest = n - ticket;
+  // 10연 할인은 10장을 실제로 다이아로 낼 때만 적용된다
+  const full = n >= 10 ? tr.costs.diamondPer10Pull : tr.costs.diamondPerPull * n;
+  return { bag, ticket, dia: rest === n ? full : tr.costs.diamondPerPull * rest };
+}
+
 function pull(trackId, n) {
   const tr = D.gacha.tracks[trackId];
   if (!tr) return;
   // 소환권이 있으면 그만큼 먼저 쓴다. economy.json > currencies.*_ticket 의 '소환 1회 대체'.
-  const bag = trackId === 'skill' ? 'skillTicket' : 'mercTicket';
-  const byTicket = Math.min(S[bag], n);
-  const rest = n - byTicket;
-  const full = n >= 10 ? tr.costs.diamondPer10Pull : tr.costs.diamondPerPull * n;
-  // 10연 할인은 10장을 실제로 다이아로 낼 때만 적용된다
-  const cost = rest === n ? full : tr.costs.diamondPerPull * rest;
+  const { bag, ticket: byTicket, dia: cost } = pullCost(trackId, n);
   if (S.dia < cost) return toast(`다이아 ${num(cost - S.dia)} 부족`);
   S[bag] -= byTicket;
   S.dia -= cost;
@@ -3373,26 +3384,39 @@ function allyLevel() {
 const allyNextLevel = () =>
   D.alliance.level.levels.find(l => l.xp > (S.allyXp || 0)) || null;
 
-function donate(kind) {
-  const d = D.alliance.contribution.donate[kind];
-  if (!d) return;
+/**
+ * 오늘 기부 상태. 하루 5회 **계단**이라 남은 건 "몇 번"이 아니라 "몇 번째"다.
+ * 옛 저장본({gold, eq})은 단계 0 으로 흘려보낸다 — 하루치라 복구할 가치가 없다.
+ */
+function donateState() {
   const a = S.allyDonate;
   const today = new Date().toISOString().slice(0, 10);
-  if (a.day !== today) { a.day = today; a.gold = 0; a.eq = 0; }
-  const key = kind === 'gold' ? 'gold' : 'eq';
-  if (a[key] >= d.dailyLimit) return toast(t('오늘 기부 한도를 다 썼습니다'));
-  if (kind === 'gold') {
-    if (S.gold < d.unit) return toast(`골드가 부족합니다 (${num(d.unit)} 필요)`);
-    S.gold -= d.unit;
-  } else {
-    if (S.eqTicket < d.unit) return toast(`장비 소환권이 부족합니다 (${d.unit}장 필요)`);
-    S.eqTicket -= d.unit;
+  if (a.day !== today || typeof a.step !== 'number') {
+    S.allyDonate = { day: today, step: 0 };
   }
-  a[key]++;
-  S.allyCoin = (S.allyCoin || 0) + d.coin;
-  S.allyXp = (S.allyXp || 0) + d.coin;      // 코인 1 = XP 1. 써도 XP 는 남는다
+  return S.allyDonate;
+}
+const donateSteps = () => D.alliance.contribution.donate.steps;
+/** 지금 눌러야 할 단계. 다 했으면 null */
+const donateNext = () => donateSteps()[donateState().step] || null;
+
+/** 기부 한 번 = 한 계단. 화면이 다음 계단으로 갈아탄다 */
+function donate() {
+  const a = donateState();
+  const st = donateNext();
+  if (!st) return toast(t('오늘 기부를 다 했습니다'));
+  if (st.kind === 'gold') {
+    if (S.gold < st.cost) return toast(`골드가 부족합니다 (${num(st.cost)} 필요)`);
+    S.gold -= st.cost;
+  } else if (st.kind === 'diamond') {
+    if (S.dia < st.cost) return toast(`다이아가 부족합니다 (${num(st.cost)} 필요)`);
+    S.dia -= st.cost;
+  }
+  a.step++;
+  S.allyCoin = (S.allyCoin || 0) + st.coin;
+  S.allyXp = (S.allyXp || 0) + st.coin;     // 코인 1 = XP 1. 써도 XP 는 남는다
   save(); renderTop(); alli.render();
-  gainToast([['alliance_coin', d.coin]]);
+  gainToast([['alliance_coin', st.coin]]);
   if ($('#ov').classList.contains('show')) openAlliance('donate');
 }
 
@@ -3462,7 +3486,7 @@ function openAlliance(tab = 'home') {
   // 그 아래 내 요약(코인·오늘 기부). 설계 수치 나열은 유저 화면이 아니다
   const home = () => {
     const today = new Date().toISOString().slice(0, 10);
-    const dn = S.allyDonate.day === today ? S.allyDonate : { gold: 0, eq: 0 };
+    const dn = donateState();
     const d = A.contribution.donate;
     const doneN = dn.gold + dn.eq, capN = d.gold.dailyLimit + d.equip_ticket.dailyLimit;
     return `<div class="al-hero">
@@ -3554,23 +3578,64 @@ function openAlliance(tab = 'home') {
     + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`
     + '<div class="sh-note">서버 연동 전 데모 명단입니다. 실명단은 연합 컬렉션에서 온다.</div>';
 
-  // 기부 — 마을 창고에서 온다. 보기만 하는 표가 아니라 실제 실행 버튼이다
+  /**
+   * 기부 — 하루 5회 **계단**. 한 번 누르면 다음 계단으로 화면이 통째로 갈아탄다.
+   * 표를 다섯 줄 늘어놓으면 무엇을 눌러야 하는지 매번 고르게 된다. 계단은
+   * 고를 게 없다 — 지금 칸 하나만 크게 띄우고, 나머지는 발자국(pip)으로 남긴다.
+   */
   const donateTab = () => {
-    const d = A.contribution.donate;
-    const a = S.allyDonate.day === new Date().toISOString().slice(0, 10)
-      ? S.allyDonate : { gold: 0, eq: 0 };
-    return `<div class="frow"><span class="k">보유 연합 코인</span>
-        <span class="v">${coin}${num(S.allyCoin || 0)}</span></div>
-      <div class="al-dn"><div>
-          <b>골드 ${num(d.gold.unit)}</b>
-          <span>${coin}${d.gold.coin} · 오늘 ${a.gold}/${d.gold.dailyLimit}</span></div>
-        <button class="rt-b go" data-dn="gold"
-          ${a.gold >= d.gold.dailyLimit ? 'disabled' : ''}>기부</button></div>
-      <div class="al-dn"><div>
-          <b>장비 소환권 ${d.equip_ticket.unit}장</b>
-          <span>${coin}${d.equip_ticket.coin} · 오늘 ${a.eq}/${d.equip_ticket.dailyLimit}</span></div>
-        <button class="rt-b go" data-dn="equip_ticket"
-          ${a.eq >= d.equip_ticket.dailyLimit ? 'disabled' : ''}>기부</button></div>
+    const A2 = A.contribution.donate;
+    const a = donateState();
+    const st = donateNext();
+    const steps = A2.steps;
+
+    // 발자국 — 지난 칸은 도장, 지금 칸은 빛나는 칸, 남은 칸은 값만 흐리게
+    const pips = steps.map((x, i) => {
+      const done = i < a.step, now = i === a.step;
+      return `<div class="dn-pip ${done ? 'done' : now ? 'now' : ''}" data-tone="${x.tone}">
+        <img src="/assets/ui/${x.icon}.png" alt="" onerror="this.remove()">
+        <em>${done ? '✓' : x.kind === 'free' ? t('무료') : num(x.cost)}</em>
+      </div>`;
+    }).join('<i class="dn-line"></i>');
+
+    const held = st && st.kind === 'gold' ? S.gold : st && st.kind === 'diamond' ? S.dia : 0;
+    const lack = st && st.cost > held;
+
+    const card = st
+      ? `<div class="dn-card" data-tone="${st.tone}">
+          <span class="dn-no">${t('{0} / {1} 번째', st.n, A2.dailyLimit)}</span>
+          <img class="dn-ico" src="/assets/ui/${st.icon}.png" alt="" onerror="this.remove()">
+          <b>${st.nameKo}</b>
+          <span class="dn-desc">${st.descKo}</span>
+          <div class="dn-trade">
+            <span class="dn-give">${st.kind === 'free'
+              ? t('비용 없음')
+              : `<img src="/assets/ui/${st.icon}.png" alt="">${num(st.cost)}`}</span>
+            <i>→</i>
+            <span class="dn-get">${coin}${st.coin}</span>
+          </div>
+          ${st.kind === 'free' ? '' : `<span class="dn-have${lack ? ' lack' : ''}">${
+            t('보유')} <img src="/assets/ui/${st.icon}.png" alt="">${num(held)}</span>`}
+          <button class="fgbtn dn-go${lack ? ' off' : ''}" data-dn="1">
+            ${lack ? t('{0} 부족', st.kind === 'gold' ? t('골드') : t('다이아')) : t('기부하기')}</button>
+        </div>`
+      : `<div class="dn-card done" data-tone="done">
+          <img class="dn-ico" src="/assets/ui/CU-12.png" alt="" onerror="this.remove()">
+          <b>${t('오늘 기부 완료')}</b>
+          <span class="dn-desc">${t('내일 05:00 에 다섯 칸이 다시 열립니다')}</span>
+          <div class="dn-trade"><span class="dn-get">${coin}${
+            steps.reduce((n, x) => n + x.coin, 0)} ${t('획득')}</span></div>
+        </div>`;
+
+    // 보유 줄 — 기부에 쓰는 재화를 전부 띄운다. 눌러 보고서야 부족한 걸
+    // 아는 화면이면 계단을 오를 계획을 못 세운다
+    return `<div class="dn-wallet">
+        <span><img src="/assets/ui/CU-12.png" alt="" onerror="this.remove()">${num(S.allyCoin || 0)}</span>
+        <span><img src="/assets/ui/CU-04.png" alt="" onerror="this.remove()">${num(S.gold)}</span>
+        <span><img src="/assets/ui/CU-01.png" alt="" onerror="this.remove()">${num(S.dia)}</span>
+      </div>
+      <div class="dn-track">${pips}</div>
+      ${card}
       <div class="sh-note">${A.contribution.donateNote}</div>`;
   };
 
@@ -3581,7 +3646,7 @@ function openAlliance(tab = 'home') {
   $('#ovb').querySelectorAll('[data-albuy]').forEach(b =>
     b.addEventListener('click', () => allyBuy(b.dataset.albuy)));
   $('#ovb').querySelectorAll('[data-dn]').forEach(b =>
-    b.addEventListener('click', () => donate(b.dataset.dn)));
+    b.addEventListener('click', () => donate()));
   $('#ovb').querySelectorAll('[data-al-go]').forEach(b =>
     b.addEventListener('click', () => openAlliance(b.dataset.alGo)));
   $('#ovb').querySelector('[data-al-fight]')?.addEventListener('click', () =>
@@ -3886,49 +3951,53 @@ function openForge() {
   const cur = n => `<img src="/assets/ui/${n}.png" alt="">`;
   const h = [];
 
-  // 제작대 이미지를 누르면 장비를 소환한다
+  // 이 패널은 **레벨을 올리는 곳**이다. 소환은 본화면의 제작대 오브젝트에서 한다 —
+  // 한 화면에서 둘 다 되면 레벨업 골드를 넣으려다 소환을 눌러 소환권이 샌다
   h.push(`<div id="fgHero">
-      <img src="/assets/ui/FG-0${stageNo}.png" alt="" id="fgSummon" title="탭하여 장비 소환">
+      <img src="/assets/ui/FG-0${stageNo}.png" alt="">
       <button id="fgLvBadge" title="이 레벨의 장비 등급 확률">Lv ${S.forgeLv} <i>ⓘ</i></button>
       <span id="fgHeroSpark"></span>
       <div id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</div>
     </div>`);
 
-  // 소환 버튼. 제작대 그림을 탭해도 같지만, 탭만으로는 눌러도 되는 건지 안 읽힌다
-  h.push(`<div class="fg-pull">
-    <button class="fgbtn" id="fgP1" ${S.eqTicket < 1 ? 'disabled' : ''}>1회 소환
-      <em>${cur('CU-07')}1</em></button>
-  </div>`);
 
-
-  if (running) {
-    h.push(`<div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>`);
-    const can = Math.min(S.hourglass || 0, Math.ceil(forgeRemain() / 300));
-    const use = Math.max(1, Math.min(S.hgUse || 1, can));
-    // 남은 시간 옆에서 바로 단축을 연다. 항상 펼쳐 두면 대기 중에도 자리를 먹는다.
-    h.push(`<div class="frow"><span class="k">Lv ${S.forgeTarget} 제작 중</span>
-      <span class="v" id="fgLeft">${dur(forgeRemain())}</span>
-      <button class="hg-open" id="fgHgOpen"
-        ${can < 1 ? 'disabled' : ''}>${cur('CU-10')} 사용</button></div>`);
-
-    // 사용 UI 는 별도 창(#hgPop)에서 연다 — 인라인으로 펼치면 제작대 카드가
-    // 늘었다 줄었다 하며 아래 내용이 밀린다
-    if (can < 1) h.push(`<div class="sh-note" style="margin-top:6px">
-      모래시계가 없습니다. 상점에서 다이아로 구매할 수 있습니다.</div>`);
-  } else if (c) {
-    const paid = S.forgePaid || 0;
-    // 몇 번 중 몇 번인지는 숫자보다 칸이 빨리 읽힌다
-    const cells = Array.from({ length: c.parts },
+  // 레벨 카드 하나로 묶는다 — 이 패널의 일은 **레벨을 올리는 것** 하나뿐이라
+  // 진행·비용·남은 시간이 흩어져 있으면 무엇을 눌러야 하는지가 안 읽힌다
+  if (c || running) {
+    const tgt = running ? S.forgeTarget : next;
+    const cc = forgeCost(tgt) || c;
+    const paid = running ? cc.parts : (S.forgePaid || 0);
+    const cells = Array.from({ length: cc.parts },
       (_, i) => `<i class="${i < paid ? 'on' : ''}"></i>`).join('');
-    h.push(`<div class="frow"><span class="k">Lv ${next} 제작</span>
-      <span class="v"><span class="fg-cells">${cells}</span>
-      <b style="margin-left:7px">${paid}/${c.parts}</b></span></div>`);
-    h.push(`<div class="frow"><span class="k">제작 시간</span>
-      <span class="v">${dur(c.sec)} <span style="color:var(--dim)">(마지막 투입 후)</span></span></div>`);
-    h.push(`<button class="fgbtn" id="fgPayBtn" ${S.gold < c.per ? 'disabled' : ''}>
-      ${cur('CU-04')} ${num(c.per)}</button>`);
+    const can = running ? Math.min(S.hourglass || 0, Math.ceil(forgeRemain() / 300)) : 0;
+
+    h.push(`<div class="fg-up${running ? ' busy' : ''}">
+      <div class="fg-up-h">
+        <span class="fg-lvfrom">Lv ${S.forgeLv}</span>
+        <i class="fg-arrow">▸</i>
+        <span class="fg-lvto">Lv ${tgt}</span>
+        ${running ? `<em class="fg-tag">${t('제작 중')}</em>` : ''}
+      </div>
+      <div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>
+      ${running
+        ? `<div class="fg-up-row"><span class="k">${t('남은 시간')}</span>
+             <span class="v" id="fgLeft">${dur(forgeRemain())}</span></div>
+           <button class="fgbtn hg-open" id="fgHgOpen" ${can < 1 ? 'disabled' : ''}>
+             ${cur('CU-10')} ${can < 1 ? t('모래시계 없음') : t('시간 단축')}</button>`
+        : `<div class="fg-up-row"><span class="k">${t('골드 투입')}</span>
+             <span class="v"><span class="fg-cells">${cells}</span>
+               <b style="margin-left:7px">${paid}/${cc.parts}</b></span></div>
+           <div class="fg-up-row"><span class="k">${t('제작 시간')}</span>
+             <span class="v">${dur(cc.sec)}
+               <span style="color:var(--dim);font-size:10px">(${t('마지막 투입 후')})</span></span></div>
+           <button class="fgbtn" id="fgPayBtn" ${S.gold < cc.per ? 'disabled' : ''}>
+             ${cur('CU-04')} ${num(cc.per)}</button>`}
+    </div>`);
   } else {
-    h.push(`<div class="frow"><span class="k">최대 레벨 도달</span><span class="v">Lv ${S.forgeLv}</span></div>`);
+    h.push(`<div class="fg-up done"><div class="fg-up-h">
+      <span class="fg-lvto">Lv ${S.forgeLv}</span></div>
+      <div class="fg-up-row"><span class="k">${t('최대 레벨 도달')}</span>
+        <span class="v">${t('더 올릴 곳이 없습니다')}</span></div></div>`);
   }
 
   // 다음 해금 한 줄만 본문에. 전체 목록은 ⓘ 버튼으로 연다 —
@@ -3958,8 +4027,6 @@ function openForge() {
     }).join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
-  $('#fgSummon')?.addEventListener('click', () => pullOne('#fgHero'));
-  $('#fgP1')?.addEventListener('click', () => pullOne('#fgHero'));
   // 레벨 배지를 누르면 이 레벨의 등급 확률을 편다. 제작대는 확률이 레벨로
   // 갈리는데(equipmentRateBands) 그 값을 볼 데가 없었다
   $('#fgLvBadge')?.addEventListener('click', e => { e.stopPropagation(); openForgeRates(); });
@@ -4561,6 +4628,7 @@ function bootLangPick() {
     },
     state: S, data: D, toast,
     pull: (trackId, n) => pull(trackId, n),
+    pullCost: (trackId, n) => pullCost(trackId, n),
     buySpeed3, claimSpeed3Daily,
   });
   bootStep(55);

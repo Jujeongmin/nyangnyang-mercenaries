@@ -369,6 +369,61 @@
   .al-on{flex:0 0 auto;font-size:9px;color:#8cf59a}
   .al-on.off{color:var(--dim)}
 
+  /* ── 기부 계단 ── 톤이 단계 성격을 나른다: 무료 초록 · 골드 호박 · 다이아 청록.
+     같은 남색 카드로 다섯 번 누르면 무엇이 달라졌는지 안 보인다 */
+  .dn-track{display:flex;align-items:center;justify-content:center;gap:2px;
+    margin:8px 0 10px}
+  .dn-line{flex:1;height:2px;background:#ffffff1f;max-width:16px}
+  .dn-pip{width:34px;display:flex;flex-direction:column;align-items:center;gap:2px;
+    opacity:.4;transition:opacity .18s}
+  .dn-pip img{width:19px;height:19px;object-fit:contain;filter:grayscale(1)}
+  .dn-pip em{font-style:normal;font-size:8px;color:var(--dim);white-space:nowrap}
+  .dn-pip.done{opacity:.85}
+  .dn-pip.done img{filter:none}
+  .dn-pip.done em{color:var(--good,#5ad884);font-weight:800}
+  .dn-pip.now{opacity:1;transform:scale(1.16)}
+  .dn-pip.now img{filter:none;
+    filter:drop-shadow(0 0 7px var(--dn-au))}
+  .dn-pip.now em{color:var(--dn-au);font-weight:800}
+  [data-tone="free"]{--dn-au:#5ad884}
+  [data-tone="gold"]{--dn-au:#ffc94a}
+  [data-tone="dia"] {--dn-au:#5ad8ff}
+  [data-tone="done"]{--dn-au:#9aa4b5}
+
+  .dn-card{position:relative;display:flex;flex-direction:column;align-items:center;
+    gap:4px;padding:14px 12px 12px;border-radius:14px;
+    background:radial-gradient(120% 90% at 50% 0%, color-mix(in srgb,var(--dn-au) 26%,transparent), #0000),
+      var(--card);
+    border:2px solid color-mix(in srgb,var(--dn-au) 45%,var(--line));
+    box-shadow:0 0 22px color-mix(in srgb,var(--dn-au) 18%,transparent) inset;
+    animation:dnIn .22s ease-out}
+  @keyframes dnIn{from{transform:translateY(6px) scale(.97);opacity:.2}}
+  .dn-no{font-size:9px;font-weight:800;letter-spacing:1px;color:var(--dn-au);
+    background:#0b0f17aa;border:1px solid color-mix(in srgb,var(--dn-au) 40%,transparent);
+    border-radius:999px;padding:2px 9px}
+  .dn-ico{width:58px;height:58px;object-fit:contain;margin:2px 0;
+    filter:drop-shadow(0 3px 10px color-mix(in srgb,var(--dn-au) 60%,transparent))}
+  .dn-card b{font-size:14px;font-weight:800}
+  .dn-desc{font-size:10px;color:var(--dim);text-align:center}
+  .dn-trade{display:flex;align-items:center;gap:8px;margin:6px 0 2px;
+    font-size:13px;font-weight:800}
+  .dn-trade i{font-style:normal;color:var(--dim);font-size:11px}
+  .dn-trade img{width:15px;height:15px;object-fit:contain;vertical-align:-3px;
+    margin-right:3px}
+  .dn-give{color:#e9edf5}
+  .dn-get{color:var(--gold)}
+  .dn-get img{width:15px;height:15px}
+  .dn-have{font-size:10px;color:var(--dim)}
+  .dn-have img{width:12px;height:12px;object-fit:contain;vertical-align:-2px;margin:0 2px}
+  .dn-have.lack{color:var(--warn,#ff6b6b);font-weight:800}
+  .dn-go{width:100%;margin-top:6px}
+  /* 지갑 — 기부에 쓰는 재화 세 종을 한 줄에 */
+  .dn-wallet{display:flex;gap:6px;margin-bottom:2px}
+  .dn-wallet span{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;
+    background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:6px 4px;font-size:11px;font-weight:800}
+  .dn-wallet img{width:14px;height:14px;object-fit:contain}
+
   .al-dn{display:flex;align-items:center;gap:10px;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:7px 0}
   .al-dn>div{flex:1}
@@ -1307,7 +1362,28 @@
   #fgHero.hit #fgHeroSpark{animation:fgSpk .4s ease-out .25s both}
   #fgHero.hit img#fgSummon{animation:fgShake .58s cubic-bezier(.3,1.4,.5,1) both}
   #fgStage{font-size:11px;color:var(--dim);margin-top:4px}
-  #fgProg{height:9px;background:#0006;border-radius:5px;margin:8px 0 4px;overflow:hidden}
+  /* 레벨업 카드 — 제작대 패널의 본체. 소환을 본화면으로 옮긴 뒤
+     이 패널에 남은 일은 레벨 하나라, 한 장의 카드로 묶어 무게를 준다 */
+  .fg-up{background:var(--card);border:2px solid var(--line);border-radius:13px;
+    padding:10px 11px 11px;margin-top:8px;
+    box-shadow:0 0 20px #ffc94a14 inset}
+  .fg-up.busy{border-color:#ffc94a55}
+  .fg-up-h{display:flex;align-items:center;justify-content:center;gap:7px;
+    margin-bottom:7px}
+  .fg-lvfrom{font-size:12px;font-weight:800;color:var(--dim)}
+  .fg-arrow{font-style:normal;color:var(--gold);font-size:11px}
+  .fg-lvto{font-size:15px;font-weight:800;color:var(--gold);
+    text-shadow:0 0 12px #ffc94a55}
+  .fg-tag{font-style:normal;font-size:9px;font-weight:800;color:#0b0f17;
+    background:var(--gold);border-radius:999px;padding:2px 7px;margin-left:2px}
+  .fg-up-row{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;padding:5px 1px;font-size:12px}
+  .fg-up-row .k{color:var(--dim)}
+  .fg-up-row .v{font-weight:800;display:flex;align-items:center;gap:3px}
+  .fg-up .fgbtn{width:100%;margin-top:7px}
+  .fg-up.done{opacity:.75}
+
+  #fgProg{height:9px;background:#0006;border-radius:5px;margin:2px 0 6px;overflow:hidden}
   #fgProgFill{height:100%;width:0;background:linear-gradient(90deg,var(--ore),var(--gold))}
   .fgbtn{width:100%;padding:11px;font-size:13px;border-radius:9px;font-weight:800;
     border:1px solid #4a6fc0;background:linear-gradient(#3c5ea8,#2c4680);color:var(--txt);cursor:pointer}

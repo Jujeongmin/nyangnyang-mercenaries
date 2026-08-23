@@ -458,6 +458,7 @@ export class BattleScene {
     // 엔진 시계가 갈라져, 바가 다 찼는데 발동이 안 되는 상태가 길게 남는다.
     // 한 조우가 2초쯤이라 쿨 20초짜리는 실제로 40초 넘게 안 나갔다.
     this.tickSkillCd(s);
+    this.stepSkillState(s);   // 소환수 수명 · 보호막 지속시간
 
     if (this.phase === 'walk') {
       this.phaseT += s;
@@ -674,7 +675,15 @@ export class BattleScene {
     if (this.partyHp == null) return;
     const R = this.D.combat.stageRules;
     const scale = foe.boss ? (R.bossDamageScale ?? 1) : (R.mobDamageScale ?? 0.05);
-    const raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15);
+    let raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15);
+    // 보호막이 있으면 **먼저** 깎인다 — 이게 없으면 party_shield 는 시전 모션뿐인
+    // 장식이 된다 (실제로 그랬다)
+    if (this.shield > 0) {
+      const absorb = Math.min(this.shield, raw);
+      this.shield -= absorb;
+      raw -= absorb;
+      if (this.shield <= 0) this.shieldLeft = 0;
+    }
     this.partyHp = Math.max(0, this.partyHp - raw);
     if (this.partyHp <= 0 && this.phase === 'fight') {
       this.phase = 'done';
@@ -757,7 +766,101 @@ export class BattleScene {
   fireSkill(sk) {
     const cd = this.cooldownOf(sk);
     this.skCd.set(sk.id, cd);
+    this.applySkillEffect(sk);
     this.onEvent({ type: 'skillCast', id: sk.id, sec: cd / (this.speed || 1) });
+  }
+
+  /**
+   * 피해 말고 **상태**를 만드는 스킬. skillDmg 는 atkRatio 가 있는 것만 보므로
+   * 보호막·소환처럼 화면에 뭔가 나와야 하는 종류는 여기서 처리한다.
+   */
+  applySkillEffect(sk) {
+    const e = this.D.skills.skills.find(k => k.id === sk.id)?.effect;
+    if (!e) return;
+    if (e.kind === 'party_shield') this.grantShield(sk, e);
+    if (e.kind === 'summon') this.spawnSummons(sk, e);
+  }
+
+  /**
+   * 보호막 — 파티 최대 체력의 일정 비율을 **따로 쌓아** 먼저 깎는다.
+   * 잡몹 피해는 0.05 배라 사실상 안 죽으므로 이 스킬이 값을 하는 곳은 보스전이다.
+   * 체력바 위에 하늘색 덧바로 보인다 (drawPartyBar).
+   */
+  grantShield(sk, e) {
+    if (this.partyMaxHp == null) return;
+    const lvMul = 1 + (sk.level || 0) * 0.06;         // 스킬 레벨 성장은 피해와 같은 식
+    const amt = this.partyMaxHp * (e.maxHpRatio || 0) * lvMul;
+    this.shield = Math.max(this.shield || 0, amt);     // 겹쳐도 더 큰 쪽 하나
+    this.shieldMax = this.shield;
+    this.shieldLeft = e.durationSec || 8;
+    if (this.captain) {
+      this.fx.play('HIT-05', this.captain.view.x, this.captain.view.y - this.captain.h * 0.5,
+        { size: this.fxSize(this.captain.h * 1.1, 0.3), dur: 460, to: 1.25 });
+    }
+  }
+
+  /**
+   * 소환수 — 지속시간 동안 단장 옆에 실제로 서서 같이 때리는 척한다.
+   * 피해는 이미 skillDmg 가 burst 로 한 번에 넣으므로(= count x durationSec)
+   * 여기서 또 때리면 두 번 들어간다. **연출만** 한다.
+   */
+  async spawnSummons(sk, e) {
+    if (!this.captain || !this.field) return;
+    const P = PIXI();
+    // 소환수 몸은 **실제 냥이 원화**다. 타격 이펙트를 파랗게 물들여 놓으면
+    // 무엇이 나온 건지 안 읽힌다 (처음에 그렇게 했다가 "아무것도 안 보인다"는
+    // 보고를 받았다). N-01 = 가장 작은 잡냥이 원화.
+    const tex = await this.load('/assets/char/N-01.png');
+    if (!tex || !this.captain) return;
+    const n = e.count || 1;
+    this.summons = this.summons || [];
+    for (let i = 0; i < n; i++) {
+      const g = new P.Container();
+      // 대열 **앞**(적 쪽)에 선다. 뒤에 두면 본대 스프라이트에 완전히 가린다.
+      const side = i % 2 ? -1 : 1;
+      const bx = this.captain.view.x + 34 + 16 * Math.floor(i / 2);
+      const by = this.captain.view.y + side * (16 + 7 * Math.floor(i / 2));
+      const body = new P.Sprite(tex);
+      body.anchor.set(0.5, 0.94);
+      body.height = this.captain.h * 0.62;
+      body.width = body.height * (tex.width / tex.height);
+      body.tint = 0xcdeeff;          // 소환수는 반투명 하늘빛 — 본대와 구분된다
+      body.alpha = 0;
+      // 발밑 그림자가 없으면 공중에 뜬 것처럼 보인다
+      const sh = new P.Graphics()
+        .ellipse(0, 0, body.width * 0.3, body.width * 0.11)
+        .fill({ color: 0x000000, alpha: 0.35 });
+      g.addChild(sh, body);
+      g.x = bx; g.y = by;
+      this.field.addChild(g);
+      this.summons.push({ g, body, sh, t: 0, life: e.durationSec || 12, phase: i * 0.5,
+        y0: by });
+    }
+  }
+
+  /** 소환수·보호막 수명. tick 이 매 프레임 부른다 (dt 는 시뮬 초) */
+  stepSkillState(dt) {
+    if (this.shieldLeft > 0) {
+      this.shieldLeft -= dt;
+      if (this.shieldLeft <= 0) { this.shield = 0; this.shieldLeft = 0; }
+    }
+    if (!this.summons?.length) return;
+    for (const s of this.summons) {
+      s.t += dt;
+      const k = s.t / s.life;
+      // 등장 0.2초 페이드인 · 퇴장 0.4초 페이드아웃 · 그 사이 둥실
+      const a = k > 0.94 ? Math.max(0, (1 - k) / 0.06) : Math.min(1, s.t / 0.2);
+      s.body.alpha = a * 0.9;
+      s.sh.alpha = a * 0.35;
+      // 제자리 통통 — 절대 좌표로 잡는다. 매 프레임 더하면 화면 밖으로 샌다
+      s.g.y = s.y0 + Math.sin((s.t + s.phase) * 5) * 3;
+      s.body.y = -Math.abs(Math.sin((s.t + s.phase) * 5)) * 4;
+    }
+    this.summons = this.summons.filter(s => {
+      if (s.t < s.life) return true;
+      s.g.destroy({ children: true });
+      return false;
+    });
   }
 
   /** 수동 모드에서 준비 상태를 #skills 아이콘에 반영한다. 프레임마다 부른다. */
@@ -787,6 +890,13 @@ export class BattleScene {
     g.roundRect(x - 2, y - 2, w + 4, h + 4, 6)
       .fill({ color: 0x0a1020, alpha: 0.9 })
       .stroke({ color: 0x7ad8ff, width: 1.5, alpha: 0.9 });
+    // 보호막은 체력바 위에 하늘색으로 덧그린다 — 남은 양이 눈에 보여야
+    // "보호막이 걸렸다"가 읽힌다
+    if (this.shield > 0) {
+      const sp = Math.min(1, this.shield / this.partyMaxHp);
+      g.roundRect(x, y - 4, w * sp, 3, 1.5)
+        .fill({ color: 0x9ad8ff, alpha: 0.95 });
+    }
     g.roundRect(x, y, w * p, h, 3)
       .fill({ color: p > 0.3 ? 0x4bd86a : 0xffa63a });
     g.roundRect(x, y, w * p, h * 0.4, 3).fill({ color: 0xffffff, alpha: 0.25 });

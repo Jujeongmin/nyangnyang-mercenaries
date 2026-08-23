@@ -163,8 +163,17 @@ export class ShopScreen {
     // 소환권이 10장 미만이면 **가진 만큼** 뽑는다 — "10연"만 있으면 7장 든 유저는
     // 버튼이 다이아 결제로 바뀌어 티켓이 그대로 묵는다.
     // 10장 이상이거나 아예 없으면(다이아 결제) 기존대로 10연이다
-    const byTicket = held > 0 && held < 10;
-    const multiN = byTicket ? held : 10;
+    const multiN = held > 0 && held < 10 ? held : 10;
+    // 가격표는 **실제 결제 식**에서 그린다. 여기서 따로 계산하면 소환권으로
+    // 내는데 버튼엔 다이아가 그려지는 어긋남이 다시 생긴다
+    const price = n => {
+      const c = this.api.pullCost(id, n);
+      const bits = [];
+      if (c.ticket) bits.push(`<img src="/assets/ui/${d.icon}.png" alt="">${c.ticket}`);
+      if (c.dia) bits.push(`<img src="/assets/ui/CU-01.png" alt="">${num(c.dia)}`);
+      return bits.join('<i class="sh-plus">+</i>') || '—';
+    };
+    const noDia = this.api.pullCost(id, multiN).dia === 0;
 
     const tab = k => {
       const p = levelRewardPending(D.gacha.tracks[k],
@@ -197,14 +206,10 @@ export class ShopScreen {
             </button>` : ''}
           <div class="sh-btns">
             <button class="sh-b" data-pull="${id}" data-n="1">
-              1회<em>${held > 0
-                ? `<img src="/assets/ui/${d.icon}.png" alt="">1`
-                : `<img src="/assets/ui/CU-01.png" alt="">${c1}`}</em></button>
+              1회<em>${price(1)}</em></button>
             <button class="sh-b hot" data-pull="${id}" data-n="${multiN}">
-              ${multiN}연<em>${byTicket
-                ? `<img src="/assets/ui/${d.icon}.png" alt="">${multiN}`
-                : `<img src="/assets/ui/CU-01.png" alt="">${num(c10)}`}</em>
-              ${disc > 0 && !byTicket ? `<span class="sh-tag">-${disc}%</span>` : ''}</button>
+              ${multiN}연<em>${price(multiN)}</em>
+              ${disc > 0 && !noDia ? `<span class="sh-tag">-${disc}%</span>` : ''}</button>
           </div>
         </div></div>
       <div class="sh-note">소환 레벨이 오르면 최하위 등급이 풀에서 <b>영구 제거</b>되고
@@ -355,8 +360,10 @@ export class ShopScreen {
   }
 
   // ── 교환 ──
+  // 교환 — 다이아로 골드·장비권을 산다. **골드 환전소는 뺐다 (2026-08-24)**:
+  // 누르면 "결제 연동 전" 토스트만 뜨는 빈 칸이었고, 골드 소모처 역할은
+  // 연합 기부(하루 700만)와 제작대 골드 투입이 이미 받고 있다.
   exchangeTab() {
-    const e = this.api.data.shop.exchange;
     // 다이아 -> 골드. 액수는 방치 공식(idleGold)이라 스테이지가 오르면 같이 오른다.
     // "N시간 분량" 표기가 정직하다 — 고정 액수는 후반에 휴지조각이 된다
     const qg = (this.api.data.shop.quickGold || []).map((o, i) => `<div class="sh-card">
@@ -376,14 +383,6 @@ export class ShopScreen {
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
     return `<div class="sh-h2">골드 구매</div>${qg}
-      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}
-      <div class="sh-h2" style="margin-top:12px">골드 환전소</div>`
-      + e.goldExchange.rates.map((r, i) => `<div class="sh-card">
-          <b>${r}</b>
-          <span class="sh-desc">회차마다 환율이 나빠진다</span>
-          <button class="sh-price" data-buy="ex_${i}">교환</button>
-        </div>`).join('')
-      + `<div class="sh-note">${mdb(e.goldExchange.purpose)}<br>
-          <b>제외</b> ${e.goldExchange.excluded} — ${mdb(e.goldExchange.excludedReason)}</div>`;
+      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}`;
   }
 }
