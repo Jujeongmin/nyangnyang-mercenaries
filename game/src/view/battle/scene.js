@@ -213,6 +213,7 @@ export class BattleScene {
     for (const u of this.units) u.rig.view.destroy({ children: true });
     this.units = [];
     if (this.captain) { this.captain.view.destroy({ children: true }); this.captain = null; }
+    this.capWing = null;
     if (this.capBar) { this.capBar.destroy(); this.capBar = null; }
 
     const TR = await this.loadTrim();
@@ -240,11 +241,16 @@ export class BattleScene {
           .catch(() => null);
         if (wtex) {
           const w = new (PIXI().Sprite)(wtex);
-          w.anchor.set(0.5, 0.62);
-          const h = this.captain.h * 1.25;
+          // 어깨에서 나오는 크기·높이. 1.25배는 몸을 삼켜서 "따로 붙인" 느낌이었다
+          w.anchor.set(0.5, 0.56);
+          const h = this.captain.h * 1.12;
           w.height = h; w.width = h * (wtex.width / wtex.height);
-          w.position.set(0, -this.captain.h * 0.5);
+          w.position.set(0, -this.captain.h * 0.58);
+          w.alpha = 0.96;
           this.captain.view.addChildAt(w, 0);   // 몸 뒤
+          // 몸은 숨쉬는데 날개가 정지면 스티커처럼 붙는다 — tick 이 흔든다
+          this.capWing = w;
+          this.capWingT = 0;
         }
       }
       // 파티 체력바. 단장이 파티를 대표한다 — 용병마다 띄우면 막대밭이 된다.
@@ -509,6 +515,14 @@ export class BattleScene {
 
     this.fx.update(dt);
     if (this.captain) this.captain.update(dt);
+    // 날개 퍼덕임 — 몸의 숨쉬기와 같은 주기대로 살짝 벌어졌다 오므라든다
+    if (this.capWing && !this.capWing.destroyed) {
+      this.capWingT = (this.capWingT || 0) + dt / 1000;
+      const k = Math.sin(this.capWingT * 2.4);
+      this.capWing.scale.x = Math.abs(this.capWing.scale.y) * (1 + k * 0.045)
+        * Math.sign(this.capWing.scale.x || 1);
+      this.capWing.rotation = k * 0.02;
+    }
     this.syncReadyBadge();
     this.drawPartyBar();
     for (const u of this.units) u.rig.update(dt);
