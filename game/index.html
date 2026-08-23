@@ -223,8 +223,12 @@
   .pv-cat img{width:118px;height:auto;object-fit:contain;opacity:.72;
     filter:grayscale(.35) brightness(.78);
     animation:pvBreathe 5.4s ease-in-out infinite}
-  /* 살짝 기울여 조는 자세로 읽히게 한다 — 전용 취침 에셋이 나오기 전까지의 대역이다 */
-  @keyframes pvBreathe{0%,100%{transform:rotate(7deg) translateY(0) scale(1)}
+  @keyframes pvBreathe{0%,100%{transform:translateY(0) scale(1)}
+    50%{transform:translateY(-4px) scale(1.015)}}
+  /* 전용 취침 에셋(captain_sleep)이 없어 전투 포즈로 떨어졌을 때만 기울인다.
+     조는 자세로라도 읽히게 하는 대역이고, 에셋이 들어오면 저절로 안 걸린다 */
+  .pv-cat img.fallback{animation-name:pvBreatheTilt}
+  @keyframes pvBreatheTilt{0%,100%{transform:rotate(7deg) translateY(0) scale(1)}
     50%{transform:rotate(7deg) translateY(-4px) scale(1.015)}}
   .pv-z{position:absolute;right:6px;top:4px;display:flex;align-items:flex-start;gap:2px}
   .pv-z i{font-style:normal;font-weight:800;color:#7d8ba8;opacity:0;
@@ -2597,7 +2601,8 @@
      새고, #app 을 통째로 숨기는 것도 불가능해진다. 밀어서 해제 -->
 <div id="pwrveil">
   <div class="pv-cat">
-    <img src="/assets/captain/captain_warrior.png" alt="" onerror="this.remove()">
+    <img src="/assets/captain/captain_sleep.png" alt=""
+      onerror="this.onerror=null;this.src='/assets/captain/captain_warrior.png';this.classList.add('fallback')">
     <span class="pv-z"><i>z</i><i>z</i><i>Z</i></span>
   </div>
   <div class="pv-clock">00:00</div>
