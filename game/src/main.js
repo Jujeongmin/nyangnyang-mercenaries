@@ -12,6 +12,7 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
+import { initCloud, cloudSave } from './core/cloudsave.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
 import { ShopScreen, summonProgress, levelRewardPending } from './view/shop.js';
@@ -543,6 +544,7 @@ function save() {
   saveTimer = setTimeout(() => {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: S }));
+      cloudSave();          // Verse8 안이면 30초 스로틀로 올라간다. 밖이면 무동작
     } catch (e) { console.warn('저장 실패', e); }
   }, 400);
 }
@@ -4495,6 +4497,18 @@ function bootLangPick() {
     syncNav();
     save();
   }, 1000);
+
+  // 클라우드 세이브 — Verse8 호스트 안에서만 산다. 클라우드가 로컬보다
+  // 앞서 있으면 그쪽을 채택하고 재부팅한다 (반쯤 섞인 상태가 최악이라
+  // 필드 단위 병합은 안 한다 — 세이브는 통짜가 원칙이다)
+  try {
+    const adopted = await initCloud(() => S);
+    if (adopted) {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: adopted }));
+      location.reload();
+      return;
+    }
+  } catch (e) { console.warn('[cloud] 초기화 실패 — 로컬로 계속', e); }
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));

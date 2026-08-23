@@ -327,5 +327,15 @@
     "$global 상태 크기 제한 실측 (문서 미명시)",
     "마이그레이션 함수 작성 규약 - schemaVersion 별 변환",
     "신규 계정 초기값 정의 (튜토리얼 지급분 포함)"
-  ]
+  ],
+  "cloudSave": {
+    "version": 1,
+    "transport": "server.remoteFunction(\"saveState\"/\"loadState\") — server/server.js",
+    "shape": "{ v, s, savedAt }  · savedAt 은 서버 시각",
+    "uploadPolicy": "save() 마다 30초 스로틀 + pagehide/visibilitychange 에 fire-and-forget flush",
+    "conflictPolicy": "progressScore(maxStage*1000 + forgeLv*200 + trainLv*50 + summonExp합 + quest*100) 큰 쪽 채택. 부트에 클라우드가 앞서면 로컬을 갈아끼우고 재부팅 — 필드 병합은 안 한다 (반쯤 섞인 세이브가 최악이다). 식은 클라(core/cloudsave.js)와 서버(server/server.js)가 반드시 같아야 한다",
+    "regressionGuard": "새 점수가 서버본의 60% 미만이면 force 없이 저장 거부. 기기 교체 직후 빈 로컬이 큰 세이브를 덮는 사고를 막는다. 거부당한 클라는 서버본을 받아 재부팅",
+    "validation": "크기 200KB / v 일치 / 재화 음수·비유한 거부 (서버)",
+    "phase2": "판정의 서버 이관은 별도 작업 — net/backend.js 경계로 소환·강화·수령을 전부 옮긴다. 통짜 저장 단계에서는 클라 조작을 막지 못한다는 것을 안다. 상용 전 필수."
+  }
 }
