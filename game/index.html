@@ -1152,6 +1152,9 @@
   @keyframes dcShine{from{background-position:160% 0}to{background-position:-60% 0}}
   @media (prefers-reduced-motion:reduce){.dc-cell.jackpot::after{animation:none}}
   .dc-cell.t-again i img{width:22px;height:22px;object-fit:contain;display:block}
+  .dc-cell.t-wing i img{width:24px;height:24px;object-fit:contain;display:block}
+  .dc-cell.t-wing{border-color:#ff8a9a;box-shadow:inset 0 0 10px #ff8a9a33}
+  .dc-cell.t-wing b{color:#ff8a9a}
   .dc-cell.t-again{border-color:var(--dia);
     box-shadow:inset 0 0 10px #5ad8ff33}
   .dc-tok{position:absolute;left:50%;top:-12px;transform:translateX(-50%);
@@ -1174,11 +1177,32 @@
     box-shadow:inset 0 0 14px #ffd76a1e}
   .dc-prize u{display:block;text-decoration:none;font-size:12px;color:var(--gold);
     font-family:"Black Han Sans","Jua",system-ui,sans-serif}
-  .dc-prize b{font-size:9px;font-weight:800;line-height:1.3;display:block;word-break:keep-all}
+  /* 종류(칭호/프레임/날개)와 이름을 줄로 나눈다 — 한 덩어리로 흘리면
+     좁은 칸에서 아무 데서나 꺾여 읽기 사납다 */
+  .dc-prize em{display:block;font-style:normal;font-size:8px;color:var(--dim);
+    margin:1px 0}
+  .dc-prize b{font-size:9.5px;font-weight:800;line-height:1.35;display:block;
+    word-break:keep-all;text-wrap:balance}
   .dc-prize.far{opacity:.55;border-color:var(--line);box-shadow:none}
   .dc-prize.got i{position:absolute;inset:0;display:flex;align-items:center;
     justify-content:center;font-style:normal;font-size:19px;color:var(--up);
     background:#000000a0;border-radius:9px}
+  .dc-prize{cursor:pointer;font-family:inherit;color:var(--txt)}
+  .pz-hero{display:flex;justify-content:center;margin-bottom:8px}
+  .pz-hero img{width:110px;height:110px;object-fit:contain;
+    filter:drop-shadow(0 4px 10px #000a) drop-shadow(0 0 12px #ffc94a55)}
+  .pz-name{text-align:center;font-size:12px;color:var(--dim);margin-bottom:10px}
+  .pz-name b{font-size:15px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .dc-buy{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px}
+  .dc-buyb{font-family:inherit;cursor:pointer;background:var(--card);
+    border:2px solid var(--gold);border-radius:11px;padding:7px 4px;text-align:center;
+    color:var(--txt)}
+  .dc-buyb b{display:block;font-size:12px;font-weight:800}
+  .dc-buyb em{font-style:normal;font-size:10px;color:var(--dia);font-weight:800;
+    display:inline-flex;align-items:center;gap:3px}
+  .dc-buyb em img{width:12px;height:12px;object-fit:contain}
+  .dc-buyb:active{transform:translateY(1px)}
   .dc-fest{text-decoration:none;font-size:9px;font-weight:800;color:#2a1c05;
     background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:5px;padding:1px 6px;
     margin-left:4px}

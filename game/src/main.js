@@ -109,7 +109,7 @@ const S = {
   // 무료 1000뽑 — 스테이지 마일스톤 자동 지급 (free1000.json). total = 지급 누계
   f1k: { claimed: [], total: 0 },
   // 냥냥 주사위 — 굴림은 이벤트 미션 보상으로만 얻는다. mClaimed 는 매일 초기화
-  dice: { day: null, rolls: 0, mClaimed: [], pos: 0, laps: 0 },
+  dice: { day: null, rolls: 0, mClaimed: [], pos: 0, laps: 0, totalRolls: 0 },
   // 이벤트 시계의 원점 — 첫 접속 시각. D-day 가 여기서 나온다
   evStart: null,
   mailbox: [],
@@ -154,6 +154,18 @@ function codexBonus() {
 
 const trainDef = () => D.goldsinks.sinks.find(x => x.id === 'training_camp');
 
+/** 이벤트 한정 상품 CP 보너스 — 보유 기준 합산 (events.json > rollRewards.cpBonus) */
+function cosmeticBonus() {
+  let b = 0;
+  for (const r of D.events.diceBoard.rollRewards || []) {
+    const got = r.title ? S.profile.ownedTitles.includes(r.title)
+      : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
+      : S.cosmetics?.owned?.includes(r.cosmetic);
+    if (got) b += r.cpBonus || 0;
+  }
+  return b;
+}
+
 function totalCp() {
   let base = S.party.reduce((a, m) => a + cpOf(m), 0);
   base += [...S.skills.active, ...S.skills.passive].reduce((a, s) => a + (s ? skillCp(s) : 0), 0);
@@ -161,7 +173,8 @@ function totalCp() {
     * (1 + equipBonus())
     * (1 + codexBonus())
     * (1 + trainingBonus(trainDef(), S.trainLv))
-    * (1 + S.forgeLv * 0.008);
+    * (1 + S.forgeLv * 0.008)
+    * (1 + cosmeticBonus());
 }
 
 /**
@@ -2054,6 +2067,43 @@ function setDiceFace(el, n) {
   if (window.__diceImgFail) diceImgOk = false;
 }
 
+/** 한정 상품 설명 — 진열장 카드를 누르면 뜬다. 효과·조건·보유 상태를 한 창에 */
+function openPrizeInfo(i) {
+  const r = D.events.diceBoard.rollRewards[i];
+  if (!r) return;
+  const got = r.title ? S.profile.ownedTitles.includes(r.title)
+    : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
+    : S.cosmetics.owned.includes(r.cosmetic);
+  const img = r.cosmetic ? '/assets/captain/EV-WING1.png'
+    : r.profile_frame ? '/assets/ui/PF-S1.png' : '/assets/ui/IC-QUEST.png';
+  const ttl = $('#smTitle'); if (ttl) ttl.textContent = t('한정 상품');
+  $('#smBody').innerHTML = `
+    <div class="pz-hero"><img src="${img}" alt="" onerror="this.remove()"></div>
+    <div class="pz-name">${r.kindKo} · <b>${r.nameKo}</b></div>
+    <div class="frow"><span class="k">${t('효과')}</span>
+      <span class="v" style="font-size:11px">${t('전투력 +{0}%', (r.cpBonus * 100).toFixed(1).replace('.0', ''))}</span></div>
+    <div class="frow"><span class="k">${t('획득 조건')}</span>
+      <span class="v" style="font-size:11px">${t('누적 굴림 {0}회', r.rolls)}${
+        r.cosmetic ? ` · ${t('또는 날개 칸 0.1%')}` : ''}</span></div>
+    <div class="frow"><span class="k">${t('보유')}</span>
+      <span class="v">${got ? '✓' : `${num(S.dice.totalRolls || 0)}/${r.rolls}`}</span></div>
+    <div class="sh-note">${r.descKo}${r.cosmetic
+      ? `<br>${t('획득 즉시 장착되어 전투 화면에 표시됩니다')}` : ''}</div>`;
+  $('#smPop').classList.add('show');
+}
+
+/** 주사위 유료 구매 — 이 이벤트의 BM. 유료 굴림도 확정 트랙(totalRolls)을 똑같이 센다 */
+function buyRolls(i) {
+  const o = (D.events.diceBoard.rollShop?.options || [])[i];
+  if (!o) return;
+  if (S.dia < o.diamond) return toast(`다이아 ${num(o.diamond - S.dia)} 부족`);
+  S.dia -= o.diamond;
+  S.dice.rolls += o.n;
+  save(); renderTop(); syncNav();
+  toast(t('주사위 +{0}', o.n));
+  renderDiceBoard();
+}
+
 let diceBusy = false;                  // 굴리는 동안 연타 금지
 
 async function rollDice() {
@@ -2063,6 +2113,7 @@ async function rollDice() {
   if (d.rolls < 1) return toast(t('미션을 깨서 주사위를 얻으세요'));
   diceBusy = true;
   d.rolls--;
+  S.dice.totalRolls = (S.dice.totalRolls || 0) + 1;
   const step = 1 + ((Math.random() * 6) | 0);
   const face = $('#dcFace');
   for (let i = 0; i < 7; i++) {
@@ -2079,7 +2130,6 @@ async function rollDice() {
       const got = passGrant(E.lapBonus);
       if (got.pairs.length) gainToast(got.pairs);
       toast(t('완주! {0}바퀴째', S.dice.laps + 1));
-      claimLapRewards();               // 한정 상품 트랙 (칭호·프레임·날개)
     }
     await new Promise(r => setTimeout(r, 190));
   }
@@ -2094,16 +2144,35 @@ async function rollDice() {
   } else if (cell.type === 'again') {
     d.rolls++;
     toast(t('한 번 더!'));
+  } else if (cell.type === 'wing') {
+    // 얼리 잭팟 — 0.1%. 확정 경로(rollRewards 90회)가 따로 있어 여기는 순수 운이다
+    if (!S.cosmetics.owned.includes('wing_launch') && Math.random() < cell.chance) {
+      grantCosmetic('wing_launch', t('단장 날개 [축제의 날개]'));
+    } else {
+      const got = passGrant(cell.fallback);
+      if (got.pairs.length) gainToast(got.pairs);
+      toast(t('아쉽! 위로 보상을 받았습니다'));
+    }
   }
+  claimRollRewards();
   save(); renderTop(); syncNav();
   diceBusy = false;
   renderDiceBoard();
 }
 
-/** 완주 누적 한정 상품 — 재화가 아니라 전부 코스메틱이다 (lapRewardsNote) */
-function claimLapRewards() {
-  for (const r of D.events.diceBoard.lapRewards || []) {
-    if (S.dice.laps < r.laps) continue;
+/** 한정 코스메틱 지급 + 즉시 장착 — 보여야 자랑이 된다 */
+function grantCosmetic(id, label) {
+  if (S.cosmetics.owned.includes(id)) return;
+  S.cosmetics.owned.push(id);
+  S.cosmetics.wing = id;
+  toast(t('한정 획득: {0}', label));
+  refreshParty();
+}
+
+/** 누적 굴림 한정 상품 — 전부 코스메틱 (rollRewardsNote). 굴릴 때마다 확인한다 */
+function claimRollRewards() {
+  for (const r of D.events.diceBoard.rollRewards || []) {
+    if ((S.dice.totalRolls || 0) < r.rolls) continue;
     if (r.title && !S.profile.ownedTitles.includes(r.title)) {
       S.profile.ownedTitles.push(r.title);
       toast(t('한정 칭호 획득: {0}', r.nameKo));
@@ -2113,11 +2182,8 @@ function claimLapRewards() {
         S.profile.ownedFrames.push(r.profile_frame);
         toast(t('한정 획득: {0}', r.nameKo));
       }
-    } else if (r.cosmetic && !S.cosmetics.owned.includes(r.cosmetic)) {
-      S.cosmetics.owned.push(r.cosmetic);
-      S.cosmetics.wing = r.cosmetic;       // 획득 즉시 장착 — 보여야 자랑이 된다
-      toast(t('한정 획득: {0}', r.nameKo));
-      refreshParty();
+    } else if (r.cosmetic) {
+      grantCosmetic(r.cosmetic, r.nameKo);
     }
   }
   save();
@@ -2145,6 +2211,10 @@ function renderDiceBoard() {
       // 주사위 그림이 있으면 그림, 없으면 이모지 — setDiceFace 와 같은 폴백
       inner = `<i><img src="/assets/ui/EV-DICE-1.png" alt="🎲"
         onerror="this.replaceWith('🎲')"></i><b>+1</b>`;
+    } else if (c.type === 'wing') {
+      // 날개 얼리 잭팟 — 확률은 공시 의무 대상이라 칸에 바로 적는다
+      inner = `<i><img src="/assets/captain/EV-WING1.png" alt="🪽"
+        onerror="this.replaceWith('🪽')"></i><b>${(c.chance * 100).toFixed(1)}%</b>`;
     } else {
       inner = `<b>${t('출발')}</b>`;
     }
@@ -2266,7 +2336,7 @@ function openEvents() {
     ${over ? '' : `<span class="evb-dday">D-${left}</span>`}
     <b>${t('냥냥 주사위')}</b>
     <span class="evb-sub">${over ? t('이벤트가 끝났습니다')
-      : t('주사위 {0}개 · {1}바퀴', dd.rolls, S.dice.laps)}</span>
+      : t('주사위 {0}개 · 누적 {1}회', dd.rolls, num(S.dice.totalRolls || 0))}</span>
     ${!over && (dd.rolls > 0 || diceMissionReady()) ? `<i class="evb-dot"></i>` : ''}
   </button>`);
   // 무료 1000뽑 — 진행형이라 기간이 없다
@@ -2345,17 +2415,23 @@ function openEventDetail(id) {
         <button class="fgbtn" id="dcRoll">${t('굴리기')} <em id="dcRolls">${d.rolls}</em></button>
       </div>
     </div>`);
-    h.push('<div class="dc-shop">' + (E.lapRewards || []).map(r => {
+    h.push(`<div class="pr-note">${t('누적 굴림 {0}회', num(S.dice.totalRolls || 0))}</div>`);
+    h.push('<div class="dc-shop">' + (E.rollRewards || []).map(r => {
       const got = r.title ? S.profile.ownedTitles.includes(r.title)
         : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
         : S.cosmetics.owned.includes(r.cosmetic);
-      return `<div class="dc-prize${got ? ' got' : ''}${S.dice.laps >= r.laps ? '' : ' far'}">
-        <u>${r.laps}${t('바퀴')}</u><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
-      </div>`;
+      return `<button class="dc-prize${got ? ' got' : ''}${
+          (S.dice.totalRolls || 0) >= r.rolls ? '' : ' far'}" data-prize="${(E.rollRewards).indexOf(r)}">
+        <u>${r.rolls}${t('회')}</u><em>${r.kindKo}</em><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
+      </button>`;
     }).join('') + '</div>');
     h.push(`<div class="frow"><span class="k">${t('완주 보상')}</span>
       <span class="v" style="font-size:11px">${Object.entries(E.lapBonus).map(([k, v]) =>
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
+    h.push(`<div class="dc-buy">${(E.rollShop?.options || []).map((o, i) =>
+      `<button class="dc-buyb" data-dcbuy="${i}">
+        <b>🎲 ${o.n}</b><em><img src="/assets/ui/CU-01.png" alt=""> ${num(o.diamond)}</em>
+      </button>`).join('')}</div>`);
     h.push(`<div class="lbl" style="margin:10px 0 6px">${t('주사위 미션')} · ${t('매일 초기화')}</div>`);
     h.push('<div id="dcMissions"></div>');
     h.push(`<div class="sh-note">${t('미션을 깨면 주사위를 받고, 안 쓴 주사위는 내일로 이월됩니다')}</div>`);
@@ -2370,6 +2446,10 @@ function openEventDetail(id) {
     renderDiceBoard(); renderDiceMissions();
     setDiceFace($('#dcFace'), 1 + ((Math.random() * 6) | 0));   // 굴리기 전에도 주사위가 보인다
     $('#dcRoll').addEventListener('click', rollDice);
+    $('#ovb').querySelectorAll('[data-dcbuy]').forEach(b =>
+      b.addEventListener('click', () => { buyRolls(+b.dataset.dcbuy); }));
+    $('#ovb').querySelectorAll('[data-prize]').forEach(b =>
+      b.addEventListener('click', () => openPrizeInfo(+b.dataset.prize)));
   }
 }
 

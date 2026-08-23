@@ -214,8 +214,8 @@
     "seasonStampedNote": "시즌 보상 테두리는 시즌 번호가 각인된다. 예: 'S3 시즌 왕관'. 같은 테두리라도 시즌마다 별개 아이템."
   },
   "titles": {
-    "statEffect": "none",
-    "statEffectReason": "칭호에 스탯을 붙이면 CP 천장과 총 뽑기 예산을 다시 계산해야 한다(불변식 10과 같은 이유). 칭호는 순수 명예 표시로 남긴다.",
+    "statEffect": "event_exception",
+    "statEffectReason": "원칙은 무스탯(CP 천장·뽑기 예산 보호)이나, 이벤트 한정 상품은 예외로 소폭 보너스를 갖는다 (events.json > diceBoard.cpBonusNote). 상시 칭호는 여전히 무스탯.",
     "displaySlot": 1,
     "displayNote": "보유는 무제한, 표시는 1개만. 무엇을 걸었는지가 곧 자기표현이다.",
     "list": [
