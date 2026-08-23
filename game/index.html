@@ -668,6 +668,9 @@
   #quest.done{border-color:var(--gold);background:linear-gradient(160deg,#3a2c12,var(--card) 70%);
     animation:qDone 1.15s ease-in-out infinite}
   #quest.done #qname{color:var(--gold)}
+  /* 완료했으면 게이지는 뺀다 — 다 찬 막대는 정보가 0 이고 보상 아이콘만 남으면
+     "받아라"가 더 또렷해진다 */
+  #quest.done #qbar{display:none}
   #quest.done #qprog{color:#fff;background:var(--gold);color:#2a1c05;
     border-radius:6px;padding:1px 7px;font-size:10px}
   @keyframes qDone{0%,100%{box-shadow:0 0 0 0 #ffc94a00}
