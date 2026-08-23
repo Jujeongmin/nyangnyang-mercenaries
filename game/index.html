@@ -877,10 +877,28 @@
   #fgTap{margin-top:6px;font-size:11px;font-weight:800;color:var(--gold);
     display:flex;align-items:center;gap:4px}
   #fgTap img{width:14px;height:14px}
-  /* 등급 확률 줄 — 상세 카드와 확률창이 같이 쓴다 */
-  .eqr-list{display:flex;flex-wrap:wrap;gap:5px 9px}
-  .eqr-g{font-size:11px;font-weight:700}
-  .eqr-g b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;margin-left:2px}
+  /* 제작대 확률창 — 한 번에 한 레벨만 보여 주고 ‹ › 로 넘긴다.
+     화살표는 flex 로 자리를 잡는다. 절대배치로 얹으면 좁은 화면에서 글자를 밟는다 */
+  .fr-nav{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .fr-a{flex:0 0 38px;height:38px;font-family:inherit;font-size:20px;line-height:1;
+    color:var(--gold);background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;cursor:pointer}
+  .fr-a:disabled{opacity:.3;cursor:default}
+  .fr-a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .fr-lv{flex:1;text-align:center;display:flex;align-items:baseline;justify-content:center;gap:6px}
+  .fr-lv b{font-size:19px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .fr-lv i{font-style:normal;font-size:10px;font-weight:800;color:#2a1c05;
+    background:var(--gold);border-radius:5px;padding:1px 6px}
+  .fr-unlock{font-size:11px;color:var(--dim);background:var(--panel);
+    border:1px dashed var(--c);border-radius:9px;padding:7px 10px;margin-bottom:8px}
+  .fr-unlock b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .fr-rows{margin-bottom:8px}
+  .fr-rows .sm-g b{flex:0 0 46px}
+  .fr-jump{display:block;width:100%;margin-bottom:6px;padding:8px;cursor:pointer;
+    font-family:inherit;font-size:11px;font-weight:800;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:9px}
+  .fr-jump b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
   #smBody .sm-band .rates{gap:5px 9px}
   /* "영웅 해금" 이 62px 칸에서 두 줄로 깨졌다. 레벨과 해금 표시를 위아래로 쌓고
      칸을 넓힌다 — 가로로 붙이면 어느 해상도에서든 다시 깨진다 */

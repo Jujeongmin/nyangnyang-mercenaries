@@ -2511,43 +2511,65 @@ function eqBandNow(lv = S.forgeLv) {
   return bs.find(b => lv >= b.minLevel && lv <= b.maxLevel) || bs[bs.length - 1];
 }
 
-/** 등급 확률 줄 — 확률이 있는 등급만, 높은 등급부터 */
-function eqRateRow(band) {
-  return Object.entries(band.rates)
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => +b[0] - +a[0])
-    .map(([t, v]) => {
-      const g = D.equipment.grades[+t - 1];
-      return `<span class="eqr-g" style="color:${g.color}">${g.nameKo}
-        <b>${v}%</b></span>`;
-    }).join('');
-}
+/** 확률창에서 보고 있는 구간. null 이면 내 레벨 구간부터 연다 */
+let fgRateIdx = null;
+// 표의 원본은 소수점 넷째 자리까지다(합이 정확히 100 이 되게). 화면에는 줄인다 —
+// 1% 미만은 자릿수가 곧 정보라 세 자리, 그 위는 두 자리
+const fgPct = v => (v < 1 ? +v.toFixed(3) : +v.toFixed(2));
 
 /**
- * 제작대 레벨별 확률표. 지금 구간을 금색으로 두고 전 구간을 편다 —
- * 소환 레벨 창(#smPop)과 같은 문법이다. 확률은 공시 의무 대상이다.
+ * 제작대 레벨별 확률. **한 번에 한 구간**만 보여 주고 ‹ › 로 넘긴다 —
+ * 15개 구간을 한 번에 펴면 스크롤만 길고 정작 지금 확률이 안 읽힌다.
+ * 확률은 공시 의무 대상이라 전 구간에 닿을 수 있어야 하고, 그 통로가 화살표다.
  */
-function openForgeRates() {
-  const now = eqBandNow();
-  const rows = D.gacha.equipmentRateBands.bands.map(b => {
-    const on = b === now;
-    const opened = b.unlocks
-      ? `<em style="color:${D.equipment.grades[b.unlocks - 1].color}">${
-          D.equipment.grades[b.unlocks - 1].nameKo} 해금</em>` : '';
-    return `<div class="sm-band${on ? ' now' : ''}">
-      <span class="lv">Lv ${b.minLevel}~${b.maxLevel}${opened}</span>
-      <span class="rates">${eqRateRow(b)}</span></div>`;
-  }).join('');
-  $('#smTitle') && ($('#smTitle').textContent = '제작대 확률');
+function openForgeRates(idx) {
+  const bands = D.gacha.equipmentRateBands.bands;
+  const mine = Math.max(0, bands.findIndex(b => S.forgeLv >= b.minLevel && S.forgeLv <= b.maxLevel));
+  fgRateIdx = Math.max(0, Math.min(bands.length - 1, idx ?? mine));
+  const b = bands[fgRateIdx];
+  const now = fgRateIdx === mine;
+  const nSlots = D.equipment.slots.length;
+  // 레벨당 1행이라 화살표만 두면 다음 해금까지 수십 번을 눌러야 한다
+  const ji = bands.findIndex((x, i) => i > fgRateIdx && x.unlocks);
+  const jump = ji >= 0 ? { i: ji, b: bands[ji] } : null;
+  const rows = Object.entries(b.rates)
+    .filter(([, v]) => v > 0)
+    .sort((x, y) => +y[0] - +x[0])
+    .map(([t, v]) => {
+      const g = D.equipment.grades[+t - 1];
+      // 부위는 균등 추첨이므로 개별 확률 = 등급 확률 / 부위 수
+      const per = v / nSlots;
+      return `<div class="sm-g"><i style="background:${g.color}"></i>
+        <b style="color:${g.color}">${g.nameKo}</b>
+        <span class="sm-p">${fgPct(v)}%</span>
+        <span class="sm-e">부위당 ${fgPct(per)}%</span></div>`;
+    }).join('');
+
+  const ttl = $('#smTitle');
+  if (ttl) ttl.textContent = '제작대 확률';
   $('#smBody').innerHTML = `
-    <div class="sm-now">
-      <div class="sm-nh">현재 <b>Lv ${S.forgeLv}</b>
-        <span>구간 Lv ${now.minLevel}~${now.maxLevel}</span></div>
-      <div class="eqr-list">${eqRateRow(now)}</div>
+    <div class="fr-nav">
+      <button class="fr-a" data-d="-1" ${fgRateIdx === 0 ? 'disabled' : ''}
+        aria-label="이전 구간">‹</button>
+      <span class="fr-lv"><b>Lv ${b.minLevel === b.maxLevel
+        ? b.minLevel : `${b.minLevel}~${b.maxLevel}`}</b>
+        ${now ? '<i>현재</i>' : ''}</span>
+      <button class="fr-a" data-d="1" ${fgRateIdx === bands.length - 1 ? 'disabled' : ''}
+        aria-label="다음 구간">›</button>
     </div>
-    <div class="lbl" style="margin:10px 0 6px">레벨별 확률</div>
-    ${rows}
-    <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}</div>`;
+    ${b.unlocks ? `<div class="fr-unlock" style="--c:${D.equipment.grades[b.unlocks - 1].color}">
+        <b>${D.equipment.grades[b.unlocks - 1].nameKo}</b> 등급이 이 레벨에서 열린다</div>` : ''}
+    <div class="sm-now fr-rows">${rows}</div>
+    ${jump ? `<button class="fr-jump" data-j="${jump.i}">
+        다음 해금 <b style="color:${D.equipment.grades[jump.b.unlocks - 1].color}">${
+          D.equipment.grades[jump.b.unlocks - 1].nameKo}</b> · Lv ${jump.b.minLevel} 로</button>` : ''}
+    ${now ? '' : `<button class="fr-jump" data-j="${mine}">내 제작대 Lv ${S.forgeLv} 로</button>`}
+    <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
+      부위 확률 = 등급 확률 ÷ 부위 ${nSlots}종 (부위는 균등 추첨)</div>`;
+  $('#smBody').querySelectorAll('.fr-a').forEach(el => el.addEventListener('click',
+    () => openForgeRates(fgRateIdx + +el.dataset.d)));
+  $('#smBody').querySelectorAll('.fr-jump').forEach(el => el.addEventListener('click',
+    () => openForgeRates(+el.dataset.j)));
   $('#smPop').classList.add('show');
 }
 

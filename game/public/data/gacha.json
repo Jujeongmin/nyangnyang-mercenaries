@@ -626,8 +626,8 @@
   "equipmentRateBands": {
     "note": "장비는 10등급이라 용병/스킬(6등급)과 별도 확률표를 쓴다. rateBands는 용병·스킬 전용.",
     "tierRef": "equipment.json > grades",
-    "model": "sliding_window_two_phase",
-    "modelNote": "구버전처럼 Lv1부터 신화(T6)가 섞여 나오는 방식은 직관적이지 않았다. 지금은 '내 소환 레벨에서 나올 수 있는 최고 등급'이 명확하다.",
+    "model": "staircase_per_level",
+    "modelNote": "v3. 레벨당 1행(minLevel === maxLevel)이다. 용병·스킬 표(rateBands)와 같은 계단이다.\n구버전은 4레벨마다 한 등급씩 열려 무한(T10)이 Lv29 — 무과금 D45 쯤 — 에 이미 보였다. 제작대 레벨이 성장의 축인데 상위 등급이 그렇게 빨리 다 열리면 올릴 이유가 사라진다.\n지금은 Lv1~6 이 일반·고급뿐이고, T3 Lv7 / T4 Lv12 / T5 Lv18 / T6 Lv25 / T7 Lv32 / T8 Lv39 / T9 Lv47 / T10 Lv55 로 열린다. 무과금 기준 무한은 D150 쯤이다 (economy.json > f2pProgressSim: 제작대 Lv22=D30, 33=D60, 48=D120, 60=D180).\n각 등급은 열린 뒤 커졌다가 다음다음 등급이 열릴 무렵 밀려 내려가고 결국 풀에서 빠진다. 남는 확률은 살아 있는 최하위 등급이 흡수하므로 합은 정확히 100 이다.",
     "phases": {
       "unlock": {
         "levelRange": "1-32",
@@ -639,150 +639,685 @@
         "description": "신규 해금 없음. 최하위 등급을 계속 밀어내고 상위 등급 확률을 끌어올린다. 무한(T10) 확률이 0.5% -> 42%로 상승하는 구간."
       }
     },
-    "designIntent": "해금은 빠르게, 확률은 천천히. 최고 등급을 일찍 '볼 수는' 있게 하되 실제로 모으려면 레벨을 계속 올려야 한다. 등급 해금과 확률 상승이 서로 다른 시점에 보상을 준다.",
+    "designIntent": "해금도 확률도 천천히. 최고 등급을 일찍 보여 주고 확률만 조이는 방식은 \"볼 수는 있는데 안 나온다\"가 되어 확률표를 불신하게 만든다. 아예 늦게 열되, 열리면 실제로 나오게 한다.",
     "bands": [
       {
         "minLevel": 1,
+        "maxLevel": 1,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 70.0,
+          "2": 30.0
+        }
+      },
+      {
+        "minLevel": 2,
+        "maxLevel": 2,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 57.4,
+          "2": 42.6
+        }
+      },
+      {
+        "minLevel": 3,
+        "maxLevel": 3,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 47.068,
+          "2": 52.932
+        }
+      },
+      {
+        "minLevel": 4,
         "maxLevel": 4,
         "unlocks": null,
         "removes": null,
         "rates": {
-          "1": 65,
-          "2": 28,
-          "3": 7
+          "1": 38.5958,
+          "2": 61.4042
         }
       },
       {
         "minLevel": 5,
-        "maxLevel": 8,
-        "unlocks": 4,
+        "maxLevel": 5,
+        "unlocks": null,
         "removes": null,
         "rates": {
-          "1": 60,
-          "2": 29,
-          "3": 9.5,
-          "4": 1.5
+          "1": 31.6485,
+          "2": 68.3515
+        }
+      },
+      {
+        "minLevel": 6,
+        "maxLevel": 6,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 25.9518,
+          "2": 74.0482
+        }
+      },
+      {
+        "minLevel": 7,
+        "maxLevel": 7,
+        "unlocks": 3,
+        "removes": null,
+        "rates": {
+          "1": 21.2805,
+          "2": 74.1326,
+          "3": 4.5869
+        }
+      },
+      {
+        "minLevel": 8,
+        "maxLevel": 8,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 17.45,
+          "2": 76.4024,
+          "3": 6.1476
         }
       },
       {
         "minLevel": 9,
-        "maxLevel": 12,
-        "unlocks": 5,
+        "maxLevel": 9,
+        "unlocks": null,
         "removes": null,
         "rates": {
-          "1": 58,
-          "2": 30,
-          "3": 9,
-          "4": 2.6,
-          "5": 0.4
+          "1": 14.309,
+          "2": 77.5265,
+          "3": 8.1645
+        }
+      },
+      {
+        "minLevel": 10,
+        "maxLevel": 10,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 11.7334,
+          "2": 77.5495,
+          "3": 10.7171
+        }
+      },
+      {
+        "minLevel": 11,
+        "maxLevel": 11,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 9.6214,
+          "2": 76.5155,
+          "3": 13.8631
+        }
+      },
+      {
+        "minLevel": 12,
+        "maxLevel": 12,
+        "unlocks": 4,
+        "removes": null,
+        "rates": {
+          "1": 7.8895,
+          "2": 69.9087,
+          "3": 17.6149,
+          "4": 4.5869
         }
       },
       {
         "minLevel": 13,
-        "maxLevel": 16,
-        "unlocks": 6,
-        "removes": 1,
+        "maxLevel": 13,
+        "unlocks": null,
+        "removes": null,
         "rates": {
-          "2": 58,
-          "3": 30,
-          "4": 9.5,
-          "5": 2.35,
-          "6": 0.15
+          "1": 6.4694,
+          "2": 65.4676,
+          "3": 21.9154,
+          "4": 6.1476
+        }
+      },
+      {
+        "minLevel": 14,
+        "maxLevel": 14,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 5.3049,
+          "2": 59.9091,
+          "3": 26.6215,
+          "4": 8.1645
+        }
+      },
+      {
+        "minLevel": 15,
+        "maxLevel": 15,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 4.35,
+          "2": 53.4247,
+          "3": 31.5082,
+          "4": 10.7171
+        }
+      },
+      {
+        "minLevel": 16,
+        "maxLevel": 16,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "1": 3.567,
+          "2": 46.2733,
+          "3": 36.2966,
+          "4": 13.8631
         }
       },
       {
         "minLevel": 17,
-        "maxLevel": 20,
-        "unlocks": 7,
-        "removes": 2,
+        "maxLevel": 17,
+        "unlocks": null,
+        "removes": null,
         "rates": {
-          "3": 58,
-          "4": 30,
-          "5": 9.5,
-          "6": 2.42,
-          "7": 0.08
+          "1": 2.925,
+          "2": 38.7606,
+          "3": 40.6995,
+          "4": 17.6149
+        }
+      },
+      {
+        "minLevel": 18,
+        "maxLevel": 18,
+        "unlocks": 5,
+        "removes": 1,
+        "rates": {
+          "2": 29.0305,
+          "3": 44.4672,
+          "4": 21.9154,
+          "5": 4.5869
+        }
+      },
+      {
+        "minLevel": 19,
+        "maxLevel": 19,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "2": 19.8158,
+          "3": 47.4151,
+          "4": 26.6215,
+          "5": 6.1476
+        }
+      },
+      {
+        "minLevel": 20,
+        "maxLevel": 20,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "2": 10.8992,
+          "3": 49.4281,
+          "4": 31.5082,
+          "5": 8.1645
         }
       },
       {
         "minLevel": 21,
-        "maxLevel": 24,
-        "unlocks": 8,
-        "removes": 3,
+        "maxLevel": 21,
+        "unlocks": null,
+        "removes": null,
         "rates": {
-          "4": 58,
-          "5": 30,
-          "6": 9.5,
-          "7": 2.46,
-          "8": 0.04
+          "2": 2.5399,
+          "3": 50.4464,
+          "4": 36.2966,
+          "5": 10.7171
+        }
+      },
+      {
+        "minLevel": 22,
+        "maxLevel": 22,
+        "unlocks": null,
+        "removes": 2,
+        "rates": {
+          "3": 45.4374,
+          "4": 40.6995,
+          "5": 13.8631
+        }
+      },
+      {
+        "minLevel": 23,
+        "maxLevel": 23,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "3": 37.9179,
+          "4": 44.4672,
+          "5": 17.6149
+        }
+      },
+      {
+        "minLevel": 24,
+        "maxLevel": 24,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "3": 30.6695,
+          "4": 47.4151,
+          "5": 21.9154
         }
       },
       {
         "minLevel": 25,
-        "maxLevel": 28,
-        "unlocks": 9,
-        "removes": 4,
+        "maxLevel": 25,
+        "unlocks": 6,
+        "removes": null,
         "rates": {
-          "5": 58,
-          "6": 30,
-          "7": 9.5,
-          "8": 2.48,
-          "9": 0.02
+          "3": 19.3635,
+          "4": 49.4281,
+          "5": 26.6215,
+          "6": 4.5869
+        }
+      },
+      {
+        "minLevel": 26,
+        "maxLevel": 26,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "3": 11.8978,
+          "4": 50.4464,
+          "5": 31.5082,
+          "6": 6.1476
+        }
+      },
+      {
+        "minLevel": 27,
+        "maxLevel": 27,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "3": 5.0925,
+          "4": 50.4464,
+          "5": 36.2966,
+          "6": 8.1645
+        }
+      },
+      {
+        "minLevel": 28,
+        "maxLevel": 28,
+        "unlocks": null,
+        "removes": 3,
+        "rates": {
+          "4": 48.5834,
+          "5": 40.6995,
+          "6": 10.7171
         }
       },
       {
         "minLevel": 29,
-        "maxLevel": 32,
-        "unlocks": 10,
-        "removes": 5,
+        "maxLevel": 29,
+        "unlocks": null,
+        "removes": null,
         "rates": {
-          "6": 58,
-          "7": 30,
-          "8": 9.5,
-          "9": 2.49,
-          "10": 0.01
+          "4": 41.6697,
+          "5": 44.4672,
+          "6": 13.8631
+        }
+      },
+      {
+        "minLevel": 30,
+        "maxLevel": 30,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "4": 34.97,
+          "5": 47.4151,
+          "6": 17.6149
+        }
+      },
+      {
+        "minLevel": 31,
+        "maxLevel": 31,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "4": 28.6565,
+          "5": 49.4281,
+          "6": 21.9154
+        }
+      },
+      {
+        "minLevel": 32,
+        "maxLevel": 32,
+        "unlocks": 7,
+        "removes": null,
+        "rates": {
+          "4": 18.3452,
+          "5": 50.4464,
+          "6": 26.6215,
+          "7": 4.5869
         }
       },
       {
         "minLevel": 33,
+        "maxLevel": 33,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "4": 11.8978,
+          "5": 50.4464,
+          "6": 31.5082,
+          "7": 6.1476
+        }
+      },
+      {
+        "minLevel": 34,
+        "maxLevel": 34,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "4": 6.1108,
+          "5": 49.4281,
+          "6": 36.2966,
+          "7": 8.1645
+        }
+      },
+      {
+        "minLevel": 35,
+        "maxLevel": 35,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "4": 1.1683,
+          "5": 47.4151,
+          "6": 40.6995,
+          "7": 10.7171
+        }
+      },
+      {
+        "minLevel": 36,
+        "maxLevel": 36,
+        "unlocks": null,
+        "removes": 4,
+        "rates": {
+          "5": 41.6697,
+          "6": 44.4672,
+          "7": 13.8631
+        }
+      },
+      {
+        "minLevel": 37,
+        "maxLevel": 37,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "5": 34.97,
+          "6": 47.4151,
+          "7": 17.6149
+        }
+      },
+      {
+        "minLevel": 38,
         "maxLevel": 38,
         "unlocks": null,
-        "removes": 6,
+        "removes": null,
         "rates": {
-          "7": 60,
-          "8": 32,
-          "9": 7.9,
-          "10": 0.1
+          "5": 28.6565,
+          "6": 49.4281,
+          "7": 21.9154
         }
       },
       {
         "minLevel": 39,
+        "maxLevel": 39,
+        "unlocks": 8,
+        "removes": null,
+        "rates": {
+          "5": 18.3452,
+          "6": 50.4464,
+          "7": 26.6215,
+          "8": 4.5869
+        }
+      },
+      {
+        "minLevel": 40,
+        "maxLevel": 40,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "5": 11.8978,
+          "6": 50.4464,
+          "7": 31.5082,
+          "8": 6.1476
+        }
+      },
+      {
+        "minLevel": 41,
+        "maxLevel": 41,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "5": 6.1108,
+          "6": 49.4281,
+          "7": 36.2966,
+          "8": 8.1645
+        }
+      },
+      {
+        "minLevel": 42,
+        "maxLevel": 42,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "5": 1.1683,
+          "6": 47.4151,
+          "7": 40.6995,
+          "8": 10.7171
+        }
+      },
+      {
+        "minLevel": 43,
+        "maxLevel": 43,
+        "unlocks": null,
+        "removes": 5,
+        "rates": {
+          "6": 41.6697,
+          "7": 44.4672,
+          "8": 13.8631
+        }
+      },
+      {
+        "minLevel": 44,
+        "maxLevel": 44,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "6": 34.97,
+          "7": 47.4151,
+          "8": 17.6149
+        }
+      },
+      {
+        "minLevel": 45,
         "maxLevel": 45,
         "unlocks": null,
-        "removes": 7,
+        "removes": null,
         "rates": {
-          "8": 62,
-          "9": 37.5,
-          "10": 0.5
+          "6": 28.6565,
+          "7": 49.4281,
+          "8": 21.9154
         }
       },
       {
         "minLevel": 46,
+        "maxLevel": 46,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "6": 22.9321,
+          "7": 50.4464,
+          "8": 26.6215
+        }
+      },
+      {
+        "minLevel": 47,
+        "maxLevel": 47,
+        "unlocks": 9,
+        "removes": null,
+        "rates": {
+          "6": 13.4585,
+          "7": 50.4464,
+          "8": 31.5082,
+          "9": 4.5869
+        }
+      },
+      {
+        "minLevel": 48,
+        "maxLevel": 48,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "6": 8.1277,
+          "7": 49.4281,
+          "8": 36.2966,
+          "9": 6.1476
+        }
+      },
+      {
+        "minLevel": 49,
+        "maxLevel": 49,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "6": 3.7209,
+          "7": 47.4151,
+          "8": 40.6995,
+          "9": 8.1645
+        }
+      },
+      {
+        "minLevel": 50,
+        "maxLevel": 50,
+        "unlocks": null,
+        "removes": 6,
+        "rates": {
+          "7": 44.8157,
+          "8": 44.4672,
+          "9": 10.7171
+        }
+      },
+      {
+        "minLevel": 51,
+        "maxLevel": 51,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "7": 38.7218,
+          "8": 47.4151,
+          "9": 13.8631
+        }
+      },
+      {
+        "minLevel": 52,
         "maxLevel": 52,
         "unlocks": null,
-        "removes": 8,
+        "removes": null,
         "rates": {
-          "9": 99.2,
-          "10": 0.8
+          "7": 32.957,
+          "8": 49.4281,
+          "9": 17.6149
         }
       },
       {
         "minLevel": 53,
+        "maxLevel": 53,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "7": 27.6382,
+          "8": 50.4464,
+          "9": 21.9154
+        }
+      },
+      {
+        "minLevel": 54,
+        "maxLevel": 54,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "7": 22.9321,
+          "8": 50.4464,
+          "9": 26.6215
+        }
+      },
+      {
+        "minLevel": 55,
+        "maxLevel": 55,
+        "unlocks": 10,
+        "removes": null,
+        "rates": {
+          "7": 12.6091,
+          "8": 49.4281,
+          "9": 31.5082,
+          "10": 6.4546
+        }
+      },
+      {
+        "minLevel": 56,
+        "maxLevel": 56,
+        "unlocks": null,
+        "removes": 7,
+        "rates": {
+          "8": 56.2628,
+          "9": 36.2966,
+          "10": 7.4406
+        }
+      },
+      {
+        "minLevel": 57,
+        "maxLevel": 57,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "8": 50.7963,
+          "9": 40.6995,
+          "10": 8.5042
+        }
+      },
+      {
+        "minLevel": 58,
+        "maxLevel": 58,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "8": 45.9013,
+          "9": 44.4672,
+          "10": 9.6315
+        }
+      },
+      {
+        "minLevel": 59,
+        "maxLevel": 59,
+        "unlocks": null,
+        "removes": null,
+        "rates": {
+          "8": 41.7809,
+          "9": 47.4151,
+          "10": 10.804
+        }
+      },
+      {
+        "minLevel": 60,
         "maxLevel": 60,
         "unlocks": null,
         "removes": null,
         "rates": {
-          "9": 94,
-          "10": 6
+          "8": 38.5719,
+          "9": 49.4281,
+          "10": 12.0
         }
       }
     ],
@@ -893,7 +1428,32 @@
       "note": "용병·스킬용 intraBandScaling(레벨당 +0.1%p 가산)을 장비에 그대로 쓰면 최상위 0.01%가 한 레벨 만에 10배가 된다. 장비는 곱연산으로 적용한다 - 구간 시작 0.01%가 3레벨 뒤 약 0.0152%."
     },
     "floorRise": "구간마다 최하위 등급이 영구 제거된다. 제거분은 removedGradeHandling에 따라 자동 분해 -> 골드.",
-    "uiRequirement": "소환 화면에 '다음 레벨 해금: 초월(T7) - Lv25' 를 항상 표시한다. 등급 해금이 장비 소환 레벨업의 가장 큰 동기가 된다."
+    "uiRequirement": "소환 화면에 '다음 레벨 해금: 초월(T7) - Lv25' 를 항상 표시한다. 등급 해금이 장비 소환 레벨업의 가장 큰 동기가 된다.",
+    "gradeUnlock": {
+      "1": 1,
+      "2": 1,
+      "3": 7,
+      "4": 12,
+      "5": 18,
+      "6": 25,
+      "7": 32,
+      "8": 39,
+      "9": 47,
+      "10": 55
+    },
+    "gradeRemoval": {
+      "1": 18,
+      "2": 22,
+      "3": 28,
+      "4": 36,
+      "5": 43,
+      "6": 50,
+      "7": 56
+    },
+    "history": {
+      "v2": "4레벨 간격 해금(T4 Lv5 ~ T10 Lv29), 12구간 표",
+      "v3": "레벨당 1행 60행. 해금 Lv7/12/18/25/32/39/47/55 로 늦춤 (2026-08-23)"
+    }
   },
   "perItemRateFormula": {
     "formula": "itemRate = gradeRate / countOfItemsInThatGrade",
