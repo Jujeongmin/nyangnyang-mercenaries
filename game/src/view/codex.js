@@ -9,7 +9,7 @@
 
 import { tn } from '../core/i18n.js';
 
-const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 const pct = v => (v * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
 

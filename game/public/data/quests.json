@@ -1,568 +1,567 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "무한 퀘스트 체인. 순차 단일 진행 - 동시 진행 없음. 항상 다음 목표 하나만 보인다.",
-    "designPrinciple": "Q(N) 보상 = Q(N+1) 달성에 필요한 재화. 퀘스트 체인이 스스로 연료를 공급한다.",
-    "sideEffect": "Q1~Q6만 따라가면 6개 시스템을 전부 경험한다. 별도 튜토리얼이 불필요해진다."
-  },
-  "cycle": {
-    "length": 6,
-    "slotFormula": "slot = ((N - 1) mod 6) + 1",
-    "cycleFormula": "k = ceil(N / 6)",
-    "slots": [
-      {
-        "slot": 1,
-        "type": "stage_clear",
-        "targetFormula": "5 * k",
-        "needs": "CP",
-        "prevRewardShouldGive": [
-          "gold",
-          "golden_key"
-        ]
-      },
-      {
-        "slot": 2,
-        "type": "mercenary_summon",
-        "targetFormula": "10 * k^1.6",
-        "needs": "다이아 / 용병 소환권",
-        "prevRewardShouldGive": [
-          "merc_ticket",
-          "diamond"
-        ]
-      },
-      {
-        "slot": 3,
-        "type": "skill_summon",
-        "targetFormula": "8 * k^1.6",
-        "needs": "다이아 / 스킬 소환권",
-        "prevRewardShouldGive": [
-          "skill_ticket",
-          "diamond"
-        ]
-      },
-      {
-        "slot": 4,
-        "type": "equip_summon_level",
-        "targetFormula": "min(2 * k, 60)",
-        "needs": "제련석 + 시간",
-        "prevRewardShouldGive": [
-          "forge_ore",
-          "speedup_item"
-        ]
-      },
-      {
-        "slot": 5,
-        "type": "dungeon_floor",
-        "targetFormula": "3 * k",
-        "needs": "CP + 입장 횟수",
-        "prevRewardShouldGive": [
-          "gold",
-          "golden_key",
-          "dungeon_entry"
-        ]
-      },
-      {
-        "slot": 6,
-        "type": "power_reach",
-        "targetFormula": "권장CP * 1.1",
-        "needs": "모든 성장 재화",
-        "prevRewardShouldGive": [
-          "diamond",
-          "ticket_mixed"
-        ]
-      }
+ "meta": {
+  "version": "1.0",
+  "description": "무한 퀘스트 체인. 순차 단일 진행 - 동시 진행 없음. 항상 다음 목표 하나만 보인다.",
+  "designPrinciple": "Q(N) 보상 = Q(N+1) 달성에 필요한 재화. 퀘스트 체인이 스스로 연료를 공급한다.",
+  "sideEffect": "Q1~Q6만 따라가면 6개 시스템을 전부 경험한다. 별도 튜토리얼이 불필요해진다."
+ },
+ "cycle": {
+  "length": 6,
+  "slotFormula": "slot = ((N - 1) mod 6) + 1",
+  "cycleFormula": "k = ceil(N / 6)",
+  "slots": [
+   {
+    "slot": 1,
+    "type": "stage_clear",
+    "targetFormula": "5 * k",
+    "needs": "CP",
+    "prevRewardShouldGive": [
+     "gold",
+     "golden_key"
     ]
-  },
-  "supplyRate": {
-    "formula": "reward(N) = requiredAmount(N+1) * supplyRate(k)",
-    "table": [
-      {
-        "cycle": 1,
-        "quests": "Q1-Q6",
-        "rate": 1,
-        "intent": "튜토리얼. 막힘 없이 시스템 전체 체험"
-      },
-      {
-        "cycle": 2,
-        "quests": "Q7-Q12",
-        "rate": 0.9,
-        "intent": "부족분을 던전 일일 수령으로 메움 (던전 사용법 학습)"
-      },
-      {
-        "cycle": 3,
-        "quests": "Q13-Q18",
-        "rate": 0.8,
-        "intent": "방치 보상 활용 시작"
-      },
-      {
-        "cycle": 4,
-        "quests": "Q19-Q24",
-        "rate": 0.7,
-        "intent": "첫 결제 압력 시작 (D3~D5 목표 지점)"
-      },
-      {
-        "cycle": "5+",
-        "quests": "Q25~",
-        "rate": 0.6,
-        "intent": "던전·방치·광고가 나머지 40% 담당"
-      }
-    ],
-    "criticalNote": "100% 주면 퀘스트가 '수령 버튼 연타'가 된다. 부족한 40%가 곧 접속 이유이자 결제 이유. A 밸런싱의 최대 조절 노브 - 너무 낮추면 정체로 이탈, 너무 높이면 BM이 죽는다."
-  },
-  "exceptions": [
-    {
-      "slot": 5,
-      "condition": "해당 던전 미해금",
-      "replaceWith": "stage_clear",
-      "appliesTo": "Q1-Q6"
-    },
-    {
-      "slot": 4,
-      "condition": "장비 소환 Lv60 캡 도달 (약 Q180)",
-      "replaceWith": [
-        "arena_wins",
-        "equipment_enhance_level"
-      ]
-    }
-  ],
-  "milestones": {
-    "every10th": "대형 보상 (다이아 3~5배 + 확정 소환권 묶음)",
-    "every25th": "던전 해금 또는 신규 기능 해금"
-  },
-  "ranking": {
-    "questProgressRanking": true,
-    "note": "무한이라 상한이 없고, 전투력 랭킹과 달리 꾸준함이 이기는 축. 과금 랭킹(전투력)과 성실 랭킹(퀘스트)이 분리되면 라이트 유저도 1위를 노릴 수 있다."
-  },
-  "ui": {
-    "showNextReward": true,
-    "showNextRewardNote": "'다음 보상: 용병 소환권 40'이 화면에 떠 있으면 유저가 지금 뭘 해야 할지 자동으로 안다."
-  },
-  "explicitQuests": [
-    {
-      "q": 1,
-      "cycle": 1,
-      "type": "stage_clear",
-      "target": 3,
-      "rewards": {
-        "merc_ticket": 10,
-        "gold": 30000
-      },
-      "feedsInto": 2
-    },
-    {
-      "q": 2,
-      "cycle": 1,
-      "type": "monster_kill",
-      "target": 30,
-      "rewards": {
-        "gold": 20000
-      },
-      "feedsInto": 3
-    },
-    {
-      "q": 3,
-      "cycle": 1,
-      "type": "stage_clear",
-      "target": 6,
-      "rewards": {
-        "merc_ticket": 5,
-        "gold": 30000,
-        "equip_ticket": 10
-      },
-      "feedsInto": 4,
-      "targetNote": "스킬 소환 8→10. 앞 퀘스트(Q2) 보상도 10장으로 맞춰 \"받은 만큼 그대로 쓰면 끝난다\"가 성립한다"
-    },
-    {
-      "q": 4,
-      "cycle": 1,
-      "type": "mercenary_summon",
-      "target": 10,
-      "rewards": {
-        "skill_ticket": 10,
-        "gold": 40000
-      },
-      "feedsInto": 5
-    },
-    {
-      "q": 5,
-      "cycle": 1,
-      "type": "stage_clear",
-      "target": 10,
-      "rewards": {
-        "gold": 30000,
-        "equip_ticket": 20
-      },
-      "feedsInto": 6
-    },
-    {
-      "q": 6,
-      "cycle": 1,
-      "type": "skill_summon",
-      "target": 10,
-      "rewards": {
-        "speedup_5m": 6,
-        "gold": 30000
-      },
-      "feedsInto": 7,
-      "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
-    },
-    {
-      "q": 7,
-      "cycle": 2,
-      "type": "stage_clear",
-      "target": 10,
-      "rewards": {
-        "merc_ticket": 18,
-        "equip_ticket": 15
-      },
-      "unlock": "gold_mine",
-      "feedsInto": 8
-    },
-    {
-      "q": 8,
-      "cycle": 2,
-      "type": "mercenary_summon",
-      "target": 30,
-      "rewards": {
-        "skill_ticket": 17,
-        "diamond": 200
-      },
-      "feedsInto": 9,
-      "rewardsNote": "skill_ticket 15 → 17. Q9(스킬 소환 24회) 기준 누적 공급이 23 이라 1장이 모자라 사슬이 끊겼다 (feedsInto 검산, 2026-08-23). 여유 2장을 둔다"
-    },
-    {
-      "q": 9,
-      "cycle": 2,
-      "type": "skill_summon",
-      "target": 24,
-      "rewards": {
-        "speedup_5m": 15
-      },
-      "feedsInto": 10
-    },
-    {
-      "q": 10,
-      "cycle": 2,
-      "type": "equip_summon_level",
-      "target": 4,
-      "rewards": {
-        "diamond": 500,
-        "gold": 200000,
-        "equip_ticket": 70
-      },
-      "milestone": true,
-      "feedsInto": 11
-    },
-    {
-      "q": 11,
-      "cycle": 2,
-      "type": "dungeon_floor",
-      "target": 6,
-      "dungeon": "gold_mine",
-      "rewards": {
-        "diamond": 300,
-        "merc_ticket": 8,
-        "skill_ticket": 8
-      },
-      "feedsInto": 12
-    },
-    {
-      "q": 12,
-      "cycle": 2,
-      "type": "power_reach",
-      "target": 12000,
-      "rewards": {
-        "gold": 200000,
-        "equip_ticket": 60
-      },
-      "feedsInto": 13
-    },
-    {
-      "q": 13,
-      "cycle": 3,
-      "type": "stage_clear",
-      "target": 15,
-      "rewards": {
-        "merc_ticket": 40,
-        "diamond": 200
-      },
-      "feedsInto": 14
-    },
-    {
-      "q": 14,
-      "cycle": 3,
-      "type": "mercenary_summon",
-      "target": 62,
-      "rewards": {
-        "skill_ticket": 32,
-        "diamond": 200
-      },
-      "feedsInto": 15
-    },
-    {
-      "q": 15,
-      "cycle": 3,
-      "type": "skill_summon",
-      "target": 50,
-      "rewards": {
-        "speedup_5m": 20
-      },
-      "feedsInto": 16
-    },
-    {
-      "q": 16,
-      "cycle": 3,
-      "type": "equip_summon_level",
-      "target": 6,
-      "rewards": {
-        "gold": 500000,
-        "equip_ticket": 110
-      },
-      "feedsInto": 17
-    },
-    {
-      "q": 17,
-      "cycle": 3,
-      "type": "dungeon_floor",
-      "target": 9,
-      "dungeon": "gold_mine",
-      "rewards": {
-        "diamond": 400,
-        "merc_ticket": 12,
-        "skill_ticket": 12
-      },
-      "feedsInto": 18
-    },
-    {
-      "q": 18,
-      "cycle": 3,
-      "type": "power_reach",
-      "target": 35000,
-      "rewards": {
-        "gold": 800000,
-        "equip_ticket": 90
-      },
-      "unlock": "treasure_vault",
-      "feedsInto": 19
-    },
-    {
-      "q": 19,
-      "cycle": 4,
-      "type": "stage_clear",
-      "target": 20,
-      "rewards": {
-        "merc_ticket": 60,
-        "diamond": 250
-      },
-      "feedsInto": 20
-    },
-    {
-      "q": 20,
-      "cycle": 4,
-      "type": "mercenary_summon",
-      "target": 105,
-      "rewards": {
-        "diamond": 800,
-        "skill_ticket": 50
-      },
-      "milestone": true,
-      "feedsInto": 21
-    },
-    {
-      "q": 21,
-      "cycle": 4,
-      "type": "skill_summon",
-      "target": 84,
-      "rewards": {
-        "speedup_5m": 30
-      },
-      "feedsInto": 22
-    },
-    {
-      "q": 22,
-      "cycle": 4,
-      "type": "equip_summon_level",
-      "target": 8,
-      "rewards": {
-        "gold": 2000000,
-        "equip_ticket": 180
-      },
-      "feedsInto": 23
-    },
-    {
-      "q": 23,
-      "cycle": 4,
-      "type": "dungeon_floor",
-      "target": 6,
-      "dungeon": "treasure_vault",
-      "rewards": {
-        "diamond": 500,
-        "merc_ticket": 20,
-        "skill_ticket": 20
-      },
-      "feedsInto": 24
-    },
-    {
-      "q": 24,
-      "cycle": 4,
-      "type": "monster_kill",
-      "target": 4200,
-      "rewards": {
-        "gold": 5000000,
-        "equip_ticket": 260
-      },
-      "feedsInto": 25,
-      "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
-    }
-  ],
-  "generationRule": {
-    "note": "Q25 이후는 자동 생성. 보상이 다음 퀘스트에서 자동 역산되므로 수동 작성 불필요.",
-    "pseudocode": [
-      "k = ceil(N / 6)",
-      "slot = ((N - 1) mod 6) + 1",
-      "supply = k <= 1 ? 1.0 : k <= 2 ? 0.9 : k <= 3 ? 0.8 : k <= 4 ? 0.7 : 0.6",
-      "target(N) = cycle.slots[slot].targetFormula(k)",
-      "reward(N) = requiredResources(quest N+1) * supply(k)"
+   },
+   {
+    "slot": 2,
+    "type": "mercenary_summon",
+    "targetFormula": "10 * k^1.6",
+    "needs": "다이아 / 용병 소환권",
+    "prevRewardShouldGive": [
+     "merc_ticket",
+     "diamond"
     ]
-  },
-  "trackUnlockQuests": [
-    {
-      "afterQuest": 3,
-      "unlock": "mercenary_summon"
-    },
-    {
-      "afterQuest": 5,
-      "unlock": "skill_summon"
-    },
-    {
-      "afterQuest": 6,
-      "unlock": "equipment_summon"
-    }
+   },
+   {
+    "slot": 3,
+    "type": "skill_summon",
+    "targetFormula": "8 * k^1.6",
+    "needs": "다이아 / 스킬 소환권",
+    "prevRewardShouldGive": [
+     "skill_ticket",
+     "diamond"
+    ]
+   },
+   {
+    "slot": 4,
+    "type": "equip_summon_level",
+    "targetFormula": "min(2 * k, 60)",
+    "needs": "제련석 + 시간",
+    "prevRewardShouldGive": [
+     "speedup_item"
+    ]
+   },
+   {
+    "slot": 5,
+    "type": "dungeon_floor",
+    "targetFormula": "3 * k",
+    "needs": "CP + 입장 횟수",
+    "prevRewardShouldGive": [
+     "gold",
+     "golden_key",
+     "dungeon_entry"
+    ]
+   },
+   {
+    "slot": 6,
+    "type": "power_reach",
+    "targetFormula": "권장CP * 1.1",
+    "needs": "모든 성장 재화",
+    "prevRewardShouldGive": [
+     "diamond",
+     "ticket_mixed"
+    ]
+   }
+  ]
+ },
+ "supplyRate": {
+  "formula": "reward(N) = requiredAmount(N+1) * supplyRate(k)",
+  "table": [
+   {
+    "cycle": 1,
+    "quests": "Q1-Q6",
+    "rate": 1,
+    "intent": "튜토리얼. 막힘 없이 시스템 전체 체험"
+   },
+   {
+    "cycle": 2,
+    "quests": "Q7-Q12",
+    "rate": 0.9,
+    "intent": "부족분을 던전 일일 수령으로 메움 (던전 사용법 학습)"
+   },
+   {
+    "cycle": 3,
+    "quests": "Q13-Q18",
+    "rate": 0.8,
+    "intent": "방치 보상 활용 시작"
+   },
+   {
+    "cycle": 4,
+    "quests": "Q19-Q24",
+    "rate": 0.7,
+    "intent": "첫 결제 압력 시작 (D3~D5 목표 지점)"
+   },
+   {
+    "cycle": "5+",
+    "quests": "Q25~",
+    "rate": 0.6,
+    "intent": "던전·방치·광고가 나머지 40% 담당"
+   }
   ],
-  "trackUnlockNote": "6종 사이클의 slot 3(스킬 소환)이 Q3, slot 4(장비 소환 레벨)가 Q4에 오므로 두 트랙은 그전에 열려야 한다. 구버전의 stage_25 / stage_10 해금은 퀘스트 체인과 순서가 충돌했으므로 폐기.",
-  "slotUnlockQuests": {
-    "canonicalSource": true,
-    "note": "characters.json / skills.json 은 이 표를 참조한다. 슬롯 수가 초반 파워 페이싱의 실질 조절 장치다 - 트랙은 일찍 열리지만 장착 칸이 천천히 열려 성장이 계단식으로 느껴진다.",
-    "mercenary": [
-      {
-        "afterQuest": 0,
-        "slots": 3,
-        "note": "시작 3칸"
-      },
-      {
-        "afterQuest": 8,
-        "slots": 4
-      },
-      {
-        "afterQuest": 20,
-        "slots": 5
-      }
-    ],
-    "skillActive": [
-      {
-        "afterQuest": 3,
-        "slots": 1,
-        "note": "스킬 소환 해금과 동시. 뽑았는데 장착 못 하는 구간을 만들지 않는다."
-      },
-      {
-        "afterQuest": 14,
-        "slots": 2
-      },
-      {
-        "afterQuest": 30,
-        "slots": 3
-      },
-      {
-        "afterQuest": 52,
-        "slots": 4
-      }
-    ],
-    "skillPassive": [
-      {
-        "afterQuest": 9,
-        "slots": 1
-      },
-      {
-        "afterQuest": 22,
-        "slots": 2
-      },
-      {
-        "afterQuest": 40,
-        "slots": 3
-      },
-      {
-        "afterQuest": 64,
-        "slots": 4
-      }
-    ],
-    "finalTotals": {
-      "mercenary": 5,
-      "skillActive": 4,
-      "skillPassive": 4
-    },
-    "cpCeilingNote": "최종 슬롯 수는 용병 5 + 스킬 8로 stages.json > cpCeiling 전제와 동일. 천장 불변."
+  "criticalNote": "100% 주면 퀘스트가 '수령 버튼 연타'가 된다. 부족한 40%가 곧 접속 이유이자 결제 이유. A 밸런싱의 최대 조절 노브 - 너무 낮추면 정체로 이탈, 너무 높이면 BM이 죽는다."
+ },
+ "exceptions": [
+  {
+   "slot": 5,
+   "condition": "해당 던전 미해금",
+   "replaceWith": "stage_clear",
+   "appliesTo": "Q1-Q6"
   },
-  "dungeonUnlockQuests": [
-    {
-      "quest": 7,
-      "dungeon": "gold_mine"
-    },
-    {
-      "quest": 18,
-      "dungeon": "treasure_vault"
-    },
-    {
-      "quest": 40,
-      "dungeon": "furnace"
-    },
-    {
-      "quest": 60,
-      "dungeon": "crystal_cave"
-    },
-    {
-      "quest": 150,
-      "dungeon": "trial_tower"
-    }
+  {
+   "slot": 4,
+   "condition": "장비 소환 Lv60 캡 도달 (약 Q180)",
+   "replaceWith": [
+    "arena_wins",
+    "equipment_enhance_level"
+   ]
+  }
+ ],
+ "milestones": {
+  "every10th": "대형 보상 (다이아 3~5배 + 확정 소환권 묶음)",
+  "every25th": "던전 해금 또는 신규 기능 해금"
+ },
+ "ranking": {
+  "questProgressRanking": true,
+  "note": "무한이라 상한이 없고, 전투력 랭킹과 달리 꾸준함이 이기는 축. 과금 랭킹(전투력)과 성실 랭킹(퀘스트)이 분리되면 라이트 유저도 1위를 노릴 수 있다."
+ },
+ "ui": {
+  "showNextReward": true,
+  "showNextRewardNote": "'다음 보상: 용병 소환권 40'이 화면에 떠 있으면 유저가 지금 뭘 해야 할지 자동으로 안다."
+ },
+ "explicitQuests": [
+  {
+   "q": 1,
+   "cycle": 1,
+   "type": "stage_clear",
+   "target": 3,
+   "rewards": {
+    "merc_ticket": 10,
+    "gold": 30000
+   },
+   "feedsInto": 2
+  },
+  {
+   "q": 2,
+   "cycle": 1,
+   "type": "monster_kill",
+   "target": 30,
+   "rewards": {
+    "gold": 20000
+   },
+   "feedsInto": 3
+  },
+  {
+   "q": 3,
+   "cycle": 1,
+   "type": "stage_clear",
+   "target": 6,
+   "rewards": {
+    "merc_ticket": 5,
+    "gold": 30000,
+    "equip_ticket": 10
+   },
+   "feedsInto": 4,
+   "targetNote": "스킬 소환 8→10. 앞 퀘스트(Q2) 보상도 10장으로 맞춰 \"받은 만큼 그대로 쓰면 끝난다\"가 성립한다"
+  },
+  {
+   "q": 4,
+   "cycle": 1,
+   "type": "mercenary_summon",
+   "target": 10,
+   "rewards": {
+    "skill_ticket": 10,
+    "gold": 40000
+   },
+   "feedsInto": 5
+  },
+  {
+   "q": 5,
+   "cycle": 1,
+   "type": "stage_clear",
+   "target": 10,
+   "rewards": {
+    "gold": 30000,
+    "equip_ticket": 20
+   },
+   "feedsInto": 6
+  },
+  {
+   "q": 6,
+   "cycle": 1,
+   "type": "skill_summon",
+   "target": 10,
+   "rewards": {
+    "speedup_5m": 6,
+    "gold": 30000
+   },
+   "feedsInto": 7,
+   "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
+  },
+  {
+   "q": 7,
+   "cycle": 2,
+   "type": "stage_clear",
+   "target": 10,
+   "rewards": {
+    "merc_ticket": 18,
+    "equip_ticket": 15
+   },
+   "unlock": "gold_mine",
+   "feedsInto": 8
+  },
+  {
+   "q": 8,
+   "cycle": 2,
+   "type": "mercenary_summon",
+   "target": 30,
+   "rewards": {
+    "skill_ticket": 17,
+    "diamond": 200
+   },
+   "feedsInto": 9,
+   "rewardsNote": "skill_ticket 15 → 17. Q9(스킬 소환 24회) 기준 누적 공급이 23 이라 1장이 모자라 사슬이 끊겼다 (feedsInto 검산, 2026-08-23). 여유 2장을 둔다"
+  },
+  {
+   "q": 9,
+   "cycle": 2,
+   "type": "skill_summon",
+   "target": 24,
+   "rewards": {
+    "speedup_5m": 15
+   },
+   "feedsInto": 10
+  },
+  {
+   "q": 10,
+   "cycle": 2,
+   "type": "equip_summon_level",
+   "target": 4,
+   "rewards": {
+    "diamond": 500,
+    "gold": 200000,
+    "equip_ticket": 70
+   },
+   "milestone": true,
+   "feedsInto": 11
+  },
+  {
+   "q": 11,
+   "cycle": 2,
+   "type": "dungeon_floor",
+   "target": 6,
+   "dungeon": "gold_mine",
+   "rewards": {
+    "diamond": 300,
+    "merc_ticket": 8,
+    "skill_ticket": 8
+   },
+   "feedsInto": 12
+  },
+  {
+   "q": 12,
+   "cycle": 2,
+   "type": "power_reach",
+   "target": 12000,
+   "rewards": {
+    "gold": 200000,
+    "equip_ticket": 60
+   },
+   "feedsInto": 13
+  },
+  {
+   "q": 13,
+   "cycle": 3,
+   "type": "stage_clear",
+   "target": 15,
+   "rewards": {
+    "merc_ticket": 40,
+    "diamond": 200
+   },
+   "feedsInto": 14
+  },
+  {
+   "q": 14,
+   "cycle": 3,
+   "type": "mercenary_summon",
+   "target": 62,
+   "rewards": {
+    "skill_ticket": 32,
+    "diamond": 200
+   },
+   "feedsInto": 15
+  },
+  {
+   "q": 15,
+   "cycle": 3,
+   "type": "skill_summon",
+   "target": 50,
+   "rewards": {
+    "speedup_5m": 20
+   },
+   "feedsInto": 16
+  },
+  {
+   "q": 16,
+   "cycle": 3,
+   "type": "equip_summon_level",
+   "target": 6,
+   "rewards": {
+    "gold": 500000,
+    "equip_ticket": 110
+   },
+   "feedsInto": 17
+  },
+  {
+   "q": 17,
+   "cycle": 3,
+   "type": "dungeon_floor",
+   "target": 9,
+   "dungeon": "gold_mine",
+   "rewards": {
+    "diamond": 400,
+    "merc_ticket": 12,
+    "skill_ticket": 12
+   },
+   "feedsInto": 18
+  },
+  {
+   "q": 18,
+   "cycle": 3,
+   "type": "power_reach",
+   "target": 35000,
+   "rewards": {
+    "gold": 800000,
+    "equip_ticket": 90
+   },
+   "unlock": "treasure_vault",
+   "feedsInto": 19
+  },
+  {
+   "q": 19,
+   "cycle": 4,
+   "type": "stage_clear",
+   "target": 20,
+   "rewards": {
+    "merc_ticket": 60,
+    "diamond": 250
+   },
+   "feedsInto": 20
+  },
+  {
+   "q": 20,
+   "cycle": 4,
+   "type": "mercenary_summon",
+   "target": 105,
+   "rewards": {
+    "diamond": 800,
+    "skill_ticket": 50
+   },
+   "milestone": true,
+   "feedsInto": 21
+  },
+  {
+   "q": 21,
+   "cycle": 4,
+   "type": "skill_summon",
+   "target": 84,
+   "rewards": {
+    "speedup_5m": 30
+   },
+   "feedsInto": 22
+  },
+  {
+   "q": 22,
+   "cycle": 4,
+   "type": "equip_summon_level",
+   "target": 8,
+   "rewards": {
+    "gold": 2000000,
+    "equip_ticket": 180
+   },
+   "feedsInto": 23
+  },
+  {
+   "q": 23,
+   "cycle": 4,
+   "type": "dungeon_floor",
+   "target": 6,
+   "dungeon": "treasure_vault",
+   "rewards": {
+    "diamond": 500,
+    "merc_ticket": 20,
+    "skill_ticket": 20
+   },
+   "feedsInto": 24
+  },
+  {
+   "q": 24,
+   "cycle": 4,
+   "type": "monster_kill",
+   "target": 4200,
+   "rewards": {
+    "gold": 5000000,
+    "equip_ticket": 260
+   },
+   "feedsInto": 25,
+   "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
+  }
+ ],
+ "generationRule": {
+  "note": "Q25 이후는 자동 생성. 보상이 다음 퀘스트에서 자동 역산되므로 수동 작성 불필요.",
+  "pseudocode": [
+   "k = ceil(N / 6)",
+   "slot = ((N - 1) mod 6) + 1",
+   "supply = k <= 1 ? 1.0 : k <= 2 ? 0.9 : k <= 3 ? 0.8 : k <= 4 ? 0.7 : 0.6",
+   "target(N) = cycle.slots[slot].targetFormula(k)",
+   "reward(N) = requiredResources(quest N+1) * supply(k)"
+  ]
+ },
+ "trackUnlockQuests": [
+  {
+   "afterQuest": 3,
+   "unlock": "mercenary_summon"
+  },
+  {
+   "afterQuest": 5,
+   "unlock": "skill_summon"
+  },
+  {
+   "afterQuest": 6,
+   "unlock": "equipment_summon"
+  }
+ ],
+ "trackUnlockNote": "6종 사이클의 slot 3(스킬 소환)이 Q3, slot 4(장비 소환 레벨)가 Q4에 오므로 두 트랙은 그전에 열려야 한다. 구버전의 stage_25 / stage_10 해금은 퀘스트 체인과 순서가 충돌했으므로 폐기.",
+ "slotUnlockQuests": {
+  "canonicalSource": true,
+  "note": "characters.json / skills.json 은 이 표를 참조한다. 슬롯 수가 초반 파워 페이싱의 실질 조절 장치다 - 트랙은 일찍 열리지만 장착 칸이 천천히 열려 성장이 계단식으로 느껴진다.",
+  "mercenary": [
+   {
+    "afterQuest": 0,
+    "slots": 3,
+    "note": "시작 3칸"
+   },
+   {
+    "afterQuest": 8,
+    "slots": 4
+   },
+   {
+    "afterQuest": 20,
+    "slots": 5
+   }
   ],
-  "speedUnlockQuests": {
-    "canonicalSource": true,
-    "note": "combat.json > clientRendering.speedUp 의 afterQuest 와 같은 값이어야 한다. 이 표가 단일 소스다",
-    "speed2": {
-      "afterQuest": 5,
-      "mult": 2
-    },
-    "speed3": "구매 해금 (shop.json > packages > speed3_unlock). 퀘스트로는 안 열린다"
+  "skillActive": [
+   {
+    "afterQuest": 3,
+    "slots": 1,
+    "note": "스킬 소환 해금과 동시. 뽑았는데 장착 못 하는 구간을 만들지 않는다."
+   },
+   {
+    "afterQuest": 14,
+    "slots": 2
+   },
+   {
+    "afterQuest": 30,
+    "slots": 3
+   },
+   {
+    "afterQuest": 52,
+    "slots": 4
+   }
+  ],
+  "skillPassive": [
+   {
+    "afterQuest": 9,
+    "slots": 1
+   },
+   {
+    "afterQuest": 22,
+    "slots": 2
+   },
+   {
+    "afterQuest": 40,
+    "slots": 3
+   },
+   {
+    "afterQuest": 64,
+    "slots": 4
+   }
+  ],
+  "finalTotals": {
+   "mercenary": 5,
+   "skillActive": 4,
+   "skillPassive": 4
   },
-  "chainInvariant": "퀘스트 N 의 목표 재화는 **N 이전 퀘스트들의 누적 지급으로 달성 가능해야 한다.** 안 그러면 뽑기 운이나 과금 없이는 사슬이 멈춘다. 검산: sim 없이 quests.json 만으로 계산되므로 보상을 고치면 tools/validate.mjs 가 잡는다.",
-  "typeNote": "stage_clear / mercenary_summon / skill_summon / equip_summon_level / dungeon_floor / power_reach / **monster_kill**. 처치는 S.kills 누적이고 전투 중 실시간으로 오른다 (view/quest.js > questProgress)",
-  "navUnlockQuests": {
-    "canonicalSource": true,
-    "note": "하단 네비는 처음에 전투만 열려 있다. 한 번에 다섯 탭을 주면 첫 화면이 메뉴판이 되고, 무엇부터 할지가 안 보인다. 퀘스트를 넘길 때마다 하나씩 열린다.",
-    "tabs": {
-      "merc": {
-        "afterQuest": 3,
-        "nameKo": "용병"
-      },
-      "skill": {
-        "afterQuest": 5,
-        "nameKo": "스킬"
-      },
-      "shop": {
-        "afterQuest": 3,
-        "nameKo": "상점",
-        "note": "용병 탭과 같이 연다 — 소환 퀘스트(Q4)를 하려면 상점이 필요하다"
-      },
-      "dungeon": {
-        "afterQuest": 7,
-        "nameKo": "던전",
-        "note": "Q7 이 gold_mine 을 해금한다"
-      },
-      "alliance": {
-        "afterQuest": 12,
-        "nameKo": "연합",
-        "note": "연합은 남과 비교하는 곳이라 자기 용병단이 선 뒤에 연다"
-      }
-    }
+  "cpCeilingNote": "최종 슬롯 수는 용병 5 + 스킬 8로 stages.json > cpCeiling 전제와 동일. 천장 불변."
+ },
+ "dungeonUnlockQuests": [
+  {
+   "quest": 7,
+   "dungeon": "gold_mine"
   },
-  "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다."
+  {
+   "quest": 18,
+   "dungeon": "treasure_vault"
+  },
+  {
+   "quest": 40,
+   "dungeon": "furnace"
+  },
+  {
+   "quest": 60,
+   "dungeon": "crystal_cave"
+  },
+  {
+   "quest": 150,
+   "dungeon": "trial_tower"
+  }
+ ],
+ "speedUnlockQuests": {
+  "canonicalSource": true,
+  "note": "combat.json > clientRendering.speedUp 의 afterQuest 와 같은 값이어야 한다. 이 표가 단일 소스다",
+  "speed2": {
+   "afterQuest": 5,
+   "mult": 2
+  },
+  "speed3": "구매 해금 (shop.json > packages > speed3_unlock). 퀘스트로는 안 열린다"
+ },
+ "chainInvariant": "퀘스트 N 의 목표 재화는 **N 이전 퀘스트들의 누적 지급으로 달성 가능해야 한다.** 안 그러면 뽑기 운이나 과금 없이는 사슬이 멈춘다. 검산: sim 없이 quests.json 만으로 계산되므로 보상을 고치면 tools/validate.mjs 가 잡는다.",
+ "typeNote": "stage_clear / mercenary_summon / skill_summon / equip_summon_level / dungeon_floor / power_reach / **monster_kill**. 처치는 S.kills 누적이고 전투 중 실시간으로 오른다 (view/quest.js > questProgress)",
+ "navUnlockQuests": {
+  "canonicalSource": true,
+  "note": "하단 네비는 처음에 전투만 열려 있다. 한 번에 다섯 탭을 주면 첫 화면이 메뉴판이 되고, 무엇부터 할지가 안 보인다. 퀘스트를 넘길 때마다 하나씩 열린다.",
+  "tabs": {
+   "merc": {
+    "afterQuest": 3,
+    "nameKo": "용병"
+   },
+   "skill": {
+    "afterQuest": 5,
+    "nameKo": "스킬"
+   },
+   "shop": {
+    "afterQuest": 3,
+    "nameKo": "상점",
+    "note": "용병 탭과 같이 연다 — 소환 퀘스트(Q4)를 하려면 상점이 필요하다"
+   },
+   "dungeon": {
+    "afterQuest": 7,
+    "nameKo": "던전",
+    "note": "Q7 이 gold_mine 을 해금한다"
+   },
+   "alliance": {
+    "afterQuest": 12,
+    "nameKo": "연합",
+    "note": "연합은 남과 비교하는 곳이라 자기 용병단이 선 뒤에 연다"
+   }
+  }
+ },
+ "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다."
 }

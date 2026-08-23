@@ -9,7 +9,7 @@
 //   save-schema.json > mailbox.retentionDays: 14 — 서버가 만료를 정리한다.
 //   닉네임은 Verse8 leaderboard 제약으로 1~15자다. 초과하면 서버가 거부한다.
 
-const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 import { cpNum, num } from '../core/fmt.js';
 
 

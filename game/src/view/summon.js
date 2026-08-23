@@ -12,7 +12,7 @@
 // 전투 캔버스를 건드리지 않아 씬 상태가 꼬이지 않는다.
 
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
-const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 /** 장비 10등급 → 연출용 6등급. FX 는 6장뿐이다. */
 export const tierToGrade = t =>

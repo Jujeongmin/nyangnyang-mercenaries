@@ -89,7 +89,7 @@ function draw() {
       cx.beginPath();
       cx.arc(p.x * S, p.y * S, 4, 0, 7);
       cx.fillStyle = '#5ad86a'; cx.fill();
-      cx.strokeStyle = '#0b0f17'; cx.lineWidth = 1.5; cx.stroke();
+      cx.strokeStyle = '#170f0b'; cx.lineWidth = 1.5; cx.stroke();
     }
   }
   // 어깨

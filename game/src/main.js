@@ -27,7 +27,7 @@ import { t, tn, loadLang, LANGS } from './core/i18n.js';
 import { showRewarded, initAds, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM } from './net/ads.js';
 
 const $ = s => document.querySelector(s);
-const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 const S = {
   stage: 1, maxStage: 1,
@@ -1647,7 +1647,7 @@ const CUR_ICON2 = {
  */
 // ── 유닛 상세 ─────────────────────────────────────────────
 const CLASS_KO = { warrior: '전사', archer: '궁수', mage: '마법사' };
-const GC_COL = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC_COL = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 const ELEM_KO = { fire: '불', water: '물', nature: '풀', light: '빛', dark: '암' };
 const SKILL_CAT_KO = { attack: '공격', buff: '버프', survival: '생존', summon: '소환',
   stat: '능력치', special: '특수' };
@@ -3597,8 +3597,7 @@ function allyBuy(id) {
   S.allyShopBuy.n[id] = used + 1;
   const pairs = [];
   for (const [k, v] of Object.entries(x.grant)) {
-    if (k === 'forge_ore') { S.forgeOre = (S.forgeOre || 0) + v; pairs.push(['forge_ore', v]); }
-    else if (k === 'dungeon_key_all') {
+    if (k === 'dungeon_key_all') {
       for (const dg of D.dungeons.dungeons) S.dgKeys[dg.id] = (S.dgKeys[dg.id] || 0) + v;
       pairs.push(['dungeon_key', v * D.dungeons.dungeons.length]);
     } else if (k === 'profile_frame') {
@@ -3820,7 +3819,7 @@ const CUR_KO = {
   gold: '골드', diamond: '다이아', equip_ticket: '장비 소환권',
   merc_ticket: '용병 소환권', skill_ticket: '스킬 소환권',
   speedup_5m: '모래시계', alliance_coin: '연합 코인', arena_medal: '훈장',
-  forge_ore: '제련석', dungeon_key: '던전 열쇠', dungeon_key_all: '전 던전 열쇠 +1',
+  dungeon_key: '던전 열쇠', dungeon_key_all: '전 던전 열쇠 +1',
   profile_frame: '프로필 프레임',
 };
 
@@ -3944,7 +3943,7 @@ function toast(msg) {
 const CUR_ICON = {
   diamond: 'CU-01', gold: 'CU-04', merc_ticket: 'CU-05', skill_ticket: 'CU-06',
   equip_ticket: 'CU-07', speedup_5m: 'CU-10', arena_medal: 'CU-11', alliance_coin: 'CU-12',
-  forge_ore: 'CU-03', dungeon_key: 'DK-01',
+  dungeon_key: 'DK-01',
 };
 
 /**

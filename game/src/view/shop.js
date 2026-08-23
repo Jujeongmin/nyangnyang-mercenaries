@@ -9,7 +9,7 @@
 // 장비 소환은 여기 없다 — 제작대(메인 화면)에서만 한다. 자동 소환이 거기 물려 있다.
 
 import { num, mdb } from '../core/fmt.js';
-const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 /** 소환 레벨 진행 — gacha.json > tracks[].levelRequirement */
 export function summonProgress(track, exp) {
@@ -81,7 +81,7 @@ export class ShopScreen {
   open(track) {
     // 'diamond' 같은 탭 id 를 직접 주면 그 탭으로 연다 (다이아 [+] 지름길).
     // 소환 트랙 이름이면 기존대로 소환 탭 + 트랙 선택이다
-    if (track === 'diamond' || track === 'deal' || track === 'exchange') this.tab = track;
+    if (track === 'diamond' || track === 'exchange') this.tab = track;
     else if (track) { this.tab = 'summon'; this.track = track === 'skill' ? 'skill' : 'mercenary'; }
     this.el.classList.add('show');
     this.render();
@@ -105,7 +105,6 @@ export class ShopScreen {
     body.innerHTML = ({
       summon: () => this.summonTab(),
       diamond: () => this.diamondTab(),
-      deal: () => this.dealTab(),
       exchange: () => this.exchangeTab(),
     }[this.tab] || (() => '<div class="sh-empty">준비 중</div>'))();
     body.scrollTop = 0;
@@ -343,20 +342,6 @@ export class ShopScreen {
       </div>`;
     }).join('') + `</div>
       <div class="sh-note">${mdb(p.exchangeRate)}<br>실결제는 VXShop 등록 후 연동된다.</div>`;
-  }
-
-  // ── 특가 ──
-  dealTab() {
-    const d = this.api.data.shop.dailyDeal;
-    return `<div class="sh-timer">다음 갱신 ${d.refreshTime} · 광고 1회로 전체 갱신</div>`
-      + d.items.map(x => `<div class="sh-card deal">
-          <b>${x.nameKo}</b>
-          <span class="sh-desc">${typeof x.grant === 'string' ? x.grant : Object.entries(x.grant)
-            .map(([k, v]) => `${k} ×${v}`).join(', ')}</span>
-          <button class="sh-price" data-buy="${x.id}">
-            <img src="/assets/ui/CU-01.png" alt="">${x.price.diamond}</button>
-        </div>`).join('')
-      + `<div class="sh-note">${mdb(d.scalingPrinciple)}</div>`;
   }
 
   // ── 교환 ──
