@@ -667,7 +667,6 @@ const autoUnlocked = () => forgeUnlocks().some(p => p.unlock === 'auto_summon');
 /** 그 해금이 열리는 레벨. 안내 문구에 숫자를 박지 않으려고 데이터에서 꺼낸다 */
 const unlockLv = kind =>
   D.equipment.summon.progression.find(p => p.unlock === kind)?.summonLv ?? '?';
-const multiUnlocked = () => forgeUnlocks().some(p => p.unlock === 'manual_multi');
 
 // --- 렌더 ---
 function renderSkills() {
@@ -2598,20 +2597,11 @@ function openForge() {
       <div id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</div>
     </div>`);
 
-  // 소환 버튼. 10연은 **버튼이 아예 없어서** 데이터에만 있고 쓸 수가 없었다
-  // (multiUnlocked() 도 정의만 되고 아무 데서도 안 불렸다).
-  {
-    const mlv = unlockLv('manual_multi');
-    const canMulti = multiUnlocked();
-    h.push(`<div class="fg-pull">
-      <button class="fgbtn" id="fgP1" ${S.eqTicket < 1 ? 'disabled' : ''}>1회 소환
-        <em>${cur('CU-07')}1</em></button>
-      <button class="fgbtn" id="fgP10"
-        ${!canMulti || S.eqTicket < 10 ? 'disabled' : ''}>${
-          canMulti ? '10연 소환' : `10연 소환 <i>Lv ${mlv}</i>`}
-        ${canMulti ? `<em>${cur('CU-07')}10</em>` : ''}</button>
-    </div>`);
-  }
+  // 소환 버튼. 제작대 그림을 탭해도 같지만, 탭만으로는 눌러도 되는 건지 안 읽힌다
+  h.push(`<div class="fg-pull">
+    <button class="fgbtn" id="fgP1" ${S.eqTicket < 1 ? 'disabled' : ''}>1회 소환
+      <em>${cur('CU-07')}1</em></button>
+  </div>`);
 
 
   if (running) {
@@ -2673,7 +2663,6 @@ function openForge() {
 
   $('#fgSummon')?.addEventListener('click', () => pullOne('#fgHero'));
   $('#fgP1')?.addEventListener('click', () => pullOne('#fgHero'));
-  $('#fgP10')?.addEventListener('click', () => { summonEquip(10, false); openForge(); });
   // 레벨 배지를 누르면 이 레벨의 등급 확률을 편다. 제작대는 확률이 레벨로
   // 갈리는데(equipmentRateBands) 그 값을 볼 데가 없었다
   $('#fgLvBadge')?.addEventListener('click', e => { e.stopPropagation(); openForgeRates(); });
