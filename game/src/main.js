@@ -510,6 +510,31 @@ function renderNavLocks() {
   });
 }
 
+/**
+ * 그 칸이 열리는 퀘스트 번호. idx 는 0 부터다.
+ * 잠긴 칸을 눌렀을 때 "언제 열리는지" 를 말해 주려고 쓴다 — 자물쇠만 보이고
+ * 조건이 어디에도 안 적혀 있으면 유저는 그 칸을 없는 것으로 여긴다.
+ */
+function slotUnlockQuest(kind, idx) {
+  const tbl = D.quests.slotUnlockQuests?.[kind] || [];
+  for (const r of tbl) if (r.slots >= idx + 1) return r.afterQuest;
+  return null;
+}
+const SLOT_KIND_KO = { mercenary: '용병', skillActive: '액티브 스킬',
+  skillPassive: '패시브 스킬' };
+
+/** 잠긴 칸 안내. 어디서 눌러도 같은 문장이 나오게 한 곳에 둔다 */
+function tellSlotLock(kind, idx) {
+  const q = slotUnlockQuest(kind, idx);
+  const ko = SLOT_KIND_KO[kind] || '';
+  if (q == null) return toast(t('더 열리지 않는 칸입니다'));
+  const left = q - questCleared();
+  toast(left > 0
+    ? t('{0} {1}번째 칸 — 퀘스트 {2} 개를 더 깨면 열립니다 ({3}/{4})',
+        ko, idx + 1, left, questCleared(), q)
+    : t('{0} {1}번째 칸이 곧 열립니다', ko, idx + 1));
+}
+
 function slotsOf(kind) {
   const tbl = D.quests.slotUnlockQuests?.[kind] || [];
   let n = 0;
@@ -734,9 +759,13 @@ const unlockLv = kind =>
 function renderSkills() {
   const box = $('#skills');
   box.innerHTML = '';
-  const mk = (s, i, kind) => {
+  // 열린 칸 수. 이걸 안 보면 "비어 있음" 과 "아직 안 열림" 이 같은 모습이 된다
+  const openA = slotsOf('skillActive');
+  const openP = slotsOf('skillPassive');
+  const mk = (s, i, kind, open) => {
     const d = document.createElement('div');
-    d.className = 'sk' + (s ? '' : ' lock');
+    const locked = i >= open;
+    d.className = 'sk' + (s ? '' : locked ? ' lock' : ' free');
     if (s) {
       d.style.borderColor = GC[s.grade];
       d.style.boxShadow = `0 0 6px ${GC[s.grade]}55`;
@@ -746,12 +775,15 @@ function renderSkills() {
       d.title = `${tn(s.id, s.nameKo)} ${s.grade} Lv${s.level}`;
       d.dataset.sid = s.id;
     } else {
-      d.title = `${kind} ${i + 1}번 칸 — 비어 있음`;
+      d.title = locked
+        ? `${kind} ${i + 1}번 칸 — 아직 열리지 않음`
+        : `${kind} ${i + 1}번 칸 — 비어 있음`;
     }
     return d;
   };
   S.skills.active.forEach((s, i) => {
-    const d = mk(s, i, '액티브');
+    const d = mk(s, i, '액티브', openA);
+    if (!s && i >= openA) d.addEventListener('click', () => tellSlotLock('skillActive', i));
     // 수동 모드에서는 탭이 곧 발동이다. 준비 표시는 scene 이 ready 클래스로 준다.
     if (s) d.addEventListener('click', () => {
       // 수동 모드에서 탭 = 발동. 자동 모드에서는 발동할 게 없으니 탭 = 설명이다
@@ -763,8 +795,9 @@ function renderSkills() {
   });
   const gap = document.createElement('div'); gap.className = 'skgap'; box.appendChild(gap);
   S.skills.passive.forEach((s, i) => {
-    const d = mk(s, i, '패시브');
+    const d = mk(s, i, '패시브', openP);
     if (s) d.addEventListener('click', () => openUnitInfo('skill', s.id));
+    else if (i >= openP) d.addEventListener('click', () => tellSlotLock('skillPassive', i));
     box.appendChild(d);
   });
 }
@@ -873,7 +906,7 @@ function openAutoPanel() {
     + (S.autoWanted ? '자동 소환 정지' : '자동 소환 시작') + '</button>');
 
   $('#ovt').textContent = '자동 소환';
-  $('#ovcard').dataset.skin = 'forge';
+  setSkin('forge');
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -1576,7 +1609,7 @@ function openPass() {
       return `<button class="ps-cell${cls}" data-t="${t}" data-tr="${track}">
         ${chip(passReward(t, track))}
         ${done ? '<i class="ps-mark">받음</i>'
-          : locked ? '<i class="ps-mark">🔒</i>'
+          : locked ? '<i class="ps-mark"><img src="/assets/ui/UI-LOCK.png" alt="잠김"></i>'
           : !open ? '' : '<i class="ps-mark ps-go">받기</i>'}</button>`;
     };
     return `<div class="ps-row${t === cur ? ' now' : ''}" data-tier="${t}">
@@ -1587,7 +1620,7 @@ function openPass() {
   // 제목은 짧게. 시즌 이름까지 넣으면 좁은 화면에서 잘린다 —
   // 시즌 이름은 아래 본문(진행 카드)이 이미 보여 준다
   $('#ovt').textContent = '시즌 패스';
-  $('#ovcard').dataset.skin = 'pass';
+  setSkin('pass');
   $('#ovb').innerHTML =
     `<div class="ps-top">
       <div class="ps-tinfo"><b>${cur}</b><span>/ ${P.progress.maxTier} 티어</span></div>
@@ -2006,7 +2039,7 @@ function openMissions(kind = 'daily') {
 
   const nextR = def.pointRewards.find(r => !st.claimed.includes(r.points));
   $('#ovt').textContent = t('임무');
-  $('#ovcard').dataset.skin = 'quest';
+  setSkin('quest');
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = `
     <div class="mq-tabs">
@@ -2399,7 +2432,7 @@ function openEvents() {
   </button>`);
 
   $('#ovt').textContent = t('이벤트');
-  $('#ovcard').dataset.skin = 'event';
+  setSkin('event');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = banners.join('');
@@ -2557,7 +2590,7 @@ function openAttend() {
   }).join('');
 
   $('#ovt').textContent = '출석';
-  $('#ovcard').dataset.skin = 'attend';
+  setSkin('attend');
   $('#ovb').innerHTML = `
     <div class="at-grid">${cells}</div>
     <button class="fgbtn" id="atClaim" ${attendReady() ? '' : 'disabled'}>
@@ -2722,7 +2755,7 @@ function openPromotion() {
   }).join('');
 
   $('#ovt').textContent = t('전직');
-  $('#ovcard').dataset.skin = 'promo';
+  setSkin('promo');
   $('#ovh').classList.remove('has-cur');
   $('#ovb').innerHTML = `
     <div class="frow"><span class="k">${t('훈련소 레벨')}</span>
@@ -2788,7 +2821,7 @@ function openTraining() {
   const maxed = lv >= def.maxLevel;
 
   $('#ovt').textContent = '용병단 훈련소';
-  $('#ovcard').dataset.skin = 'training';
+  setSkin('training');
   $('#ovb').innerHTML = `
     <div class="tc-hero">
       <div class="tc-lv">Lv ${lv}<span class="tc-max"> / ${def.maxLevel}</span></div>
@@ -2950,7 +2983,7 @@ function openAllianceGate() {
     </div>`).join('');
 
   $('#ovt').textContent = t('연합');
-  $('#ovcard').dataset.skin = 'alliance';
+  setSkin('alliance');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${A.membership.maxMembersNote}</div>`;
   $('#ovb').innerHTML = `
@@ -3028,7 +3061,7 @@ function openFriendProfile(i) {
   const gift = idleGold(FRIEND_GIFT_HOURS);
 
   $('#ovt').textContent = x.name;
-  $('#ovcard').dataset.skin = 'friend';
+  setSkin('friend');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = `
@@ -3164,7 +3197,7 @@ function openFriendRequests() {
     </div>`;
 
   $('#ovt').textContent = t('친구 신청');
-  $('#ovcard').dataset.skin = 'friend';
+  setSkin('friend');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = `
@@ -3245,7 +3278,7 @@ function openFriends() {
   const allLeft = f.list.some(x => !f.sent.includes(x.id)) || f.list.some(x => !f.recv.includes(x.id));
 
   $('#ovt').textContent = t('친구');
-  $('#ovcard').dataset.skin = 'friend';
+  setSkin('friend');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${t('선물을 보내도 내 골드는 줄지 않습니다. 서로 보내면 서로 이득입니다')}</div>`;
   $('#ovb').innerHTML = `
@@ -3407,7 +3440,7 @@ function openArena(view) {
   const tier = [...a.tiers].reverse().find(x => S.arenaScore >= x.minScore) || a.tiers[0];
   const claimed = S.arena.tierClaimedDay === day;
   $('#ovt').textContent = '아레나';
-  $('#ovcard').dataset.skin = 'arena';
+  setSkin('arena');
   $('#ovb').innerHTML =
     `<div class="frow"><span class="k">점수 · 티어</span>
         <span class="v" style="font-size:12px">${S.arenaScore} · ${tier.nameKo}</span></div>`
@@ -3477,7 +3510,7 @@ function openFoeInfo(i) {
 function openMedalShop() {
   const sh = D.arena.medalShop;
   $('#ovt').textContent = '훈장 상점';
-  $('#ovcard').dataset.skin = 'arena';
+  setSkin('arena');
   $('#ovb').innerHTML =
     `<div class="frow"><span class="k">보유 훈장</span>
       <span class="v">${num(S.medal)}</span></div>`
@@ -3708,7 +3741,8 @@ function openAlliance(tab = 'home') {
           <b>${x.nameKo}</b>
           <span>${lim}${x.weeklyLimit ? ` · ${used}/${x.weeklyLimit}` : ''}</span>
           ${locked
-            ? `<em class="als-lock">🔒 ${t('연합 Lv {0}', x.unlockLevel)}</em>`
+            ? `<em class="als-lock"><img src="/assets/ui/UI-LOCK.png" alt="">${
+                t('연합 Lv {0}', x.unlockLevel)}</em>`
             : `<button class="mdBuy${soldout || (S.allyCoin || 0) < x.cost ? ' off' : ''}"
                 data-albuy="${x.id}" ${soldout ? 'disabled' : ''}>${coin}${x.cost}</button>`}
         </div>`;
@@ -3794,7 +3828,7 @@ function openAlliance(tab = 'home') {
   };
 
   $('#ovt').textContent = TITLE[tab] || '연합';
-  $('#ovcard').dataset.skin = 'alliance';
+  setSkin('alliance');
   $('#ovb').innerHTML = head + ({ boss, donate: donateTab, shop, member, home: member }[tab] || member)();
   $('#ovb').querySelector('[data-al-leave]')?.addEventListener('click', allyLeave);
   $('#ovb').querySelectorAll('[data-albuy]').forEach(b =>
@@ -4093,6 +4127,16 @@ function openForgeRates(idx) {
   $('#smPop').classList.add('show');
 }
 
+/**
+ * 패널 스킨 지정. 인라인 --ov-img 를 **반드시 지운다** — 제작대가 단계 그림으로
+ * 덮어쓰기 때문에, 안 지우면 다음에 여는 화면이 대장간 배너를 물려받는다.
+ */
+function setSkin(name) {
+  const c = $('#ovcard');
+  c.dataset.skin = name;
+  c.style.removeProperty('--ov-img');
+}
+
 function openForge() {
   const next = S.forgeLv + 1;
   const c = forgeCost(next);
@@ -4106,12 +4150,13 @@ function openForge() {
   const h = [];
 
   // 이 패널은 **레벨을 올리는 곳**이다. 소환은 본화면의 제작대 오브젝트에서 한다 —
-  // 한 화면에서 둘 다 되면 레벨업 골드를 넣으려다 소환을 눌러 소환권이 샌다
-  h.push(`<div id="fgHero">
-      <img src="/assets/ui/FG-0${stageNo}.png" alt="">
+  // 한 화면에서 둘 다 되면 레벨업 골드를 넣으려다 소환을 눌러 소환권이 샌다.
+  //
+  // 대장간 그림은 **머리 배너가 대신 든다**. 배너와 본문에 같은 그림을 두 장
+  // 두면 배경이 겹쳐 보인다(실사용 보고). 배너는 현재 단계를 따라간다.
+  h.push(`<div id="fgBar">
+      <span id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</span>
       <button id="fgLvBadge" title="이 레벨의 장비 등급 확률">Lv ${S.forgeLv} <i>ⓘ</i></button>
-      <span id="fgHeroSpark"></span>
-      <div id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</div>
     </div>`);
 
 
@@ -4166,7 +4211,9 @@ function openForge() {
   const reopen = () => { const y = $('#ovb').scrollTop; openForge(); $('#ovb').scrollTop = y; };
 
   $('#ovt').textContent = '제작대';
-  $('#ovcard').dataset.skin = 'forge';
+  setSkin('forge');
+  // 배너를 현재 단계 대장간으로 갈아 끼운다 — 레벨이 오르면 머리 그림이 바뀐다
+  $('#ovcard').style.setProperty('--ov-img', `url(/assets/ui/FG-0${stageNo}.png)`);
   // 모래시계는 이 화면에서만 쓰는 재화다. 헤더에 두면 본문이 안 밀린다.
   $('#ovh').classList.add('has-cur');
   $('#ovcur').innerHTML = `${cur('CU-10')}<b>${num(S.hourglass || 0)}</b>`;
@@ -4311,7 +4358,7 @@ function openEquipInfo(slotId) {
   const sl = D.equipment.slots.find(x => x.id === slotId);
   const it = S.equip[slotId];
   $('#ovt').textContent = sl.nameKo;
-  $('#ovcard').dataset.skin = 'equip';
+  setSkin('equip');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
 
@@ -4365,7 +4412,7 @@ function openEquipResult(it) {
   }
 
   $('#ovt').textContent = '장비 소환';
-  $('#ovcard').dataset.skin = 'equip';
+  setSkin('equip');
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.add('show', 'forced');   // 닫기 없음 — 반드시 고른다
@@ -4717,7 +4764,7 @@ function bootLangPick() {
   roster = new RosterSheet({
     state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
     enhance: autoEnhance, equip: applyAutoEquip, canEquip: canAutoEquip,
-    dungeonHtml, bindDungeons, slotsOf,
+    dungeonHtml, bindDungeons, slotsOf, tellSlotLock,
   });
   codex = new CodexScreen($('#app'), { state: S, data: D, openUnitInfo });
   alli = new AllianceVillage($('#app'), {
@@ -4783,6 +4830,7 @@ function bootLangPick() {
     state: S, data: D, toast,
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
+    tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
     buySpeed3, claimSpeed3Daily,
   });
   bootStep(55);

@@ -108,8 +108,11 @@ export class RosterSheet {
     // 제목만 둔다. '장착 N · 보유 M' 은 바로 아래 장착 줄과 목록이 이미 보여 준다
     $('#shT').textContent = isSkill ? '스킬' : '용병';
     const dir = isSkill ? 'skill' : 'char';
-    const slot = (x) => x === 'lock'
-      ? `<div class="rt-slot locked"><img class="lockIc" src="/assets/ui/UI-LOCK.png" alt="잠김"></div>`
+    // 잠긴 칸도 누를 수 있어야 한다 — 자물쇠만 보이고 조건이 없으면
+    // 그 칸이 언제 열리는지 알 길이 없다 (data-lock 이 인덱스를 나른다)
+    const slot = (x, i) => x === 'lock'
+      ? `<div class="rt-slot locked" data-lock="${i}"><img class="lockIc"
+           src="/assets/ui/UI-LOCK.png" alt="잠김"></div>`
       : x
       ? `<div class="rt-slot g-${x.grade}" data-info="${x.id}">
            <img src="/assets/${dir}/${x.id}.png" alt="">
@@ -117,9 +120,9 @@ export class RosterSheet {
       : '<div class="rt-slot empty"></div>';
     // 스킬은 액티브 4 / 패시브 4 사이를 벌린다. 안 벌리면 8칸이 한 덩어리로 보인다
     $('#shEq').innerHTML = isSkill
-      ? eq.slice(0, 4).map(slot).join('') + '<span class="rt-gap"></span>'
-        + eq.slice(4).map(slot).join('')
-      : eq.map(slot).join('');
+      ? eq.slice(0, 4).map((x, i) => slot(x, i)).join('') + '<span class="rt-gap"></span>'
+        + eq.slice(4).map((x, i) => slot(x, i + 4)).join('')
+      : eq.map((x, i) => slot(x, i)).join('');
 
     // 요약 줄은 뺐다. '강화 대기 N개' 는 자동강화 버튼 라벨이 그대로 들고 있고,
     // '강화할 중복이 없다' 같은 안내는 매번 같은 자리에서 같은 말을 해 자리만 먹었다
@@ -133,6 +136,13 @@ export class RosterSheet {
     $('#shBody').querySelectorAll('.cx-cell[data-info]').forEach(el =>
       el.addEventListener('click', () => this.api.openUnitInfo(kind, el.dataset.info)));
     // 장착 줄도 같은 상세를 연다
+    // 스킬 줄은 앞 4칸이 액티브, 뒤 4칸이 패시브다
+    $('#shEq').querySelectorAll('.rt-slot[data-lock]').forEach(el =>
+      el.addEventListener('click', () => {
+        const i = +el.dataset.lock;
+        this.api.tellSlotLock(isSkill ? (i < 4 ? 'skillActive' : 'skillPassive') : 'mercenary',
+          isSkill && i >= 4 ? i - 4 : i);
+      }));
     $('#shEq').querySelectorAll('.rt-slot[data-info]').forEach(el =>
       el.addEventListener('click', () => this.api.openUnitInfo(kind, el.dataset.info)));
 

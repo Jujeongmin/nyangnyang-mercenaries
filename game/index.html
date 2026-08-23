@@ -266,7 +266,8 @@
 
   /* 잠긴 배속 — 숨기지 않는다. 안 보이면 해금이 보상으로 안 읽힌다 */
   .sbtn.lock{opacity:.45;border-style:dashed}
-  .sbtn.lock::after{content:'🔒';font-size:9px;margin-left:3px}
+  /* 2x/3x 잠금은 회색으로 죽은 것만으로 읽힌다 — 좁은 칸에 자물쇠까지
+     붙이면 글자와 부딪힌다 */
   #result{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
     background:#0009;font-size:26px;font-weight:900;letter-spacing:2px}
 
@@ -598,7 +599,9 @@
     display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
   .sk img{width:100%;height:100%;object-fit:cover}
   .sk.lock{background:#1c1612cc}
-  .sk.lock::after{content:"🔒";font-size:15px;filter:grayscale(1);opacity:.55}
+  /* 이모지 자물쇠는 기기마다 모양·색이 달라 화면 톤이 깨진다. 에셋으로 통일 */
+  .sk.lock::after{content:"";width:15px;height:15px;opacity:.5;
+    background:url(/assets/ui/UI-LOCK.png) center/contain no-repeat}
   .skgap{width:8px;flex:0 0 auto}
 
   /* 장비 */
@@ -1315,6 +1318,8 @@
   .als-card .mdBuy{margin-top:2px;min-width:0;width:100%;padding:5px 0}
   /* 코인 아이콘 — 규칙 없으면 CU-12 원본(1024px)이 그리드 트랙을 터뜨린다 */
   .als-card .mdBuy img{width:11px;height:11px;object-fit:contain;vertical-align:-1px}
+  .als-lock img{width:10px;height:10px;object-fit:contain;margin-right:3px;
+    vertical-align:-1px}
   .als-lock{font-style:normal;font-size:9px;font-weight:800;color:var(--dim);
     background:var(--ink);border-radius:6px;padding:3px 7px;margin-top:2px}
 
@@ -1365,6 +1370,11 @@
   #fgHero.hit #fgHeroSpark{animation:fgSpk .4s ease-out .25s both}
   #fgHero.hit img#fgSummon{animation:fgShake .58s cubic-bezier(.3,1.4,.5,1) both}
   #fgStage{font-size:11px;color:var(--dim);margin-top:4px}
+  /* 제작대 상단 줄 — 대장간 그림은 배너가 들고, 여기는 단계·레벨만 */
+  #fgBar{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin:2px 0 8px}
+  #fgBar #fgStage{margin:0}
+  #fgBar #fgLvBadge{position:static}
   /* 레벨업 카드 — 제작대 패널의 본체. 소환을 본화면으로 옮긴 뒤
      이 패널에 남은 일은 레벨 하나라, 한 장의 카드로 묶어 무게를 준다 */
   .fg-up{background:var(--card);border:2px solid var(--line);border-radius:13px;
@@ -2022,6 +2032,9 @@
      border-image 에 fill 을 주면 그림이 가운데까지 칠해서 어떤 화면을 열어도
      같은 남색 판이 된다 — 그게 "AI 가 찍어낸 것 같다"의 실체였다.
      fill 을 빼고 background 를 열어 두면 색만으로 화면 성격이 갈린다 */
+  /* position:relative 는 아래 '화면 네 귀 장식' 절에서 준다.
+     배너(#ovskin)는 이 요소의 **패딩 상자**(=프레임 안쪽)에 절대배치되므로
+     left/right/top 0 이 곧 프레임 안쪽 모서리다 — 좌우가 정확히 맞는다 */
   #ovcard{background:none;border-style:solid;border-width:15px;border-radius:0;
     border-image:var(--f-panel) 86 fill stretch;box-shadow:0 14px 44px #000b}
   /* 닫기 버튼이 프레임 두께 때문에 36px 이라 34px 머리띠를 2px 뚫었다.
@@ -2124,7 +2137,9 @@
   /* 잠긴 탭 — 흐리게 + 자물쇠. 숨기지 않는다: 앞으로 뭐가 열리는지가 보여야
      진도를 밀 이유가 된다 (배속 잠금과 같은 규칙) */
   .nv.locked{opacity:.34;filter:grayscale(1)}
-  .nv.locked::after{content:'🔒';position:absolute;top:6px;right:22%;font-size:10px;
+  .nv.locked::after{content:'';width:11px;height:11px;
+    background:url(/assets/ui/UI-LOCK.png) center/contain no-repeat;
+    position:absolute;top:6px;right:22%;font-size:10px;
     filter:none;opacity:.9}
   .nv.on{color:var(--gold);font-weight:800;overflow:visible}
   .nv.on::before{content:"";position:absolute;left:14%;right:14%;bottom:2px;height:22px;
@@ -2333,19 +2348,33 @@
      톤 발광을 차등한다. 이미지는 전부 기존 에셋 재사용 — 전용 헤더 아트(PN-*)가
      생기면 --ov-img 만 갈아끼운다 (에셋_생성_프롬프트.md 13절) */
   #ovskin{display:none}
-  /* 제목 줄 **뒤**에 깔리는 헤더 띠다. 예전엔 108px 이라 본문 카드가 그 위에
-     올라타 그림의 가운데 토막만 삐죽 보였다 — 배너가 아니라 얼룩으로 읽혔다.
-     제목 높이(약 50px)에 여유 22px 만 더해, 본문이 시작되기 직전에 사라진다. */
-  #ovcard[data-skin] #ovskin{display:block;position:absolute;left:15px;right:15px;top:15px;
-    height:72px;z-index:0;pointer-events:none;
-    background:var(--ov-img) center var(--ov-pos,42%)/cover no-repeat;
-    -webkit-mask:linear-gradient(180deg,#000 46%,#0006 78%,#0000 100%);
-    mask:linear-gradient(180deg,#000 46%,#0006 78%,#0000 100%);
-    opacity:.62;filter:saturate(1.05)}
-  /* 그림과 제목이 겹치는 자리에만 어둠을 깐다. 안 그러면 밝은 배너 위에서
-     금색 제목이 사라진다 */
+  /* 패널 머리의 **배너**다. 전에는 72px 을 흐릿하게(opacity .62) 제목 뒤에만
+     깔아서, 애써 그린 그림이 얼룩처럼 보였다. 지금은 제목 줄 전체를 배너가
+     차지하고 제목·버튼이 그 아래쪽에 얹힌다 — 전체화면(랭킹·상점)과 같은 문법 */
+  #ovcard[data-skin] #ovskin{display:block;position:absolute;
+    left:0;right:0;top:0;height:96px;z-index:0;pointer-events:none;overflow:hidden;
+    background:var(--ov-img) center var(--ov-pos,44%)/cover no-repeat;
+    filter:saturate(1.05)}
+  /* 아래는 패널 색으로 녹인다 — 자른 자리가 선으로 남으면 붙여 놓은 티가 난다.
+     위에는 옅은 어둠을 깔아 그 위의 금색 제목이 살아남게 한다 */
   #ovcard[data-skin] #ovskin::after{content:"";position:absolute;inset:0;
-    background:linear-gradient(180deg,#150f0baa,#150f0b44 60%,#0000)}
+    background:linear-gradient(180deg,#150f0b99 0%,#150f0b22 34%,
+      #150f0b88 74%, var(--ov-bg,#241a12) 100%)}
+  /* 제목 줄이 배너 높이를 그대로 쓰고, 글자는 배너 아래쪽에 앉는다 */
+  /* 배너 위 머리 줄 배치 — 재화는 왼쪽 위, 제목은 가운데 위, 닫기는 오른쪽 위.
+     한 줄 flex 로 두면 제목이 재화 폭에 밀려 가운데를 벗어난다. 그래서 제목만
+     절대배치로 가운데에 못박고, 나머지를 양끝으로 보낸다 */
+  #ovcard[data-skin] #ovh{min-height:96px;align-items:flex-start;
+    padding:10px 12px 8px}
+  #ovcard[data-skin] #ovt{position:absolute;left:50%;top:9px;
+    transform:translateX(-50%);max-width:52%;flex:none}
+  #ovcard[data-skin] #ovcur{order:-1;margin:0 auto 0 0}
+  #ovcard[data-skin] #ovi{margin-left:auto}
+  #ovcard[data-skin] #ovx{margin-left:6px}
+  /* 재화가 없는 화면에서도 닫기는 오른쪽 끝에 붙는다 */
+  #ovcard[data-skin] #ovh:not(.has-cur) #ovi,
+  #ovcard[data-skin] #ovh:not(.has-cur) #ovx{margin-left:auto}
+  #ovcard[data-skin] #ovh:not(.has-cur) #ovx{margin-left:6px}
   /* 백드롭 위로 내용이 올라와야 한다 */
   #ovh,#ovinfo,#ovb{position:relative;z-index:1}
   /* 바탕색(--ov-bg)은 톤과 같은 계열의 **아주 어두운** 값이다. 채도를 올리면
@@ -2380,7 +2409,7 @@
     background:linear-gradient(180deg,#150f0bcc,#0000)}
   #shop .sh-head>*,#rank .sh-head>*,#mail .sh-head>*{position:relative;z-index:1}
   /* 시상대 위 고양이 셋이 그림의 아래쪽 절반에 있다 */
-  #rank .sh-head{background-image:url(/assets/ui/PN-RANK.png);--pn-y:58%}
+  #rank .sh-head{background-image:url(/assets/ui/PN-RANK.png);--pn-y:40%}
   #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.png);--pn-y:34%}
   #mail .sh-head{background-image:url(/assets/ui/PN-MAIL.png);--pn-y:52%}
 
@@ -2756,6 +2785,7 @@
     line-height:1}
   .ps-c img{width:12px;height:12px;object-fit:contain}
   .ps-deco{color:var(--gold);font-size:10px}
+  .ps-mark img{width:11px;height:11px;object-fit:contain;vertical-align:-1px}
   .ps-mark{position:absolute;left:0;right:0;bottom:1px;font-style:normal;
     font-size:9px;font-weight:800;color:var(--dim)}
   .ps-mark.ps-go{color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);

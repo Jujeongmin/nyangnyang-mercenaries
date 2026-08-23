@@ -341,5 +341,8 @@
  "친구가 가득 찼습니다": "Friend list is full",
  "{0}초 뒤에 새로 고칠 수 있습니다": "You can refresh in {0}s",
  "신청 목록은 {0}초마다 새로 고칠 수 있습니다": "The request list can be refreshed every {0}s",
- "서버 연동 전 데모 목록입니다": "Demo list until the server is connected"
+ "서버 연동 전 데모 목록입니다": "Demo list until the server is connected",
+ "더 열리지 않는 칸입니다": "No more slots open here",
+ "{0} {1}번째 칸 — 퀘스트 {2} 개를 더 깨면 열립니다 ({3}/{4})": "{0} slot {1} — clear {2} more quests to unlock ({3}/{4})",
+ "{0} {1}번째 칸이 곧 열립니다": "{0} slot {1} unlocks soon"
 }
