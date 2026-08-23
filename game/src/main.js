@@ -919,6 +919,23 @@ function renderEquip() {
   // 우측 — 추후 시스템 자리. 잠긴 칸도 격자를 유지해야 "생길 자리"로 읽힌다.
   for (const nm of ['룬', '문장', '탈것', '정령', '날개', '펫']) {
     const d = document.createElement('div');
+    // 날개 칸은 이벤트 한정 날개가 실제로 쓴다 — 획득하면 잠금이 풀리고
+    // 낀 날개가 보인다. 누르면 상품 정보(효과·출처)가 뜬다
+    if (nm === '날개' && S.cosmetics?.wing) {
+      d.className = 'slot wing-on';
+      d.style.borderColor = '#ffc94a';
+      d.style.setProperty('--au', '#ffc94a');
+      d.style.setProperty('--aw', '0.5');
+      d.innerHTML = `<img src="/assets/captain/EV-WING1.png" alt=""
+          onerror="this.remove()"><b style="color:#ffc94a">${nm}</b>`;
+      d.title = '축제의 날개 — 장착 중';
+      d.addEventListener('click', () => {
+        const i = (D.events.diceBoard.rollRewards || []).findIndex(r => r.cosmetic);
+        if (i >= 0) openPrizeInfo(i);
+      });
+      future.appendChild(d);
+      continue;
+    }
     d.className = 'slot future';
     d.innerHTML = `<img class="lk" src="/assets/ui/UI-LOCK.png" alt=""><span>${nm}</span>`;
     d.title = `${nm} — 업데이트 예정`;
@@ -2167,6 +2184,7 @@ function grantCosmetic(id, label) {
   S.cosmetics.wing = id;
   toast(t('한정 획득: {0}', label));
   refreshParty();
+  renderEquip();          // 하단 인벤 날개 칸이 잠금에서 실물로 바뀐다
 }
 
 /** 누적 굴림 한정 상품 — 전부 코스메틱 (rollRewardsNote). 굴릴 때마다 확인한다 */
