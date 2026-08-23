@@ -344,6 +344,23 @@
   .al-dn span img{width:13px;height:13px}
   .al-dn button{flex:0 0 76px;min-height:34px;font-size:12px}
 
+  /* 모래시계 사용 창 — 제작대(z60)보다 위, 유닛 상세(z76)보다 아래 */
+  #hgPop{position:absolute;inset:0;z-index:72;display:none;align-items:center;
+    justify-content:center;background:#060a12c0;padding:16px}
+  #hgPop.show{display:flex}
+  #hgCard{width:100%;max-width:300px;background:var(--bg);border:1px solid var(--gold);
+    border-radius:14px;overflow:hidden;box-shadow:0 14px 44px #000c}
+  #hgHead{display:flex;align-items:center;padding:10px 12px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  #hgHead b{flex:1;font-size:14px;color:var(--gold)}
+  #hgX{background:none;border:1px solid var(--line);color:var(--txt);border-radius:8px;
+    padding:4px 9px;cursor:pointer;font-family:inherit;font-size:12px}
+  #hgBody{padding:12px}
+  #hgBody .hg-left{display:flex;justify-content:space-between;font-size:12px;
+    margin-bottom:10px}
+  #hgBody .hg-left b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;
+    color:var(--gold)}
+
   /* 유닛 상세 — 일러가 주인공이다. 카드 위쪽 60% 를 그림에 준다 */
   #unit{position:absolute;inset:0;z-index:76;display:none;align-items:center;
     justify-content:center;background:#060a12d8}
@@ -2329,6 +2346,15 @@
     <div id="shAct">
       <button class="rt-b" id="shEqBtn">자동장착</button>
       <button class="rt-b go" id="shUp">자동강화</button>
+    </div>
+  </div>
+
+  <!-- 모래시계 사용 — 제작대 패널(#ov z60) **위**에 뜨는 별도 창.
+       인라인으로 펼치면 제작대 카드가 늘었다 줄었다 하며 아래 내용이 밀린다 -->
+  <div id="hgPop">
+    <div id="hgCard">
+      <div id="hgHead"><b>시간 단축</b><button id="hgX">✕</button></div>
+      <div id="hgBody"></div>
     </div>
   </div>
 

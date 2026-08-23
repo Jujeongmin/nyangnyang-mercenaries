@@ -52,8 +52,7 @@ const S = {
   // 제작대 분할 납부. 다음 레벨에 지금까지 몇 회분을 넣었나
   forgePaid: 0,
   // 모래시계 — 제작 시간 단축 전용. 상단바에는 안 띄운다.
-  hgOpen: false,                           // 단축 UI 펼침
-  hgUse: 1,                                // 시간 단축에 한 번에 쓸 개수
+  hgUse: 1,                                // 시간 단축에 한 번에 쓸 개수 (창 #hgPop)
   hourglass: 0,
   quest: 1, questProg: 0,
   // 던전 열쇠 — 던전별로 따로 센다. 매일 05:00 KST 에 3개로 채워진다.
@@ -2496,22 +2495,11 @@ function openForge() {
     // 남은 시간 옆에서 바로 단축을 연다. 항상 펼쳐 두면 대기 중에도 자리를 먹는다.
     h.push(`<div class="frow"><span class="k">Lv ${S.forgeTarget} 제작 중</span>
       <span class="v" id="fgLeft">${dur(forgeRemain())}</span>
-      <button class="hg-open ${S.hgOpen ? 'on' : ''}" id="fgHgOpen"
+      <button class="hg-open" id="fgHgOpen"
         ${can < 1 ? 'disabled' : ''}>${cur('CU-10')} 사용</button></div>`);
 
-    if (S.hgOpen && can >= 1) {
-      // 프리셋 버튼은 칸을 많이 먹고 원하는 수를 못 고른다. 스테퍼가 낫다.
-      h.push(`<div class="hg-row">
-        <button class="hg-step" data-hgd="-10">‹‹</button>
-        <button class="hg-step" data-hgd="-1">‹</button>
-        <span class="hg-val">${use}<i>/ ${can}</i></span>
-        <button class="hg-step" data-hgd="1">›</button>
-        <button class="hg-step" data-hgd="10">››</button>
-        <button class="hg-max ${use === can ? 'on' : ''}" data-hgm="1">MAX</button>
-      </div>`);
-      h.push(`<button class="fgbtn" id="fgHgUse">
-        ${cur('CU-10')} ${use}개 · ${dur(use * 300)} 단축</button>`);
-    }
+    // 사용 UI 는 별도 창(#hgPop)에서 연다 — 인라인으로 펼치면 제작대 카드가
+    // 늘었다 줄었다 하며 아래 내용이 밀린다
     if (can < 1) h.push(`<div class="sh-note" style="margin-top:6px">
       모래시계가 없습니다. 상점에서 다이아로 구매할 수 있습니다.</div>`);
   } else if (c) {
@@ -2559,22 +2547,51 @@ function openForge() {
 
   $('#fgSummon')?.addEventListener('click', () => pullOne('#fgHero'));
   $('#fgPayBtn')?.addEventListener('click', payForge);
-  $('#fgHgOpen')?.addEventListener('click', () => { S.hgOpen = !S.hgOpen; openForge(); });
-  // 스테퍼 — 남은 시간과 보유량 안에서만 움직인다
-  const hgCan = () => Math.min(S.hourglass || 0, Math.ceil(forgeRemain() / 300));
-  $('#ovb').querySelectorAll('[data-hgd]').forEach(x => x.addEventListener('click', () => {
-    const can = hgCan();
-    S.hgUse = Math.max(1, Math.min(can, (S.hgUse || 1) + (+x.dataset.hgd)));
-    openForge();
-  }));
-  $('#ovb').querySelector('[data-hgm]')?.addEventListener('click', () => {
-    S.hgUse = hgCan(); openForge();
+  $('#fgHgOpen')?.addEventListener('click', openHourglass);
+}
+
+/** 모래시계로 줄일 수 있는 최대 개수. 보유량과 남은 시간 둘 다에 걸린다 */
+const hgCan = () => Math.min(S.hourglass || 0, Math.ceil(forgeRemain() / 300));
+
+/**
+ * 시간 단축 창. 제작대 위에 겹쳐 뜬다 — 제작대 본문에 펼치면 카드 높이가
+ * 바뀌면서 아래 항목이 밀려 손가락이 엉뚱한 걸 누른다.
+ */
+function openHourglass() {
+  const can = hgCan();
+  if (can < 1) return toast('모래시계가 없습니다');
+  const use = Math.max(1, Math.min(S.hgUse || 1, can));
+  $('#hgBody').innerHTML = `
+    <div class="hg-left"><span>남은 시간</span><b>${dur(forgeRemain())}</b></div>
+    <div class="hg-left"><span>보유 모래시계</span>
+      <b>${num(S.hourglass || 0)}</b></div>
+    <div class="hg-row">
+      <button class="hg-step" data-hgd="-10">‹‹</button>
+      <button class="hg-step" data-hgd="-1">‹</button>
+      <span class="hg-val">${use}<i>/ ${can}</i></span>
+      <button class="hg-step" data-hgd="1">›</button>
+      <button class="hg-step" data-hgd="10">››</button>
+      <button class="hg-max ${use === can ? 'on' : ''}" data-hgm="1">MAX</button>
+    </div>
+    <button class="fgbtn" id="fgHgUse" style="margin-top:10px">
+      ${cur('CU-10')} ${use}개 · ${dur(use * 300)} 단축</button>`;
+  $('#hgBody').querySelectorAll('[data-hgd]').forEach(x =>
+    x.addEventListener('click', () => {
+      S.hgUse = Math.max(1, Math.min(hgCan(), (S.hgUse || 1) + (+x.dataset.hgd)));
+      openHourglass();
+    }));
+  $('#hgBody').querySelector('[data-hgm]')?.addEventListener('click', () => {
+    S.hgUse = hgCan(); openHourglass();
   });
   $('#fgHgUse')?.addEventListener('click', () => {
-    const can = Math.min(S.hourglass || 0, Math.ceil(forgeRemain() / 300));
-    useHourglass(Math.max(1, Math.min(S.hgUse || 1, can)));
+    useHourglass(Math.max(1, Math.min(S.hgUse || 1, hgCan())));
+    // 다 쓰면 창을 닫는다. 남았으면 갱신해서 이어 쓸 수 있게 둔다
+    if (hgCan() < 1) closeHourglass(); else openHourglass();
   });
+  $('#hgPop').classList.add('show');
 }
+
+const closeHourglass = () => $('#hgPop').classList.remove('show');
 
 // --- 장비 소환 ---
 function equipRoll() {
@@ -3262,6 +3279,12 @@ function bootLangPick() {
       handle.style.left = '3px';
     });
   }
+
+  // 시간 단축 창 닫기 — X 또는 카드 밖
+  $('#hgX').addEventListener('click', closeHourglass);
+  $('#hgPop').addEventListener('click', e => {
+    if (e.target.id === 'hgPop') closeHourglass();
+  });
 
   // 유닛 상세 닫기 — X 또는 카드 밖
   $('#unitX').addEventListener('click', () => $('#unit').classList.remove('show'));
