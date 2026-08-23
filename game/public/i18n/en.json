@@ -344,5 +344,7 @@
  "서버 연동 전 데모 목록입니다": "Demo list until the server is connected",
  "더 열리지 않는 칸입니다": "No more slots open here",
  "{0} {1}번째 칸 — 퀘스트 {2} 개를 더 깨면 열립니다 ({3}/{4})": "{0} slot {1} — clear {2} more quests to unlock ({3}/{4})",
- "{0} {1}번째 칸이 곧 열립니다": "{0} slot {1} unlocks soon"
+ "{0} {1}번째 칸이 곧 열립니다": "{0} slot {1} unlocks soon",
+ "주사위판": "Board",
+ "미션": "Missions"
 }

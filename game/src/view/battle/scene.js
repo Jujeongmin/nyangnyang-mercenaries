@@ -13,7 +13,7 @@ import { Impact } from './impact.js';
 import { DamageNumbers } from './numbers.js';
 import { motionForClass } from './motions.js';
 import { loadCutout } from './cutout.js';
-import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX } from './fx.js';
+import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX, PASSIVE_FX } from './fx.js';
 
 const PIXI = () => window.PIXI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -785,6 +785,47 @@ export class BattleScene {
   }
 
   /**
+   * 장착한 패시브 중 이 순간(at)에 걸린 것 하나를 뽑아 연출한다.
+   * 여러 개가 한 프레임에 겹치면 무엇이 터진 건지 안 읽히므로 **하나만** 낸다.
+   */
+  passiveFxAt(at, x, y, size) {
+    const list = this.passiveSkills || [];
+    if (!list.length || !this.fx) return;
+    for (const sk of list) {
+      const cfg = PASSIVE_FX[sk.id];
+      if (!cfg || cfg.at !== at) continue;
+      if (Math.random() >= (cfg.chance ?? 0)) continue;
+      this.fx.play(cfg.asset, x, y, {
+        size: this.fxSize(size * (cfg.scale || 0.7), 0.22),
+        dur: 380, from: 0.5, to: 1.15, tint: cfg.tint,
+      });
+      return;                    // 한 순간에 하나만
+    }
+  }
+
+  /**
+   * 상시 패시브(재생·불굴)의 고리. 대열 유닛 발밑에 은은히 깔린다.
+   * 매 프레임 그리지 않고, 장착이 바뀔 때 한 번만 세운다.
+   */
+  syncPassiveAura() {
+    const list = this.passiveSkills || [];
+    const auras = list.map(sk => PASSIVE_FX[sk.id]).filter(c => c && c.at === 'aura');
+    for (const u of [...(this.captain ? [{ rig: this.captain }] : []), ...this.units]) {
+      const r = u.rig;
+      if (!r?.view || r.view.destroyed) continue;
+      if (r.passiveRing) { r.passiveRing.destroy(); r.passiveRing = null; }
+      if (!auras.length) continue;
+      const P = PIXI();
+      const g = new P.Graphics()
+        .ellipse(0, 0, r.w * 0.34, r.w * 0.12)
+        .stroke({ color: auras[0].tint, width: 2, alpha: 0.5 });
+      g.y = 1;
+      r.view.addChildAt(g, 0);     // 몸 뒤
+      r.passiveRing = g;
+    }
+  }
+
+  /**
    * 아군 쪽에서 터지는 스킬 연출. 적을 때리는 스킬은 hitFoe 가 타격 지점에
    * 그리지만, 버프·회복·보호막·소환은 때리는 대상이 없어 **아무 데서도 안 떴다**.
    * SKILL_FX.at 이 'party' 면 대열 전체에, 'captain' 이면 단장에게 그린다.
@@ -988,6 +1029,8 @@ export class BattleScene {
     // sim/engine.js 도 스킬을 평타 루프와 따로 굴려 같은 시간에 둘 다 넣는다.
     const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1) * bossMul;
     foe.hp -= dmg;
+    // 패시브 연출 — 때리는 순간. 효과가 아니라 "그게 붙어 있다"는 표시다
+    this.passiveFxAt('hit', foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.45, foe.rig.h);
     // 폭풍 연사(3차 궁수) — 평타가 한 번 더 때린다. 확률은 main 이 준다.
     // 스킬 타격에는 안 걸린다 — 평타의 스킬이니까
     if (!skill && this.doubleHitChance && Math.random() < this.doubleHitChance
@@ -1084,6 +1127,7 @@ export class BattleScene {
     foe.bar.clear();
     const x = foe.rig.view.x, y = foe.rig.view.y - foe.rig.h * 0.5;
     this.fx.play('HIT-08', x, y, { size: this.fxSize(foe.rig.h * 0.95, 0.30), dur: 560, from: 0.5, to: 1.3, hold: 0.3 });
+    this.passiveFxAt('kill', x, y, foe.rig.h);
     this.fx.motes(x, y, 14, { spread: foe.rig.w * 0.4 });
     if (this.foes.every(f => f.hp <= 0)) this.onWaveClear();
   }

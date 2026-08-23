@@ -58,6 +58,30 @@ export const SKILL_FX = {
   'SK-A16': { at: 'foe', scale: 1.5 },   // 천공 붕괴
 };
 
+/**
+ * 패시브 스킬 연출표. **효과가 아니라 표시**다 — 수치는 전투력에 이미 곱해져
+ * 있고(skills.json > combatOnlyRule), 여기서는 "그 패시브가 지금 일했다"를
+ * 눈에 보여 줄 뿐이다. 판정을 만들면 밸런스를 다시 재야 해서 범위를 나눴다.
+ *
+ *   at     'hit' 타격 순간 · 'kill' 처치 순간 · 'aura' 상시(대열에 은은히)
+ *   chance 그 순간에 연출이 뜰 확률. 데이터의 발동률과 **비슷하게** 맞췄다
+ *   asset  띄울 그림 · tint 색 · at 이 aura 면 유닛 뒤에 깔리는 고리
+ */
+export const PASSIVE_FX = {
+  'SK-P04': { at: 'hit',  chance: 0.20, asset: 'HIT-06', tint: 0xffd76a, scale: 0.7 }, // 치명타율
+  'SK-P06': { at: 'hit',  chance: 0.12, asset: 'SFX-08', tint: 0xbfe8ff, scale: 0.6 }, // 회피
+  'SK-P07': { at: 'hit',  chance: 0.30, asset: 'SFX-09', tint: 0x7fe08a, scale: 0.55 }, // 흡혈
+  'SK-P08': { at: 'hit',  chance: 0.18, asset: 'SFX-10', tint: 0x9ad8ff, scale: 0.6 }, // 반사
+  'SK-P09': { at: 'kill', chance: 0.45, asset: 'HIT-08', tint: 0xff6b6b, scale: 1.0 }, // 즉사
+  'SK-P10': { at: 'hit',  chance: 0.22, asset: 'HIT-03', tint: 0xffffff, scale: 0.7 }, // 이중 공격
+  'SK-P11': { at: 'hit',  chance: 0.16, asset: 'HIT-04', tint: 0xffc94a, scale: 0.65 }, // 관통력
+  'SK-P12': { at: 'hit',  chance: 0.14, asset: 'HIT-06', tint: 0xff8a4a, scale: 0.85 }, // 치명타 피해
+  'SK-P13': { at: 'aura', tint: 0x7fe08a },                                            // 재생
+  'SK-P14': { at: 'aura', tint: 0xffd76a },                                            // 불굴
+  'SK-P15': { at: 'kill', chance: 0.60, asset: 'SFX-07', tint: 0xff9a4a, scale: 0.8 }, // 응징의 오라
+  'SK-P16': { at: 'kill', chance: 0.50, asset: 'SFX-16', tint: 0xffe08a, scale: 0.9 }, // 심판
+};
+
 /** 모션 종류 → 타격 이펙트. 크리는 따로 덧씌운다. */
 export const HIT_BY_MOTION = {
   slash: ['HIT-01', 'HIT-02'],

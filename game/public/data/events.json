@@ -1,211 +1,212 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "출시 이벤트 — 냥냥 주사위(7일 축제 통합). 운영 반복용 틀.",
-    "designNote": "출시 7일 축제(dailies.json > newbie7Day)와 무료 1000뽑(free1000.json)은 온보딩용 일회성이라 각자의 파일에 산다. 여기는 반복 운영할 이벤트 틀이다."
+ "meta": {
+  "version": "1.0",
+  "description": "출시 이벤트 — 냥냥 주사위(7일 축제 통합). 운영 반복용 틀.",
+  "designNote": "출시 7일 축제(dailies.json > newbie7Day)와 무료 1000뽑(free1000.json)은 온보딩용 일회성이라 각자의 파일에 산다. 여기는 반복 운영할 이벤트 틀이다."
+ },
+ "diceBoard": {
+  "nameKo": "출시 기념 냥냥 주사위",
+  "lapBonus": {
+   "diamond": 250,
+   "merc_ticket": 3
   },
-  "diceBoard": {
-    "nameKo": "출시 기념 냥냥 주사위",
-    "lapBonus": {
-      "diamond": 250,
-      "merc_ticket": 3
+  "lapBonusNote": "완주(16칸)당. 12칸->16칸이 되며 하루 만점(8굴림, 기대 3.5칸/굴림)이 약 1.7바퀴라 완주 보너스를 400->250 으로 내려 일일 기대치를 유지한다. 12바퀴(한정 날개)는 약 7일 만점.",
+  "cells": [
+   {
+    "type": "start",
+    "nameKo": "출발"
+   },
+   {
+    "type": "gold_h",
+    "v": 0.5,
+    "nameKo": "골드"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "diamond": 60
     },
-    "lapBonusNote": "완주(16칸)당. 12칸->16칸이 되며 하루 만점(8굴림, 기대 3.5칸/굴림)이 약 1.7바퀴라 완주 보너스를 400->250 으로 내려 일일 기대치를 유지한다. 12바퀴(한정 날개)는 약 7일 만점.",
-    "cells": [
-      {
-        "type": "start",
-        "nameKo": "출발"
-      },
-      {
-        "type": "gold_h",
-        "v": 0.5,
-        "nameKo": "골드"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "diamond": 60
-        },
-        "nameKo": "다이아"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "merc_ticket": 2
-        },
-        "nameKo": "용병권"
-      },
-      {
-        "type": "again",
-        "nameKo": "한 번 더"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "speedup_5m": 2
-        },
-        "nameKo": "모래시계"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "alliance_coin": 30
-        },
-        "nameKo": "연합 코인"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "equip_ticket": 12
-        },
-        "nameKo": "장비권"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "diamond": 250
-        },
-        "jackpot": true,
-        "nameKo": "다이아 잭팟"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "skill_ticket": 2
-        },
-        "nameKo": "스킬권"
-      },
-      {
-        "type": "gold_h",
-        "v": 1,
-        "nameKo": "골드"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "merc_ticket": 5
-        },
-        "nameKo": "용병권"
-      },
-      {
-        "type": "gold_h",
-        "v": 4,
-        "jackpot": true,
-        "nameKo": "골드 잭팟"
-      },
-      {
-        "type": "wing",
-        "chance": 0.001,
-        "fallback": {
-          "diamond": 30
-        },
-        "nameKo": "날개 도전"
-      },
-      {
-        "type": "grant",
-        "grant": {
-          "diamond": 120
-        },
-        "nameKo": "다이아"
-      },
-      {
-        "type": "gold_h",
-        "v": 2,
-        "nameKo": "골드"
-      }
-    ],
-    "cellsNote": "5x5 테두리 16칸. 코너 4칸(출발/한 번 더/다이아 잭팟/골드 잭팟)이 특별칸이다 — 모노폴리 문법: 코너가 세면 한 바퀴에 이야기가 생긴다. gold_h 는 방치 v시간 분량. 연합 코인 칸은 연합 상점으로의 안내를 겸한다.",
-    "budgetNote": "하루 기대치(3굴림 + 광고 2): 다이아 약 90 + 잡권 소량 + 완주 보너스 400x0.9 ≈ 다이아 450/일 상당. f2pDailyYield D30(1,400/일)의 3할 — 이벤트가 상시 수입을 넘으면 안 된다. 기간 한정(2주)으로 돌리고 내리는 전제다.",
-    "missions": [
-      {
-        "id": "dq_stage",
-        "nameKo": "스테이지 10회 클리어",
-        "target": 10,
-        "rolls": 2
-      },
-      {
-        "id": "dq_summon",
-        "nameKo": "소환 5회",
-        "target": 5,
-        "rolls": 2
-      },
-      {
-        "id": "dq_dungeon",
-        "nameKo": "던전 입장 2회",
-        "target": 2,
-        "rolls": 1
-      },
-      {
-        "id": "dq_enhance",
-        "nameKo": "자동강화 1회",
-        "target": 1,
-        "rolls": 1
-      },
-      {
-        "id": "dq_ad",
-        "nameKo": "광고 1회 시청",
-        "target": 1,
-        "rolls": 2
-      }
-    ],
-    "missionsNote": "주사위는 상점도 리필도 아니고 **이벤트 미션 보상**으로만 나온다. 미션 진행도는 일일 임무 카운터(S.dq.c — 같은 행동을 이미 센다)를 그대로 읽고, 수령 기록만 이벤트가 따로 가진다(매일 초기화). 하루 만점 = 8굴림. 안 쓴 주사위는 이월된다 — 미션을 깼는데 안 굴린 것까지 뺏으면 보상이 아니라 숙제가 된다.",
-    "launchNote": "출시 기념 이벤트 단일 간판. 7일 축제와 주사위를 한 이벤트로 합쳤다 — 간판이 둘이면 서로 존재감을 깎는다.",
-    "durationDays": 14,
-    "durationNote": "첫 접속일 기준 14일. D-day 는 배너·상세에 뜬다. 끝나면 배너가 회색으로 내려앉는다.",
-    "attendMission": {
-      "nameKo": "매일 출석",
-      "rolls": 3,
-      "festivalRef": "dailies.json > newbie7Day.days",
-      "note": "구 \"출시 기념 7일 축제\"를 이 이벤트의 출석 미션으로 흡수했다. 수령하면 주사위 3개 + 그 일차의 축제 보상(7일치, dailies.json > newbie7Day)이 같이 나온다. 8일차부터는 주사위만 나온다 — 축제 보상이 끝나도 출석할 이유(주사위)는 남는다."
+    "nameKo": "다이아"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "merc_ticket": 2
     },
-    "wingCellNote": "날개 칸 — 도착 시 0.1% 확률로 한정 날개 즉시 획득, 꽝이면 다이아 30. 확정 경로(rollRewards 90회)가 따로 있으므로 이 칸은 순수 얼리 잭팟이다 — 0.1% 단독이면 14일 만점(112굴림, 칸 도착 기대 7회)에도 기대 획득 0.7%라 아무도 못 얻는다. 확률은 칸 위에 공시한다.",
-    "rollRewards": [
-      {
-        "rolls": 15,
-        "title": "t_dice_runner",
-        "kindKo": "칭호",
-        "nameKo": "주사위의 냥",
-        "cpBonus": 0.1,
-        "descKo": "보유 시 전투력 +10%. 프로필에 걸 수 있는 한정 칭호"
-      },
-      {
-        "rolls": 40,
-        "profile_frame": "pf_season1",
-        "kindKo": "한정 프레임",
-        "nameKo": "출시 기념",
-        "cpBonus": 0.2,
-        "descKo": "보유 시 전투력 +20%. 프로필 테두리를 바꾸는 한정 프레임"
-      },
-      {
-        "rolls": 100,
-        "cosmetic": "wing_launch",
-        "kindKo": "단장 날개",
-        "nameKo": "축제의 날개",
-        "cpBonus": 0.3,
-        "descKo": "보유 시 전투력 +30%. 전투 화면 단장 뒤에 항상 표시되는 한정 날개"
-      }
-    ],
-    "rollRewardsNote": "한정 상품 트랙의 척도는 **누적 굴림 횟수**다 — 바퀴는 주사위 운에 좌우되지만 굴림 수는 순수 참여량이라 공정하고, 유료 굴림도 똑같이 센다(천장 겸용). 날개 확정 100회 = 무료 만점 약 13일, 또는 유료로 즉시. 판의 날개 칸(0.1%)은 얼리 잭팟 — 확정 경로가 있으니 낮아도 정직하다. 완주 보너스(lapBonus)는 그대로 바퀴 단위다.",
-    "rollShop": {
-      "options": [
-        {
-          "n": 1,
-          "diamond": 100
-        },
-        {
-          "n": 10,
-          "diamond": 950
-        },
-        {
-          "n": 50,
-          "diamond": 4500
-        }
-      ],
-      "note": "주사위 유료 판매 — 이 이벤트의 BM 이다. 무료(미션 8/일)로는 날개 확정(100회)이 약 13일 만점이고, 유료 굴림은 그 대기를 건너뛰거나 0.1% 잭팟에 더 도전하는 값이다. 굴림당 칸 기대 보상(다이아 환산 약 55)이 있어 100다이아 단가의 실질가는 절반쯤이다. 큰 묶음일수록 단가가 좋다 (100 -> 95 -> 90)."
+    "nameKo": "용병권"
+   },
+   {
+    "type": "again",
+    "nameKo": "한 번 더"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "speedup_5m": 2
     },
-    "cpBonusNote": "한정 상품 CP 보너스 합산 +60% (칭호 10 / 프레임 20 / 날개 30, 보유 기준). 유료 상품이 성능이어야 팔린다는 유저 결정(2026-08-24) — v1 의 +3.5%는 코스메틱 수준이라 과금 동기가 못 됐다. 대가: cpCeiling 이 +60% 오른다. 이 이벤트를 다 모은 유저 기준으로 stages.json > cpCeiling·St200 요구 재계산 필수. 시즌마다 이런 트랙이 반복되면 파워 인플레가 시즌 단위로 쌓인다 — 다음 시즌 상품 설계 때 이 60%가 기준선이 된다."
+    "nameKo": "모래시계"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "alliance_coin": 30
+    },
+    "nameKo": "연합 코인"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "equip_ticket": 12
+    },
+    "nameKo": "장비권"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "diamond": 250
+    },
+    "jackpot": true,
+    "nameKo": "다이아 잭팟"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "skill_ticket": 2
+    },
+    "nameKo": "스킬권"
+   },
+   {
+    "type": "gold_h",
+    "v": 1,
+    "nameKo": "골드"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "merc_ticket": 5
+    },
+    "nameKo": "용병권"
+   },
+   {
+    "type": "gold_h",
+    "v": 4,
+    "jackpot": true,
+    "nameKo": "골드 잭팟"
+   },
+   {
+    "type": "wing",
+    "chance": 0.001,
+    "fallback": {
+     "diamond": 30
+    },
+    "nameKo": "날개 도전"
+   },
+   {
+    "type": "grant",
+    "grant": {
+     "diamond": 120
+    },
+    "nameKo": "다이아"
+   },
+   {
+    "type": "gold_h",
+    "v": 2,
+    "nameKo": "골드"
+   }
+  ],
+  "cellsNote": "5x5 테두리 16칸. 코너 4칸(출발/한 번 더/다이아 잭팟/골드 잭팟)이 특별칸이다 — 모노폴리 문법: 코너가 세면 한 바퀴에 이야기가 생긴다. gold_h 는 방치 v시간 분량. 연합 코인 칸은 연합 상점으로의 안내를 겸한다.",
+  "budgetNote": "하루 기대치(3굴림 + 광고 2): 다이아 약 90 + 잡권 소량 + 완주 보너스 400x0.9 ≈ 다이아 450/일 상당. f2pDailyYield D30(1,400/일)의 3할 — 이벤트가 상시 수입을 넘으면 안 된다. 기간 한정(2주)으로 돌리고 내리는 전제다.",
+  "missions": [
+   {
+    "id": "dq_stage",
+    "nameKo": "스테이지 10회 클리어",
+    "target": 10,
+    "rolls": 2
+   },
+   {
+    "id": "dq_summon",
+    "nameKo": "소환 50회",
+    "target": 50,
+    "rolls": 3
+   },
+   {
+    "id": "dq_dungeon",
+    "nameKo": "던전 입장 2회",
+    "target": 2,
+    "rolls": 1
+   },
+   {
+    "id": "dq_enhance",
+    "nameKo": "자동강화 50회",
+    "target": 50,
+    "rolls": 3
+   },
+   {
+    "id": "dq_ad",
+    "nameKo": "광고 1회 시청",
+    "target": 1,
+    "rolls": 2
+   }
+  ],
+  "missionsNote": "주사위는 상점도 리필도 아니고 **이벤트 미션 보상**으로만 나온다. 미션 진행도는 일일 임무 카운터(S.dq.c — 같은 행동을 이미 센다)를 그대로 읽고, 수령 기록만 이벤트가 따로 가진다(매일 초기화). 하루 만점 = 8굴림. 안 쓴 주사위는 이월된다 — 미션을 깼는데 안 굴린 것까지 뺏으면 보상이 아니라 숙제가 된다.",
+  "launchNote": "출시 기념 이벤트 단일 간판. 7일 축제와 주사위를 한 이벤트로 합쳤다 — 간판이 둘이면 서로 존재감을 깎는다.",
+  "durationDays": 14,
+  "durationNote": "첫 접속일 기준 14일. D-day 는 배너·상세에 뜬다. 끝나면 배너가 회색으로 내려앉는다.",
+  "attendMission": {
+   "nameKo": "매일 출석",
+   "rolls": 3,
+   "festivalRef": "dailies.json > newbie7Day.days",
+   "note": "구 \"출시 기념 7일 축제\"를 이 이벤트의 출석 미션으로 흡수했다. 수령하면 주사위 3개 + 그 일차의 축제 보상(7일치, dailies.json > newbie7Day)이 같이 나온다. 8일차부터는 주사위만 나온다 — 축제 보상이 끝나도 출석할 이유(주사위)는 남는다."
   },
-  "removed": {
-    "summonMileage": "2026-08-23 삭제. 기간 한정이라도 확정 획득 경로는 noPity 의 정신과 부딪치고, 출시 간판을 주사위 하나로 모으기로 했다. 되살리려면 git 히스토리 09f7edc."
-  }
+  "wingCellNote": "날개 칸 — 도착 시 0.1% 확률로 한정 날개 즉시 획득, 꽝이면 다이아 30. 확정 경로(rollRewards 90회)가 따로 있으므로 이 칸은 순수 얼리 잭팟이다 — 0.1% 단독이면 14일 만점(112굴림, 칸 도착 기대 7회)에도 기대 획득 0.7%라 아무도 못 얻는다. 확률은 칸 위에 공시한다.",
+  "rollRewards": [
+   {
+    "rolls": 15,
+    "title": "t_dice_runner",
+    "kindKo": "칭호",
+    "nameKo": "주사위의 냥",
+    "cpBonus": 0.1,
+    "descKo": "보유 시 전투력 +10%. 프로필에 걸 수 있는 한정 칭호"
+   },
+   {
+    "rolls": 40,
+    "profile_frame": "pf_season1",
+    "kindKo": "한정 프레임",
+    "nameKo": "출시 기념",
+    "cpBonus": 0.2,
+    "descKo": "보유 시 전투력 +20%. 프로필 테두리를 바꾸는 한정 프레임"
+   },
+   {
+    "rolls": 100,
+    "cosmetic": "wing_launch",
+    "kindKo": "단장 날개",
+    "nameKo": "축제의 날개",
+    "cpBonus": 0.3,
+    "descKo": "보유 시 전투력 +30%. 전투 화면 단장 뒤에 항상 표시되는 한정 날개"
+   }
+  ],
+  "rollRewardsNote": "한정 상품 트랙의 척도는 **누적 굴림 횟수**다 — 바퀴는 주사위 운에 좌우되지만 굴림 수는 순수 참여량이라 공정하고, 유료 굴림도 똑같이 센다(천장 겸용). 날개 확정 100회 = 무료 만점 약 13일, 또는 유료로 즉시. 판의 날개 칸(0.1%)은 얼리 잭팟 — 확정 경로가 있으니 낮아도 정직하다. 완주 보너스(lapBonus)는 그대로 바퀴 단위다.",
+  "rollShop": {
+   "options": [
+    {
+     "n": 1,
+     "diamond": 100
+    },
+    {
+     "n": 10,
+     "diamond": 950
+    },
+    {
+     "n": 50,
+     "diamond": 4500
+    }
+   ],
+   "note": "주사위 유료 판매 — 이 이벤트의 BM 이다. 무료(미션 8/일)로는 날개 확정(100회)이 약 13일 만점이고, 유료 굴림은 그 대기를 건너뛰거나 0.1% 잭팟에 더 도전하는 값이다. 굴림당 칸 기대 보상(다이아 환산 약 55)이 있어 100다이아 단가의 실질가는 절반쯤이다. 큰 묶음일수록 단가가 좋다 (100 -> 95 -> 90)."
+  },
+  "cpBonusNote": "한정 상품 CP 보너스 합산 +60% (칭호 10 / 프레임 20 / 날개 30, 보유 기준). 유료 상품이 성능이어야 팔린다는 유저 결정(2026-08-24) — v1 의 +3.5%는 코스메틱 수준이라 과금 동기가 못 됐다. 대가: cpCeiling 이 +60% 오른다. 이 이벤트를 다 모은 유저 기준으로 stages.json > cpCeiling·St200 요구 재계산 필수. 시즌마다 이런 트랙이 반복되면 파워 인플레가 시즌 단위로 쌓인다 — 다음 시즌 상품 설계 때 이 60%가 기준선이 된다.",
+  "missionNote": "하루치 미션이 30초에 끝나면 이벤트가 아니라 출석 체크다. 소환·자동강화를 50회로 올려 실제로 게임을 돌려야 주사위가 모이게 했다 (2026-08-24)."
+ },
+ "removed": {
+  "summonMileage": "2026-08-23 삭제. 기간 한정이라도 확정 획득 경로는 noPity 의 정신과 부딪치고, 출시 간판을 주사위 하나로 모으기로 했다. 되살리려면 git 히스토리 09f7edc."
+ }
 }

@@ -844,6 +844,8 @@ function renderForgeDock() {
   $('#fgObj').classList.toggle('empty', S.eqTicket < 1 && !S.eqPending);
   // 자동이 잡아 둔 장비가 있으면 모루가 빛난다. 이게 유일한 알림이다
   $('#fgObj').classList.toggle('pend', !!S.eqPending);
+  // 자동이 **실제로 도는 동안**만 망치질이 이어진다 (결과 대기 중이면 선다)
+  $('#fgObj').classList.toggle('auto', !!S.autoSummon && !S.eqPending);
 
   const b = $('#b_auto');
   b.disabled = !autoUnlocked();
@@ -1045,7 +1047,8 @@ function renderChest() {
   const h = idleHours();
   const cap = idleDef().maxAccumulationHours;
   const r = cap ? h / cap : 0;
-  $('#chestT').textContent = h < 1 ? `${Math.floor(h * 60)}분` : `${h.toFixed(1)}시간`;
+  // "1.4시간" 은 얼마가 쌓였는지를 안 알려 준다. 받을 골드를 그대로 적는다
+  $('#chestT').textContent = num(idleGold(h));
   const step = r >= 0.7 ? 3 : r >= 0.3 ? 2 : 1;
   const src = `/assets/ui/CH-0${step}.png`;
   const img = $('#chestImg');
@@ -1471,6 +1474,10 @@ function refreshParty() {
   renderSkills();
   renderCsChip();
   scene.activeSkills = S.skills.active.filter(Boolean);
+  // 패시브는 연출용이다 — 판정은 전투력에만 반영된다
+
+  scene.passiveSkills = S.skills.passive.filter(Boolean);
+  scene.syncPassiveAura?.();
   scene.captainClass = S.promoClass || 'warrior';
   scene.skillDmgMult = csSkillMult();
   // 3차 전직 스킬 — 각자 다른 축으로 전투에 꽂힌다
@@ -1609,7 +1616,7 @@ function openPass() {
       return `<button class="ps-cell${cls}" data-t="${t}" data-tr="${track}">
         ${chip(passReward(t, track))}
         ${done ? '<i class="ps-mark">받음</i>'
-          : locked ? '<i class="ps-mark"><img src="/assets/ui/UI-LOCK.png" alt="잠김"></i>'
+          : locked ? '<i class="ps-mark"><img src="/assets/ui/IC-LOCK-S.png" alt="잠김"></i>'
           : !open ? '' : '<i class="ps-mark ps-go">받기</i>'}</button>`;
     };
     return `<div class="ps-row${t === cur ? ' now' : ''}" data-tier="${t}">
@@ -2135,6 +2142,10 @@ function claimDiceMission(i) {
   renderDiceBoard(); renderDiceMissions();
 }
 
+/** 버튼 안에 넣는 작은 주사위. 이모지는 기기마다 모양이 달라 에셋을 쓴다 */
+const diceIco = () => `<img class="dc-ico" src="/assets/ui/EV-DICE-5.png" alt=""`
+  + ` onerror="this.replaceWith(document.createTextNode('\u{1F3B2}'))">`;
+
 /** 주사위 눈 — 에셋(EV-DICE-N)이 있으면 그림, 없으면 숫자. 한 번 실패하면 기억한다 */
 let diceImgOk = true;
 function setDiceFace(el, n) {
@@ -2325,7 +2336,7 @@ function renderDiceMissions() {
       <span>${attended ? '1/1' : '0/1'}</span></div>
     <div class="mq-bar"><i style="width:${attended ? 100 : 0}%"></i></div>
     <button class="dc-mbtn rt-b${attended ? '' : ' go'}" id="dcAttend"
-      ${attended ? 'disabled' : ''}>${attended ? '✓' : `🎲+${E.attendMission.rolls}`}</button>
+      ${attended ? 'disabled' : ''}>${attended ? '✓' : `${diceIco()}+${E.attendMission.rolls}`}</button>
   </div>`;
   el.innerHTML = attRow + D.events.diceBoard.missions.map((m, i) => {
     const cur = Math.min(m.target, S.dq.c[m.id] || 0);
@@ -2335,7 +2346,7 @@ function renderDiceMissions() {
       <div class="mq-h"><b>${t(m.nameKo)}</b><span>${cur}/${m.target}</span></div>
       <div class="mq-bar"><i style="width:${cur / m.target * 100}%"></i></div>
       <button class="dc-mbtn rt-b${can ? ' go' : ''}" data-dcm="${i}" ${can ? '' : 'disabled'}>
-        ${done ? '✓' : `🎲+${m.rolls}`}</button>
+        ${done ? '✓' : `${diceIco()}+${m.rolls}`}</button>
     </div>`;
   }).join('');
   el.querySelectorAll('[data-dcm]').forEach(b =>
@@ -2421,7 +2432,7 @@ function openEvents() {
   // 무료 1000뽑 — 진행형이라 기간이 없다
   const pendN = f1kPendingN();
   banners.push(`<button class="evb${nx || pendN ? '' : ' end'}" data-ev="free1000"
-      style="--img:url(/assets/ui/EV-02.png), url(/assets/art/UR-01-ART.png)">
+      style="--img:url(/assets/ui/EV-02.png)">
     <span class="evb-tag">${nx || pendN ? t('진행 중') : t('종료')}</span>
     <b>${t('무료 1000뽑')}</b>
     <span class="evb-sub">${pendN
@@ -2468,25 +2479,30 @@ function openEventDetail(id) {
         <span class="v" style="font-size:11px">${got}/${b.grants} · ${t('{0}장씩', b.ticketsPerGrant)}</span>
       </div>`;
     }).join(''));
-    h.push(`<div class="sh-note">${t('스테이지를 돌파하면 보상이 열립니다. 여기서 받으세요')}</div>`);
   }
   if (id === 'dice') {
     const E = D.events.diceBoard;
     const d = diceState();
     const left = evDaysLeft(E.durationDays);
     h.length = 1;
-    // 축제 히어로 — 색종이·단장. 구 7일 축제의 것을 그대로 물려받았다
-    h.push(`<div class="ev7-hero">
-      ${Array.from({ length: 12 }, (_, i) =>
-        `<i class="cf c${i % 4}" style="left:${6 + i * 8}%;animation-delay:${(i * 0.37) % 2.2}s"></i>`).join('')}
-      <img class="ev7-cap" src="/assets/captain/captain_face_happy.png" alt=""
-        onerror="this.onerror=null;this.src='/assets/captain/captain_warrior.png'">
-      <div class="ev7-ht">
-        <b>${t('출시 기념 냥냥 주사위')}</b>
-        <span>${t('미션을 깨고 주사위를 굴려 보상을 모으세요')}</span>
-        <u>${left > 0 ? `D-${left}` : t('종료')}</u>
-      </div>
+    // 상세에는 머리 배너도 축제 히어로도 안 쓴다. 목록에서 이미 본 그림이고,
+    // 둘 다 자리를 먹어 정작 주사위판이 스크롤 밖으로 밀렸다. 남은 기간만 한 줄
+    h.push(`<div class="dc-head">
+      <b>${t('출시 기념 냥냥 주사위')}</b>
+      <u>${left > 0 ? `D-${left}` : t('종료')}</u>
     </div>`);
+    // 탭 — 미션이 화면 밑바닥에 있으면 "주사위를 어디서 얻나" 가 안 보인다.
+    // 주사위가 없을 때는 미션 쪽을 먼저 펴 준다
+    const dTab = S.dice.tab || (d.rolls > 0 ? 'board' : 'mission');
+    h.push(`<div class="dc-tabs">
+      <button class="${dTab === 'board' ? 'on' : ''}" data-dctab="board">${t('주사위판')}</button>
+      <button class="${dTab === 'mission' ? 'on' : ''}" data-dctab="mission">${t('미션')}${
+        diceMissionReady() ? '<i class="dot"></i>' : ''}</button>
+    </div>`);
+    if (dTab === 'mission') {
+      h.push(`<div class="lbl" style="margin:2px 0 6px">${t('주사위 미션')} · ${t('매일 초기화')}</div>`);
+      h.push('<div id="dcMissions"></div>');
+    } else {
     h.push(`<div class="dc-wrap">
       <div id="dcBoard"></div>
       <div class="dc-center">
@@ -2509,11 +2525,9 @@ function openEventDetail(id) {
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
     h.push(`<div class="dc-buy">${(E.rollShop?.options || []).map((o, i) =>
       `<button class="dc-buyb" data-dcbuy="${i}">
-        <b>🎲 ${o.n}</b><em><img src="/assets/ui/CU-01.png" alt=""> ${num(o.diamond)}</em>
+        <b>${diceIco()} ${o.n}</b><em><img src="/assets/ui/CU-01.png" alt=""> ${num(o.diamond)}</em>
       </button>`).join('')}</div>`);
-    h.push(`<div class="lbl" style="margin:10px 0 6px">${t('주사위 미션')} · ${t('매일 초기화')}</div>`);
-    h.push('<div id="dcMissions"></div>');
-    h.push(`<div class="sh-note">${t('미션을 깨면 주사위를 받고, 안 쓴 주사위는 내일로 이월됩니다')}</div>`);
+    }
   }
 
   $('#ovt').textContent = t('이벤트');
@@ -2521,6 +2535,8 @@ function openEventDetail(id) {
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   $('#evBack').addEventListener('click', openEvents);
   $('#f1kClaim')?.addEventListener('click', f1kClaim);
+  $('#ovb').querySelectorAll('[data-dctab]').forEach(b =>
+    b.addEventListener('click', () => { S.dice.tab = b.dataset.dctab; openEventDetail('dice'); }));
   if (id === 'dice') {
     renderDiceBoard(); renderDiceMissions();
     setDiceFace($('#dcFace'), 1 + ((Math.random() * 6) | 0));   // 굴리기 전에도 주사위가 보인다
@@ -2764,8 +2780,7 @@ function openPromotion() {
     ${cards}
     ${(() => {
       const sk = csMine();
-      if (!sk) return S.promoClass
-        ? `<div class="pr-note">${t('전직 스킬은 2차부터 열립니다')}</div>` : '';
+      if (!sk) return '';
       const lv = S.promoSkillLv || 0, mx = csDef().maxLevel;
       const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
       return `<div class="cs-card" style="--au:${PROMO_COL[promoTier(S.promoClass)]}">
@@ -2785,8 +2800,7 @@ function openPromotion() {
       if (!S.promoClass) return '';
       const sk2 = cs2Mine();
       const tier = promoTier(S.promoClass);
-      if (!sk2) return tier >= 2
-        ? `<div class="pr-note">${t('두 번째 전직 스킬은 3차부터 열립니다')}</div>` : '';
+      if (!sk2) return '';
       const lv = S.promoSkillLv2 || 0, mx = csDef().maxLevel;
       const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
       return `<div class="cs-card" style="--au:${PROMO_COL[3]}">
@@ -2999,7 +3013,7 @@ function openAllianceGate() {
     </div>
     <div class="lbl" style="margin:10px 0 6px">${t('가입할 수 있는 연합')}</div>
     ${rows}
-    <div class="sh-note">${t('서버 연동 전 데모 목록입니다. 가입·생성 기록은 내 기기에 저장됩니다')}</div>`;
+    `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#alCreate')?.addEventListener('click', () => {
@@ -3215,8 +3229,7 @@ function openFriendRequests() {
         left > 0 ? `${left}${t('초')}` : `⟳ ${t('새로 고침')}`}</button>
     </div>
     ${cands.map((x, i) => row(x, i, 'out')).join('')}
-    <div class="sh-note">${t('신청 목록은 {0}초마다 새로 고칠 수 있습니다', FRIEND_REFRESH_SEC)}<br>${
-      t('서버 연동 전 데모 목록입니다')}</div>`;
+    `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#ovb').querySelectorAll('[data-frtab]').forEach(b =>
@@ -3295,7 +3308,7 @@ function openFriends() {
     <button class="fgbtn" id="frAll" style="margin:8px 0 10px"
       ${allLeft ? '' : 'disabled'}>${allLeft ? t('전체 선물 보내기 + 받기') : t('오늘은 다 주고받았습니다')}</button>
     ${rows}
-    <div class="sh-note">${t('매일 05:00 에 초기화됩니다')}<br>${t('서버 연동 전 데모 친구입니다')}</div>`;
+    `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   const recvOne = id => {
@@ -3429,10 +3442,10 @@ function openArena(view) {
     const p = winP(f.cp);
     const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
     return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
-      <img class="af-ava" src="/assets/captain/captain_${f.capCls}.png" alt=""
-        onerror="this.remove()">
+      <span class="af-ava"><img src="/assets/captain/captain_${f.capCls}.png" alt=""
+        onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
-        <span class="k" style="display:block">CP ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
+        <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
       <button class="rt-b go" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
         style="color:${col}">${t('도전')}</button></div>`;
   }).join('');
@@ -3480,7 +3493,7 @@ function openFoeInfo(i) {
       <img src="/assets/captain/captain_${f.capCls}.png" alt="" onerror="this.remove()">
       <div>
         <b>${f.name}</b>
-        <span>${CLASS_KO[f.capCls]} ${t('단장')} · CP ${num(f.cp)}</span>
+        <span>${CLASS_KO[f.capCls]} ${t('단장')} · ${t('전투력')} ${num(f.cp)}</span>
         <span>${t('점수')} ${num(f.score)}</span>
       </div>
     </div>
@@ -3741,7 +3754,7 @@ function openAlliance(tab = 'home') {
           <b>${x.nameKo}</b>
           <span>${lim}${x.weeklyLimit ? ` · ${used}/${x.weeklyLimit}` : ''}</span>
           ${locked
-            ? `<em class="als-lock"><img src="/assets/ui/UI-LOCK.png" alt="">${
+            ? `<em class="als-lock"><img src="/assets/ui/IC-LOCK-S.png" alt="">${
                 t('연합 Lv {0}', x.unlockLevel)}</em>`
             : `<button class="mdBuy${soldout || (S.allyCoin || 0) < x.cost ? ' off' : ''}"
                 data-albuy="${x.id}" ${soldout ? 'disabled' : ''}>${coin}${x.cost}</button>`}
@@ -3764,7 +3777,7 @@ function openAlliance(tab = 'home') {
        <span class="al-mem-c">${coin}${num(m.coin)}</span>
        <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('')
     + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`
-    + '<div class="sh-note">서버 연동 전 데모 명단입니다. 실명단은 연합 컬렉션에서 온다.</div>';
+;
 
   /**
    * 기부 — 하루 5회 **계단**. 한 번 누르면 다음 계단으로 화면이 통째로 갈아탄다.
@@ -3885,7 +3898,7 @@ function runDungeon(dg) {
   if (totalCp() < need) {
     // 실패해도 횟수는 소모된다 (dungeons.json > entry.failureCost)
     openDungeons();
-    return toast(`${dg.nameKo} ${st.floor}층 실패 — CP ${num(need)} 필요`);
+    return toast(`${dg.nameKo} ${st.floor}층 실패 — ${t('전투력')} ${num(need)} 필요`);
   }
   st.floor++;
   mq('dungeon_floor');
@@ -4383,7 +4396,7 @@ function openEquipInfo(slotId) {
     </div>`
     + `<div class="frow"><span class="k">전투력 상승량</span>
       <span class="v" style="color:var(--up);font-size:15px">+${cpNum(gain)}</span></div>`
-    + `<div class="sh-note">착용·교체는 제작대에서 소환한 뒤 결과 화면에서 고릅니다.</div>`;
+;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 }
 
@@ -4514,6 +4527,10 @@ async function runTowerFloor(floor) {
   $('#stg').innerHTML = `무한의 탑<i>${floor}층</i>`;
   markEncounter(-1);
   scene.activeSkills = S.skills.active.filter(Boolean);
+  // 패시브는 연출용이다 — 판정은 전투력에만 반영된다
+
+  scene.passiveSkills = S.skills.passive.filter(Boolean);
+  scene.syncPassiveAura?.();
   await scene.startTowerFloor(floor, towerCp(D, floor), partyDps());
   renderTop();
 }
@@ -4528,6 +4545,10 @@ async function runStage() {
   markEncounter(-1);
   // 장착된 액티브 스킬만 전투 이펙트로 나온다
   scene.activeSkills = S.skills.active.filter(Boolean);
+  // 패시브는 연출용이다 — 판정은 전투력에만 반영된다
+
+  scene.passiveSkills = S.skills.passive.filter(Boolean);
+  scene.syncPassiveAura?.();
   await scene.startStage(S.stage, requiredCp(S.stage), partyDps());
   renderTop();
 }
