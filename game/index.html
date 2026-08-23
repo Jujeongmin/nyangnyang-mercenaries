@@ -1036,13 +1036,19 @@
     font-variant-numeric:tabular-nums}
   /* 게이지 홈은 그림(MQ-BAR)이다 — 맨 CSS 막대는 프로토타입처럼 보인다.
      좌우 끝 장식이 잘리지 않게 border-image 로 늘린다 */
-  .mq-bar{height:10px;border-radius:0;overflow:hidden;
+  /* 홈(MQ-BAR) 안쪽에 채움이 들어간다. 채움이 홈을 꽉 덮으면 그림이 안 보여
+     한 덩어리 막대로 읽힌다 — 위아래 2px 을 남긴다 */
+  .mq-bar{position:relative;height:12px;border-radius:0;
     border-style:solid;border-width:0 12px;
     border-image:url(/assets/ui/MQ-BAR.png) 0 24 fill stretch}
-  .mq-bar i{display:block;height:100%;
+  .mq-bar i{position:absolute;left:2px;top:3px;height:6px;border-radius:3px;
     background:linear-gradient(90deg,#e8a72c,var(--gold));
-    box-shadow:0 0 6px #ffc94a66}
-  .mq-row.done .mq-bar i{background:var(--up)}
+    box-shadow:0 0 5px #ffc94a55}
+  /* 완료 행은 초록으로 물들이지 않는다 — 화면 톤이 황동인데 초록 막대가
+     여섯 줄 깔리면 그 색만 보인다. 흐린 금색 + 체크로 충분하다 */
+  .mq-row.done .mq-bar i{background:linear-gradient(90deg,#8a7a52,#b09a6a);
+    box-shadow:none}
+
   .mq-p{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;
     font-weight:800;color:var(--gold)}
   .mq-row.done .mq-p{color:var(--up)}
@@ -1174,6 +1180,15 @@
   .dc-shop .dc-prize{padding:6px 4px}
   .dc-shop .dc-prize u{font-size:11px}
   .dc-shop .dc-prize b{font-size:9px;min-height:2.4em}
+  .dc-goal{display:flex;align-items:baseline;justify-content:center;gap:6px;
+    font-size:10px;color:var(--dim);margin:6px 0 6px}
+  .dc-goal b{font-size:13px;font-weight:800;color:var(--gold)}
+  /* 상세 화면은 배너를 끈다 — 제목 줄만 남는다 */
+  /* [data-skin] 규칙이 뒤에 있어 동률이면 그쪽이 이긴다 — 속성까지 얹어 이긴다 */
+  #ovcard.no-banner[data-skin] #ovskin{display:none}
+  #ovcard.no-banner[data-skin] #ovh{min-height:50px;align-items:center;
+    padding:10px 12px 6px}
+  #ovcard.no-banner[data-skin] #ovt{position:static;transform:none;max-width:none;flex:1}
   .dc-tabs{display:flex;gap:5px;margin:2px 0 9px}
   .dc-tabs button{flex:1;position:relative;background:var(--ink);border:1px solid var(--line);
     border-radius:9px;padding:7px 0;font:inherit;font-size:12px;font-weight:800;

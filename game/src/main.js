@@ -2531,20 +2531,6 @@ function openEventDetail(id) {
       <button class="${dTab === 'shop' ? 'on' : ''}" data-dctab="shop">${t('상점')}</button>
     </div>`);
     if (dTab === 'shop') {
-      // 한정 코스메틱은 **여기 하나**에서만 얻는다 (판에서 뺐다). 누적 굴림이
-      // 쌓이면 자동으로 들어온다 — 사는 게 아니라 목표라서 상점 맨 위다
-      h.push(`<div class="lbl" style="margin:2px 0 6px">${t('누적 굴림 상품')}
-        <b style="color:var(--gold)">${num(S.dice.totalRolls || 0)}${t('회')}</b></div>`);
-      h.push('<div class="dc-shop">' + (E.rollRewards || []).map(r => {
-        const got = r.title ? S.profile.ownedTitles.includes(r.title)
-          : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
-          : S.cosmetics.owned.includes(r.cosmetic);
-        return `<button class="dc-prize${got ? ' got' : ''}${
-            (S.dice.totalRolls || 0) >= r.rolls ? '' : ' far'}" data-prize="${(E.rollRewards).indexOf(r)}">
-          <u>${r.rolls}${t('회')}</u><em>${r.kindKo}</em><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
-        </button>`;
-      }).join('') + '</div>');
-      h.push(`<div class="lbl" style="margin:12px 0 6px">${t('주사위 구매')}</div>`);
       // 주사위 상점 — 다이아 상품과 같은 카드 문법. 그림이 값의 크기를 말한다
       h.push('<div class="dc-store">' + (E.rollShop?.options || []).map((o, i) => `
         <button class="dc-item" data-dcbuy="${i}">
@@ -2565,7 +2551,18 @@ function openEventDetail(id) {
         <button class="fgbtn" id="dcRoll">${t('굴리기')} <em id="dcRolls">${d.rolls}</em></button>
       </div>
     </div>`);
-    h.push(`<div class="pr-note">${t('누적 굴림 {0}회', num(S.dice.totalRolls || 0))}</div>`);
+    // 상품은 **판과 같은 화면**에 있어야 한다 — 굴리면서 다음 목표가 보인다
+    h.push(`<div class="dc-goal">${t('누적 굴림')}
+      <b>${num(S.dice.totalRolls || 0)}${t('회')}</b></div>`);
+    h.push('<div class="dc-shop">' + (E.rollRewards || []).map(r => {
+      const got = r.title ? S.profile.ownedTitles.includes(r.title)
+        : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
+        : S.cosmetics.owned.includes(r.cosmetic);
+      return `<button class="dc-prize${got ? ' got' : ''}${
+          (S.dice.totalRolls || 0) >= r.rolls ? '' : ' far'}" data-prize="${(E.rollRewards).indexOf(r)}">
+        <u>${r.rolls}${t('회')}</u><em>${r.kindKo}</em><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
+      </button>`;
+    }).join('') + '</div>');
     h.push(`<div class="frow"><span class="k">${t('완주 보상')}</span>
       <span class="v" style="font-size:11px">${Object.entries(E.lapBonus).map(([k, v]) =>
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
@@ -2573,6 +2570,9 @@ function openEventDetail(id) {
   }
 
   $('#ovt').textContent = t('이벤트');
+  // 상세는 **배너 없이** 뜬다 — 목록에서 이미 본 그림을 또 깔면 같은 화면이
+  // 두 번 나오고, "목록 위에 다른 창이 열렸다" 는 느낌이 안 산다
+  $('#ovcard').classList.add('no-banner');
   $('#ovb').innerHTML = h.join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   $('#evBack').addEventListener('click', openEvents);
@@ -4209,6 +4209,7 @@ function setSkin(name) {
   const c = $('#ovcard');
   c.dataset.skin = name;
   c.style.removeProperty('--ov-img');
+  c.classList.remove('no-banner');   // 배너를 끈 화면이 다음 화면까지 물려주지 않게
 }
 
 function openForge() {
