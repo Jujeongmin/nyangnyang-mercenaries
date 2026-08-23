@@ -50,6 +50,8 @@ const S = {
   // 좋은 장비가 나와서 서는 것은 정지가 아니라 일시정지다 — 유저가 착용·분해를
   // 고르면 다시 돈다. 완전 정지는 AUTO 버튼을 다시 눌렀을 때만이다.
   autoWanted: false,
+  // 자동이 잡아 두고 유저 판단을 기다리는 장비. 제작대 모루가 이걸로 빛난다
+  eqPending: null,
   // 자동 소환 정지 기준. -1 = 지금 낀 것보다 좋으면(기본), N = 그 등급 이상.
   // 끄는 선택지는 없다 — 좋은 장비가 대기함에 묻히기 때문이다.
   autoStopTier: -1, autoBatch: 0,
@@ -125,7 +127,10 @@ function codexBonus() {
     if (c && byG[c.grade]) b += byG[c.grade].bonusEach;
   }
   const skG = D.codex.skill.individualByGrade;
-  for (const g of Object.values(S.codex.skill)) b += skG[g] || 0;
+  // individualByGrade 는 {count, bonusEach, subtotal} 다 — 위 용병 쪽처럼
+  // bonusEach 를 꺼내야 한다. 객체를 그대로 더하면 NaN 이 되고, 그 NaN 이
+  // totalCp 를 타고 내려가 전투력이 "0" 으로 표시됐다
+  for (const g of Object.values(S.codex.skill)) b += skG[g]?.bonusEach || 0;
   return Math.min(D.codex.budget.totalMaxBonus, b);
 }
 
@@ -739,7 +744,9 @@ function renderForgeDock() {
   $('#fgLv').classList.toggle('busy', busy);
   $('#fgLv').textContent = busy ? dur(forgeRemain()) : `Lv ${S.forgeLv}`;
   $('#fgTicketN').textContent = num(S.eqTicket);
-  $('#fgObj').classList.toggle('empty', S.eqTicket < 1);
+  $('#fgObj').classList.toggle('empty', S.eqTicket < 1 && !S.eqPending);
+  // 자동이 잡아 둔 장비가 있으면 모루가 빛난다. 이게 유일한 알림이다
+  $('#fgObj').classList.toggle('pend', !!S.eqPending);
 
   const b = $('#b_auto');
   b.disabled = !autoUnlocked();
@@ -2768,6 +2775,8 @@ function openEquipResult(it) {
     // 착용은 토스트를 안 띄운다 — CP 상승은 상단 CP 배지(+n ▲)가 이미 알린다.
     // 분해만 획득 배너
     if (!wear) gainToast([['gold', scrapGold(it.tier)]]);
+    if (S.eqPending === it) S.eqPending = null;   // 불빛을 끈다
+    renderForgeDock();
     resumeAuto();          // 자동을 켜 둔 상태였으면 여기서 다시 돈다
   };
   $('#erWear')?.addEventListener('click', () => finish(true));
@@ -2819,9 +2828,11 @@ function summonEquip(n, isAuto) {
     // 멈춘 시점 이후로 안 돌린 만큼은 소환권을 돌려준다
     const used = kept + scrapped + 1;
     if (used < n) S.eqTicket += n - used;
+    // 창을 강제로 띄우지 않는다 — 방치형인데 화면을 가로채면 자동의 의미가 없다.
+    // 제작대에 불빛만 남기고, 유저가 눌렀을 때 보여 준다
+    S.eqPending = stopHit;
     save(); renderEquip(); renderTop(); renderForgeDock();
-    toast(`${g.nameKo} 등장 · 자동 소환 정지`);
-    openEquipResult(stopHit);      // 착용/분해를 고를 때까지 안 닫힌다
+    toast(`${g.nameKo} 등장 · 제작대에서 확인`);
     return;
   }
   save();
@@ -3171,7 +3182,11 @@ function bootLangPick() {
 
   // 제작대 오브젝트 = 수동 1회 소환. 참고 화면과 같은 조작이다.
   $('#bossGo').addEventListener('click', challengeBoss);
-  $('#fgObj').addEventListener('click', () => pullOne('#fgObj'));   // 이벤트 객체가 인자로 새면 안 된다
+  $('#fgObj').addEventListener('click', () => {
+    // 대기 중인 장비가 있으면 소환이 아니라 그것부터 보여 준다
+    if (S.eqPending) return openEquipResult(S.eqPending);
+    pullOne('#fgObj');                 // 이벤트 객체가 인자로 새면 안 된다
+  });
   $('#fgLv').addEventListener('click', e => { e.stopPropagation(); openForge(); });
   // AUTO 버튼: 돌고 있으면 **완전 정지**하고 패널을 연다. 꺼져 있으면 패널만 연다
   $('#b_auto').addEventListener('click', () => {

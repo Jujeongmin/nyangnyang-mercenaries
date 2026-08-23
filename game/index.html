@@ -611,6 +611,18 @@
     background:var(--strip,url(/assets/ui/FO-01-STRIP.png)) 100% 0/400% 100% no-repeat}
   #fgObj.ready #foAnim{animation:fgBob 1.5s ease-in-out infinite}
   #fgObj.empty #foAnim{filter:grayscale(.7) brightness(.65)}
+  /* 자동이 잡아 둔 장비가 있다 — 모루가 금빛으로 맥동한다.
+     창을 띄워 화면을 가로채는 대신 여기만 빛내고 유저가 누를 때 보여 준다 */
+  #fgObj.pend #foAnim{filter:drop-shadow(0 0 6px var(--gold)) drop-shadow(0 0 14px #ffd76a88);
+    animation:fgPend 1.25s ease-in-out infinite}
+  @keyframes fgPend{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  #fgObj.pend::after{content:"";position:absolute;right:2px;top:2px;width:9px;height:9px;
+    border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);z-index:4;
+    animation:fgPendDot 1.25s ease-in-out infinite}
+  @keyframes fgPendDot{0%,100%{opacity:.55}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){
+    #fgObj.pend #foAnim,#fgObj.pend::after{animation:none}
+  }
   /* 재생: 들림(0~20%) → 낙하(→42%) → 타격 유지(→78%) → 휴지.
      42% = 0.244s — 불똥(fgSpk .25s)·모루 눌림(fgShake 42%)과 맞물린다. */
   @keyframes foPlay{
