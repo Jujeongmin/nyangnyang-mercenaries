@@ -366,6 +366,33 @@
   .sm-band .rates{flex:1;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
   .sm-band .rates span{font-weight:800;
     font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .sm-band .lv em{font-style:normal;font-size:9px;margin-left:4px;font-weight:800}
+  /* 지금 확률 — 등급 한 줄씩, 개별 확률까지 */
+  .sm-now{background:var(--card);border:1px solid var(--gold);border-radius:11px;
+    padding:10px 11px;margin-bottom:8px}
+  .sm-nh{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;font-size:12px;color:var(--dim)}
+  .sm-nh b{font-size:15px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .sm-nh span{margin-left:auto;font-size:11px}
+  .sm-g{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:11px}
+  .sm-g + .sm-g{border-top:1px solid var(--line)}
+  .sm-g i{flex:0 0 7px;height:7px;border-radius:50%}
+  .sm-g b{flex:0 0 34px;font-size:12px;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .sm-p{margin-left:auto;font-weight:800;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+  .sm-e{flex:0 0 90px;text-align:right;color:var(--dim);font-size:10px}
+  /* 다음 해금 — 계단의 다음 칸이 이 창의 두 번째 질문이다 */
+  .sm-next{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;
+    color:var(--dim);background:var(--panel);border:1px dashed var(--line);
+    border-radius:9px;padding:8px 10px}
+  .sm-next b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-size:12px}
+  .sm-next span{margin-left:auto;color:var(--gold);font-weight:800}
+  .sm-all{width:100%;margin:10px 0 8px;padding:8px;cursor:pointer;font-family:inherit;
+    font-size:11px;font-weight:800;color:var(--dim);background:var(--panel);
+    border:1px solid var(--line);border-radius:9px}
+  #smTable{max-height:230px;overflow-y:auto;margin-bottom:8px}
+  #smTable[hidden]{display:none}
 
   /* 모래시계 사용 창 — 제작대(z60)보다 위, 유닛 상세(z76)보다 아래 */
   #hgPop{position:absolute;inset:0;z-index:72;display:none;align-items:center;

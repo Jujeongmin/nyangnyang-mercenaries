@@ -25,6 +25,16 @@ export function summonProgress(track, exp) {
   return { level: Math.min(lv, track.maxLevel), cur: 0, need: 0, max: track.maxLevel };
 }
 
+/** 레벨 L 에 닿기까지 필요한 누적 뽑기 수. 해금까지 몇 회 남았나를 말해 주려고 쓴다 */
+export function pullsToLevel(track, L) {
+  let n = 0;
+  for (const b of track.levelRequirement || []) {
+    if (L <= b.fromLevel) break;
+    n += (Math.min(L, b.toLevel) - b.fromLevel) * b.pullsPerLevel;
+  }
+  return n;
+}
+
 /**
  * 소환 레벨 보상. gacha.json > tracks[].levelReward
  * claimed 다음 레벨부터 현재 레벨까지의 구간 보상을 합산한다.
@@ -196,39 +206,84 @@ export class ShopScreen {
   }
 
   /**
-   * 소환 레벨 상세 — 구간별 확률표 + 레벨 보상 수령.
-   * 확률은 법적으로도 보여야 하는 값인데(gacha.json > perItemRateFormula) 지금은
-   * 현재 구간의 상위 둘만 한 줄로 떴다. 레벨을 누르면 전 구간을 편다.
+   * 소환 레벨 상세 — 지금 확률 / 다음 해금 / 레벨 보상, 그리고 접어 둔 전 레벨 표.
+   *
+   * v3 에서 밴드가 레벨당 1행(50행)이 되면서 전부 펼치면 아무도 안 읽는다.
+   * 유저가 실제로 묻는 건 두 가지다 — **지금 뭐가 나오나**, **다음에 뭐가 열리나**.
+   * 그 둘을 위로 올리고 전체 표는 토글 뒤에 둔다. 확률 공시 의무는 표를
+   * 없애는 게 아니라 닿을 수 있게 두는 것으로 지킨다.
    */
   openLevelInfo(id) {
     const D = this.api.data, S = this.api.state;
     const tr = D.gacha.tracks[id];
-    const pg = summonProgress(tr, S.summonExp?.[id] ?? 0);
+    const exp = S.summonExp?.[id] ?? 0;
+    const pg = summonProgress(tr, exp);
     const pend = levelRewardPending(tr, pg.level, S.summonLvClaimed?.[id]);
     const icon = id === 'skill' ? 'CU-06' : 'CU-05';
-    const bands = D.gacha.rateBands.map(b => {
-      const now = pg.level >= b.minLevel && pg.level <= b.maxLevel;
-      const rates = Object.entries(b.rates).filter(([, v]) => v > 0)
-        .map(([g, v]) => `<span style="color:${GC[g]}">${g} ${v}%</span>`).join('');
-      return `<div class="sm-band${now ? ' now' : ''}">
-        <span class="lv">Lv ${b.minLevel}~${b.maxLevel}</span>
-        <span class="rates">${rates}</span></div>`;
-    }).join('');
+    const kind = id === 'skill' ? D.skills.skills : D.characters.characters;
+    const count = g => kind.filter(x => x.grade === g).length || 1;
+    const bandAt = lv => D.gacha.rateBands.find(b => lv >= b.minLevel && lv <= b.maxLevel)
+      || D.gacha.rateBands[D.gacha.rateBands.length - 1];
+    // 표의 원본은 소수점 넷째 자리까지다(합이 정확히 100 이 되게). 화면에는 줄인다 —
+    // 1% 미만은 자릿수가 곧 정보라 그대로 두고, 그 위는 소수 둘째까지
+    const pct = v => (v < 1 ? String(+v.toFixed(4)) : v.toFixed(2).replace(/\.00$/, ''));
+
+    // 등급 한 줄 — 등급 확률과 개별 확률(등급확률 ÷ 종수)을 같이 준다
+    const gradeRows = b => Object.entries(b.rates).filter(([, v]) => v > 0).reverse()
+      .map(([g, v]) => `<div class="sm-g"><i style="background:${GC[g]}"></i>
+        <b style="color:${GC[g]}">${g}</b>
+        <span class="sm-p">${pct(v)}%</span>
+        <span class="sm-e">1종당 ${pct(v / count(g))}%</span></div>`).join('');
+
+    // 다음 해금 — gradeUnlock 에서 현재 레벨보다 위인 것 중 가장 가까운 것
+    const ul = D.gacha.gradeUnlock || {};
+    const next = Object.entries(ul).filter(([, lv]) => lv > pg.level)
+      .sort((a, b) => a[1] - b[1])[0];
+    const left = next ? Math.max(0, pullsToLevel(tr, next[1]) - exp) : 0;
+
     document.querySelector('#smBody').innerHTML = `
-      <div class="sm-band now"><span class="lv">지금</span>
-        <span class="rates"><span>Lv ${pg.level} · 다음까지 ${pg.need ? pg.need - pg.cur : 0}회</span></span></div>
-      ${pend ? `<button class="rt-b go" id="smClaim" style="width:100%;margin:8px 0 10px">
+      <div class="sm-now">
+        <div class="sm-nh">현재 <b>Lv ${pg.level}</b>
+          <span>${pg.need ? `다음 레벨까지 ${pg.need - pg.cur}회` : '만렙'}</span></div>
+        ${gradeRows(bandAt(pg.level))}
+      </div>
+      ${next ? `<div class="sm-next">
+          <b style="color:${GC[next[0]]}">${next[0]}</b> 등급이 <b>Lv ${next[1]}</b> 에 열린다
+          <span>${left}회 남음</span></div>`
+        : '<div class="sm-next">모든 등급이 열렸다</div>'}
+      ${pend ? `<button class="rt-b go" id="smClaim" style="width:100%;margin:10px 0 0">
           레벨 보상 받기 <img src="/assets/ui/${icon}.png" alt=""
             style="width:15px;height:15px;vertical-align:-3px">${pend}</button>`
-        : '<div class="sh-note" style="margin:8px 0 10px">받을 레벨 보상이 없습니다</div>'}
-      <div class="lbl" style="margin:4px 0 6px">구간별 확률</div>
-      ${bands}
+        : '<div class="sh-note" style="margin:10px 0 0">받을 레벨 보상이 없습니다</div>'}
+      <button class="sm-all" id="smAll" aria-expanded="false">레벨별 전체 확률 보기</button>
+      <div id="smTable" hidden>
+        ${D.gacha.rateBands.map(b => {
+          const now = pg.level >= b.minLevel && pg.level <= b.maxLevel;
+          // N·R 은 처음부터 있는 풀이다 — Lv1 에 "해금" 딱지를 붙이면 계단이 안 읽힌다
+          const opened = Object.entries(ul)
+            .filter(([g, lv]) => lv === b.minLevel && lv > 1 && g !== 'N' && g !== 'R')
+            .map(([g]) => `<em style="color:${GC[g]}">${g} 해금</em>`).join('');
+          const rates = Object.entries(b.rates).filter(([, v]) => v > 0).reverse()
+            .map(([g, v]) => `<span style="color:${GC[g]}">${g} ${pct(v)}</span>`).join('');
+          return `<div class="sm-band${now ? ' now' : ''}">
+            <span class="lv">Lv ${b.minLevel}${opened}</span>
+            <span class="rates">${rates}</span></div>`;
+        }).join('')}
+      </div>
       <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
         개별 확률 = 등급 확률 ÷ 그 등급의 종수</div>`;
     document.querySelector('#smClaim')?.addEventListener('click', () => {
       this.api.claimSummonLevel(id);
       this.openLevelInfo(id);
       this.render();
+    });
+    const all = document.querySelector('#smAll'), tbl = document.querySelector('#smTable');
+    all.addEventListener('click', () => {
+      const open = tbl.hidden;
+      tbl.hidden = !open;
+      all.setAttribute('aria-expanded', String(open));
+      all.textContent = open ? '전체 확률 접기' : '레벨별 전체 확률 보기';
+      if (open) tbl.querySelector('.sm-band.now')?.scrollIntoView({ block: 'center' });
     });
     document.querySelector('#smPop').classList.add('show');
   }

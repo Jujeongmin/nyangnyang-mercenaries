@@ -97,6 +97,43 @@ export function validate(d) {
     }
   }
 
+  // 불변식 4-b — 계단. v3 에서 밴드가 레벨당 1행이 되면서, 표와 gradeUnlock /
+  // gradeRemoval 이 어긋나면 "Lv5 에 SR 해금"이라는 공지가 거짓말이 된다.
+  // 숫자만 만지다 계단이 깨지는 것을 여기서 잡는다.
+  {
+    const gk = d.gacha, bands = gk.rateBands;
+    const maxLv = Math.max(...(gk.rateBandsAppliesTo || [])
+      .map(id => gk.tracks[id]?.maxLevel || 0));
+    // 레벨 1..maxLv 를 빠짐없이 한 번씩 덮는다
+    for (let lv = 1; lv <= maxLv; lv++) {
+      const hit = bands.filter(b => lv >= b.minLevel && lv <= b.maxLevel);
+      push(hit.length === 1, `가챠 Lv${lv} 를 덮는 밴드가 ${hit.length}개 (1개여야 한다)`);
+    }
+    // 표에서 읽은 활성 구간이 gradeUnlock / gradeRemoval 과 같은가
+    for (const g of GRADES) {
+      const on = bands.filter(b => (b.rates[g] || 0) > 0).map(b => b.minLevel);
+      if (!on.length) continue;
+      const a = Math.min(...on), z = Math.max(...on);
+      push(z - a + 1 === on.length, `가챠 ${g} 확률 구간이 끊겨 있다 (Lv${a}~${z})`);
+      if (gk.gradeUnlock) {
+        push(gk.gradeUnlock[g] === a,
+          `가챠 gradeUnlock.${g}=${gk.gradeUnlock[g]} 인데 표에서는 Lv${a} 부터다`);
+      }
+      if (gk.gradeRemoval && gk.gradeRemoval[g] != null) {
+        push(gk.gradeRemoval[g] === z + 1,
+          `가챠 gradeRemoval.${g}=${gk.gradeRemoval[g]} 인데 표에서는 Lv${z} 까지다`);
+      }
+    }
+    // 해금 순서는 등급 서열을 따라야 한다 — 상위가 먼저 열리면 계단이 아니다
+    if (gk.gradeUnlock) {
+      for (let i = 1; i < GRADES.length; i++) {
+        const lo = gk.gradeUnlock[GRADES[i - 1]], hi = gk.gradeUnlock[GRADES[i]];
+        push(lo != null && hi != null && lo <= hi,
+          `가챠 해금 순서 역전: ${GRADES[i - 1]} Lv${lo} > ${GRADES[i]} Lv${hi}`);
+      }
+    }
+  }
+
   // 불변식 6 — 등급 체계 두 벌. 장비는 10등급
   const eq = d.equipment;
   push(eq.grades.length === 10, `장비 등급 ${eq.grades.length}개. 10 이어야 한다`);

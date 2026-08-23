@@ -14,7 +14,8 @@ const q = s => document.querySelector(s);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const closeAll = () => {
-  document.querySelectorAll('.fullscr.show, #shop.show').forEach(e => e.classList.remove('show'));
+  document.querySelectorAll('.fullscr.show, #shop.show, #smPop.show, #hgPop.show')
+    .forEach(e => e.classList.remove('show'));
   q('#ov')?.classList.remove('show', 'forced');
   // 편성 시트는 네비 위에 떠 있어 다른 화면과 겹친 채로 남는다
   q('#sheet')?.classList.remove('show');
@@ -44,6 +45,11 @@ export const SCREENS = [
   ['스킬탭', () => nav('skill'), '#sheet'],
   ['상점:소환', () => openShop('summon'), '#shop'],
   ['상점:소환-스킬', () => { openShop('summon'); q('.sm-t[data-track="skill"]')?.click(); }, '#shop'],
+  // 소환 레벨 창 — 확률표가 50행이라 전체 표를 편 상태로도 한 번 잰다
+  ['소환 레벨창', () => { openShop('summon'); q('#shop .sh-lv')?.click(); }, '#smCard'],
+  ['소환 레벨창-표', () => {
+    openShop('summon'); q('#shop .sh-lv')?.click(); q('#smAll')?.click();
+  }, '#smCard'],
   ['상점:다이아', () => openShop('diamond'), '#shop'],
   ['상점:특가', () => openShop('deal'), '#shop'],
   ['상점:교환', () => openShop('exchange'), '#shop'],
