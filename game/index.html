@@ -78,11 +78,12 @@
   .cur b{color:var(--txt);font-weight:800;margin-left:4px;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
   /* [+] — 재화에서 상점으로 가는 지름길. 키우기 장르 공통 문법 */
-  #diaPlus{width:16px;height:16px;margin-left:6px;padding:0;border-radius:50%;
+  #diaPlus,#goldPlus{width:16px;height:16px;margin-left:6px;padding:0;border-radius:50%;
     border:none;background:linear-gradient(#5ad86a,#2c8a3c);color:#fff;
     font-size:13px;font-weight:900;line-height:15px;cursor:pointer;
     box-shadow:0 1px 3px #0009}
-  #diaPlus:active{transform:scale(.9)}
+  #diaPlus:active,#goldPlus:active{transform:scale(.9)}
+  #goldPlus{background:linear-gradient(#ffd76a,#e8a72c);color:#2a1c05}
   .dot{width:9px;height:9px;border-radius:50%}
   .cui{width:17px;height:17px;object-fit:contain}
 
@@ -884,6 +885,59 @@
   /* 제작대 확률창 — 한 번에 한 레벨만 보여 주고 ‹ › 로 넘긴다.
      화살표는 flex 로 자리를 잡는다. 절대배치로 얹으면 좁은 화면에서 글자를 밟는다 */
   /* 제작대 소환 버튼 두 개. 그리드라 글자 길이가 달라도 폭이 안 흔들린다 */
+  /* 절전 버튼 — 그림이 없으면 이모지로 떨어진다 */
+  #pwrSave img{display:block;width:20px;height:20px;object-fit:contain;margin:0 auto;
+    filter:drop-shadow(0 1px 2px #000a)}
+
+  /* ── 임무(일일·주간) ──
+     참고한 방치형들의 배치를 따른다: 위에 포인트 게이지와 보상 상자, 아래 퀘스트 줄.
+     상자를 게이지 위 제 위치에 얹어야 "얼마 남았나"가 한눈에 읽힌다 */
+  .mq-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+  .mq-t{font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:8px 0;
+    color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:9px}
+  .mq-t.on{color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);
+    border-color:var(--gold)}
+  .mq-track{position:relative;height:34px;margin:0 16px 2px}
+  .mq-gauge{position:absolute;left:0;right:0;top:13px;height:8px;border-radius:5px;
+    background:var(--ink);overflow:hidden}
+  .mq-gauge i{display:block;height:100%;background:linear-gradient(90deg,#e8a72c,var(--gold))}
+  .mq-box{position:absolute;top:0;transform:translateX(-50%);width:32px;height:32px;
+    border-radius:9px;cursor:default;font-family:inherit;
+    background:var(--panel);border:2px solid var(--line);color:var(--dim)}
+  .mq-box{overflow:hidden}
+  .mq-box i{font-style:normal;font-size:10px;font-weight:800}
+  .mq-box.can{background:linear-gradient(180deg,#ffd76a,#e8a72c);border-color:var(--gold);
+    color:#2a1c05;cursor:pointer;animation:mqBox 1.1s ease-in-out infinite}
+  @keyframes mqBox{0%,100%{transform:translateX(-50%) scale(1)}
+    50%{transform:translateX(-50%) scale(1.12)}}
+  .mq-box.done{border-color:var(--up);color:var(--up)}
+  .mq-sum{display:flex;align-items:baseline;gap:6px;font-size:11px;color:var(--dim);
+    margin:6px 2px 10px}
+  .mq-sum b{font-size:16px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .mq-sum span{margin-left:auto}
+  .mq-rw{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .mq-rwc{background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:7px 5px;text-align:center;font-size:10px}
+  .mq-rwc.done{opacity:.45}
+  .mq-rwc u{display:block;text-decoration:none;color:var(--gold);font-weight:800;
+    font-size:11px;margin-bottom:3px}
+  .mq-rwc em{font-style:normal;display:inline-flex;align-items:center;gap:2px;margin:0 3px}
+  .mq-rwc em img{width:13px;height:13px;object-fit:contain}
+  .mq-row{position:relative;background:var(--card);border:1px solid var(--line);
+    border-radius:9px;padding:8px 44px 9px 10px;margin-bottom:5px}
+  .mq-row.done{border-color:var(--up);opacity:.72}
+  .mq-h{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:5px}
+  .mq-h b{font-weight:700}
+  .mq-h span{margin-left:auto;font-size:11px;color:var(--dim);
+    font-variant-numeric:tabular-nums}
+  .mq-bar{height:6px;border-radius:4px;background:var(--ink);overflow:hidden}
+  .mq-bar i{display:block;height:100%;background:linear-gradient(90deg,#e8a72c,var(--gold))}
+  .mq-row.done .mq-bar i{background:var(--up)}
+  .mq-p{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;
+    font-weight:800;color:var(--gold)}
+  .mq-row.done .mq-p{color:var(--up)}
+
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
   .fg-pull .fgbtn{display:flex;flex-direction:column;align-items:center;gap:2px;
     min-height:46px;justify-content:center;padding:6px 4px;line-height:1.15}
@@ -2373,7 +2427,8 @@
     <div class="row" style="gap:13px">
       <span class="cur"><img class="cui" src="/assets/ui/CU-01.png" alt=""><b id="c_dia">0</b><button
         id="diaPlus" title="다이아 충전">+</button></span>
-      <span class="cur"><img class="cui" src="/assets/ui/CU-04.png" alt=""><b id="c_gold">0</b></span>
+      <span class="cur"><img class="cui" src="/assets/ui/CU-04.png" alt=""><b id="c_gold">0</b><button
+        id="goldPlus" title="골드 획득">+</button></span>
     </div>
   </div>
 
@@ -2391,7 +2446,9 @@
             <button class="sbtn" data-sp="2">2x</button>
             <button class="sbtn" data-sp="3">3x</button>
             <!-- 절전 — 렌더만 6fps. 방치형은 화면을 몇 시간씩 켜 둔다 (skipBattle) -->
-            <button class="sbtn" id="pwrSave" title="절전 모드">💤</button>
+            <button class="sbtn" id="pwrSave" title="절전 모드"><img
+              src="/assets/ui/IC-POWERSAVE.png" alt="절전"
+              onerror="this.onerror=null;this.replaceWith('💤')"></button>
           </div>
         </div>
       </div>
@@ -2412,6 +2469,8 @@
          의미를 갖는다), 우 = 경쟁·수령. 훈련소·도감은 성장 시스템이라 용병 시트
          안으로, 우편은 프로필 줄로 옮겼다. 9개 → 5개 -->
     <div class="side" id="sideL">
+      <button data-s="mission"><img src="/assets/ui/IC-QUEST.png" alt=""
+        onerror="this.onerror=null;this.src='/assets/ui/IC-ATTEND.png'"><span>임무</span></button>
       <button data-s="attend"><img src="/assets/ui/IC-ATTEND.png" alt="" onerror="this.remove()"><span>출석</span></button>
       <button data-s="event"><img src="/assets/ui/IC-EVENT.png" alt="" onerror="this.remove()"><span>이벤트</span></button>
       <button data-s="pass"><img src="/assets/ui/IC-PASS.png" alt="" onerror="this.remove()"><span>패스</span></button>

@@ -94,6 +94,10 @@ const S = {
   nickChanged: 0,                          // 변경 횟수. 0 이면 다음 변경이 무료
   nickChangedAt: 0,
   profile: { titleId: null, frameId: 'pf_default', featuredMercId: null, ownedTitles: [] },
+  // 일일·주간 임무. c 는 퀘스트 id 별 진행도, claimed 는 수령한 포인트 관문.
+  // day/week 가 바뀌면 통째로 갈아 끼운다 (dailies.json > dailyQuests/weeklyQuests)
+  dq: { day: null, c: {}, claimed: [], full: 0 },
+  wq: { week: null, c: {}, claimed: [] },
   mailbox: [],
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
@@ -428,6 +432,8 @@ function syncNav() {
   if (!open) navTab = null;
   document.querySelectorAll('#nav .nv').forEach(x =>
     x.classList.toggle('on', !!navTab && x.dataset.tab === navTab));
+  // 임무 수령 대기 — 사이드 아이콘 빨간 점. 놓치면 사라지는 것이라 점을 붙인다
+  document.querySelector('[data-s="mission"]')?.classList.toggle('hasnew', mqWaiting());
 }
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
@@ -649,6 +655,7 @@ function useHourglass(n = 1) {
 }
 
 function finishForge() {
+  mq('forge_lv', Math.max(1, S.forgeTarget - S.forgeLv));
   S.forgeLv = S.forgeTarget;
   S.forgeStart = null; S.forgeTarget = null; S.forgeCut = 0;
   save(); renderTop(); renderEquip(); renderForgeDock();
@@ -984,7 +991,7 @@ async function claimIdle(mult) {
 /** 광고를 끝까지 보여 주고 보상을 줘도 되는지 판정한다. 실패 사유는 토스트로 알린다 */
 async function playAd(placementId) {
   const r = await showRewarded(placementId);
-  if (r === AD_OK) return true;
+  if (r === AD_OK) { mq('ad'); return true; }
   toast(r === AD_SKIPPED ? '광고를 끝까지 봐야 보상이 지급됩니다' : '지금은 광고를 볼 수 없습니다');
   return false;
 }
@@ -1052,6 +1059,7 @@ function pull(trackId, n) {
   S[bag] -= byTicket;
   S.dia -= cost;
   S.summonExp[trackId] = (S.summonExp[trackId] || 0) + n;   // 소환 레벨 exp
+  mq('summon', n);
 
   // 소환 레벨이 오르면 확률표가 좋아지고 낮은 등급이 풀에서 영구히 빠진다
   // (gacha.json > levelEffects.gradeFloorRise). 여기가 1로 박혀 있어서 소환 레벨이
@@ -1214,6 +1222,7 @@ function ownedOf(track) {
 function autoEnhance(track) {
   const pend = S.pend[track] || [];
   if (!pend.length) return [];
+  mq('enhance');
   const cap = track === 'skill' ? D.skills.levelCap : D.characters.levelCap;
   const logs = [];
 
@@ -1778,6 +1787,142 @@ function openUnitInfo(kind, id) {
   $('#unit').classList.add('show');
 }
 
+// ── 일일·주간 임무 ─────────────────────────────────────────────────
+// 리셋은 05:00 KST (dayIdx 가 이미 그 오프셋을 갖고 있다).
+// 주는 월요일 05:00 — dayIdx 0 이 1970-01-01 목요일이라 +3 을 더해야
+// 월요일이 주 경계가 된다.
+const weekIdx = t => Math.floor((dayIdx(t) + 3) / 7);
+
+/** 행동 하나가 일일·주간 양쪽을 먹인다. id 가 dq_/wq_ 로 갈려 있어 표로 잇는다 */
+const MQ_MAP = {
+  enhance: ['dq_enhance', 'wq_enhance'],
+  summon: ['dq_summon', 'wq_summon'],
+  dungeon_enter: ['dq_dungeon'],
+  dungeon_floor: ['wq_dungeon'],
+  stage: ['dq_stage', 'wq_stage'],
+  arena: ['dq_arena'],
+  arena_win: ['wq_arena'],
+  ad: ['dq_ad', 'wq_ad'],
+  forge_lv: ['wq_equip_lv'],
+  daily_full: ['wq_daily'],
+};
+
+function missionState() {
+  const d = dayIdx(Date.now()), w = weekIdx(Date.now());
+  if (S.dq.day !== d) S.dq = { day: d, c: {}, claimed: [], full: 0 };
+  if (S.wq.week !== w) S.wq = { week: w, c: {}, claimed: [] };
+  return S;
+}
+
+/** 미해금 콘텐츠(아레나 Q26)의 퀘스트는 목록에서 빠지고 그만큼 만점이 낮아진다 */
+const mqList = def => def.quests.filter(q => !q.unlockQuest || S.quest >= q.unlockQuest);
+const mqDone = (q, c) => (c[q.id] || 0) >= q.target;
+const mqPoints = (def, c) => mqList(def).reduce((a, q) => a + (mqDone(q, c) ? q.points : 0), 0);
+const mqMax = def => mqList(def).reduce((a, q) => a + q.points, 0);
+const mqBox = (kind) => kind === 'daily'
+  ? { def: D.dailies.dailyQuests, st: S.dq }
+  : { def: D.dailies.weeklyQuests, st: S.wq };
+
+/** 받을 게 밀려 있나 — 사이드 아이콘 빨간 점 */
+function mqWaiting() {
+  missionState();
+  for (const k of ['daily', 'weekly']) {
+    const { def, st } = mqBox(k);
+    const p = mqPoints(def, st.c);
+    if (def.pointRewards.some(r => p >= r.points && !st.claimed.includes(r.points))) return true;
+  }
+  return false;
+}
+
+/** 진행도 적립. 게임 행동 쪽에서 부른다 */
+function mq(action, n = 1) {
+  missionState();
+  for (const id of MQ_MAP[action] || []) {
+    const c = id.startsWith('dq_') ? S.dq.c : S.wq.c;
+    c[id] = (c[id] || 0) + n;
+  }
+  // 일일 만점을 **처음** 채운 순간 주간 wq_daily 에 하루를 적는다.
+  // full 플래그가 없으면 그 뒤 모든 적립마다 하루씩 더 세어진다
+  const dd = D.dailies.dailyQuests;
+  if (!S.dq.full && mqPoints(dd, S.dq.c) >= mqMax(dd)) { S.dq.full = 1; mq('daily_full'); }
+  save(); syncNav();
+}
+
+function mqClaim(kind, points) {
+  const { def, st } = mqBox(kind);
+  if (st.claimed.includes(points)) return;
+  if (mqPoints(def, st.c) < points) return toast(t('포인트가 모자랍니다'));
+  const r = def.pointRewards.find(x => x.points === points);
+  if (!r) return;
+  st.claimed.push(points);
+  const got = passGrant(r.grant || {});
+  save(); renderTop(); syncNav(); openMissions(kind);
+  if (got.pairs.length) gainToast(got.pairs);
+}
+
+/**
+ * 임무 창. 참고한 방치형들의 배치를 그대로 따른다 —
+ * **위에 포인트 게이지와 보상 상자, 아래에 퀘스트 줄.**
+ * 상자를 게이지 위 제 위치에 얹어야 "얼마 남았나"가 한눈에 읽힌다.
+ * 목록만 있으면 유저는 개별 퀘스트를 보상으로 착각한다 (실제 보상은 포인트다).
+ */
+function openMissions(kind = 'daily') {
+  missionState();
+  const { def, st } = mqBox(kind);
+  const list = mqList(def);
+  const pts = mqPoints(def, st.c), max = mqMax(def);
+  const gicons = g => Object.entries(g || {}).map(([k, v]) =>
+    `<em>${CUR_ICON[k] ? `<img src="/assets/ui/${CUR_ICON[k]}.png" alt="" onerror="this.remove()">` : ''}${num(v)}</em>`
+  ).join('');
+
+  const boxes = def.pointRewards.map(r => {
+    const got = st.claimed.includes(r.points);
+    const can = !got && pts >= r.points;
+    return `<button class="mq-box${got ? ' done' : ''}${can ? ' can' : ''}${r.highlight ? ' hi' : ''}"
+      style="left:${Math.min(100, r.points / max * 100)}%"
+      data-claim="${r.points}" ${can ? '' : 'disabled'}>
+      <i>${got ? '✓' : r.points}</i></button>`;
+  }).join('');
+
+  const rows = list.map(q => {
+    const cur = Math.min(q.target, st.c[q.id] || 0);
+    const done = cur >= q.target;
+    return `<div class="mq-row${done ? ' done' : ''}">
+      <div class="mq-h"><b>${t(q.nameKo)}</b><span>${num(cur)}/${num(q.target)}</span></div>
+      <div class="mq-bar"><i style="width:${cur / q.target * 100}%"></i></div>
+      <span class="mq-p">+${q.points}</span>
+    </div>`;
+  }).join('');
+
+  const nextR = def.pointRewards.find(r => !st.claimed.includes(r.points));
+  $('#ovt').textContent = t('임무');
+  delete $('#ovcard').dataset.skin;
+  $('#ovinfo').innerHTML = '';
+  $('#ovb').innerHTML = `
+    <div class="mq-tabs">
+      <button class="mq-t${kind === 'daily' ? ' on' : ''}" data-k="daily">${t('일일')}</button>
+      <button class="mq-t${kind === 'weekly' ? ' on' : ''}" data-k="weekly">${t('주간')}</button>
+    </div>
+    <div class="mq-track">
+      <div class="mq-gauge"><i style="width:${max ? pts / max * 100 : 0}%"></i></div>
+      ${boxes}
+    </div>
+    <div class="mq-sum"><b>${pts}</b> / ${max} ${t('포인트')}
+      <span>${nextR ? t('다음 보상까지 {0}', Math.max(0, nextR.points - pts)) : t('전부 수령')}</span></div>
+    <div class="mq-rw">${def.pointRewards.map(r => `<div class="mq-rwc${
+      st.claimed.includes(r.points) ? ' done' : ''}"><u>${r.points}</u>${gicons(r.grant)}</div>`).join('')}</div>
+    <div class="lbl" style="margin:10px 0 6px">${kind === 'daily' ? t('오늘의 임무') : t('이번 주 임무')}</div>
+    ${rows}
+    <div class="sh-note">${kind === 'daily'
+      ? t('매일 05:00 에 초기화됩니다')
+      : t('매주 월요일 05:00 에 초기화됩니다')}</div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  $('#ovb').querySelectorAll('[data-k]').forEach(b =>
+    b.addEventListener('click', () => openMissions(b.dataset.k)));
+  $('#ovb').querySelectorAll('[data-claim]').forEach(b =>
+    b.addEventListener('click', () => mqClaim(kind, +b.dataset.claim)));
+}
+
 /**
  * 출석 — dailies.json > attendance.
  *
@@ -2332,6 +2477,7 @@ function runDungeon(dg) {
   const entries = D.dungeons.entry.dailyKeyGrant;
   if (dgKeysOf(dg.id) < 1) return toast(`${dg.nameKo} 열쇠 부족 · 매일 ${entries}개 지급`);
   S.dgKeys[dg.id]--;
+  mq('dungeon_enter');
   const need = dg.unlockCp * Math.pow(1.18, st.floor - 1);
   const gain = dg.baseYield * Math.pow(1.15, st.floor - 1);
   if (totalCp() < need) {
@@ -2340,6 +2486,7 @@ function runDungeon(dg) {
     return toast(`${dg.nameKo} ${st.floor}층 실패 — CP ${num(need)} 필요`);
   }
   st.floor++;
+  mq('dungeon_floor');
   const bag = { gold: 'gold', equip_ticket: 'eqTicket', diamond: 'dia', speedup_5m: 'hourglass' }[dg.reward];
   if (bag) S[bag] += Math.round(gain);
   openDungeons(); renderTop();
@@ -2656,7 +2803,7 @@ function openForge() {
       const on = p.summonLv <= S.forgeLv;
       return `<div class="frow" style="opacity:${on ? 1 : .42};padding:6px 10px;margin-bottom:5px">
         <span class="k">Lv ${p.summonLv}</span>
-        <span class="v" style="font-size:11px">${p.nameKo || p.unlock}${p.pullsPerBatch ? ` · 배치 ${p.pullsPerBatch}` : ''}</span>
+        <span class="v" style="font-size:11px">${p.nameKo || p.unlock}</span>
         <span>${on ? '✅' : `<img class="lockIc" src="/assets/ui/UI-LOCK.png" alt="잠김">`}</span></div>`;
     }).join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -3000,10 +3147,21 @@ function questGoto(t) {
   else if (t.goto === 'dungeon') openDungeons();
 }
 
+/** 이 스테이지 1회 클리어의 골드 총액 (stages.json > rewards.repeatClear.gold) */
+function stageGold(n = S.stage) {
+  const g = D.stages.rewards.repeatClear.gold;
+  return Math.pow(requiredCp(n), g.exponent) * g.coefficient;
+}
+
 function onEvent(e) {
   if (e.type === 'kill') {
     // 누적 처치. 퀘스트 진행도라 렌더까지 해야 배너가 즉시 찬다
     S.kills = (S.kills || 0) + 1;
+    // 잡몹도 골드를 준다. 보스만 주면 벽에 막힌 유저의 수입이 0 이 되고,
+    // 절전으로 밤새 돌려도 획득 골드가 0 이다 (gold.splitNote)
+    const g = D.stages.rewards.repeatClear.gold;
+    S.gold += Math.round(stageGold() * g.split.mobs / g.mobsPerStage);
+    renderTop();
     renderQuest();
     return;
   }
@@ -3056,7 +3214,9 @@ function onEvent(e) {
     $('#bossGo').classList.remove('show');
     // 클리어 표시는 띄우지 않는다 — 매 스테이지 뜨면 진행이 끊긴다
     S.maxStage = Math.max(S.maxStage, S.stage);
-    S.gold += Math.round(Math.pow(requiredCp(S.stage), 1.35) * D.stages.rewards.repeatClear.gold.coefficient);
+    // 보스 몫만. 잡몹 몫은 처치할 때마다 이미 들어갔다
+    S.gold += Math.round(stageGold() * D.stages.rewards.repeatClear.gold.split.boss);
+    mq('stage');
     S.eqTicket += 12; S.hourglass += 3;
     renderQuest();
     capGain(1);
@@ -3227,6 +3387,18 @@ function bootLangPick() {
   });
   shop = new ShopScreen($('#app'), {
     claimSummonLevel,
+    // 다이아 -> 골드 빠른 구매. 액수는 방치 공식 그대로다 (idleGold) —
+    // 별도 표를 두면 스테이지가 오를 때마다 갈라진다
+    quickGold: hours => idleGold(hours),
+    buyGold: (hours, dia) => {
+      if (S.dia < dia) { toast(`다이아 ${num(dia - S.dia)} 부족`); return false; }
+      S.dia -= dia;
+      const g = idleGold(hours);
+      S.gold += g;
+      save(); renderTop();
+      gainToast([['gold', g]]);
+      return true;
+    },
     state: S, data: D, toast,
     pull: (trackId, n) => pull(trackId, n),
     buySpeed3, claimSpeed3Daily,
@@ -3326,6 +3498,7 @@ function bootLangPick() {
   $('#topSet').addEventListener('click', () => settings.open());
   // 다이아 [+] — 상점 다이아 탭 지름길
   $('#diaPlus')?.addEventListener('click', () => shop.open('diamond'));
+  $('#goldPlus')?.addEventListener('click', () => shop.open('exchange'));
   // 스킬 자동 토글. 기본 ON — 방치형이라 손을 떼도 돌아가야 한다.
   $('#skAuto').addEventListener('click', () => {
     S.skillAuto = !S.skillAuto;
@@ -3338,6 +3511,7 @@ function bootLangPick() {
   document.querySelectorAll('.side button, #top button[data-s]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.s === 'arena') openArena();
     else if (b.dataset.s === 'attend') openAttend();
+    else if (b.dataset.s === 'mission') openMissions();
     else if (b.dataset.s === 'pass') openPass();
     else if (b.dataset.s === 'codex') codex.open();
     else if (b.dataset.s === 'training') openTraining();

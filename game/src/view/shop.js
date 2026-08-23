@@ -121,6 +121,10 @@ export class ShopScreen {
     body.querySelectorAll('[data-pull]').forEach(b => b.addEventListener('click', () => {
       this.api.pull(b.dataset.pull, +b.dataset.n);
     }));
+    body.querySelectorAll('[data-goldbuy]').forEach(b => b.addEventListener('click', () => {
+      const o = (this.api.data.shop.quickGold || [])[+b.dataset.goldbuy];
+      if (o && this.api.buyGold(o.hours, o.diamond)) this.render();
+    }));
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       // 3배속만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
       if (b.dataset.buy === 'speed3_unlock' && this.api.buySpeed3) return this.api.buySpeed3();
@@ -349,7 +353,18 @@ export class ShopScreen {
   // ── 교환 ──
   exchangeTab() {
     const e = this.api.data.shop.exchange;
-    return `<div class="sh-h2">골드 환전소</div>`
+    // 다이아 -> 골드. 액수는 방치 공식(idleGold)이라 스테이지가 오르면 같이 오른다.
+    // "N시간 분량" 표기가 정직하다 — 고정 액수는 후반에 휴지조각이 된다
+    const qg = (this.api.data.shop.quickGold || []).map((o, i) => `<div class="sh-card">
+        <b>방치 ${o.hours}시간 분량</b>
+        <span class="sh-desc"><img src="/assets/ui/CU-04.png" alt=""
+          style="width:12px;height:12px;vertical-align:-2px"> ${num(this.api.quickGold(o.hours))}</span>
+        <button class="sh-price" data-goldbuy="${i}">
+          <img src="/assets/ui/CU-01.png" alt=""
+            style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
+      </div>`).join('');
+    return `<div class="sh-h2">골드 구매</div>${qg}
+      <div class="sh-h2" style="margin-top:12px">골드 환전소</div>`
       + e.goldExchange.rates.map((r, i) => `<div class="sh-card">
           <b>${r}</b>
           <span class="sh-desc">회차마다 환율이 나빠진다</span>
