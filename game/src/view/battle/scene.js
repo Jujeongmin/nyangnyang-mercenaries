@@ -758,7 +758,11 @@ export class BattleScene {
     const gc = this.D.skills.gradeCoef;
     const base = gc[this.D.skills.effectScaling.baselineGrade] || 600000;
     const scale = (gc[active.grade] || base) / base * (1 + (active.level || 0) * 0.06);
-    return { mult: e.atkRatio * scale, targets: e.targets || 1 };
+    // 소환수는 지속시간 동안 때린 총량을 한 번에 넣는다 (sim/engine.js 와 같은 근사).
+    // 한 대 분량만 넣으면 "12초간 2기"라는 설명이 31% 짜리 한 방이 돼 버린다
+    const burst = e.kind === 'summon'
+      ? (e.count || 1) * Math.round(e.durationSec || 1) : 1;
+    return { mult: e.atkRatio * scale * burst, targets: e.targets || 1 };
   }
 
   hitFoe(from, foe, skill) {
@@ -772,7 +776,10 @@ export class BattleScene {
     // 예전엔 등급·레벨과 무관하게 무조건 x6 이라, 툴팁의 "공격력의 240%"와
     // 실제 타격이 아무 관계가 없었다. sim/engine.js 와 같은 식이다.
     const sd = skill && from.usingSkill ? this.skillDmg(from.usingSkill) : null;
-    const dmg = per * (sd ? sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
+    // **평타에 얹는다.** 스킬이 평타를 대체하면 배율이 100% 아래인 스킬
+    // (화염구 64%, 유령 용병 95%)은 쓸수록 손해가 된다 — 그냥 때리는 게 낫다.
+    // sim/engine.js 도 스킬을 평타 루프와 따로 굴려 같은 시간에 둘 다 넣는다.
+    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
     foe.hp -= dmg;
     // 광역·관통은 남은 적에게도 같은 값이 들어간다. 연출은 주 대상만 크게 하고
     // 곁불은 숫자만 띄운다 — 다섯 군데서 같은 이펙트가 터지면 화면이 뭉갠다
