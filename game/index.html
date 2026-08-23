@@ -938,6 +938,31 @@
     font-weight:800;color:var(--gold)}
   .mq-row.done .mq-p{color:var(--up)}
 
+  /* ── 전직 카드 ──
+     직군 카드 3장. 단장 직군 변신 그림이 주인공이고, 현재 단계 색(--au)이
+     테두리·발광·이름을 함께 물들인다 — 1차 무채 / 2차 청 / 3차 금 */
+  .pr-note{font-size:11px;color:var(--dim);text-align:center;margin:2px 0 10px}
+  .pr-card{position:relative;background:var(--card);border:2px solid var(--au);
+    border-radius:13px;padding:14px 12px 12px;margin-bottom:9px;text-align:center;
+    box-shadow:0 0 14px color-mix(in srgb, var(--au) 30%, transparent),
+      inset 0 0 22px color-mix(in srgb, var(--au) 12%, transparent)}
+  .pr-card.t3{box-shadow:0 0 22px color-mix(in srgb, var(--au) 55%, transparent),
+      inset 0 0 30px color-mix(in srgb, var(--au) 18%, transparent)}
+  .pr-img{width:96px;height:96px;object-fit:contain;
+    filter:drop-shadow(0 4px 8px #000a) drop-shadow(0 0 10px color-mix(in srgb, var(--au) 45%, transparent))}
+  .pr-pips{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+  .pr-pips i{width:10px;height:10px;border-radius:50%;background:var(--ink);
+    border:1px solid var(--line)}
+  .pr-pips i.on{background:var(--c);border-color:var(--c);box-shadow:0 0 6px var(--c)}
+  .pr-name{display:block;font-size:16px;margin-top:4px;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .pr-cls{display:block;font-size:11px;color:var(--dim);margin:2px 0 8px}
+  .pr-next{display:block;font-size:11px;color:var(--dim);margin-bottom:8px}
+  .pr-next b{color:var(--txt)}
+  .pr-next.done{color:var(--gold);margin-bottom:2px}
+  .pr-btn{width:100%;min-height:38px}
+  .pr-btn img{width:14px;height:14px;vertical-align:-2px}
+
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
   .fg-pull .fgbtn{display:flex;flex-direction:column;align-items:center;gap:2px;
     min-height:46px;justify-content:center;padding:6px 4px;line-height:1.15}
@@ -2554,6 +2579,9 @@
         src="/assets/ui/IC-TRAIN.png" alt="훈련소" onerror="this.replaceWith(document.createTextNode('훈련소'))"></button>
       <button class="sh-go" data-go="codex" title="도감"><img
         src="/assets/ui/IC-CODEX.png" alt="도감" onerror="this.replaceWith(document.createTextNode('도감'))"></button>
+      <button class="sh-go" data-go="promo" title="전직"><img
+        src="/assets/ui/IC-PROMO.png" alt="전직"
+        onerror="this.onerror=null;this.src='/assets/ui/IC-TRAIN.png'"></button>
       <button id="shX">닫기</button>
     </div>
     <!-- 프리셋 3칸 — 탭하면 불러오고 [저장]으로 현재 편성을 기록한다 -->

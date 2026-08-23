@@ -2025,9 +2025,58 @@ function doPromote(cls) {
   S.gold -= nx.cost.gold;
   S.promo = S.promo || {};
   S.promo[cls] = nx.tier;
-  save(); refreshParty(); openTraining();
+  save(); refreshParty();
   const nm = promoDef().names[cls][nx.tier - 1];
   toast(`${CLASS_KO[cls]} → ${nm}`);
+}
+
+const CLASS_IMG = { warrior: 'captain_warrior', archer: 'captain_archer', mage: 'captain_mage' };
+const PROMO_COL = { 1: '#b09a7e', 2: '#5ad8ff', 3: '#ffc94a' };
+
+/**
+ * 전직 — 직군 카드 3장. 훈련소 텍스트 줄에 묻혀 있던 것을 전용 화면으로 뺐다.
+ * 그림은 단장 직군 변신(captain_*)을 쓴다 — 직군 단위 승급이라 "그 직군 전체가
+ * 이렇게 된다"를 한 장으로 말할 수 있는 유일한 에셋이다.
+ */
+function openPromotion() {
+  const P = promoDef();
+  const maxT = P.tiers[P.tiers.length - 1].tier;
+  const cards = ['warrior', 'archer', 'mage'].map(cls => {
+    const cur = promoTier(cls);
+    const nx = promoNext(cls);
+    const nm = P.names[cls][cur - 1];
+    const canLv = nx && S.trainLv >= nx.trainLv;
+    const canGold = nx && S.gold >= nx.cost.gold;
+    // 단계 배지 — 별을 세로로. 색이 단계를 말한다 (1 무채 / 2 청 / 3 금)
+    const pips = Array.from({ length: maxT }, (_, i) =>
+      `<i class="${i < cur ? 'on' : ''}" style="${i < cur ? `--c:${PROMO_COL[cur]}` : ''}"></i>`).join('');
+    return `<div class="pr-card t${cur}" style="--au:${PROMO_COL[cur]}">
+      <span class="pr-pips">${pips}</span>
+      <img class="pr-img" src="/assets/captain/${CLASS_IMG[cls]}.png" alt=""
+        onerror="this.style.visibility='hidden'">
+      <b class="pr-name" style="color:${PROMO_COL[cur]}">${tn(cls, nm)}</b>
+      <span class="pr-cls">${CLASS_KO[cls]} · ×${promoMult(cls).toFixed(2)}</span>
+      ${nx ? `<span class="pr-next">다음 <b>${P.names[cls][nx.tier - 1]}</b>
+          ×${nx.statMult.toFixed(2)} · ${t('훈련소 Lv {0}', nx.trainLv)}</span>
+        <button class="fgbtn pr-btn" data-promo="${cls}" ${canLv && canGold ? '' : 'disabled'}>
+          ${!canLv ? t('훈련소 Lv {0} 필요', nx.trainLv)
+            : `<img src="/assets/ui/CU-04.png" alt=""> ${num(nx.cost.gold)}`}</button>`
+        : `<span class="pr-next done">${t('최종 단계')}</span>`}
+    </div>`;
+  }).join('');
+
+  $('#ovt').textContent = t('전직');
+  delete $('#ovcard').dataset.skin;
+  $('#ovh').classList.remove('has-cur');
+  $('#ovb').innerHTML = `
+    <div class="frow"><span class="k">${t('훈련소 레벨')}</span>
+      <span class="v">Lv ${S.trainLv}</span></div>
+    <div class="pr-note">${t('직군 전체가 함께 승급합니다')}</div>
+    ${cards}`;
+  $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.55">${P.gateNote}</div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  $('#ovb').querySelectorAll('[data-promo]').forEach(b =>
+    b.addEventListener('click', () => { doPromote(b.dataset.promo); openPromotion(); }));
 }
 
 function openTraining() {
@@ -2057,24 +2106,7 @@ function openTraining() {
       ${maxed ? '최대 레벨' : '강화'}</button>
     <button class="fgbtn" id="tcUp10" style="margin-top:7px" ${maxed ? 'disabled' : ''}>
       가능한 만큼 강화</button>
-    <div class="lbl" style="margin:14px 0 6px">전직 — 훈련소 레벨로 열린다</div>
-    ${['warrior', 'archer', 'mage'].map(cls => {
-      const P = promoDef();
-      const cur = promoTier(cls);
-      const nx = promoNext(cls);
-      const nm = P.names[cls][cur - 1];
-      const canLv = !nx || S.trainLv >= nx.trainLv;
-      const canGold = !nx || S.gold >= nx.cost.gold;
-      return `<div class="pm-row">
-        <span class="pm-t"><b>${nm}</b>
-          <i>${nx ? `다음: ${P.names[cls][nx.tier - 1]} · 훈련소 Lv ${nx.trainLv}` : '최종 단계'}</i></span>
-        <span class="pm-m">×${promoMult(cls).toFixed(2)}</span>
-        ${nx ? `<button class="rt-b go" data-promo="${cls}"
-            ${canLv && canGold ? '' : 'disabled'}>${
-            !canLv ? `Lv ${nx.trainLv}` : `${cpNum(nx.cost.gold)}`}</button>`
-          : '<button class="rt-b" disabled>완료</button>'}
-      </div>`;
-    }).join('')}`;
+    <button class="fgbtn" id="tcPromo" style="margin-top:14px">전직 보러 가기</button>`;
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">설계 메모</div>'
     + `<div class="frow" style="padding:7px 10px"><span class="k">비용 공식</span>
         <span class="v" style="font-size:11px">${def.costFormula}</span></div>`
@@ -2097,8 +2129,7 @@ function openTraining() {
     scene.partyDps = partyDps();
     toast(`훈련소 Lv${S.trainLv} · 전투력 +${cpNum(totalCp() - before)}`);
   };
-  document.querySelectorAll('[data-promo]').forEach(b =>
-    b.addEventListener('click', () => doPromote(b.dataset.promo)));
+  $('#tcPromo').addEventListener('click', openPromotion);
   $('#tcUp').onclick = () => buy(false);
   $('#tcUp10').onclick = () => buy(true);
 }
@@ -3525,6 +3556,7 @@ function bootLangPick() {
   document.querySelectorAll('.sh-go').forEach(b => b.addEventListener('click', () => {
     roster.close();
     if (b.dataset.go === 'training') openTraining();
+    else if (b.dataset.go === 'promo') openPromotion();
     else if (b.dataset.go === 'codex') codex.open();
   }));
   // 절전 — 렌더만 10fps 로. 시뮬·보상은 계속 흐른다 (scene.setPowerSave).
