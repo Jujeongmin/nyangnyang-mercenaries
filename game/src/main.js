@@ -2364,7 +2364,7 @@ function openEvents() {
   // 무료 1000뽑 — 진행형이라 기간이 없다
   const pendN = f1kPendingN();
   banners.push(`<button class="evb${nx || pendN ? '' : ' end'}" data-ev="free1000"
-      style="--img:url(/assets/art/UR-01-ART.png)">
+      style="--img:url(/assets/ui/EV-02.png), url(/assets/art/UR-01-ART.png)">
     <span class="evb-tag">${nx || pendN ? t('진행 중') : t('종료')}</span>
     <b>${t('무료 1000뽑')}</b>
     <span class="evb-sub">${pendN
@@ -2911,11 +2911,21 @@ function arenaFoes() {
   const my = totalCp();
   const day = dayIdx(Date.now());
   const rng = k => { const x = Math.sin(day * 977 + k * 131) * 10000; return x - Math.floor(x); };
-  return [0.72, 0.88, 1.0, 1.14, 1.35].map((k, i) => ({
-    i, name: `단장 ${1000 + Math.floor(rng(i) * 8999)}`,
-    cp: Math.round(my * k * (0.95 + rng(i + 9) * 0.1)),
-    score: Math.max(0, S.arenaScore + Math.round((k - 1) * 400)),
-  }));
+  const chars = D.characters.characters;
+  return [0.72, 0.88, 1.0, 1.14, 1.35].map((k, i) => {
+    // 상대 편성 — 같은 시드에서 5명. CP 배율이 높을수록 상위 등급이 잘 나온다
+    const gradesByPower = k < 0.9 ? ['R', 'SR'] : k < 1.2 ? ['SR', 'SSR'] : ['SSR', 'UR'];
+    const pool = chars.filter(c => gradesByPower.includes(c.grade));
+    const party = Array.from({ length: 5 }, (_, j) =>
+      pool[Math.floor(rng(i * 7 + j) * pool.length)]);
+    const capCls = ['warrior', 'archer', 'mage'][Math.floor(rng(i + 40) * 3)];
+    return {
+      i, name: `단장 ${1000 + Math.floor(rng(i) * 8999)}`,
+      cp: Math.round(my * k * (0.95 + rng(i + 9) * 0.1)),
+      score: Math.max(0, S.arenaScore + Math.round((k - 1) * 400)),
+      party, capCls,
+    };
+  });
 }
 
 /**
@@ -2979,8 +2989,10 @@ function openArena(view) {
   const rows = foes.map(f => {
     const p = winP(f.cp);
     const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
-    return `<div class="frow" style="padding:8px 11px;margin-bottom:5px">
-      <span><b style="font-size:12px">${f.name}</b>
+    return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
+      <img class="af-ava" src="/assets/captain/captain_${f.capCls}.png" alt=""
+        onerror="this.remove()">
+      <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         <span class="k" style="display:block">CP ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
       <button class="rt-b go" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
         style="color:${col}">${t('도전')}</button></div>`;
@@ -3011,8 +3023,44 @@ function openArena(view) {
   $('#aDaily').addEventListener('click', claimArenaDaily);
   $('#aAd')?.addEventListener('click', arenaAd);
   $('#ovb').querySelectorAll('[data-af]').forEach(b =>
-    b.addEventListener('click', () => arenaFight(arenaFoes()[+b.dataset.af])));
+    b.addEventListener('click', e => { e.stopPropagation(); arenaFight(arenaFoes()[+b.dataset.af]); }));
+  // 행을 누르면 편성이 보인다 — 도전 버튼과 분리 (버튼은 stopPropagation)
+  $('#ovb').querySelectorAll('[data-afinfo]').forEach(el =>
+    el.addEventListener('click', () => openFoeInfo(+el.dataset.afinfo)));
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+}
+
+/** 상대 정보 — 단장 모습과 착용 용병 5명. 승률·도전까지 한 창에서 */
+function openFoeInfo(i) {
+  const f = arenaFoes()[i];
+  if (!f) return;
+  const p = 1 / (1 + Math.pow(f.cp / totalCp(), D.arena.battle.winProbability.exponent));
+  const ttl = $('#smTitle'); if (ttl) ttl.textContent = f.name;
+  $('#smBody').innerHTML = `
+    <div class="af-hero">
+      <img src="/assets/captain/captain_${f.capCls}.png" alt="" onerror="this.remove()">
+      <div>
+        <b>${f.name}</b>
+        <span>${CLASS_KO[f.capCls]} ${t('단장')} · CP ${num(f.cp)}</span>
+        <span>${t('점수')} ${num(f.score)}</span>
+      </div>
+    </div>
+    <div class="lbl" style="margin:8px 0 6px">${t('착용 용병')}</div>
+    <div class="af-party">${f.party.map(c => `
+      <span class="af-m" style="--c:${GC_COL[c.grade]}">
+        <img src="/assets/char/${c.id}.png" alt="" onerror="this.remove()">
+        <b style="color:${GC_COL[c.grade]}">${c.grade}</b>
+      </span>`).join('')}</div>
+    <div class="frow" style="margin-top:10px"><span class="k">${t('예상 승률')}</span>
+      <span class="v" style="color:${p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)'}">
+        ${(p * 100).toFixed(0)}%</span></div>
+    <button class="fgbtn" id="afGo" style="margin-top:8px"
+      ${arenaLeft() < 1 ? 'disabled' : ''}>${t('도전')}</button>`;
+  $('#afGo').addEventListener('click', () => {
+    $('#smPop').classList.remove('show');
+    arenaFight(f);
+  });
+  $('#smPop').classList.add('show');
 }
 
 /**
