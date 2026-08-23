@@ -92,6 +92,7 @@ const S = {
   // 전직으로 고른 길. 하나를 고르면 다른 직군은 잠긴다 — 초기화로만 되돌린다.
   // 단장의 모습·공격 모션도 이 직업을 따른다
   promoClass: null,
+  promoSkillLv: 0,                         // 전직 스킬 강화 단계 (골드 소모처)
   kills: 0,                                // 누적 몬스터 처치 (퀘스트 monster_kill)
   nickname: null,                          // 첫 부팅에 자동 배정된다
   nickChanged: 0,                          // 변경 횟수. 0 이면 다음 변경이 무료
@@ -608,7 +609,7 @@ function partyDps() {
       + (t * c.statRatio.hp / 100) * (p.atkFromHp || 0);
     dps += atk * aps * (1 + (p.atkSpeedAdd || 0));
   }
-  return dps * gear;
+  return dps * gear * csDpsMult();
 }
 
 // --- 제작대(장비 소환) 레벨 ---
@@ -1367,6 +1368,7 @@ function refreshParty() {
   renderSkills();
   scene.activeSkills = S.skills.active.filter(Boolean);
   scene.captainClass = S.promoClass || 'warrior';
+  scene.skillDmgMult = csSkillMult();
   scene.setParty(S.party);
   scene.partyDps = partyDps();
   scene.skillAuto = S.skillAuto !== false;
@@ -2032,6 +2034,39 @@ const promoMult = cls => {
 };
 const promoNext = cls => promoDef().tiers.find(x => x.tier === promoTier(cls) + 1);
 
+// ── 전직 스킬 — 고른 길의 전용 패시브. 골드로 강화한다 (goldsinks > classSkills) ──
+const csDef = () => promoDef().classSkills;
+const csMine = () => S.promoClass && promoTier(S.promoClass) >= csDef().unlockTier
+  ? csDef().skills[S.promoClass] : null;
+const csVal = () => {
+  const sk = csMine();
+  return sk ? Math.min(sk.max, (S.promoSkillLv || 0) * sk.perLevel) : 0;
+};
+const csCost = () => Math.round(csDef().goldCost.base
+  * Math.pow(csDef().goldCost.growth, S.promoSkillLv || 0));
+/** DPS 에 곱해질 몫. 전사(공격력)와 궁수(공속)는 DPS 에서 등가다 */
+const csDpsMult = () => {
+  const sk = csMine();
+  return sk && (sk.effect === 'party_atk' || sk.effect === 'party_atkspeed')
+    ? 1 + csVal() : 1;
+};
+/** 스킬 피해에 곱해질 몫 (마법사) */
+const csSkillMult = () => {
+  const sk = csMine();
+  return sk && sk.effect === 'skill_damage' ? 1 + csVal() : 1;
+};
+
+function upgradeClassSkill() {
+  const sk = csMine();
+  if (!sk) return;
+  if ((S.promoSkillLv || 0) >= csDef().maxLevel) return toast(t('최대 레벨입니다'));
+  const c = csCost();
+  if (S.gold < c) return toast(`골드 ${num(c - S.gold)} 부족`);
+  S.gold -= c;
+  S.promoSkillLv = (S.promoSkillLv || 0) + 1;
+  save(); refreshParty(); renderTop(); openPromotion();
+}
+
 function doPromote(cls) {
   // 한 길만 간다. 셋 다 올리면 "전직"이 아니라 전 직군 패시브가 된다
   if (S.promoClass && S.promoClass !== cls) return toast(t('다른 길을 걷는 중입니다'));
@@ -2052,6 +2087,8 @@ function resetPromotion() {
   if (!S.promoClass) return;
   S.promo = { warrior: 1, archer: 1, mage: 1 };
   S.promoClass = null;
+  // 스킬 레벨은 남긴다 — 골드를 이미 태웠고, 새 길의 스킬에 그대로 이어진다.
+  // 리셋할 때마다 강화가 날아가면 초기화가 벌이 된다
   save(); refreshParty(); applyCaptainClass();
   toast(t('전직을 초기화했습니다'));
   openPromotion();
@@ -2121,12 +2158,32 @@ function openPromotion() {
       <span class="v">Lv ${S.trainLv}</span></div>
     <div class="pr-note">${t('한 길만 갈 수 있습니다')} · ${t('그 직군 용병 전체가 함께 강해집니다')}</div>
     ${cards}
+    ${(() => {
+      const sk = csMine();
+      if (!sk) return S.promoClass
+        ? `<div class="pr-note">${t('전직 스킬은 2차부터 열립니다')}</div>` : '';
+      const lv = S.promoSkillLv || 0, mx = csDef().maxLevel;
+      const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
+      return `<div class="cs-card" style="--au:${PROMO_COL[promoTier(S.promoClass)]}">
+        <img class="cs-fx" src="/assets/fx/${sk.fx}.png" alt="" onerror="this.remove()">
+        <div class="cs-body">
+          <b>${sk.nameKo} <i>Lv ${lv}</i></b>
+          <span>${sk.descKo.replace('{v}', pct(csVal()))}${lv < mx
+            ? ` → <em>${pct(Math.min(sk.max, (lv + 1) * sk.perLevel))}</em>` : ''}</span>
+        </div>
+        ${lv < mx
+          ? `<button class="fgbtn cs-up" id="csUp" ${S.gold < csCost() ? 'disabled' : ''}>
+              <img src="/assets/ui/CU-04.png" alt=""> ${num(csCost())}</button>`
+          : `<span class="pr-next done">MAX</span>`}
+      </div>`;
+    })()}
     ${S.promoClass ? `<button class="st-danger" id="prReset">${t('전직 초기화')}</button>` : ''}`;
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.55">${P.gateNote}</div>`;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   $('#ovb').querySelectorAll('[data-promo]').forEach(bt =>
     bt.addEventListener('click', () => { doPromote(bt.dataset.promo); openPromotion(); }));
   $('#prReset')?.addEventListener('click', resetPromotion);
+  $('#csUp')?.addEventListener('click', upgradeClassSkill);
 }
 
 function openTraining() {

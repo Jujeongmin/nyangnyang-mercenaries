@@ -786,7 +786,9 @@ export class BattleScene {
     // 한 대 분량만 넣으면 "12초간 2기"라는 설명이 31% 짜리 한 방이 돼 버린다
     const burst = e.kind === 'summon'
       ? (e.count || 1) * Math.round(e.durationSec || 1) : 1;
-    return { mult: e.atkRatio * scale * burst, targets: e.targets || 1 };
+    // 전직 스킬(마법사 '원소 증폭')이 스킬 피해에 곱연산으로 얹힌다 — main 이 준다
+    const cs = this.skillDmgMult || 1;
+    return { mult: e.atkRatio * scale * burst * cs, targets: e.targets || 1 };
   }
 
   hitFoe(from, foe, skill) {
