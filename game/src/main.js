@@ -475,7 +475,8 @@ function syncNav() {
   document.querySelector('[data-s="mission"]')?.classList.toggle('hasnew', mqWaiting());
   document.querySelector('[data-s="event"]')?.classList.toggle('hasnew',
     f1kPendingN() > 0 || diceMissionReady());
-  document.querySelector('[data-s="friend"]')?.classList.toggle('hasnew', friendGiftReady());
+  document.querySelector('[data-s="friend"]')?.classList.toggle('hasnew',
+    friendGiftReady() || friendIncoming().length > 0);
 }
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
@@ -3008,10 +3009,11 @@ function demoFriends() {
 }
 
 /** 친구 아바타 — 단장 표정 + 프로필 프레임. i 시드라 항상 같은 얼굴이다 */
-const friendAvatar = (i, px) => `
+const friendAvatar = (i, px, frame) => `
   <span class="fr-av" style="width:${px}px;height:${px}px">
     <img class="fr-face" src="/assets/captain/captain_face_${FR_FACES[i % 4]}.png" alt="">
-    <img class="fr-ring" src="/assets/ui/PFRAME-0${(i % 4) + 1}.png" alt="" onerror="this.remove()">
+    <img class="fr-ring" src="/assets/ui/PFRAME-0${((frame ?? i) % 4) + 1}.png" alt=""
+      onerror="this.remove()">
   </span>`;
 
 /** 친구 프로필 — 목록에서 이름을 누르면 온다. 데모라 수치는 i 시드 */
@@ -3078,6 +3080,151 @@ const friendGiftReady = () => {
   return f.list.some(x => !f.sent.includes(x.id) || !f.recv.includes(x.id));
 };
 
+// 신청 목록은 10초마다 새로 고칠 수 있다. 후보는 시드로 만들어서
+// 새로 고치기 전까지는 같은 얼굴이 남는다 (서버 연동 전 자리)
+const FRIEND_REFRESH_SEC = 10;
+const FR_SURNAME = ['까칠한', '엉덩이', '식빵 굽는', '새벽', '츄르', '골골', '낮잠',
+  '수염', '방울', '츤데레', '통통한', '발라당', '창가의', '지붕 위'];
+const FR_NAME = ['츄르', '탐정', '냥', '야옹', '도둑', '기사', '사냥꾼', '집사',
+  '대장', '학자', '나그네', '요리사'];
+
+/** 신청 후보 n 명. seed 가 같으면 같은 목록이다 */
+function friendCandidates(seed, n = 6) {
+  const rng = k => { const x = Math.sin(seed * 977 + k * 131) * 10000; return x - Math.floor(x); };
+  const f = friendState();
+  const mine = new Set([...f.list.map(x => x.id), ...(f.req || [])]);
+  const out = [];
+  for (let i = 0; out.length < n && i < n * 4; i++) {
+    const id = 'c' + seed + '_' + i;
+    if (mine.has(id)) continue;
+    out.push({
+      id,
+      name: `${FR_SURNAME[Math.floor(rng(i) * FR_SURNAME.length)]} ${
+        FR_NAME[Math.floor(rng(i + 40) * FR_NAME.length)]}`,
+      cp: Math.round(totalCp() * (0.35 + rng(i + 80) * 1.5)),
+      face: Math.floor(rng(i + 120) * 4),
+      frame: Math.floor(rng(i + 160) * 4),
+    });
+  }
+  return out;
+}
+
+/** 나에게 온 신청. 데모라 새로 고칠 때마다 0~2명이 붙는다 */
+function friendIncoming() {
+  const f = friendState();
+  f.inbox = f.inbox || [];
+  return f.inbox;
+}
+
+/** 신청 목록 새로 고침. 쿨다운이 남았으면 남은 초를 돌려준다 */
+function friendRefresh(force = false) {
+  const f = friendState();
+  const now = Date.now();
+  const left = Math.ceil((f.reqAt || 0) + FRIEND_REFRESH_SEC * 1000 - now) / 1000;
+  if (!force && left > 0) return Math.ceil(left);
+  f.reqAt = now;
+  f.seed = (f.seed || 1) + 1;
+  // 새로 고치면 이따금 나에게도 신청이 들어와 있다 — 목록이 살아 있다고 읽힌다
+  f.inbox = f.inbox || [];
+  if (f.list.length < FRIEND_MAX && Math.random() < 0.6) {
+    const c = friendCandidates(f.seed + 500, 2);
+    for (const x of c) if (!f.inbox.some(y => y.id === x.id)) f.inbox.push(x);
+  }
+  return 0;
+}
+
+/** 친구 목록에 넣는다. 정원을 넘으면 거절한다 */
+function friendAdd(x) {
+  const f = friendState();
+  if (f.list.length >= FRIEND_MAX) { toast(t('친구가 가득 찼습니다')); return false; }
+  if (f.list.some(y => y.id === x.id)) return false;
+  f.list.push({ id: x.id, name: x.name, cp: x.cp });
+  return true;
+}
+
+/** 친구 신청 화면 — 받은 신청이 위, 추천이 아래 */
+function openFriendRequests() {
+  const f = friendState();
+  if (!f.seed) friendRefresh(true);
+  const inbox = friendIncoming();
+  const cands = friendCandidates(f.seed);
+  const left = Math.ceil(((f.reqAt || 0) + FRIEND_REFRESH_SEC * 1000 - Date.now()) / 1000);
+
+  const row = (x, i, kind) => `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px">
+      ${friendAvatar(x.face ?? i, 40, x.frame)}
+      <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
+        <span class="k" style="display:block">${t('전투력')} ${num(x.cp)}</span></span>
+      ${kind === 'in'
+        ? `<span style="display:flex;gap:5px">
+             <button class="rt-b go" data-fyes="${x.id}">${t('수락')}</button>
+             <button class="rt-b" data-fno="${x.id}">${t('거절')}</button></span>`
+        : `<button class="rt-b${(f.req || []).includes(x.id) ? '' : ' go'}"
+             data-freq="${x.id}" ${(f.req || []).includes(x.id) ? 'disabled' : ''}>${
+             (f.req || []).includes(x.id) ? t('신청함') : t('친구 신청')}</button>`}
+    </div>`;
+
+  $('#ovt').textContent = t('친구 신청');
+  $('#ovcard').dataset.skin = 'friend';
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = '';
+  $('#ovb').innerHTML = `
+    <div class="fr-tabs">
+      <button data-frtab="list">${t('내 친구')}</button>
+      <button class="on" data-frtab="req">${t('친구 신청')}${
+        inbox.length ? `<i class="dot"></i>` : ''}</button>
+    </div>
+    ${inbox.length ? `<div class="lbl" style="margin:8px 0 6px">${
+      t('받은 신청')} <b style="color:var(--gold)">${inbox.length}</b></div>
+      ${inbox.map((x, i) => row(x, i, 'in')).join('')}` : ''}
+    <div class="fr-sec">
+      <span class="lbl">${t('추천 단장')}</span>
+      <button class="rt-b" id="frRe" ${left > 0 ? 'disabled' : ''}>${
+        left > 0 ? `${left}${t('초')}` : `⟳ ${t('새로 고침')}`}</button>
+    </div>
+    ${cands.map((x, i) => row(x, i, 'out')).join('')}
+    <div class="sh-note">${t('신청 목록은 {0}초마다 새로 고칠 수 있습니다', FRIEND_REFRESH_SEC)}<br>${
+      t('서버 연동 전 데모 목록입니다')}</div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+
+  $('#ovb').querySelectorAll('[data-frtab]').forEach(b =>
+    b.addEventListener('click', () =>
+      b.dataset.frtab === 'list' ? openFriends() : openFriendRequests()));
+  $('#ovb').querySelectorAll('[data-freq]').forEach(b =>
+    b.addEventListener('click', () => {
+      f.req = f.req || [];
+      if (!f.req.includes(b.dataset.freq)) f.req.push(b.dataset.freq);
+      save();
+      toast(t('친구 신청을 보냈습니다'));
+      openFriendRequests();
+    }));
+  $('#ovb').querySelectorAll('[data-fyes]').forEach(b =>
+    b.addEventListener('click', () => {
+      const x = f.inbox.find(y => y.id === b.dataset.fyes);
+      if (x && friendAdd(x)) toast(t('{0} 님과 친구가 되었습니다', x.name));
+      f.inbox = f.inbox.filter(y => y.id !== b.dataset.fyes);
+      save(); syncNav(); openFriendRequests();
+    }));
+  $('#ovb').querySelectorAll('[data-fno]').forEach(b =>
+    b.addEventListener('click', () => {
+      f.inbox = f.inbox.filter(y => y.id !== b.dataset.fno);
+      save(); openFriendRequests();
+    }));
+  $('#frRe').addEventListener('click', () => {
+    const l = friendRefresh();
+    if (l > 0) return toast(t('{0}초 뒤에 새로 고칠 수 있습니다', l));
+    save(); openFriendRequests();
+  });
+  // 쿨다운이 도는 동안 버튼 숫자를 살려 둔다 — 멈춘 숫자는 고장으로 읽힌다
+  clearInterval(window.__frTick);
+  window.__frTick = setInterval(() => {
+    const btn = $('#frRe');
+    if (!btn || !$('#ov').classList.contains('show')) return clearInterval(window.__frTick);
+    const l = Math.ceil(((f.reqAt || 0) + FRIEND_REFRESH_SEC * 1000 - Date.now()) / 1000);
+    btn.disabled = l > 0;
+    btn.textContent = l > 0 ? `${l}${t('초')}` : `⟳ ${t('새로 고침')}`;
+  }, 250);
+}
+
 function openFriends() {
   const f = friendState();
   const gift = idleGold(FRIEND_GIFT_HOURS);
@@ -3087,7 +3234,7 @@ function openFriends() {
     return `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px" data-fp="${i}">
       ${friendAvatar(i, 40)}
       <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
-        <span class="k" style="display:block">CP ${num(x.cp)}</span></span>
+        <span class="k" style="display:block">${t('전투력')} ${num(x.cp)}</span></span>
       <span style="display:flex;gap:5px">
         <button class="rt-b${sent ? '' : ' go'}" data-fsend="${x.id}"
           ${sent ? 'disabled' : ''}>${sent ? '✓' : t('선물')}</button>
@@ -3102,6 +3249,11 @@ function openFriends() {
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${t('선물을 보내도 내 골드는 줄지 않습니다. 서로 보내면 서로 이득입니다')}</div>`;
   $('#ovb').innerHTML = `
+    <div class="fr-tabs">
+      <button class="on" data-frtab="list">${t('내 친구')}</button>
+      <button data-frtab="req">${t('친구 신청')}${
+        friendIncoming().length ? '<i class="dot"></i>' : ''}</button>
+    </div>
     <div class="frow"><span class="k">${t('친구')}</span>
       <span class="v">${f.list.length} / ${FRIEND_MAX}</span></div>
     <div class="frow"><span class="k">${t('선물 골드 (1명당)')}</span>
@@ -3119,6 +3271,9 @@ function openFriends() {
     S.gold += gift;
     return gift;
   };
+  $('#ovb').querySelectorAll('[data-frtab]').forEach(b =>
+    b.addEventListener('click', () =>
+      b.dataset.frtab === 'req' ? openFriendRequests() : openFriends()));
   $('#ovb').querySelectorAll('.fr-row').forEach(r =>
     r.addEventListener('click', e => {
       if (e.target.closest('button')) return;   // 선물 버튼은 프로필로 안 샌다

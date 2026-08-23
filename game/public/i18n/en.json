@@ -326,5 +326,20 @@
  "골드": "Gold",
  "다이아": "Diamond",
  "오늘 기부를 다 했습니다": "You have donated all times today",
- "보유 연합 코인": "Alliance coins"
+ "보유 연합 코인": "Alliance coins",
+ "친구 신청": "Friend requests",
+ "내 친구": "My friends",
+ "받은 신청": "Received",
+ "추천 단장": "Suggested captains",
+ "새로 고침": "Refresh",
+ "초": "s",
+ "수락": "Accept",
+ "거절": "Decline",
+ "신청함": "Requested",
+ "친구 신청을 보냈습니다": "Friend request sent",
+ "{0} 님과 친구가 되었습니다": "You are now friends with {0}",
+ "친구가 가득 찼습니다": "Friend list is full",
+ "{0}초 뒤에 새로 고칠 수 있습니다": "You can refresh in {0}s",
+ "신청 목록은 {0}초마다 새로 고칠 수 있습니다": "The request list can be refreshed every {0}s",
+ "서버 연동 전 데모 목록입니다": "Demo list until the server is connected"
 }

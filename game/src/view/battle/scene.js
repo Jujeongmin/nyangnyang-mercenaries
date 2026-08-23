@@ -13,7 +13,7 @@ import { Impact } from './impact.js';
 import { DamageNumbers } from './numbers.js';
 import { motionForClass } from './motions.js';
 import { loadCutout } from './cutout.js';
-import { FxLayer, HIT_BY_MOTION, skillFx } from './fx.js';
+import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX } from './fx.js';
 
 const PIXI = () => window.PIXI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -779,6 +779,41 @@ export class BattleScene {
     if (!e) return;
     if (e.kind === 'party_shield') this.grantShield(sk, e);
     if (e.kind === 'summon') this.spawnSummons(sk, e);
+    this.playAllyFx(sk);
+  }
+
+  /**
+   * 아군 쪽에서 터지는 스킬 연출. 적을 때리는 스킬은 hitFoe 가 타격 지점에
+   * 그리지만, 버프·회복·보호막·소환은 때리는 대상이 없어 **아무 데서도 안 떴다**.
+   * SKILL_FX.at 이 'party' 면 대열 전체에, 'captain' 이면 단장에게 그린다.
+   */
+  playAllyFx(sk) {
+    const cfg = SKILL_FX[sk.id];
+    if (!cfg || cfg.at === 'foe') return;
+    const asset = skillFx(sk.id);
+    if (!asset) return;
+    const opt = { dur: 520, from: 0.4, to: 1.25, hold: 0.25 };
+    if (cfg.tint) opt.tint = cfg.tint;
+    const sc = cfg.scale || 1;
+
+    if (cfg.at === 'captain' && this.captain) {
+      this.fx.play(asset, this.captain.view.x, this.captain.view.y - this.captain.h * 0.45,
+        { ...opt, size: this.fxSize(this.captain.h * 1.3 * sc, 0.34) });
+      return;
+    }
+    // 파티 전체 — 단장까지 포함해 한 명씩. 한 덩어리로 크게 터뜨리면
+    // 누구에게 걸린 건지 안 보인다
+    const all = [...(this.captain ? [{ rig: this.captain }] : []), ...this.units];
+    all.forEach((u, i) => {
+      const r = u.rig;
+      if (!r?.view || r.view.destroyed) return;
+      // 살짝씩 어긋나게 터져야 "쭉 퍼진다"로 읽힌다
+      setTimeout(() => {
+        if (!r.view || r.view.destroyed) return;
+        this.fx.play(asset, r.view.x, r.view.y - r.h * 0.42,
+          { ...opt, size: this.fxSize(r.h * 1.0 * sc, 0.3) });
+      }, i * 55);
+    });
   }
 
   /**

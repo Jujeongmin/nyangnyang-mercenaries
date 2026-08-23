@@ -22,7 +22,41 @@ const rnd = (a, b) => a + Math.random() * (b - a);
  */
 export const skillFx = id => {
   const m = /^SK-A(\d\d)$/.exec(id);
-  return m ? `SFX-${m[1]}` : null;
+  if (!m) return null;
+  return SKILL_FX[id]?.asset ?? `SFX-${m[1]}`;
+};
+
+/**
+ * 액티브 스킬 16종의 연출 표. **없으면 아무것도 안 뜬다** — SFX 는 01~12 뿐인데
+ * 스킬은 A16 까지라 연쇄 번개·약점 노출·시간 정지·천공 붕괴가 무음이었다.
+ *
+ *   asset  터뜨릴 그림. 전용 SFX 가 생기기 전까지는 성격이 가까운 것을 빌린다
+ *          (에셋_생성_프롬프트.md 14절 — SFX-13~16 생성 대기)
+ *   at     어디서 터지나. 'foe' 적 · 'party' 아군 대열 · 'captain' 단장
+ *   tint   빌려 쓴 그림을 구분하는 색. 전용 에셋이 오면 지운다
+ *   scale  기본 크기 배수
+ *
+ * 피해가 없는 스킬(버프·회복·보호막·쿨감)을 적한테 터뜨리면 무슨 일이 난 건지
+ * 안 읽힌다 — 아군 쪽에서 터져야 "우리가 강해졌다"가 보인다.
+ */
+export const SKILL_FX = {
+  'SK-A01': { at: 'foe' },                                   // 낙뢰
+  'SK-A02': { at: 'foe' },                                   // 화염구
+  'SK-A03': { at: 'foe' },                                   // 관통 화살
+  'SK-A04': { at: 'foe' },                                   // 얼음 창
+  'SK-A05': { at: 'foe' },                                   // 참격
+  'SK-A06': { at: 'party', scale: 0.9 },                     // 공격 태세
+  'SK-A07': { at: 'party', scale: 1.0 },                     // 광폭화
+  'SK-A08': { at: 'party', scale: 0.9 },                     // 시간 가속
+  'SK-A09': { at: 'party', scale: 1.0 },                     // 전체 회복
+  'SK-A10': { at: 'party', scale: 1.05 },                    // 보호막
+  'SK-A11': { at: 'captain', scale: 0.9 },                   // 새끼 냥이 소환
+  'SK-A12': { at: 'captain', scale: 1.0 },                   // 유령 용병
+  // ↓ 전용 에셋 없음 — 빌려 쓴다
+  'SK-A13': { at: 'foe', asset: 'SFX-01', tint: 0x9fd8ff, scale: 1.15 },  // 연쇄 번개
+  'SK-A14': { at: 'foe', asset: 'HIT-06', tint: 0xc06bff, scale: 1.0 },   // 약점 노출
+  'SK-A15': { at: 'foe', asset: 'SFX-08', tint: 0x8fe3ff, scale: 1.2 },   // 시간 정지
+  'SK-A16': { at: 'foe', asset: 'SFX-05', tint: 0xffe08a, scale: 1.5 },   // 천공 붕괴
 };
 
 /** 모션 종류 → 타격 이펙트. 크리는 따로 덧씌운다. */
