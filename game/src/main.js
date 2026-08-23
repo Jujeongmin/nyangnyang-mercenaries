@@ -1229,6 +1229,16 @@ function pull(trackId, n) {
 // 없다 — 트랙별 이월 카운터에 남겨 다음 중복 때 합산한다.
 // ─────────────────────────────────────────────
 
+/**
+ * 레벨 L(0-based 현재 레벨에서 L+1 로 올릴 때) 한 칸의 비용.
+ * **등급을 안 본다** — characters/skills.json > levelCost 의 한 곡선을 모두가 쓴다.
+ */
+function lvCost(track, level) {
+  const c = (track === 'skill' ? D.skills : D.characters).levelCost
+    || { base: 5, stepEvery: 5, stepAdd: 2 };
+  return c.base + Math.floor(level / c.stepEvery) * c.stepAdd;
+}
+
 /** 편성된 용병/스킬을 CP 내림차순으로. 캡 미달인 것만. */
 function cascadeTargets(track) {
   const cap = track === 'skill' ? D.skills.levelCap : D.characters.levelCap;
@@ -1261,14 +1271,18 @@ function cascade(track, grade, level = 0) {
     // CP 내림차순으로 훑되 **살 수 있는 첫 대상**을 고른다.
     // 맨 앞만 보고 못 사면 멈추면, SSR(30) 때문에 SR(10) 을 올릴 수 있는데도
     // 이월만 쌓인다 — 실제로 그랬다.
-    const t = cascadeTargets(track).find(x => S.carry[track] >= (val[x.grade] || 1));
+    // 비용은 **지금 레벨**이 정한다 (등급 무관). 한 칸씩 사면서 남는 만큼 올린다
+    const t = cascadeTargets(track).find(x =>
+      S.carry[track] >= lvCost(track, x.level || 0));
     if (!t) break;                                   // 전부 캡이거나 이월이 모자라다
-    const cost = val[t.grade] || 1;
     const room = (cap[t.grade] ?? 0) - (t.level || 0);
-    const up = Math.min(room, Math.floor(S.carry[track] / cost));
-    if (up < 1) break;
-    S.carry[track] -= up * cost;
     const from = t.level || 0;
+    let up = 0;
+    while (up < room && S.carry[track] >= lvCost(track, from + up)) {
+      S.carry[track] -= lvCost(track, from + up);
+      up++;
+    }
+    if (up < 1) break;
     t.level = from + up;
     log.push({ name: tn(t.id, t.nameKo), from, to: t.level });
   }
@@ -2117,9 +2131,23 @@ function claimDiceAttend() {
     const got = passGrant(fd.grant || {});
     if (got.pairs.length) gainToast(got.pairs);
   }
-  save(); syncNav();
+  save(); syncNav(); syncDiceDots();
   toast(t('주사위 +{0}', E.attendMission.rolls));
   renderDiceBoard(); renderDiceMissions();
+}
+
+/**
+ * 화면에 떠 있는 주사위 점들을 지금 상태로 맞춘다.
+ * 사이드 아이콘은 syncNav 가 보지만, **탭바(판/미션) 점은 다시 그려야만**
+ * 갱신돼서 다 받고도 빨간불이 남아 있었다.
+ */
+function syncDiceDots() {
+  const tab = document.querySelector('[data-dctab="mission"]');
+  if (!tab) return;
+  const on = diceMissionReady();
+  const dot = tab.querySelector('.dot');
+  if (on && !dot) tab.insertAdjacentHTML('beforeend', '<i class="dot"></i>');
+  if (!on && dot) dot.remove();
 }
 
 /** 받을 수 있는 미션이 있나 — 배너·사이드 점 */
@@ -2139,7 +2167,7 @@ function claimDiceMission(i) {
   S.dice.rolls += m.rolls;
   save(); syncNav();
   toast(t('주사위 +{0}', m.rolls));
-  renderDiceBoard(); renderDiceMissions();
+  renderDiceBoard(); renderDiceMissions(); syncDiceDots();
 }
 
 /** 버튼 안에 넣는 작은 주사위. 이모지는 기기마다 모양이 달라 에셋을 쓴다 */
@@ -2498,8 +2526,19 @@ function openEventDetail(id) {
       <button class="${dTab === 'board' ? 'on' : ''}" data-dctab="board">${t('주사위판')}</button>
       <button class="${dTab === 'mission' ? 'on' : ''}" data-dctab="mission">${t('미션')}${
         diceMissionReady() ? '<i class="dot"></i>' : ''}</button>
+      <button class="${dTab === 'shop' ? 'on' : ''}" data-dctab="shop">${t('상점')}</button>
     </div>`);
-    if (dTab === 'mission') {
+    if (dTab === 'shop') {
+      // 주사위 상점 — 다이아 상품과 같은 카드 문법. 그림이 값의 크기를 말한다
+      h.push('<div class="dc-store">' + (E.rollShop?.options || []).map((o, i) => `
+        <button class="dc-item" data-dcbuy="${i}">
+          ${o.tagKo ? `<u>${t(o.tagKo)}</u>` : ''}
+          <img src="/assets/ui/${o.asset || 'EV-DICE-5'}.png" alt=""
+            onerror="this.onerror=null;this.src='/assets/ui/EV-DICE-5.png'">
+          <b>${t('주사위')} ${o.n}</b>
+          <em><img src="/assets/ui/CU-01.png" alt="">${num(o.diamond)}</em>
+        </button>`).join('') + '</div>');
+    } else if (dTab === 'mission') {
       h.push(`<div class="lbl" style="margin:2px 0 6px">${t('주사위 미션')} · ${t('매일 초기화')}</div>`);
       h.push('<div id="dcMissions"></div>');
     } else {
@@ -2523,10 +2562,6 @@ function openEventDetail(id) {
     h.push(`<div class="frow"><span class="k">${t('완주 보상')}</span>
       <span class="v" style="font-size:11px">${Object.entries(E.lapBonus).map(([k, v]) =>
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
-    h.push(`<div class="dc-buy">${(E.rollShop?.options || []).map((o, i) =>
-      `<button class="dc-buyb" data-dcbuy="${i}">
-        <b>${diceIco()} ${o.n}</b><em><img src="/assets/ui/CU-01.png" alt=""> ${num(o.diamond)}</em>
-      </button>`).join('')}</div>`);
     }
   }
 
@@ -2538,9 +2573,11 @@ function openEventDetail(id) {
   $('#ovb').querySelectorAll('[data-dctab]').forEach(b =>
     b.addEventListener('click', () => { S.dice.tab = b.dataset.dctab; openEventDetail('dice'); }));
   if (id === 'dice') {
+    // 탭마다 있는 요소가 다르다 — 판 탭에만 굴리기 버튼이 있으므로 없을 수도 있다
     renderDiceBoard(); renderDiceMissions();
-    setDiceFace($('#dcFace'), 1 + ((Math.random() * 6) | 0));   // 굴리기 전에도 주사위가 보인다
-    $('#dcRoll').addEventListener('click', rollDice);
+    const face = $('#dcFace');
+    if (face) setDiceFace(face, 1 + ((Math.random() * 6) | 0));   // 굴리기 전에도 주사위가 보인다
+    $('#dcRoll')?.addEventListener('click', rollDice);
     $('#ovb').querySelectorAll('[data-dcbuy]').forEach(b =>
       b.addEventListener('click', () => { buyRolls(+b.dataset.dcbuy); }));
     $('#ovb').querySelectorAll('[data-prize]').forEach(b =>
@@ -2986,7 +3023,7 @@ function openAllianceGate() {
   const coolMs = A.membership.leaveCooldownHours * 3600e3;
   const coolLeft = S.allyLeftAt ? Math.max(0, S.allyLeftAt + coolMs - Date.now()) : 0;
   const canJoin = S.maxStage >= need && coolLeft <= 0;
-  const cost = A.membership.createCost.gold;
+  const cost = A.membership.createCost.diamond;
   const rows = demoAlliances().map(a => `
     <div class="frow" style="padding:8px 11px;margin-bottom:5px">
       <span><b style="font-size:12px">${a.name}</b>
@@ -3006,10 +3043,10 @@ function openAllianceGate() {
     <div class="cs-card" style="--au:var(--gold)">
       <img class="cs-fx" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
       <div class="cs-body"><b>${t('연합 만들기')}</b>
-        <span>${t('내가 단장이 됩니다')} · <img src="/assets/ui/CU-04.png" alt=""
+        <span>${t('내가 단장이 됩니다')} · <img src="/assets/ui/CU-01.png" alt=""
           style="width:11px;height:11px;vertical-align:-2px"> ${num(cost)}</span></div>
       <button class="fgbtn cs-up" id="alCreate"
-        ${canJoin && S.gold >= cost ? '' : 'disabled'}>${t('만들기')}</button>
+        ${canJoin && S.dia >= cost ? '' : 'disabled'}>${t('만들기')}</button>
     </div>
     <div class="lbl" style="margin:10px 0 6px">${t('가입할 수 있는 연합')}</div>
     ${rows}
@@ -3020,8 +3057,8 @@ function openAllianceGate() {
     const name = prompt(t('연합 이름 (2~12자)'));
     if (!name) return;
     if (name.length < 2 || name.length > 12) return toast(t('이름은 2~12자입니다'));
-    if (S.gold < cost) return toast(t('골드 부족'));
-    S.gold -= cost;
+    if (S.dia < cost) return toast(t('다이아 부족'));
+    S.dia -= cost;
     S.ally = { id: 'mine', name, role: 'leader', joinedAt: Date.now() };
     save(); renderTop();
     toast(t('연합 [{0}] 창설!', name));
@@ -3359,12 +3396,17 @@ const arenaLeft = () => {
 };
 
 /** 오늘의 상대 5명 — 날짜 시드로 고정한다. 열 때마다 바뀌면 "고르는 맛"이 없다 */
+/**
+ * 상대 3명. 다섯 명을 늘어놓으면 화면이 넘쳐 스크롤이 생겼다 —
+ * 셋만 띄우고 **새로 고침**으로 다른 상대를 부른다 (S.arena.foeSeed).
+ */
 function arenaFoes() {
   const my = totalCp();
   const day = dayIdx(Date.now());
-  const rng = k => { const x = Math.sin(day * 977 + k * 131) * 10000; return x - Math.floor(x); };
+  const seed = (S.arena?.foeSeed || 0) * 37;
+  const rng = k => { const x = Math.sin((day + seed) * 977 + k * 131) * 10000; return x - Math.floor(x); };
   const chars = D.characters.characters;
-  return [0.72, 0.88, 1.0, 1.14, 1.35].map((k, i) => {
+  return [0.82, 1.0, 1.25].map((k, i) => {
     // 상대 편성 — 같은 시드에서 5명. CP 배율이 높을수록 상위 등급이 잘 나온다
     const gradesByPower = k < 0.9 ? ['R', 'SR'] : k < 1.2 ? ['SR', 'SSR'] : ['SSR', 'UR'];
     const pool = chars.filter(c => gradesByPower.includes(c.grade));
@@ -3446,32 +3488,41 @@ function openArena(view) {
         onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
-      <button class="rt-b go" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
-        style="color:${col}">${t('도전')}</button></div>`;
+      <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
+        style="--wc:${col}">${t('도전')}</button></div>`;
   }).join('');
 
   const tier = [...a.tiers].reverse().find(x => S.arenaScore >= x.minScore) || a.tiers[0];
   const claimed = S.arena.tierClaimedDay === day;
   $('#ovt').textContent = '아레나';
   setSkin('arena');
+  // 상대가 맨 위다 — 이 화면에 온 이유가 그것이고, 나머지(점수·훈장·입장)는
+  // 확인만 하는 줄이라 아래로 내린다. 한 화면에 다 들어온다
   $('#ovb').innerHTML =
-    `<div class="frow"><span class="k">점수 · 티어</span>
-        <span class="v" style="font-size:12px">${S.arenaScore} · ${tier.nameKo}</span></div>`
-    + `<div class="frow"><span class="k">투기장 훈장</span>
-        <span class="v">${num(S.medal)}
-          <button id="aShop" title="훈장 상점">
-            <img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.replaceWith(document.createTextNode('\uD83D\uDED2'))"></button>
-        </span></div>`
-    + `<div class="frow"><span class="k">${t('남은 입장')}</span>
-        <span class="v">${left} / ${a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}
-        ${arenaState().adUsed ? '' : `<button class="rt-b" id="aAd" style="margin-left:6px">${t('광고 +{0}', a.entries.adBonus.entries)}</button>`}</span></div>`
-    + `<button class="fgbtn" id="aDaily" style="margin:8px 0 10px" ${claimed ? 'disabled' : ''}>
+    `<div class="ar-sec">
+      <span class="lbl">${t('상대')}</span>
+      <button class="rt-b" id="aRe">⟳ ${t('새로 고침')}</button>
+    </div>`
+    + rows
+    + `<div class="ar-stat">
+        <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b><u>${tier.nameKo}</u></span>
+        <span><i>${t('훈장')}</i><b><img src="/assets/ui/CU-11.png" alt=""
+          onerror="this.remove()">${num(S.medal)}</b>
+          <button class="ar-shopb" id="aShop">${t('상점')}</button></span>
+        <span><i>${t('남은 입장')}</i><b>${left} / ${
+          a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}</b>
+          ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">${
+            t('광고 +{0}', a.entries.adBonus.entries)}</button>`}</span>
+      </div>`
+    + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
         ${claimed ? t('오늘 티어 보상 수령 완료')
-          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', tier.nameKo, tier.dailyMedals, tier.dailyDiamond)}</button>`
-    + '<div class="lbl" style="margin:4px 0 6px">' + t('오늘의 상대') + '</div>' + rows;
-  $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${a.battle.winProbability.note}
-    승률 공식: ${a.battle.winProbability.formula}</div>`;
+          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', tier.nameKo, tier.dailyMedals, tier.dailyDiamond)}</button>`;
+  $('#ovinfo').innerHTML = '';
   $('#aShop').addEventListener('click', () => openArena('shop'));
+  $('#aRe').addEventListener('click', () => {
+    S.arena.foeSeed = (S.arena.foeSeed || 0) + 1;
+    save(); openArena();
+  });
   $('#aDaily').addEventListener('click', claimArenaDaily);
   $('#aAd')?.addEventListener('click', arenaAd);
   $('#ovb').querySelectorAll('[data-af]').forEach(b =>
@@ -3525,18 +3576,18 @@ function openMedalShop() {
   $('#ovt').textContent = '훈장 상점';
   setSkin('arena');
   $('#ovb').innerHTML =
-    `<div class="frow"><span class="k">보유 훈장</span>
-      <span class="v">${num(S.medal)}</span></div>`
-    + '<div class="lbl" style="margin:12px 0 6px">교환</div>'
-    + sh.items.map(x => {
-      const lim = x.seasonLimit ? `시즌 ${x.seasonLimit}회` : `일일 ${x.dailyLimit}회`;
+    `<div class="ar-sec"><span class="lbl">${t('훈장')} ${num(S.medal)}</span>
+      <button id="mdBack" class="rt-b">‹ ${t('아레나로')}</button></div>`
+    // 글줄만 늘어놓으면 무엇을 파는지가 안 읽힌다 — 품목 그림을 크게
+    + '<div class="md-grid">' + sh.items.map(x => {
+      const lim = x.seasonLimit ? t('시즌 {0}회', x.seasonLimit) : t('일일 {0}회', x.dailyLimit);
       const can = S.medal >= x.cost;
-      return `<div class="frow" style="padding:9px 11px">
-        <span><b style="font-size:12px">${x.nameKo}</b>
-          <span class="k" style="display:block">${lim}</span></span>
-        <button class="mdBuy${can ? '' : ' off'}" data-m="${x.id}">${num(x.cost)}</button>
-      </div>`; }).join('')
-    + '<button id="mdBack" class="mdBack">‹ 아레나로</button>';
+      return `<div class="md-card">
+        <img src="/assets/ui/${x.icon || 'CU-11'}.png" alt="" onerror="this.remove()">
+        <b>${x.nameKo}</b><span>${lim}</span>
+        <button class="mdBuy${can ? '' : ' off'}" data-m="${x.id}">
+          <img src="/assets/ui/CU-11.png" alt="" onerror="this.remove()">${num(x.cost)}</button>
+      </div>`; }).join('') + '</div>';
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">훈장 수급</div>'
     + `<div class="frow" style="padding:7px 10px"><span class="k">일일 티어 보상</span>
         <span class="v" style="font-size:11px">${D.arena.tiers.map(t =>

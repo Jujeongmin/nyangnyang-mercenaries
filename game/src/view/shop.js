@@ -331,7 +331,7 @@ export class ShopScreen {
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.speedCard() + `<div class="sh-grid2">` + p.packages.map((x, i) => {
+    return this.speedCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       return `<div class="sh-pack${x.oncePerAccount ? ' first' : ''}">
         ${x.oncePerAccount ? '<span class="sh-ribbon">첫 결제 2배</span>' : ''}

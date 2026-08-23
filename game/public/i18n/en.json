@@ -346,5 +346,17 @@
  "{0} {1}번째 칸 — 퀘스트 {2} 개를 더 깨면 열립니다 ({3}/{4})": "{0} slot {1} — clear {2} more quests to unlock ({3}/{4})",
  "{0} {1}번째 칸이 곧 열립니다": "{0} slot {1} unlocks soon",
  "주사위판": "Board",
- "미션": "Missions"
+ "미션": "Missions",
+ "상대": "Opponents",
+ "훈장": "Medals",
+ "상점": "Shop",
+ "점수": "Score",
+ "주사위": "Dice",
+ "인기": "Popular",
+ "이득": "Best value",
+ "날개 확정": "Wings guaranteed",
+ "아레나로": "Back to Arena",
+ "일일 {0}회": "{0}/day",
+ "시즌 {0}회": "{0}/season",
+ "다이아 부족": "Not enough diamonds"
 }

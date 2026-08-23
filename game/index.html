@@ -1132,6 +1132,25 @@
     background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:999px;
     padding:2px 10px}
   .dc-ico{width:13px;height:13px;object-fit:contain;vertical-align:-2px}
+  /* 주사위 상점 — 그림이 큰 가로 카드. 다이아 상품과 같은 문법이라
+     "많이 살수록 그림이 커진다" 가 그대로 읽힌다 */
+  .dc-store{display:grid;gap:7px}
+  .dc-item{position:relative;display:flex;align-items:center;gap:11px;
+    background:var(--card);border:2px solid var(--line);border-radius:12px;
+    padding:9px 12px 9px 9px;cursor:pointer;font-family:inherit;color:var(--txt);
+    text-align:left}
+  .dc-item:active{transform:translateY(1px)}
+  .dc-item>img{width:50px;height:50px;object-fit:contain;flex:0 0 auto;
+    filter:drop-shadow(0 2px 6px #0009)}
+  .dc-item b{flex:1;font-size:13px;font-weight:800}
+  .dc-item em{display:inline-flex;align-items:center;gap:4px;font-style:normal;
+    font-size:13px;font-weight:800;color:#2a1c05;
+    background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:9px;
+    padding:5px 11px}
+  .dc-item em img{width:14px;height:14px;filter:none}
+  .dc-item u{position:absolute;right:8px;top:-8px;text-decoration:none;
+    font-size:9px;font-weight:800;background:var(--warn);color:#fff;
+    border-radius:6px;padding:2px 8px}
   .dc-tabs{display:flex;gap:5px;margin:2px 0 9px}
   .dc-tabs button{flex:1;position:relative;background:var(--ink);border:1px solid var(--line);
     border-radius:9px;padding:7px 0;font:inherit;font-size:12px;font-weight:800;
@@ -1355,6 +1374,44 @@
   /* 34px 은 누가 누군지 안 보였다. 목록에서 얼굴이 읽히는 최소 크기가 48 이다.
      #ovb .frow img{15px} 이 특이도로 이기므로 id 를 얹어야 실제로 커진다
      (친구 아바타에서 같은 함정을 밟았다) */
+  /* 아레나 — 상대가 맨 위, 확인용 줄(점수·훈장·입장)은 아래 한 덩어리로 */
+  /* 훈장 상점 — 품목 그림이 큰 2열 카드 */
+  .md-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .md-card{display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:var(--card);border:2px solid var(--line);border-radius:12px;
+    padding:10px 6px 9px;text-align:center}
+  .md-card>img{width:44px;height:44px;object-fit:contain;
+    filter:drop-shadow(0 2px 6px #0009)}
+  .md-card b{font-size:11px;font-weight:800;word-break:keep-all}
+  .md-card>span{font-size:9px;color:var(--dim)}
+  .md-card .mdBuy{width:100%;margin-top:4px;display:inline-flex;align-items:center;
+    justify-content:center;gap:4px}
+  #ovb .md-card .mdBuy img{width:13px;height:13px;object-fit:contain}
+
+  .ar-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin:2px 0 7px}
+  .ar-sec .rt-b{min-width:82px;font-size:11px}
+  .ar-stat{display:flex;gap:6px;margin-top:9px}
+  .ar-stat span{flex:1;min-width:0;display:flex;flex-direction:column;
+    align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:7px 4px}
+  .ar-stat i{font-style:normal;font-size:9px;color:var(--dim)}
+  .ar-stat b{display:inline-flex;align-items:center;gap:3px;font-size:13px;
+    font-weight:800}
+  #ovb .ar-stat b img{width:14px;height:14px;object-fit:contain}
+  .ar-stat u{text-decoration:none;font-size:9px;color:var(--gold);font-weight:800}
+  .ar-shopb{margin-top:2px;background:#241a12;border:1px solid #c9a22766;
+    color:var(--gold);border-radius:7px;padding:2px 8px;font-size:9px;
+    font-weight:800;font-family:inherit;cursor:pointer}
+  /* 도전 버튼 — 금색 바탕 위 색 글자는 안 읽힌다. 짙은 갈색에 승률 색 글자 */
+  #ovb .ar-fight{flex:0 0 auto;width:58px;height:32px;padding:0;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:#241a12;border:1px solid #c9a22766;border-radius:9px;
+    font-family:inherit;font-size:12px;font-weight:800;color:var(--wc,var(--gold));
+    cursor:pointer}
+  #ovb .ar-fight:active{transform:translateY(1px)}
+  #ovb .ar-fight:disabled{color:var(--dim);border-color:var(--line);opacity:.6}
+
   .af-ava{width:48px;height:48px;flex:0 0 auto;
     background:url(/assets/ui/AR-FRAME.png) center/contain no-repeat;
     display:flex;align-items:center;justify-content:center}
@@ -1621,8 +1678,29 @@
     font-size:9px;font-weight:900;padding:2px 6px;border-radius:8px}
 
   /* 패키지 */
+  /* 3배속 — 전용 배너(SHOP-SPEED)를 깔고 글자가 그 위에 앉는다.
+     한 줄짜리 카드였을 때는 이 상품만 그림이 없어 혼자 초라했다 */
+  .sh-card.speed3{position:relative;min-height:118px;padding:12px 14px;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:3px;
+    background-image:linear-gradient(90deg,#150f0bee 0%,#150f0bbb 46%,#150f0b44 100%),
+      url(/assets/ui/SHOP-SPEED.png);
+    background-size:cover;background-position:center;border-color:var(--gold)}
+  .sh-card.speed3 b{font-size:15px;text-shadow:0 1px 4px #000}
+  .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000}
+  .sh-card.speed3 .sh-price{align-self:flex-start;margin-top:4px}
+  .sh-card.speed3.owned{border-color:var(--line)}
+
   .sh-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-  .sh-pack{position:relative;background:linear-gradient(#1a2434,#131a27);
+  /* 다이아 상품 — 한 줄에 셋. 두 줄일 때는 카드가 커서 세 개만 보고도 스크롤이
+     생겼다. 칸을 줄이는 대신 **그림은 키운다** — 값의 크기를 그림이 말한다 */
+  .sh-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .sh-grid3 .sh-pack{padding:8px 4px 9px;gap:1px}
+  .sh-grid3 .sh-pack img{width:78px;height:78px;margin:-6px 0 -2px}
+  .sh-grid3 .sh-pack b{font-size:13px}
+  .sh-grid3 .sh-pack .sh-price{width:100%;padding:5px 0;font-size:11px}
+  .sh-grid3 .sh-ribbon{font-size:8px;padding:1px 5px}
+  .sh-grid3 .sh-bonus{font-size:9px}
+  .sh-pack{position:relative;background:linear-gradient(#342a22,#271f19);
     border:1px solid var(--line);border-radius:12px;padding:14px 8px 10px;
     display:flex;flex-direction:column;align-items:center;gap:4px;overflow:hidden}
   .sh-pack.first{border-color:var(--gold);box-shadow:0 0 16px #ffc94a33}
