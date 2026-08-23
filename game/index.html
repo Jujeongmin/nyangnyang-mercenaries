@@ -1125,8 +1125,8 @@
 
   /* ── 냥냥 주사위 ── 12칸을 4x4 테두리에 감고 가운데에 주사위·굴리기 */
   .dc-wrap{position:relative;margin-bottom:10px}
-  #dcBoard{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
-    gap:5px;aspect-ratio:1;max-width:330px;margin:0 auto;padding:10px;border-radius:16px;
+  #dcBoard{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);
+    gap:4px;aspect-ratio:1;max-width:340px;margin:0 auto;padding:10px;border-radius:16px;
     /* 판 에셋(EV-BOARD)이 깔린다. 없으면 배경색만 — 칸은 어차피 코드가 그린다 */
     background:url(/assets/ui/EV-BOARD.png) center/cover no-repeat, var(--ink)}
   #dcBoard .dc-cell{background:#33261bd8;backdrop-filter:none}
@@ -1141,11 +1141,24 @@
   .dc-cell.t-again{border-color:var(--dia)}
   .dc-cell.here{border-color:var(--gold);box-shadow:0 0 10px #ffc94a88;
     animation:qDone 1.15s ease-in-out infinite}
+  /* 코너 — 한 바퀴의 마디. 잭팟 코너는 금빛으로 계속 반짝인다 */
+  .dc-cell.corner{border-width:2px;background:linear-gradient(135deg,#3a2a12,var(--card))}
+  .dc-cell.jackpot{border-color:var(--gold);
+    box-shadow:inset 0 0 12px #ffd76a44,0 0 8px #ffc94a55}
+  .dc-cell.jackpot b{color:var(--gold)}
+  .dc-cell.jackpot::after{content:"";position:absolute;inset:0;border-radius:9px;
+    background:linear-gradient(120deg,transparent 30%,#ffd76a2e 50%,transparent 70%);
+    background-size:220% 100%;animation:dcShine 2.6s linear infinite;pointer-events:none}
+  @keyframes dcShine{from{background-position:160% 0}to{background-position:-60% 0}}
+  @media (prefers-reduced-motion:reduce){.dc-cell.jackpot::after{animation:none}}
+  .dc-cell.t-again i img{width:22px;height:22px;object-fit:contain;display:block}
+  .dc-cell.t-again{border-color:var(--dia);
+    box-shadow:inset 0 0 10px #5ad8ff33}
   .dc-tok{position:absolute;left:50%;top:-12px;transform:translateX(-50%);
     width:26px !important;height:26px !important;border-radius:50%;
     border:2px solid var(--gold);background:#000;z-index:3;box-shadow:0 2px 6px #000a}
   .dc-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    display:flex;flex-direction:column;align-items:center;gap:7px;width:44%}
+    display:flex;flex-direction:column;align-items:center;gap:6px;width:50%}
   #dcFace{font-size:34px;line-height:1;font-family:"Black Han Sans",system-ui,sans-serif;
     color:var(--gold);text-shadow:0 2px 0 #00000080;min-height:52px;
     display:flex;align-items:center}

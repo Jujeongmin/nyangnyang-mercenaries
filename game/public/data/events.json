@@ -7,10 +7,10 @@
   "diceBoard": {
     "nameKo": "출시 기념 냥냥 주사위",
     "lapBonus": {
-      "diamond": 400,
-      "merc_ticket": 5
+      "diamond": 250,
+      "merc_ticket": 3
     },
-    "lapBonusNote": "완주(12칸)당. 하루 3~5굴림 x 기대 3.5칸 = 약 하루 한 바퀴. 완주 보상이 커야 '조금만 더'가 생긴다.",
+    "lapBonusNote": "완주(16칸)당. 12칸->16칸이 되며 하루 만점(8굴림, 기대 3.5칸/굴림)이 약 1.7바퀴라 완주 보너스를 400->250 으로 내려 일일 기대치를 유지한다. 12바퀴(한정 날개)는 약 7일 만점.",
     "cells": [
       {
         "type": "start",
@@ -36,9 +36,8 @@
         "nameKo": "용병권"
       },
       {
-        "type": "gold_h",
-        "v": 1,
-        "nameKo": "골드"
+        "type": "again",
+        "nameKo": "한 번 더"
       },
       {
         "type": "grant",
@@ -48,8 +47,11 @@
         "nameKo": "모래시계"
       },
       {
-        "type": "again",
-        "nameKo": "한 번 더"
+        "type": "grant",
+        "grant": {
+          "alliance_coin": 30
+        },
+        "nameKo": "연합 코인"
       },
       {
         "type": "grant",
@@ -59,9 +61,12 @@
         "nameKo": "장비권"
       },
       {
-        "type": "gold_h",
-        "v": 0.5,
-        "nameKo": "골드"
+        "type": "grant",
+        "grant": {
+          "diamond": 250
+        },
+        "jackpot": true,
+        "nameKo": "다이아 잭팟"
       },
       {
         "type": "grant",
@@ -69,6 +74,31 @@
           "skill_ticket": 2
         },
         "nameKo": "스킬권"
+      },
+      {
+        "type": "gold_h",
+        "v": 1,
+        "nameKo": "골드"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "merc_ticket": 5
+        },
+        "nameKo": "용병권"
+      },
+      {
+        "type": "gold_h",
+        "v": 4,
+        "jackpot": true,
+        "nameKo": "골드 잭팟"
+      },
+      {
+        "type": "grant",
+        "grant": {
+          "speedup_5m": 4
+        },
+        "nameKo": "모래시계"
       },
       {
         "type": "grant",
@@ -83,7 +113,7 @@
         "nameKo": "골드"
       }
     ],
-    "cellsNote": "gold_h 는 고정액이 아니라 **방치 v시간 분량**(idleReward 공식)이다 — 고정 골드는 후반에 휴지조각이 된다. again 은 주사위를 소모하지 않은 셈이 된다.",
+    "cellsNote": "5x5 테두리 16칸. 코너 4칸(출발/한 번 더/다이아 잭팟/골드 잭팟)이 특별칸이다 — 모노폴리 문법: 코너가 세면 한 바퀴에 이야기가 생긴다. gold_h 는 방치 v시간 분량. 연합 코인 칸은 연합 상점으로의 안내를 겸한다.",
     "budgetNote": "하루 기대치(3굴림 + 광고 2): 다이아 약 90 + 잡권 소량 + 완주 보너스 400x0.9 ≈ 다이아 450/일 상당. f2pDailyYield D30(1,400/일)의 3할 — 이벤트가 상시 수입을 넘으면 안 된다. 기간 한정(2주)으로 돌리고 내리는 전제다.",
     "missions": [
       {

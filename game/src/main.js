@@ -2128,11 +2128,13 @@ function renderDiceBoard() {
   const el = $('#dcBoard');
   if (!el) return;
   const E = D.events.diceBoard;
-  // 12칸을 4x4 테두리에 감는다. 상단 4 → 우측 2 → 하단 4(역순) → 좌측 2
-  const ring = [[0,0],[0,1],[0,2],[0,3],[1,3],[2,3],[3,3],[3,2],[3,1],[3,0],[2,0],[1,0]];
+  // 16칸을 5x5 테두리에 감는다. 코너(0/4/8/12)가 특별칸 — 모노폴리 문법
+  const ring = [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4],[3,4],
+                [4,4],[4,3],[4,2],[4,1],[4,0],[3,0],[2,0],[1,0]];
   el.innerHTML = E.cells.map((c, i) => {
     const [r, col] = ring[i];
     const here = i === S.dice.pos;
+    const corner = i % 4 === 0;
     let inner = '';
     if (c.type === 'grant') {
       const [k, v] = Object.entries(c.grant)[0];
@@ -2140,11 +2142,14 @@ function renderDiceBoard() {
     } else if (c.type === 'gold_h') {
       inner = `<img src="/assets/ui/CU-04.png" alt=""><b>${c.v}h</b>`;
     } else if (c.type === 'again') {
-      inner = `<i>🎲</i><b>+1</b>`;
+      // 주사위 그림이 있으면 그림, 없으면 이모지 — setDiceFace 와 같은 폴백
+      inner = `<i><img src="/assets/ui/EV-DICE-1.png" alt="🎲"
+        onerror="this.replaceWith('🎲')"></i><b>+1</b>`;
     } else {
       inner = `<b>${t('출발')}</b>`;
     }
-    return `<div class="dc-cell t-${c.type}${here ? ' here' : ''}"
+    return `<div class="dc-cell t-${c.type}${here ? ' here' : ''}${
+        corner ? ' corner' : ''}${c.jackpot ? ' jackpot' : ''}"
         style="grid-row:${r + 1};grid-column:${col + 1}">
       ${inner}
       ${here ? `<img class="dc-tok" src="/assets/captain/captain_face_normal.png" alt=""
@@ -2336,7 +2341,7 @@ function openEventDetail(id) {
     h.push(`<div class="dc-wrap">
       <div id="dcBoard"></div>
       <div class="dc-center">
-        <span id="dcFace">🎲</span>
+        <span id="dcFace"></span>
         <button class="fgbtn" id="dcRoll">${t('굴리기')} <em id="dcRolls">${d.rolls}</em></button>
       </div>
     </div>`);
@@ -2363,6 +2368,7 @@ function openEventDetail(id) {
   $('#f1kClaim')?.addEventListener('click', f1kClaim);
   if (id === 'dice') {
     renderDiceBoard(); renderDiceMissions();
+    setDiceFace($('#dcFace'), 1 + ((Math.random() * 6) | 0));   // 굴리기 전에도 주사위가 보인다
     $('#dcRoll').addEventListener('click', rollDice);
   }
 }
