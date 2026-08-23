@@ -93,6 +93,8 @@ const S = {
   // 단장의 모습·공격 모션도 이 직업을 따른다
   promoClass: null,
   promoSkillLv: 0,                         // 전직 스킬 강화 단계 (골드 소모처)
+  promoSkillLv2: 0,                        // 3차 전직 스킬 (다른 축 — 보스/연사/쿨감)
+  cosmetics: { wing: null, owned: [] },    // 이벤트 한정 외형 (단장 날개 등)
   kills: 0,                                // 누적 몬스터 처치 (퀘스트 monster_kill)
   nickname: null,                          // 첫 부팅에 자동 배정된다
   nickChanged: 0,                          // 변경 횟수. 0 이면 다음 변경이 무료
@@ -1380,6 +1382,12 @@ function refreshParty() {
   scene.activeSkills = S.skills.active.filter(Boolean);
   scene.captainClass = S.promoClass || 'warrior';
   scene.skillDmgMult = csSkillMult();
+  // 3차 전직 스킬 — 각자 다른 축으로 전투에 꽂힌다
+  const s2 = cs2Mine();
+  scene.bossDmgMult = s2?.effect === 'boss_damage' ? 1 + cs2Val() : 1;
+  scene.doubleHitChance = s2?.effect === 'double_hit' ? cs2Val() : 0;
+  scene.skillCdMult = s2?.effect === 'skill_cooldown' ? 1 - cs2Val() : 1;
+  scene.captainWing = S.cosmetics?.wing || null;
   scene.setParty(S.party);
   scene.partyDps = partyDps();
   scene.skillAuto = S.skillAuto !== false;
@@ -1838,15 +1846,17 @@ const MQ_MAP = {
 
 /** 스킬바 옆 전직 스킬 칩. 패시브라 액티브 8칸에는 못 끼지만 "내 스킬"이긴 하다 */
 function renderCsChip() {
-  const el = $('#csChip');
-  if (!el) return;
-  const sk = csMine();
-  if (!sk) { el.hidden = true; return; }
-  el.hidden = false;
-  el.innerHTML = `<img src="/assets/fx/${sk.fx}.png" alt=""
-      onerror="this.remove()"><i>Lv ${S.promoSkillLv || 0}</i>`;
-  el.title = `${sk.nameKo} — ${sk.descKo.replace('{v}',
-    (csVal() * 100).toFixed(1).replace(/\.0$/, '') + '%')}`;
+  const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
+  const set = (el, sk, lv, val) => {
+    if (!el) return;
+    if (!sk) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = `<img src="/assets/fx/${sk.fx}.png" alt=""
+        onerror="this.remove()"><i>Lv${lv || 0}</i>`;
+    el.title = `${sk.nameKo} — ${sk.descKo.replace('{v}', pct(val))}`;
+  };
+  set($('#csChip'), csMine(), S.promoSkillLv, csVal());
+  set($('#csChip2'), cs2Mine(), S.promoSkillLv2, cs2Val());
 }
 
 function missionState() {
@@ -2059,6 +2069,7 @@ async function rollDice() {
       const got = passGrant(E.lapBonus);
       if (got.pairs.length) gainToast(got.pairs);
       toast(t('완주! {0}바퀴째', S.dice.laps + 1));
+      claimLapRewards();               // 한정 상품 트랙 (칭호·프레임·날개)
     }
     await new Promise(r => setTimeout(r, 190));
   }
@@ -2077,6 +2088,29 @@ async function rollDice() {
   save(); renderTop(); syncNav();
   diceBusy = false;
   renderDiceBoard();
+}
+
+/** 완주 누적 한정 상품 — 재화가 아니라 전부 코스메틱이다 (lapRewardsNote) */
+function claimLapRewards() {
+  for (const r of D.events.diceBoard.lapRewards || []) {
+    if (S.dice.laps < r.laps) continue;
+    if (r.title && !S.profile.ownedTitles.includes(r.title)) {
+      S.profile.ownedTitles.push(r.title);
+      toast(t('한정 칭호 획득: {0}', r.nameKo));
+    } else if (r.profile_frame) {
+      S.profile.ownedFrames = S.profile.ownedFrames || [];
+      if (!S.profile.ownedFrames.includes(r.profile_frame)) {
+        S.profile.ownedFrames.push(r.profile_frame);
+        toast(t('한정 획득: {0}', r.nameKo));
+      }
+    } else if (r.cosmetic && !S.cosmetics.owned.includes(r.cosmetic)) {
+      S.cosmetics.owned.push(r.cosmetic);
+      S.cosmetics.wing = r.cosmetic;       // 획득 즉시 장착 — 보여야 자랑이 된다
+      toast(t('한정 획득: {0}', r.nameKo));
+      refreshParty();
+    }
+  }
+  save();
 }
 
 /** 보드만 다시 그린다 — 걷는 애니메이션이 프레임마다 부른다 */
@@ -2296,6 +2330,14 @@ function openEventDetail(id) {
         <button class="fgbtn" id="dcRoll">${t('굴리기')} <em id="dcRolls">${d.rolls}</em></button>
       </div>
     </div>`);
+    h.push('<div class="dc-shop">' + (E.lapRewards || []).map(r => {
+      const got = r.title ? S.profile.ownedTitles.includes(r.title)
+        : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
+        : S.cosmetics.owned.includes(r.cosmetic);
+      return `<div class="dc-prize${got ? ' got' : ''}${S.dice.laps >= r.laps ? '' : ' far'}">
+        <u>${r.laps}${t('바퀴')}</u><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
+      </div>`;
+    }).join('') + '</div>');
     h.push(`<div class="frow"><span class="k">${t('완주 보상')}</span>
       <span class="v" style="font-size:11px">${Object.entries(E.lapBonus).map(([k, v]) =>
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
@@ -2410,6 +2452,27 @@ const csVal = () => {
 };
 const csCost = () => Math.round(csDef().goldCost.base
   * Math.pow(csDef().goldCost.growth, S.promoSkillLv || 0));
+
+// ── 2차 전직 스킬 — 3차에 열린다. %가 아니라 전투의 리듬을 바꾸는 축 ──
+const cs2Mine = () => S.promoClass && promoTier(S.promoClass) >= 3
+  ? csDef().skills2[S.promoClass] : null;
+const cs2Val = () => {
+  const sk = cs2Mine();
+  return sk ? Math.min(sk.max, (S.promoSkillLv2 || 0) * sk.perLevel) : 0;
+};
+const cs2Cost = () => Math.round(csDef().goldCost2.base
+  * Math.pow(csDef().goldCost2.growth, S.promoSkillLv2 || 0));
+
+function upgradeClassSkill2() {
+  const sk = cs2Mine();
+  if (!sk) return;
+  if ((S.promoSkillLv2 || 0) >= csDef().maxLevel) return toast(t('최대 레벨입니다'));
+  const c = cs2Cost();
+  if (S.gold < c) return toast(`골드 ${num(c - S.gold)} 부족`);
+  S.gold -= c;
+  S.promoSkillLv2 = (S.promoSkillLv2 || 0) + 1;
+  save(); refreshParty(); renderTop(); openPromotion();
+}
 /** DPS 에 곱해질 몫. 전사(공격력)와 궁수(공속)는 DPS 에서 등가다 */
 const csDpsMult = () => {
   const sk = csMine();
@@ -2543,6 +2606,27 @@ function openPromotion() {
           : `<span class="pr-next done">MAX</span>`}
       </div>`;
     })()}
+    ${(() => {
+      if (!S.promoClass) return '';
+      const sk2 = cs2Mine();
+      const tier = promoTier(S.promoClass);
+      if (!sk2) return tier >= 2
+        ? `<div class="pr-note">${t('두 번째 전직 스킬은 3차부터 열립니다')}</div>` : '';
+      const lv = S.promoSkillLv2 || 0, mx = csDef().maxLevel;
+      const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
+      return `<div class="cs-card" style="--au:${PROMO_COL[3]}">
+        <img class="cs-fx" src="/assets/fx/${sk2.fx}.png" alt="" onerror="this.remove()">
+        <div class="cs-body">
+          <b>${sk2.nameKo} <i>Lv ${lv}</i></b>
+          <span>${sk2.descKo.replace('{v}', pct(cs2Val()))}${lv < mx
+            ? ` → <em>${pct(Math.min(sk2.max, (lv + 1) * sk2.perLevel))}</em>` : ''}</span>
+        </div>
+        ${lv < mx
+          ? `<button class="fgbtn cs-up" id="csUp2" ${S.gold < cs2Cost() ? 'disabled' : ''}>
+              <img src="/assets/ui/CU-04.png" alt=""> ${num(cs2Cost())}</button>`
+          : `<span class="pr-next done">MAX</span>`}
+      </div>`;
+    })()}
     ${S.promoClass ? `<button class="st-danger" id="prReset">${t('전직 초기화')}</button>` : ''}`;
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.55">${P.gateNote}</div>`;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -2550,6 +2634,7 @@ function openPromotion() {
     bt.addEventListener('click', () => { doPromote(bt.dataset.promo); openPromotion(); }));
   $('#prReset')?.addEventListener('click', resetPromotion);
   $('#csUp')?.addEventListener('click', upgradeClassSkill);
+  $('#csUp2')?.addEventListener('click', upgradeClassSkill2);
 }
 
 function openTraining() {
@@ -4080,6 +4165,7 @@ function bootLangPick() {
     }
   };
   $('#csChip')?.addEventListener('click', openPromotion);
+  $('#csChip2')?.addEventListener('click', openPromotion);
   $('#pwrSave').addEventListener('click', () => pwr(true));
   // 밀어서 해제 — 트랙 82% 를 넘기면 풀린다. 못 미치면 제자리로
   {

@@ -171,14 +171,14 @@
             "formula": "cost(lv) = base * growth^lv (lv 0부터)",
             "cumulativeAtMax": 2400000000
           },
-          "budgetNote": "누적 24억 — v2 에서 없앤 전직 비용 21.6억을 골드 소모처로 되돌린다. 전직 자체는 무료(훈련소가 게이트)이고, 강화가 소모처다. 이러면 \"전직을 못 해서 좌절\"은 없고 \"전직 뒤 더 올릴 것\"만 남는다.",
+          "budgetNote": "1차 누적 24억 + 2차 누적 48억 = 72억. 훈련소 누적(40.5억)을 넘는 최대 골드 소모처가 된다 — 2차 스킬이 열리는 시점(훈련소 110 = 무과금 D120+)의 골드 수입이 지수라 흡수처가 이만큼 커야 한다. goldsinks > budget 재계산 대상.",
           "skills": {
             "warrior": {
               "id": "CS-W",
               "nameKo": "수호 기사의 결의",
               "effect": "party_atk",
-              "perLevel": 0.006,
-              "max": 0.3,
+              "perLevel": 0.012,
+              "max": 0.6,
               "fx": "PX-01",
               "descKo": "아군 전체 공격력 +{v}"
             },
@@ -186,8 +186,8 @@
               "id": "CS-A",
               "nameKo": "바람의 가속",
               "effect": "party_atkspeed",
-              "perLevel": 0.006,
-              "max": 0.3,
+              "perLevel": 0.012,
+              "max": 0.6,
               "fx": "PX-02",
               "descKo": "아군 전체 공격 속도 +{v}"
             },
@@ -195,13 +195,49 @@
               "id": "CS-M",
               "nameKo": "원소 증폭",
               "effect": "skill_damage",
-              "perLevel": 0.012,
-              "max": 0.6,
+              "perLevel": 0.024,
+              "max": 1.2,
               "fx": "PX-03",
               "descKo": "스킬 피해 +{v}"
             }
           },
-          "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산이다. 최대치가 같은 30%인 이유 — 어느 길을 골라도 산술상 손해가 없어야 선택이 취향이 된다. 마법사만 스킬 한정 60% — 적용 범위가 좁은 만큼 폭이 크다."
+          "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산. v2 에서 레벨당 수치를 2배로 올렸다 — 3차 배수(1.55)와 만렙 스킬(x1.6)을 곱하면 DPS 약 2.5배로, 스테이지 벽 배율(1.2~1.45)을 실제로 넘는 점프가 된다. 전직이 벽을 부수는 열쇠라는 게 설계 의도다.",
+          "skills2": {
+            "warrior": {
+              "id": "CS-W2",
+              "nameKo": "수호자의 진군",
+              "effect": "boss_damage",
+              "perLevel": 0.01,
+              "max": 0.5,
+              "fx": "SFX-04",
+              "descKo": "보스에게 주는 피해 +{v}"
+            },
+            "archer": {
+              "id": "CS-A2",
+              "nameKo": "폭풍 연사",
+              "effect": "double_hit",
+              "perLevel": 0.005,
+              "max": 0.25,
+              "fx": "SFX-07",
+              "descKo": "평타가 {v} 확률로 2회 타격"
+            },
+            "mage": {
+              "id": "CS-M2",
+              "nameKo": "마나 해일",
+              "effect": "skill_cooldown",
+              "perLevel": 0.006,
+              "max": 0.3,
+              "fx": "SFX-10",
+              "descKo": "스킬 쿨타임 -{v}"
+            }
+          },
+          "skills2Note": "3차 전직에 열리는 두 번째 스킬. 1차 스킬(순수 %)과 달리 **다른 축**이다 — 전사는 보스전(벽) 특화, 궁수는 눈에 보이는 추가 타격, 마법사는 스킬 빈도. 숫자가 아니라 전투의 리듬이 바뀌어야 3차 전직이 사건으로 읽힌다. fx 는 임시로 기존 스킬 이펙트를 빌려 쓴다 — 전용 아이콘 CS-* 는 에셋 문서 12-5 절.",
+          "goldCost2": {
+            "base": 2000000,
+            "growth": 1.12,
+            "formula": "cost(lv) = base * growth^lv",
+            "cumulativeAtMax": 4800000000
+          }
         }
       }
     },

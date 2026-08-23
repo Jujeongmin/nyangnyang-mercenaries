@@ -318,6 +318,11 @@
         "nameKo": "정예",
         "condition": "시즌 최종 4~10위",
         "seasonStamped": true
+      },
+      {
+        "id": "t_dice_runner",
+        "nameKo": "주사위의 냥",
+        "condition": "출시 기념 냥냥 주사위 3바퀴 완주 (이벤트 한정)"
       }
     ],
     "total": 18,

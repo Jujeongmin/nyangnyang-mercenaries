@@ -231,6 +231,19 @@ export class BattleScene {
       });
       this.captain.capCls = capCls;
       this.field.addChild(this.captain.view);
+      // 이벤트 한정 날개 — 단장 뒤에 붙는 코스메틱. 에셋이 없으면 조용히 넘어간다
+      if (this.captainWing) {
+        const wtex = await this.load(`/assets/captain/EV-${this.captainWing.toUpperCase()}.png`)
+          .catch(() => null);
+        if (wtex) {
+          const w = new (PIXI().Sprite)(wtex);
+          w.anchor.set(0.5, 0.62);
+          const h = this.captain.h * 1.25;
+          w.height = h; w.width = h * (wtex.width / wtex.height);
+          w.position.set(0, -this.captain.h * 0.5);
+          this.captain.view.addChildAt(w, 0);   // 몸 뒤
+        }
+      }
       // 파티 체력바. 단장이 파티를 대표한다 — 용병마다 띄우면 막대밭이 된다.
       this.capBar = new (PIXI().Graphics)();
       this.ui.addChild(this.capBar);
@@ -687,7 +700,9 @@ export class BattleScene {
 
   /** skills.json 의 쿨타임(초). 없으면 8 */
   cooldownOf(sk) {
-    return this.D.skills.skills.find(k => k.id === sk.id)?.effect?.cooldownSec || 8;
+    const base = this.D.skills.skills.find(k => k.id === sk.id)?.effect?.cooldownSec || 8;
+    // 마나 해일(3차 마법사) — 쿨타임 곱연산 감소. main 이 skillCdMult 로 준다
+    return base * (this.skillCdMult || 1);
   }
 
   skillReady(sk) { return (this.skCd.get(sk.id) ?? 0) <= 0; }
@@ -802,11 +817,27 @@ export class BattleScene {
     // 예전엔 등급·레벨과 무관하게 무조건 x6 이라, 툴팁의 "공격력의 240%"와
     // 실제 타격이 아무 관계가 없었다. sim/engine.js 와 같은 식이다.
     const sd = skill && from.usingSkill ? this.skillDmg(from.usingSkill) : null;
+    // 수호자의 진군(3차 전사) — 보스에게만 곱연산
+    const bossMul = foe.boss ? (this.bossDmgMult || 1) : 1;
     // **평타에 얹는다.** 스킬이 평타를 대체하면 배율이 100% 아래인 스킬
     // (화염구 64%, 유령 용병 95%)은 쓸수록 손해가 된다 — 그냥 때리는 게 낫다.
     // sim/engine.js 도 스킬을 평타 루프와 따로 굴려 같은 시간에 둘 다 넣는다.
-    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
+    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1) * bossMul;
     foe.hp -= dmg;
+    // 폭풍 연사(3차 궁수) — 평타가 한 번 더 때린다. 확률은 main 이 준다.
+    // 스킬 타격에는 안 걸린다 — 평타의 스킬이니까
+    if (!skill && this.doubleHitChance && Math.random() < this.doubleHitChance
+        && foe.hp > 0) {
+      const d2 = per * rnd(0.9, 1.1) * bossMul;
+      foe.hp -= d2;
+      setTimeout(() => {
+        if (foe.rig?.view && !foe.rig.view.destroyed) {
+          this.numbers.spawn(foe.rig.view.x + foe.rig.w * 0.1,
+            foe.rig.view.y - foe.rig.h * 0.8, d2, 'normal');
+          this.impact.flash(foe.rig);
+        }
+      }, 110);
+    }
     // 광역·관통은 남은 적에게도 같은 값이 들어간다. 연출은 주 대상만 크게 하고
     // 곁불은 숫자만 띄운다 — 다섯 군데서 같은 이펙트가 터지면 화면이 뭉갠다
     if (sd && sd.targets > 1) {
