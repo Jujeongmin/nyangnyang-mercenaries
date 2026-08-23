@@ -922,12 +922,14 @@ function renderEquip() {
     // 날개 칸은 이벤트 한정 날개가 실제로 쓴다 — 획득하면 잠금이 풀리고
     // 낀 날개가 보인다. 누르면 상품 정보(효과·출처)가 뜬다
     if (nm === '날개' && S.cosmetics?.wing) {
-      d.className = 'slot wing-on';
-      d.style.borderColor = '#ffc94a';
-      d.style.setProperty('--au', '#ffc94a');
-      d.style.setProperty('--aw', '0.5');
+      // 무한(T10) 등급 액자 — 지금 얻을 수 있는 가장 좋은 날개라는 뜻이다.
+      // fre-3 는 장비 최상위 밴드(태초~무한)의 화려 액자다
+      const t10 = D.equipment.grades[D.equipment.grades.length - 1];
+      d.className = 'slot wing-on fre-3';
+      d.style.setProperty('--au', t10.color);
+      d.style.setProperty('--aw', '1');
       d.innerHTML = `<img src="/assets/captain/EV-WING1.png" alt=""
-          onerror="this.remove()"><b style="color:#ffc94a">${nm}</b>`;
+          onerror="this.remove()"><b style="color:${t10.color}">${nm}</b>`;
       d.title = '축제의 날개 — 장착 중';
       d.addEventListener('click', () => {
         const i = (D.events.diceBoard.rollRewards || []).findIndex(r => r.cosmetic);
