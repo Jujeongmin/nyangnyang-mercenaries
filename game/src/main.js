@@ -2044,6 +2044,16 @@ function claimDiceMission(i) {
   renderDiceBoard(); renderDiceMissions();
 }
 
+/** 주사위 눈 — 에셋(EV-DICE-N)이 있으면 그림, 없으면 숫자. 한 번 실패하면 기억한다 */
+let diceImgOk = true;
+function setDiceFace(el, n) {
+  if (!el) return;
+  if (!diceImgOk) { el.textContent = n; return; }
+  el.innerHTML = `<img src="/assets/ui/EV-DICE-${n}.png" alt="${n}"
+    onerror="this.parentNode.textContent='${n}';window.__diceImgFail=1">`;
+  if (window.__diceImgFail) diceImgOk = false;
+}
+
 let diceBusy = false;                  // 굴리는 동안 연타 금지
 
 async function rollDice() {
@@ -2056,10 +2066,10 @@ async function rollDice() {
   const step = 1 + ((Math.random() * 6) | 0);
   const face = $('#dcFace');
   for (let i = 0; i < 7; i++) {
-    if (face) face.textContent = 1 + ((Math.random() * 6) | 0);
+    setDiceFace(face, 1 + ((Math.random() * 6) | 0));
     await new Promise(r => setTimeout(r, 70));
   }
-  if (face) face.textContent = step;
+  setDiceFace(face, step);
   // 토큰이 한 칸씩 걷는다 — 순간이동이면 보드가 장식이 된다
   for (let i = 0; i < step; i++) {
     S.dice.pos = (S.dice.pos + 1) % E.cells.length;
