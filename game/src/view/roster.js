@@ -226,15 +226,21 @@ export class RosterSheet {
     // 이 유닛 앞으로 쌓인 중복 = 지금 [자동강화] 를 누르면 오를 레벨 수
     const dupes = ((S.pend && S.pend[this.track]) || []).filter(e => e.id === id).length;
     const maxed = has && cap && lv >= cap;
-    const foot = !has ? '<span class="cx-f dim">???</span>'
-      : maxed ? '<span class="cx-f max">MAX</span>'
-      : `<span class="cx-f">Lv ${lv}<i>/${cap}</i>${
-          dupes ? `<b>+${dupes}</b>` : ''}</span>`;
+    // 레벨은 좌상단 배지, 재료는 하단 게이지.
+    // 게이지 = 쌓인 중복 / 만렙까지 남은 레벨 (중복 1개 = 1레벨)
+    const room = Math.max(0, cap - lv);
+    const pct = room ? Math.min(100, dupes / room * 100) : 0;
+    const lvTag = !has ? ''
+      : `<i class="cx-lv${maxed ? ' max' : ''}">${maxed ? 'MAX' : `Lv ${lv}`}</i>`;
+    const gauge = has && !maxed
+      ? `<span class="cx-g"><i style="width:${pct}%"></i><b>${dupes}/${room}</b></span>`
+      : '';
+    const foot = has ? '' : '<span class="cx-f">???</span>';
     return `<div class="cx-cell${cls}${on ? ' on' : ''}${dupes ? ' up' : ''}" title="${nm}"${
       has ? ` data-info="${id}"` : ''}>
       <img src="/assets/${dir}/${id}.png" alt="" onerror="this.remove()">
       ${kind ? `<i class="rt-kind">${kind}</i>` : ''}
-      ${foot}
+      ${lvTag}${gauge}${foot}
     </div>`;
   }
 }

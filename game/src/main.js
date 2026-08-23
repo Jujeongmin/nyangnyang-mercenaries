@@ -2316,8 +2316,10 @@ function renderQuest() {
   const cur = qProgress(def);
   const done = cur >= def.target;
   const t = QUEST_TYPE[def.type];
-  $('#qname').textContent = `Q${def.q} ${t.label}`;
-  $('#qprog').textContent = done ? '수령' : `${num(cur)}/${num(def.target)}`;
+  // 완료하면 카드가 통째로 "받아라"로 바뀐다 — 진행 숫자를 그대로 두면
+  // 다 찼는데도 아직 할 일처럼 읽힌다
+  $('#qname').textContent = done ? `Q${def.q} 완료` : `Q${def.q} ${t.label}`;
+  $('#qprog').textContent = done ? '보상 받기' : `${num(cur)}/${num(def.target)}`;
   $('#qfill').style.width = Math.min(100, cur / def.target * 100) + '%';
   // 보상 미리보기 — 담을 자리가 있는 재화만 (QUEST_CUR). 없는 키를 그리면
   // 화면에는 보이는데 눌러도 안 들어오는 유령 보상이 된다

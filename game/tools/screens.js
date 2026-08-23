@@ -25,7 +25,17 @@ const openShop = t => { closeAll(); q('.nv[data-tab="shop"]').click(); q(`.sh-ta
 const side = s => { closeAll(); q(`[data-s="${s}"]`).click(); };
 // 훈련소·도감은 편성 시트 헤드에서 연다. 시트를 먼저 띄워야 버튼이 있다
 const sheetGo = g => { closeAll(); q('.nv[data-tab="merc"]').click(); q(`.sh-go[data-go="${g}"]`).click(); };
-const nav = t => { closeAll(); q(`.nv[data-tab="${t}"]`).click(); };
+// 네비는 퀘스트로 잠긴다 (quests.json > navUnlockQuests). 검사는 **전 화면**을
+// 봐야 하므로 퀘스트 진도를 잠시 올려 연다 — 클릭 가드가 navOpen() 을 다시 보므로
+// 클래스만 걷어내는 것으로는 안 열린다. 잠금 동작 자체는 게임에서 따로 본다
+const nav = t => {
+  closeAll();
+  const S = window.__S;
+  const keep = S ? S.quest : null;
+  if (S) S.quest = 999;
+  q(`.nv[data-tab="${t}"]`).click();
+  if (S) S.quest = keep;
+};
 
 /** [이름, 여는 함수, 검사할 뿌리] */
 export const SCREENS = [

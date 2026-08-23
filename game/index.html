@@ -371,6 +371,9 @@
   #unitTags{display:flex;gap:5px;margin:6px 0 8px;flex-wrap:wrap}
   #unitTags span{font-size:10px;color:var(--dim);background:var(--ink2);
     border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+  #unitDesc{font-size:11px;line-height:1.5;color:#cbd6e6;background:var(--ink2);
+    border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:8px;
+    word-break:keep-all}
   #unitRows .frow{padding:6px 2px}
   #unitAct{margin-top:9px}
   #unitAct .rt-b{width:100%}
@@ -634,8 +637,6 @@
   /* 퀘스트 — 전투 화면 좌하단 HUD */
   /* 퀘스트 배너 — 전투 화면을 가리는 물건이라 필요한 만큼만 차지한다.
      56%/200px 은 캐릭터 절반을 덮었다. */
-  #corner{position:absolute;left:6px;bottom:70px;z-index:19;width:44%;max-width:158px;
-    display:flex;flex-direction:column;gap:4px;pointer-events:none}
   #bottom{position:relative}
 
   /* 채팅 — 하단 패널과 네비 사이 독립 바. 가로 전체를 쓴다 */
@@ -647,23 +648,35 @@
   #chat #chatline{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}
   /* 퀘스트 — 제작대 왼쪽. 전투 영역의 얇은 띠가 아니라 **카드**다.
      세로로 [이름/진행] → [게이지] → [보상] 을 쌓아 한눈에 읽힌다 */
-  /* 제작대(가운데 104px) 왼쪽 여백에 들어간다. 제작대 왼쪽 가장자리까지가 폭 */
+  /* 제작대(가운데 104px) 왼쪽 여백. 카드 안에 [이름] [진행] [게이지] [보상]이
+     전부 들어가야 한다 — 하나라도 빠지면 "뭘 하는 퀘스트인지"가 안 읽힌다 */
   #quest{position:absolute;left:6px;top:50%;transform:translateY(-50%);
-    width:calc(50% - 66px);background:var(--card);
+    width:calc(50% - 62px);background:var(--card);
     border:1px solid var(--line);border-radius:11px;
-    padding:8px 10px;display:flex;flex-direction:column;justify-content:center;gap:6px;
+    padding:7px 9px;display:flex;flex-direction:column;justify-content:center;gap:5px;
     font-size:10px;cursor:pointer;pointer-events:auto;z-index:4}
-  #corner[hidden]{display:none}
-  #qtop{display:flex;align-items:baseline;gap:6px}
-  #qname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt);
-    font-size:11px;font-weight:800;flex:1;min-width:0}
+  /* 이름은 두 줄까지 허용한다 — "Q14 용병 소환" 이 한 줄에 안 들어가면
+     말줄임으로 잘려서 무슨 퀘스트인지 사라진다 */
+  #qtop{display:flex;align-items:baseline;gap:5px}
+  #qname{color:var(--txt);font-size:10px;font-weight:800;flex:1;min-width:0;
+    line-height:1.25;word-break:keep-all;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   #qprog{color:var(--gold);flex:0 0 auto;font-size:11px;font-weight:800;
     font-family:"Black Han Sans","Jua",system-ui,sans-serif}
   #qbar{height:5px;background:#0007;border-radius:3px;overflow:hidden;width:100%;margin:0}
+  /* 완료 — 카드가 금색으로 반짝인다. 받으라는 신호가 화면에서 가장 세야 한다 */
+  #quest.done{border-color:var(--gold);background:linear-gradient(160deg,#3a2c12,var(--card) 70%);
+    animation:qDone 1.15s ease-in-out infinite}
+  #quest.done #qname{color:var(--gold)}
+  #quest.done #qprog{color:#fff;background:var(--gold);color:#2a1c05;
+    border-radius:6px;padding:1px 7px;font-size:10px}
+  @keyframes qDone{0%,100%{box-shadow:0 0 0 0 #ffc94a00}
+    50%{box-shadow:0 0 14px 2px #ffc94a66}}
   #qfill{height:100%;width:0;background:linear-gradient(90deg,#4a6fc0,#5ad8ff)}
   /* 보상 칩 — 아이콘 위에 개수를 얹는다. 가로가 좁아 글자를 옆에 못 둔다 */
-  #qrw{display:flex;gap:5px;flex:0 0 auto;align-items:center}
-  #qrw span{position:relative;width:22px;height:22px;flex:0 0 auto}
+  /* 보상 — 카드 안에서 줄바꿈된다. 넘치면 감추지 말고 접어서 다 보여준다 */
+  #qrw{display:flex;gap:5px;flex:0 0 auto;align-items:center;flex-wrap:wrap}
+  #qrw span{position:relative;width:21px;height:21px;flex:0 0 auto}
   #qrw img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 1px 2px #000a)}
   #qrw b{position:absolute;right:-3px;bottom:-3px;font-size:8px;font-weight:400;
@@ -1197,7 +1210,6 @@
   #quest{cursor:pointer;pointer-events:auto;transition:border-color .2s}
   #quest.done{border-color:var(--up);box-shadow:0 0 10px #5ad86a55}
   #quest.done #qname{color:var(--up)}
-  #corner{pointer-events:none}
 
   /* 방치 보상 보물상자 — 접속 팝업 대신 메인에 상시 노출 */
   /* 스킬바가 bottom:6 에 높이 58 이라 위쪽 경계가 64px 이다. 상자는 그 위에 서야
@@ -1290,9 +1302,7 @@
        나중 규칙이 이겨서 34px 버튼에 26px 아이콘이 들어가 2px 씩 삐져나온다 */
     /* 사이드 열 축소는 UI 킷 뒤(파일 끝)에서 한다 — 여기서 하면 킷 규칙이 덮는다 */
     /* 가로로 겹치지 않게 퀘스트 배너와 상자를 사이드 열 안쪽으로 민다 */
-    #corner{left:46px}
     #chest{right:46px}
-    #corner{bottom:62px;max-width:136px}
     #chest{width:44px;height:44px;bottom:78px}
     #auto,#bossGo{font-size:10px}
     #timer{font-size:19px}
@@ -1302,7 +1312,6 @@
   }
   /* 아주 좁은 폭(360)에서는 퀘스트 바를 더 줄여 사이드와 겹치지 않게 */
   @media (max-width: 375px){
-    #corner{max-width:126px}
     #skills{gap:4px}
   }
 
@@ -1825,17 +1834,25 @@
   #shBody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 10px}
   /* 장착 중인 칸 — 목록에서 눈에 띄어야 "이미 낀 것"을 다시 안 찾는다 */
   .cx-cell.on{border-color:var(--gold);box-shadow:0 0 10px -2px var(--gold) inset}
-  /* 칸 아래 성장 줄 — 이름 대신 "Lv 현재/상한 (+대기 중복)".
-     상한은 작게, 대기 중복은 초록으로 눈에 띄게 (지금 올릴 수 있다는 신호) */
+  /* 레벨 — **좌상단 배지**. 숫자는 칸의 첫 정보라 눈이 먼저 가는 자리에 둔다 */
+  .cx-cell .cx-lv{position:absolute;left:3px;top:3px;z-index:5;
+    font-size:9px;font-weight:400;padding:1px 4px;border-radius:5px;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;
+    background:#000000b0;color:#f5ecdc;text-shadow:0 1px 2px #000}
+  .cx-cell .cx-lv.max{color:var(--gold)}
+  /* 재료 — **하단 게이지**. 다음 레벨까지 얼마나 모였나를 길이로 본다.
+     중복 1개 = 1레벨이라(cascade.twoStepRule) 게이지는 "쌓인 중복 / 남은 레벨"이다 */
+  .cx-cell .cx-g{position:absolute;left:4px;right:4px;bottom:4px;z-index:5;height:5px;
+    background:#000000a8;border-radius:3px;overflow:hidden}
+  .cx-cell .cx-g i{display:block;height:100%;width:0;border-radius:3px;
+    background:linear-gradient(90deg,#3f8a4f,var(--up))}
+  .cx-cell .cx-g b{position:absolute;inset:0;font-size:7px;line-height:5px;
+    text-align:center;color:#fff;font-weight:400;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;text-shadow:0 0 3px #000}
   .cx-cell .cx-f{position:relative;z-index:4;width:100%;text-align:center;
     font-size:9px;font-weight:800;padding:2px 1px;
-    font-family:"Black Han Sans","Jua",system-ui,sans-serif;
     background:linear-gradient(#0000,var(--ink) 45%);
-    text-shadow:0 1px 3px #000;color:#f5ecdc}
-  .cx-cell .cx-f i{font-style:normal;font-size:8px;color:var(--dim);margin-left:1px}
-  .cx-cell .cx-f b{font-size:9px;color:var(--up);margin-left:3px}
-  .cx-cell .cx-f.dim{color:var(--dim)}
-  .cx-cell .cx-f.max{color:var(--gold)}
+    text-shadow:0 1px 3px #000;color:var(--dim)}
   /* 올릴 게 있는 칸은 테두리가 초록으로 — 목록에서 바로 눈에 든다 */
   .cx-cell.up{box-shadow:0 0 0 2px var(--up) inset}
 
@@ -2102,7 +2119,6 @@
     /* 우측 열을 조금 더 위로 — 스킬바 상단과 6px 스치던 것 */
     #sideR{top:52px}
     /* 퀘스트·상자를 사이드 안쪽으로 더 밀고 낮춘다 */
-    #corner{left:40px;max-width:112px;bottom:96px}
     #chest{right:40px;bottom:100px;width:38px;height:38px}
     /* HUD 상단 — 스테이지 글자와 배속 줄을 세로로 분리 */
     #hudTop{align-items:flex-start}
@@ -2129,8 +2145,6 @@
     /* 640 높이에서는 전투 패널이 ~205px 라 HUD(위)와 퀘스트 배너(아래)가
        어디에 두든 부딪힌다. 배너를 **전투 영역 밖(하단 패널 위)** 로 옮겨
        충돌원 자체를 없앤다 — 세로가 모자랄 때는 자리를 옮기는 게 답이다 */
-    #corner{top:auto;bottom:2px;left:4px;right:4px;width:auto;max-width:none;
-      z-index:22}
     #quest{padding:3px 8px}
     #qbar{height:4px}
     /* 배너가 하단을 쓰므로 스킬바를 그 위로 올린다 (배너 높이 ≈28px + 여유) */
@@ -2211,18 +2225,11 @@
     <div id="vsCap"><img id="vsCapImg" src="/assets/captain/captain_warrior.png" alt=""></div>
     <div id="vsMark">VS</div>
     </div>
-    <!-- 퀘스트 배너는 하단 제작대 줄로 옮겼다 (아래 #fgDock 왼쪽).
+    <!-- 퀘스트 배너는 하단 제작대 줄로 옮겼다 (#fgRow 안).
          전투 영역에 두면 사이드 열·조우 점과 자리를 다퉜고, 좁은 화면에서는
-         어디에 놓아도 부딪혔다 -->
-    <div id="corner" hidden>
-      <div id="questOld">
-        <div id="qtop"><span id="qname">퀘스트 1</span><span id="qprog">0 / 0</span></div>
-        <div id="qbar"><div id="qfill"></div></div>
-        <!-- 보상 미리보기 — 아이콘 + 개수. "뭘 주는지"가 안 보이면 퀘스트가
-             할 일 목록으로만 읽힌다 -->
-        <div id="qrw"></div>
-      </div>
-    </div>
+         어디에 놓아도 부딪혔다.
+         **옛 마크업은 지웠다** — hidden 으로만 두면 #qname·#qrw 가 문서에 둘이 되고
+         querySelector 가 숨은 쪽을 먼저 잡아 화면이 영영 안 갱신된다 (실제로 났다) -->
     <!-- 사이드는 축으로 가른다. 좌 = 기간이 있는 것(놓치면 사라진다 → 빨간 점이
          의미를 갖는다), 우 = 경쟁·수령. 훈련소·도감은 성장 시스템이라 용병 시트
          안으로, 우편은 프로필 줄로 옮겼다. 9개 → 5개 -->
@@ -2330,6 +2337,8 @@
       <div id="unitBody">
         <div id="unitHead"><b id="unitName"></b><i id="unitGrade"></i></div>
         <div id="unitTags"></div>
+        <!-- 스킬 설명 문장. 용병은 비워 두고 display:none 으로 접는다 -->
+        <div id="unitDesc"></div>
         <div id="unitRows"></div>
         <div id="unitAct"></div>
       </div>
