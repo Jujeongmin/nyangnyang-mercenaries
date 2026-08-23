@@ -165,13 +165,14 @@
         "grant": {
           "diamond": 300,
           "skill_ticket": 3,
-          "equip_ticket": 15
+          "equip_ticket": 40
         },
         "highlight": true
       }
     ],
     "designNote": "6개 전부가 게임의 핵심 행동이다. 다 하면 자연히 자동강화·소환·던전·스테이지·아레나·광고를 한 바퀴 돈다. 별도 유도가 불필요해진다.",
-    "lockedQuestRule": "미해금 콘텐츠(아레나 Q26)의 퀘스트는 목록에 뜨지 않고, 그만큼 만점이 낮아진다. 해금 전에는 100점 만점."
+    "lockedQuestRule": "미해금 콘텐츠(아레나 Q26)의 퀘스트는 목록에 뜨지 않고, 그만큼 만점이 낮아진다. 해금 전에는 100점 만점.",
+    "equipTicketNote": "만점(120점) 보상의 장비 소환권 15 -> 40. 일일에서 나오는 유일한 상시 장비 소환권이라 여기가 얇으면 던전 하나에 전부 의존하게 된다."
   },
   "adRewards": {
     "note": "Verse8 Ads 서버 검증 필수. 클라 콜백만 믿으면 조작된다.",
@@ -386,7 +387,7 @@
         "grant": {
           "diamond": 800,
           "gold": 3000000,
-          "equip_ticket": 60
+          "equip_ticket": 120
         }
       },
       {
