@@ -344,6 +344,29 @@
   .al-dn span img{width:13px;height:13px}
   .al-dn button{flex:0 0 76px;min-height:34px;font-size:12px}
 
+  /* 소환 레벨 창 — 상점(z70) 위 */
+  #smPop{position:absolute;inset:0;z-index:74;display:none;align-items:center;
+    justify-content:center;background:#060a12c8;padding:16px}
+  #smPop.show{display:flex}
+  #smCard{width:100%;max-width:320px;max-height:82%;display:flex;flex-direction:column;
+    background:var(--bg);border:1px solid var(--gold);border-radius:14px;overflow:hidden;
+    box-shadow:0 14px 44px #000c}
+  #smHead{display:flex;align-items:center;padding:10px 12px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex:0 0 auto}
+  #smHead b{flex:1;font-size:14px;color:var(--gold)}
+  #smX{background:none;border:1px solid var(--line);color:var(--txt);border-radius:8px;
+    padding:4px 9px;cursor:pointer;font-family:inherit;font-size:12px}
+  #smBody{padding:12px;overflow-y:auto}
+  /* 확률표 — 지금 구간은 금색으로 두드러지게 */
+  .sm-band{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:5px;
+    background:var(--card);border:1px solid var(--line);border-radius:9px;font-size:11px}
+  .sm-band.now{border-color:var(--gold);background:linear-gradient(90deg,#3a2c12,var(--card))}
+  .sm-band .lv{flex:0 0 62px;color:var(--dim);font-weight:800}
+  .sm-band.now .lv{color:var(--gold)}
+  .sm-band .rates{flex:1;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  .sm-band .rates span{font-weight:800;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif}
+
   /* 모래시계 사용 창 — 제작대(z60)보다 위, 유닛 상세(z76)보다 아래 */
   #hgPop{position:absolute;inset:0;z-index:72;display:none;align-items:center;
     justify-content:center;background:#060a12c0;padding:16px}
@@ -688,8 +711,11 @@
   /* 완료했으면 게이지는 뺀다 — 다 찬 막대는 정보가 0 이고 보상 아이콘만 남으면
      "받아라"가 더 또렷해진다 */
   #quest.done #qbar{display:none}
-  #quest.done #qprog{color:#fff;background:var(--gold);color:#2a1c05;
-    border-radius:6px;padding:1px 7px;font-size:10px}
+  /* 완료 배지가 넓어지면 이름 자리가 줄어 잘린다 — 완료 시엔 이름/배지를
+     위아래로 쌓아 각자 한 줄을 다 쓰게 한다 */
+  #quest.done #qtop{flex-direction:column;align-items:stretch;gap:3px}
+  #quest.done #qprog{background:var(--gold);color:#2a1c05;text-align:center;
+    border-radius:6px;padding:2px 7px;font-size:10px}
   @keyframes qDone{0%,100%{box-shadow:0 0 0 0 #ffc94a00}
     50%{box-shadow:0 0 14px 2px #ffc94a66}}
   #qfill{height:100%;width:0;background:linear-gradient(90deg,#4a6fc0,#5ad8ff)}
@@ -1746,9 +1772,16 @@
   /* 큰 소환 카드 — 그림이 주인공이라 세로를 넉넉히 준다 */
   /* min-height 로 늘리면 내용이 끝난 아래가 빈 띠로 남는다. 대신 본문 위 여백을
      키워 소환진 그림이 그만큼 더 보이게 한다 — 카드 높이는 내용이 정한다. */
-  .sh-summon.big{margin-bottom:10px}
-  .sh-summon.big .sh-sbody{padding-top:210px}
-  .sh-summon.big .sh-art{background-position:center 22%}
+  /* 소환 탭은 카드가 주인공이다 — 아래에 빈 공간이 남으면 화면이 안 채워져 보인다.
+     본문을 세로 flex 로 만들고 카드를 늘려 남는 높이를 먹인다 (그림도 같이 커진다) */
+  #shop .sh-body:has(.sh-summon.big){display:flex;flex-direction:column}
+  .sh-summon.big{margin-bottom:10px;flex:1 1 auto;display:flex;flex-direction:column;
+    min-height:280px}
+  /* 그림은 절대배치(inset:0)라 흐름에서 안 늘어난다. 대신 **본문 위 여백**이
+     그림이 보이는 높이다 — 카드가 커진 만큼 여백을 늘려 그림도 같이 커진다 */
+  .sh-summon.big .sh-sbody{flex:1 1 auto;display:flex;flex-direction:column;
+    justify-content:flex-end;padding-top:0}
+  .sh-summon.big .sh-art{background-position:center 22%;background-size:cover}
 
   /* 받을 게 있다는 빨간 점. 자동 지급이 아니라 눌러서 받는다 */
   .dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
@@ -1763,6 +1796,14 @@
     border-image:var(--f-go) 159 209 fill stretch}
   .sm-claim img{width:15px;height:15px;object-fit:contain}
   /* 보유 소환권 — 소환 카드 상단 상시 표시. 0장이어도 띄운다 (없다는 것도 정보다) */
+  /* 보유 소환권 — 그림 위 우상단 배지. 옛 인라인 규칙은 아래에서 덮인다 */
+  .sh-summon.big .sm-tk{position:absolute;right:10px;top:10px;z-index:3;margin:0;
+    display:inline-flex;align-items:center;gap:5px;
+    background:#000000b8;border:1px solid #ffffff2e;border-radius:13px;
+    padding:5px 11px 5px 7px;font-size:14px;font-weight:400;color:#f5ecdc;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;
+    text-shadow:0 1px 3px #000;box-shadow:0 3px 10px #0009}
+  .sh-summon.big .sm-tk img{width:20px;height:20px}
   .sm-tk{margin-left:auto;display:inline-flex;align-items:center;gap:3px;
     font-size:11px;font-weight:800;color:var(--gold);
     background:#0b0f17cc;border:1px solid var(--gold);border-radius:12px;padding:2px 9px}
@@ -2346,6 +2387,14 @@
     <div id="shAct">
       <button class="rt-b" id="shEqBtn">자동장착</button>
       <button class="rt-b go" id="shUp">자동강화</button>
+    </div>
+  </div>
+
+  <!-- 소환 레벨 상세 — 확률표 + 레벨 보상 수령. 상점(z70) 위에 뜬다 -->
+  <div id="smPop">
+    <div id="smCard">
+      <div id="smHead"><b>소환 레벨</b><button id="smX">✕</button></div>
+      <div id="smBody"></div>
     </div>
   </div>
 

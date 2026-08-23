@@ -60,6 +60,11 @@ export class ShopScreen {
       <div class="sh-body"></div>`;
     root.appendChild(this.el);
     this.el.querySelector('.sh-back').addEventListener('click', () => this.close());
+    // 소환 레벨 창 닫기 — X 또는 카드 밖
+    const sm = document.querySelector('#smPop');
+    const hide = () => sm.classList.remove('show');
+    document.querySelector('#smX')?.addEventListener('click', hide);
+    sm?.addEventListener('click', e => { if (e.target.id === 'smPop') hide(); });
   }
 
   /** track 을 주면 소환 탭의 그 트랙을 펼친 채로 연다 (퀘스트에서 바로 이동) */
@@ -101,6 +106,8 @@ export class ShopScreen {
     body.querySelectorAll('[data-claim]').forEach(b => b.addEventListener('click', () => {
       this.api.claimSummonLevel(b.dataset.claim); this.render();
     }));
+    body.querySelectorAll('[data-smlv]').forEach(b =>
+      b.addEventListener('click', () => this.openLevelInfo(b.dataset.smlv)));
     body.querySelectorAll('[data-pull]').forEach(b => b.addEventListener('click', () => {
       this.api.pull(b.dataset.pull, +b.dataset.n);
     }));
@@ -135,6 +142,11 @@ export class ShopScreen {
     const c1 = tr.costs.diamondPerPull, c10 = tr.costs.diamondPer10Pull;
     const disc = Math.round((1 - c10 / (c1 * 10)) * 100);
     const held = id === 'skill' ? (S.skillTicket || 0) : (S.mercTicket || 0);
+    // 소환권이 10장 미만이면 **가진 만큼** 뽑는다 — "10연"만 있으면 7장 든 유저는
+    // 버튼이 다이아 결제로 바뀌어 티켓이 그대로 묵는다.
+    // 10장 이상이거나 아예 없으면(다이아 결제) 기존대로 10연이다
+    const byTicket = held > 0 && held < 10;
+    const multiN = byTicket ? held : 10;
 
     const tab = k => {
       const p = levelRewardPending(D.gacha.tracks[k],
@@ -146,12 +158,15 @@ export class ShopScreen {
     return `<div class="sm-toggle">${tab('mercenary')}${tab('skill')}</div>
       <div class="sh-summon big" style="--tint:${d.tint}">
         <div class="sh-art" style="background-image:url(/assets/ui/${d.alt}.png)"></div>
+        <!-- 보유 소환권 — 그림 위 우상단. 가장 먼저 확인하는 숫자라 크게 띄운다 -->
+        <span class="sm-tk" title="보유 소환권 — 다이아보다 먼저 쓴다">
+          <img src="/assets/ui/${d.icon}.png" alt="">${num(held)}</span>
         <div class="sh-sgrad"></div>
         <div class="sh-sbody">
           <div class="sh-srow">
             <b>${tr.nameKo}</b>
-            <span class="sm-tk" title="보유 소환권 — 다이아보다 먼저 쓴다"><img src="/assets/ui/${d.icon}.png" alt="">${num(held)}</span>
-            <span class="sh-lv">소환 Lv ${pg.level}<i>/${pg.max}</i></span>
+            <span class="sh-lv" data-smlv="${id}" title="확률표 · 레벨 보상"
+              >소환 Lv ${pg.level}<i>/${pg.max}</i> ⓘ${pend ? '<i class="dot"></i>' : ''}</span>
           </div>
           <div class="sh-desc">${d.desc}</div>
           <div class="sh-bar"><i style="width:${pg.need ? pg.cur / pg.need * 100 : 100}%"></i></div>
@@ -167,17 +182,55 @@ export class ShopScreen {
               1회<em>${held > 0
                 ? `<img src="/assets/ui/${d.icon}.png" alt="">1`
                 : `<img src="/assets/ui/CU-01.png" alt="">${c1}`}</em></button>
-            <button class="sh-b hot" data-pull="${id}" data-n="10">
-              10연<em>${held >= 10
-                ? `<img src="/assets/ui/${d.icon}.png" alt="">10`
+            <button class="sh-b hot" data-pull="${id}" data-n="${multiN}">
+              ${multiN}연<em>${byTicket
+                ? `<img src="/assets/ui/${d.icon}.png" alt="">${multiN}`
                 : `<img src="/assets/ui/CU-01.png" alt="">${num(c10)}`}</em>
-              ${disc > 0 && held < 10 ? `<span class="sh-tag">-${disc}%</span>` : ''}</button>
+              ${disc > 0 && !byTicket ? `<span class="sh-tag">-${disc}%</span>` : ''}</button>
           </div>
         </div></div>
       <div class="sh-note">소환 레벨이 오르면 최하위 등급이 풀에서 <b>영구 제거</b>되고
         최고 등급 확률이 오른다. 레벨 자체도 전투력에 곱연산으로 기여한다
         (트랙당 레벨×0.5%).<br>
         장비 소환은 <b>제작대</b>에서 한다.</div>`;
+  }
+
+  /**
+   * 소환 레벨 상세 — 구간별 확률표 + 레벨 보상 수령.
+   * 확률은 법적으로도 보여야 하는 값인데(gacha.json > perItemRateFormula) 지금은
+   * 현재 구간의 상위 둘만 한 줄로 떴다. 레벨을 누르면 전 구간을 편다.
+   */
+  openLevelInfo(id) {
+    const D = this.api.data, S = this.api.state;
+    const tr = D.gacha.tracks[id];
+    const pg = summonProgress(tr, S.summonExp?.[id] ?? 0);
+    const pend = levelRewardPending(tr, pg.level, S.summonLvClaimed?.[id]);
+    const icon = id === 'skill' ? 'CU-06' : 'CU-05';
+    const bands = D.gacha.rateBands.map(b => {
+      const now = pg.level >= b.minLevel && pg.level <= b.maxLevel;
+      const rates = Object.entries(b.rates).filter(([, v]) => v > 0)
+        .map(([g, v]) => `<span style="color:${GC[g]}">${g} ${v}%</span>`).join('');
+      return `<div class="sm-band${now ? ' now' : ''}">
+        <span class="lv">Lv ${b.minLevel}~${b.maxLevel}</span>
+        <span class="rates">${rates}</span></div>`;
+    }).join('');
+    document.querySelector('#smBody').innerHTML = `
+      <div class="sm-band now"><span class="lv">지금</span>
+        <span class="rates"><span>Lv ${pg.level} · 다음까지 ${pg.need ? pg.need - pg.cur : 0}회</span></span></div>
+      ${pend ? `<button class="rt-b go" id="smClaim" style="width:100%;margin:8px 0 10px">
+          레벨 보상 받기 <img src="/assets/ui/${icon}.png" alt=""
+            style="width:15px;height:15px;vertical-align:-3px">${pend}</button>`
+        : '<div class="sh-note" style="margin:8px 0 10px">받을 레벨 보상이 없습니다</div>'}
+      <div class="lbl" style="margin:4px 0 6px">구간별 확률</div>
+      ${bands}
+      <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
+        개별 확률 = 등급 확률 ÷ 그 등급의 종수</div>`;
+    document.querySelector('#smClaim')?.addEventListener('click', () => {
+      this.api.claimSummonLevel(id);
+      this.openLevelInfo(id);
+      this.render();
+    });
+    document.querySelector('#smPop').classList.add('show');
   }
 
   /**

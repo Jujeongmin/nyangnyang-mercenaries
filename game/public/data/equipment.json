@@ -169,26 +169,26 @@
         "pullsPerAction": 1
       },
       {
-        "summonLv": 5,
+        "summonLv": 3,
         "unlock": "manual_multi",
         "nameKo": "10연 소환",
         "pullsPerAction": 10,
         "discount": 0.1
       },
       {
-        "summonLv": 10,
+        "summonLv": 5,
         "unlock": "auto_summon",
         "nameKo": "자동 소환 해금",
         "pullsPerBatch": 10
       },
       {
-        "summonLv": 15,
+        "summonLv": 8,
         "unlock": "auto_scale",
         "pullsPerBatch": 20,
         "nameKo": "자동 소환 20개씩"
       },
       {
-        "summonLv": 20,
+        "summonLv": 12,
         "unlock": "filter_grade",
         "nameKo": "필터: 등급 하한",
         "pullsPerBatch": 30
@@ -242,7 +242,7 @@
         "nameKo": "자동 소환 700개씩"
       }
     ],
-    "progressionNote": "nameKo 는 화면에 그대로 뜬다. 비어 있으면 auto_scale 같은 내부 키가 노출된다.",
+    "progressionNote": "nameKo 는 화면에 그대로 뜬다. 비어 있으면 auto_scale 같은 내부 키가 노출된다. | 2026-08-24: 초반 해금을 앞당겼다. 자동 소환 Lv10→**Lv5**(누적 1.9시간→27분), 10연 Lv5→Lv3(27분→11분), 20개씩 Lv15→Lv8, 등급 필터 Lv20→Lv12. 자동화가 이 게임의 손맛인데 두 시간을 손으로 눌러야 열리는 건 튜토리얼이 아니라 벌이다. Lv25 이후 구간은 그대로 — 후반 배치 크기는 시간 게이트가 잡아야 한다.",
     "autoSummon": {
       "trigger": "유저가 자동 소환 ON. 황금 열쇠가 남아있는 동안 반복.",
       "batchIntervalSec": 1,
