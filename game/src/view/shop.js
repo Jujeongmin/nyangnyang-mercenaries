@@ -121,6 +121,10 @@ export class ShopScreen {
     body.querySelectorAll('[data-pull]').forEach(b => b.addEventListener('click', () => {
       this.api.pull(b.dataset.pull, +b.dataset.n);
     }));
+    body.querySelectorAll('[data-eqbuy]').forEach(b => b.addEventListener('click', () => {
+      const o = (this.api.data.shop.quickEquip || [])[+b.dataset.eqbuy];
+      if (o && this.api.buyEquipTicket(o.count, o.diamond)) this.render();
+    }));
     body.querySelectorAll('[data-goldbuy]').forEach(b => b.addEventListener('click', () => {
       const o = (this.api.data.shop.quickGold || [])[+b.dataset.goldbuy];
       if (o && this.api.buyGold(o.hours, o.diamond)) this.render();
@@ -363,7 +367,16 @@ export class ShopScreen {
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
+    const qe = (this.api.data.shop.quickEquip || []).map((o, i) => `<div class="sh-card">
+        <b>장비 소환권 ${o.count}장</b>
+        <span class="sh-desc"><img src="/assets/ui/CU-07.png" alt=""
+          style="width:12px;height:12px;vertical-align:-2px"> ${num(o.count)} · 개당 ${(o.diamond / o.count).toFixed(0)}</span>
+        <button class="sh-price" data-eqbuy="${i}">
+          <img src="/assets/ui/CU-01.png" alt=""
+            style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
+      </div>`).join('');
     return `<div class="sh-h2">골드 구매</div>${qg}
+      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}
       <div class="sh-h2" style="margin-top:12px">골드 환전소</div>`
       + e.goldExchange.rates.map((r, i) => `<div class="sh-card">
           <b>${r}</b>

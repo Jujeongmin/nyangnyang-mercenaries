@@ -948,8 +948,34 @@
       inset 0 0 22px color-mix(in srgb, var(--au) 12%, transparent)}
   .pr-card.t3{box-shadow:0 0 22px color-mix(in srgb, var(--au) 55%, transparent),
       inset 0 0 30px color-mix(in srgb, var(--au) 18%, transparent)}
-  .pr-img{width:96px;height:96px;object-fit:contain;
+  .pr-img{display:inline-block;width:96px;height:96px}
+  .pr-img img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 4px 8px #000a) drop-shadow(0 0 10px color-mix(in srgb, var(--au) 45%, transparent))}
+  /* 단계 여정 — 미니 초상 3개를 화살표로 잇는다. 다음 단계 그림은 실루엣이다:
+     "저게 뭐지"가 다음 목표를 만든다 */
+  .pj-path{display:flex;align-items:flex-start;justify-content:center;gap:4px;
+    margin:10px 0 10px;padding:9px 4px 7px;background:var(--ink);border-radius:11px}
+  .pj-node{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px}
+  .pj-ic{position:relative;width:44px;height:44px;border-radius:10px;background:var(--ink2);
+    border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+    overflow:hidden}
+  .pj-ic img{width:38px;height:38px;object-fit:contain}
+  .pj-node b{font-size:10px;font-weight:800;line-height:1.2;text-align:center;
+    word-break:keep-all;margin-top:3px}
+  .pj-node>span{font-size:9px;color:var(--dim)}
+  .pj-node u{text-decoration:none;font-size:9px;color:var(--dim)}
+  .pj-node.now .pj-ic{border-color:var(--c);box-shadow:0 0 9px var(--c)}
+  .pj-node.now b{color:var(--c)}
+  .pj-node.past{opacity:.62}
+  .pj-node.past .pj-ic i{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-style:normal;color:var(--up);font-size:17px;
+    background:#0009}
+  /* 다음 단계 — 38px 에서는 실루엣이 그냥 얼룩이라, 어둡게 가라앉힌 실그림이 낫다.
+     전용 단계 아트(PR-*)가 들어오면 여기가 진짜 예고편이 된다 */
+  .pj-node.next .pj-ic img{filter:grayscale(1) brightness(.5);opacity:.75}
+  .pj-node.next b{color:var(--dim)}
+  .pj-arrow{align-self:center;color:var(--line);font-size:15px;font-weight:800;
+    flex:0 0 auto;margin-top:-14px}
   .pr-pips{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:4px}
   .pr-pips i{width:10px;height:10px;border-radius:50%;background:var(--ink);
     border:1px solid var(--line)}
@@ -961,6 +987,11 @@
   .pr-next b{color:var(--txt)}
   .pr-next.done{color:var(--gold);margin-bottom:2px}
   .pr-btn{width:100%;min-height:38px}
+  /* 다른 길을 고른 뒤의 직군 — 잠긴 게 아니라 "안 간 길"이다. 흐리게만 */
+  .pr-card.out{opacity:.45;filter:grayscale(.55)}
+  .pr-chosen{position:absolute;right:10px;top:10px;font-size:10px;font-weight:800;
+    color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);
+    border-radius:6px;padding:2px 8px}
   .pr-btn img{width:14px;height:14px;vertical-align:-2px}
 
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
@@ -2287,7 +2318,7 @@
   .ps-cell{position:relative;display:flex;flex-wrap:wrap;align-items:center;
     justify-content:center;gap:4px;padding:8px 6px 16px;cursor:pointer;font-family:inherit;
     background:none;border-style:solid;border-width:10px;border-radius:0;
-    border-image:var(--f-card) 122 fill stretch;color:var(--txt);min-height:52px}
+    border-image:var(--f-card) 122 fill stretch;color:var(--txt);min-height:64px}
   .ps-cell.off{opacity:.45;cursor:default}
   .ps-cell.done{opacity:.6}
   .ps-c{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800}

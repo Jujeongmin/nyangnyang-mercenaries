@@ -216,14 +216,20 @@ export class BattleScene {
     if (this.capBar) { this.capBar.destroy(); this.capBar = null; }
 
     const TR = await this.loadTrim();
-    const capSrc = '/assets/captain/captain_warrior.png';
+    // 단장 모습은 전직 직업을 따른다 (main 이 setCaptainClass 로 준다).
+    // 공격 모션도 직업 모션이다 — 궁수 단장이 검을 휘두르면 전직이 안 읽힌다
+    const capCls = this.captainClass || 'warrior';
+    const capId = `captain_${capCls}`;
+    const capSrc = `/assets/captain/${capId}.png`;
     const capTex = await this.load(capSrc);
     if (capTex) {
-      const arm = await this.cutoutFor('captain_warrior', capSrc);
+      const arm = await this.cutoutFor(capId, capSrc);
       this.captain = new UnitRig(PIXI(), capTex, {
-        size: this.allySize() * 1.0, facing: 1, grid: [5, 9], motion: 'slash', arm,
-        trim: TR.captain_warrior,
+        size: this.allySize() * 1.0, facing: 1, grid: [5, 9],
+        motion: motionForClass(capCls), arm,
+        trim: TR[capId] || TR.captain_warrior,
       });
+      this.captain.capCls = capCls;
       this.field.addChild(this.captain.view);
       // 파티 체력바. 단장이 파티를 대표한다 — 용병마다 띄우면 막대밭이 된다.
       this.capBar = new (PIXI().Graphics)();
@@ -532,7 +538,23 @@ export class BattleScene {
       this.capCd = (this.capCd ?? 1.2) - s;
       if (this.capCd <= 0 && !this.captain.act) {
         this.capCd = rnd(1.5, 2.7);
-        this.captain.attack(null);
+        // 직업별 연출 — 궁수·마법사는 무기 끝에서 투사체가 날아간다.
+        // 판정은 없다(연출 전용). 전사는 근접 휘두르기 그대로
+        const cls = this.captain.capCls || 'warrior';
+        const A = this.D.combat.allyAttack;
+        const kind = (A?.byClass || {})[cls] || 'melee';
+        const target = alive[0];
+        if (kind === 'projectile' && target?.rig?.view) {
+          this.captain.attack(() => {
+            if (!target.rig?.view || target.rig.view.destroyed) return;
+            const tip = this.captain.weaponTip();
+            let id = (A.projectileFx || {})[cls] || A.projectileFx.fallback;
+            if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
+            this.fx.projectile(id, tip.x, tip.y,
+              target.rig.view.x, target.rig.view.y - target.rig.h * 0.5,
+              { size: this.fxSize(this.captain.h * 0.34, 0.12), dur: 260, arc: -0.1 });
+          });
+        } else this.captain.attack(null);
       }
     }
 

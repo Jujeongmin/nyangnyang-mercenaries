@@ -182,7 +182,11 @@ export function strict(root = document.body) {
       // scrollWidth 는 절대배치 자식까지 센다 — 모서리에 일부러 걸친 리본(.sh-tag)이
       // 있으면 글자는 멀쩡한데 잘렸다고 나온다. 그런 자식이 있으면 건너뛴다.
       const bleeder = [...kid.children].some(c => bleedOk(c));
-      if (!bleeder && kid.scrollWidth > kid.clientWidth + 1 && !scrollsX(kid) && hasText(kid)) {
+      // 말줄임(text-overflow:ellipsis)은 넘침의 **의도된 처리**다 — "…" 로 곱게
+      // 줄어드는 것과 글자가 뚝 잘리는 것은 다르다. 잘림으로 세지 않는다
+      const ellipsized = getComputedStyle(kid).textOverflow === 'ellipsis';
+      if (!bleeder && !ellipsized
+          && kid.scrollWidth > kid.clientWidth + 1 && !scrollsX(kid) && hasText(kid)) {
         clipped.push(`${tag(kid)} 글자 잘림 ${kid.scrollWidth}>${kid.clientWidth}`);
       }
       // 줄바꿈 어색함 — 눈에는 "글자가 이상하게 접힌다"로 보이는 것들.

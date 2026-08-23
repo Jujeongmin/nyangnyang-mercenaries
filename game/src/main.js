@@ -89,6 +89,9 @@ const S = {
   codex: { mercenary: [], skill: {} },     // 1회 획득 시 영구 등록
   trainLv: 0,                              // 훈련소
   promo: { warrior: 1, archer: 1, mage: 1 },   // 직군별 전직 단계
+  // 전직으로 고른 길. 하나를 고르면 다른 직군은 잠긴다 — 초기화로만 되돌린다.
+  // 단장의 모습·공격 모션도 이 직업을 따른다
+  promoClass: null,
   kills: 0,                                // 누적 몬스터 처치 (퀘스트 monster_kill)
   nickname: null,                          // 첫 부팅에 자동 배정된다
   nickChanged: 0,                          // 변경 횟수. 0 이면 다음 변경이 무료
@@ -531,6 +534,17 @@ function load() {
     for (const t of ['mercenary', 'skill']) {
       S.pend[t] = (S.pend[t] || []).map(e =>
         typeof e === 'string' ? { id: null, grade: e } : e);
+    }
+    // 전직 배타 규칙(promoClass) 이전의 세이브 — 여러 직군이 승급돼 있을 수 있다.
+    // 가장 높은 단계 하나만 "고른 길"로 남기고 나머지는 1로 되돌린다
+    if (!S.promoClass && S.promo) {
+      const top = ['warrior', 'archer', 'mage']
+        .filter(c => (S.promo[c] || 1) > 1)
+        .sort((a, b) => S.promo[b] - S.promo[a])[0];
+      if (top) {
+        S.promoClass = top;
+        for (const c of ['warrior', 'archer', 'mage']) if (c !== top) S.promo[c] = 1;
+      }
     }
     return j.lastSeenAt;
   } catch { return null; }
@@ -1352,6 +1366,7 @@ function renderRosterDots() {
 function refreshParty() {
   renderSkills();
   scene.activeSkills = S.skills.active.filter(Boolean);
+  scene.captainClass = S.promoClass || 'warrior';
   scene.setParty(S.party);
   scene.partyDps = partyDps();
   scene.skillAuto = S.skillAuto !== false;
@@ -2018,50 +2033,83 @@ const promoMult = cls => {
 const promoNext = cls => promoDef().tiers.find(x => x.tier === promoTier(cls) + 1);
 
 function doPromote(cls) {
+  // 한 길만 간다. 셋 다 올리면 "전직"이 아니라 전 직군 패시브가 된다
+  if (S.promoClass && S.promoClass !== cls) return toast(t('다른 길을 걷는 중입니다'));
   const nx = promoNext(cls);
   if (!nx) return toast('이미 최종 단계입니다');
   if (S.trainLv < nx.trainLv) return toast(`훈련소 Lv ${nx.trainLv} 필요`);
-  if (S.gold < nx.cost.gold) return toast('골드가 부족합니다');
-  S.gold -= nx.cost.gold;
+  // 비용 없음 — 훈련소 레벨이 이미 값을 치렀다 (goldsinks > promotion.costNote)
   S.promo = S.promo || {};
   S.promo[cls] = nx.tier;
-  save(); refreshParty();
+  S.promoClass = cls;
+  save(); refreshParty(); applyCaptainClass();
   const nm = promoDef().names[cls][nx.tier - 1];
   toast(`${CLASS_KO[cls]} → ${nm}`);
+}
+
+/** 전직 초기화 — 단계·선택을 모두 되돌린다. 비용이 없으니 잃는 것도 없다 */
+function resetPromotion() {
+  if (!S.promoClass) return;
+  S.promo = { warrior: 1, archer: 1, mage: 1 };
+  S.promoClass = null;
+  save(); refreshParty(); applyCaptainClass();
+  toast(t('전직을 초기화했습니다'));
+  openPromotion();
+}
+
+/** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
+function applyCaptainClass() {
+  scene.captainClass = S.promoClass || 'warrior';
+  scene.setParty(S.party);
 }
 
 const CLASS_IMG = { warrior: 'captain_warrior', archer: 'captain_archer', mage: 'captain_mage' };
 const PROMO_COL = { 1: '#b09a7e', 2: '#5ad8ff', 3: '#ffc94a' };
 
+/** 단계별 전용 그림(PR-cls-t). 아직 없으면 직군 기본 그림으로 떨어진다 */
+const promoImg = (cls, tier) =>
+  `<img src="/assets/captain/PR-${cls}-${tier}.png" alt=""
+    onerror="this.onerror=null;this.src='/assets/captain/${CLASS_IMG[cls]}.png'">`;
+
 /**
- * 전직 — 직군 카드 3장. 훈련소 텍스트 줄에 묻혀 있던 것을 전용 화면으로 뺐다.
- * 그림은 단장 직군 변신(captain_*)을 쓴다 — 직군 단위 승급이라 "그 직군 전체가
- * 이렇게 된다"를 한 장으로 말할 수 있는 유일한 에셋이다.
+ * 전직 — 직군 카드 3장 + **단계 여정**. 지금 모습만 보여 주면 "다음이 있다"가
+ * 안 읽힌다. 아래 여정 줄이 최종 단계까지의 이름·배수·조건을 미리 보여 주고,
+ * 다음 단계 그림은 실루엣으로 감춰 "저게 뭐지"를 남긴다.
  */
 function openPromotion() {
   const P = promoDef();
-  const maxT = P.tiers[P.tiers.length - 1].tier;
   const cards = ['warrior', 'archer', 'mage'].map(cls => {
     const cur = promoTier(cls);
     const nx = promoNext(cls);
-    const nm = P.names[cls][cur - 1];
     const canLv = nx && S.trainLv >= nx.trainLv;
-    const canGold = nx && S.gold >= nx.cost.gold;
-    // 단계 배지 — 별을 세로로. 색이 단계를 말한다 (1 무채 / 2 청 / 3 금)
-    const pips = Array.from({ length: maxT }, (_, i) =>
-      `<i class="${i < cur ? 'on' : ''}" style="${i < cur ? `--c:${PROMO_COL[cur]}` : ''}"></i>`).join('');
-    return `<div class="pr-card t${cur}" style="--au:${PROMO_COL[cur]}">
-      <span class="pr-pips">${pips}</span>
-      <img class="pr-img" src="/assets/captain/${CLASS_IMG[cls]}.png" alt=""
-        onerror="this.style.visibility='hidden'">
-      <b class="pr-name" style="color:${PROMO_COL[cur]}">${tn(cls, nm)}</b>
+    // 여정 줄 — 단계마다 미니 초상 + 이름 + 배수. 현재는 등급색, 지난 것은 체크,
+    // 다음 것은 실루엣(brightness 0)이다
+    const path = P.tiers.map(ti => {
+      const nm = P.names[cls][ti.tier - 1];
+      const state = ti.tier < cur ? 'past' : ti.tier === cur ? 'now' : 'next';
+      const reach = S.trainLv >= ti.trainLv;
+      return `<div class="pj-node ${state}" style="--c:${PROMO_COL[ti.tier]}">
+        <span class="pj-ic">${promoImg(cls, ti.tier)}${state === 'past' ? '<i>✓</i>' : ''}</span>
+        <b>${nm}</b>
+        <span>×${ti.statMult.toFixed(2)}</span>
+        <u>${ti.trainLv ? `${t('훈련소')} ${ti.trainLv}${reach ? ' ✓' : ''}` : t('기본')}</u>
+      </div>`;
+    }).join('<span class="pj-arrow">›</span>');
+
+    const lockedOut = S.promoClass && S.promoClass !== cls;
+    return `<div class="pr-card t${cur}${lockedOut ? ' out' : ''}" style="--au:${PROMO_COL[cur]}">
+      ${S.promoClass === cls ? `<span class="pr-chosen">${t('나의 길')}</span>` : ''}
+      <span class="pr-img">${promoImg(cls, cur)}</span>
+      <b class="pr-name" style="color:${PROMO_COL[cur]}">${P.names[cls][cur - 1]}</b>
       <span class="pr-cls">${CLASS_KO[cls]} · ×${promoMult(cls).toFixed(2)}</span>
-      ${nx ? `<span class="pr-next">다음 <b>${P.names[cls][nx.tier - 1]}</b>
-          ×${nx.statMult.toFixed(2)} · ${t('훈련소 Lv {0}', nx.trainLv)}</span>
-        <button class="fgbtn pr-btn" data-promo="${cls}" ${canLv && canGold ? '' : 'disabled'}>
-          ${!canLv ? t('훈련소 Lv {0} 필요', nx.trainLv)
-            : `<img src="/assets/ui/CU-04.png" alt=""> ${num(nx.cost.gold)}`}</button>`
-        : `<span class="pr-next done">${t('최종 단계')}</span>`}
+      <div class="pj-path">${path}</div>
+      ${lockedOut
+        ? `<span class="pr-next">${t('다른 길을 걷는 중')}</span>`
+        : nx
+          ? `<button class="fgbtn pr-btn" data-promo="${cls}" ${canLv ? '' : 'disabled'}>
+              ${canLv ? t('{0} 로 전직', P.names[cls][nx.tier - 1])
+                      : t('훈련소 Lv {0} 필요', nx.trainLv)}</button>`
+          : `<span class="pr-next done">${t('최종 단계')}</span>`}
     </div>`;
   }).join('');
 
@@ -2071,12 +2119,14 @@ function openPromotion() {
   $('#ovb').innerHTML = `
     <div class="frow"><span class="k">${t('훈련소 레벨')}</span>
       <span class="v">Lv ${S.trainLv}</span></div>
-    <div class="pr-note">${t('직군 전체가 함께 승급합니다')}</div>
-    ${cards}`;
+    <div class="pr-note">${t('한 길만 갈 수 있습니다')} · ${t('그 직군 용병 전체가 함께 강해집니다')}</div>
+    ${cards}
+    ${S.promoClass ? `<button class="st-danger" id="prReset">${t('전직 초기화')}</button>` : ''}`;
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.55">${P.gateNote}</div>`;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
-  $('#ovb').querySelectorAll('[data-promo]').forEach(b =>
-    b.addEventListener('click', () => { doPromote(b.dataset.promo); openPromotion(); }));
+  $('#ovb').querySelectorAll('[data-promo]').forEach(bt =>
+    bt.addEventListener('click', () => { doPromote(bt.dataset.promo); openPromotion(); }));
+  $('#prReset')?.addEventListener('click', resetPromotion);
 }
 
 function openTraining() {
@@ -3133,6 +3183,7 @@ async function runTowerFloor(floor) {
 async function runStage() {
   const bgId = bgFor(S.stage);
   await scene.setBackground(bgId);
+  scene.captainClass = S.promoClass || 'warrior';
   await scene.setParty(S.party);
   const lb = stageLabel(S.stage);
   $('#stg').innerHTML = `${lb.text}<i>${lb.zone}</i>`;
@@ -3421,6 +3472,14 @@ function bootLangPick() {
     // 다이아 -> 골드 빠른 구매. 액수는 방치 공식 그대로다 (idleGold) —
     // 별도 표를 두면 스테이지가 오를 때마다 갈라진다
     quickGold: hours => idleGold(hours),
+    buyEquipTicket: (count, dia) => {
+      if (S.dia < dia) { toast(`다이아 ${num(dia - S.dia)} 부족`); return false; }
+      S.dia -= dia;
+      S.eqTicket += count;
+      save(); renderTop(); renderForgeDock();
+      gainToast([['equip_ticket', count]]);
+      return true;
+    },
     buyGold: (hours, dia) => {
       if (S.dia < dia) { toast(`다이아 ${num(dia - S.dia)} 부족`); return false; }
       S.dia -= dia;

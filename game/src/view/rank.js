@@ -192,14 +192,14 @@ export class SettingsScreen {
         <input type="range" class="st-rng" data-k="bgm" min="0" max="100" value="${(S.bgm ?? 0.7) * 100}"></div>
       <div class="st-row"><span>효과음</span>
         <input type="range" class="st-rng" data-k="sfx" min="0" max="100" value="${(S.sfx ?? 0.9) * 100}"></div>
-      <div class="sh-note">사운드 리소스 연동 전 — 값은 저장되고, 소리가 붙는 즉시 적용된다.</div>
+      <div class="sh-note">값은 저장되며, 사운드가 연동되는 즉시 적용됩니다.</div>
 
       <div class="st-h">정보</div>
       <div class="st-row link" data-a="rates"><span>확률표 고지</span><b>›</b></div>
       <div class="st-row link" data-a="account"><span>계정</span><b>${S.nickname || '단장'} ›</b></div>
       <div class="st-row"><span>버전</span><b>proto ${D.ui.meta.version}</b></div>
       <button class="st-danger" data-a="reset">저장 데이터 초기화</button>
-      <div class="sh-note">확률 공시는 게임산업법(2024.3) 의무다.
+      <div class="sh-note" style="text-wrap:balance">확률 공시는 게임산업법(2024.3) 의무다.
         gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.</div>`;
 
     this.el.querySelectorAll('.st-seg button').forEach(b => b.addEventListener('click', () => {
