@@ -3455,24 +3455,21 @@ function openAlliance(tab = 'home') {
     if (S.allyShopBuy.week !== wk) S.allyShopBuy = { week: wk, n: {} };
     return `<div class="frow"><span class="k">${t('연합 레벨')}</span>
         <span class="v">Lv ${lv} · ${allyLevel().nameKo}</span></div>`
-      + S2.items.map(x => {
-        const g = Object.entries(x.grant)
-          .map(([k, v]) => `${CUR_KO[k] || k} ${typeof v === 'number' ? num(v) : ''}`).join(' · ');
-        const lim = x.weeklyLimit ? `주 ${x.weeklyLimit}회` : `시즌 ${x.seasonLimit}회`;
+      + '<div class="als-grid">' + S2.items.map(x => {
+        const lim = x.weeklyLimit ? `주 ${x.weeklyLimit}` : `시즌 ${x.seasonLimit}`;
         const locked = lv < (x.unlockLevel || 1);
         const used = S.allyShopBuy.n[x.id] || 0;
         const soldout = x.weeklyLimit && used >= x.weeklyLimit;
-        return `<div class="frow" style="padding:9px 11px;margin-bottom:5px;${
-            locked ? 'opacity:.5' : ''}">
-          <span><b style="font-size:12px">${x.nameKo}</b>
-            <span class="k" style="display:block">${g} · ${lim}${
-              x.weeklyLimit ? ` (${used}/${x.weeklyLimit})` : ''}</span></span>
+        return `<div class="als-card${locked ? ' locked' : ''}">
+          <img class="als-img" src="/assets/ui/${x.icon}.png" alt="" onerror="this.remove()">
+          <b>${x.nameKo}</b>
+          <span>${lim}${x.weeklyLimit ? ` · ${used}/${x.weeklyLimit}` : ''}</span>
           ${locked
-            ? `<span class="v" style="font-size:11px">🔒 ${t('연합 Lv {0}', x.unlockLevel)}</span>`
+            ? `<em class="als-lock">🔒 ${t('연합 Lv {0}', x.unlockLevel)}</em>`
             : `<button class="mdBuy${soldout || (S.allyCoin || 0) < x.cost ? ' off' : ''}"
                 data-albuy="${x.id}" ${soldout ? 'disabled' : ''}>${coin}${x.cost}</button>`}
         </div>`;
-      }).join('')
+      }).join('') + '</div>'
       + `<div class="sh-note">${S2.unlockNote}</div>`;
   };
 

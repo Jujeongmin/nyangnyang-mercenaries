@@ -87,7 +87,8 @@
         },
         "weeklyLimit": 10,
         "note": "기부한 골드보다 적게 돌려준다(2백만 기부 = 10코인, 30코인에 8백만). 순환이 아니라 소모다.",
-        "unlockLevel": 1
+        "unlockLevel": 1,
+        "icon": "CU-04"
       },
       {
         "id": "al_hourglass",
@@ -98,7 +99,8 @@
         },
         "weeklyLimit": 2,
         "note": "주 6개가 상한. 모래시계는 제작 타이머를 직접 씹는 유료 재화라 무과금 배출을 늘리면 과금 이유가 사라진다.",
-        "unlockLevel": 2
+        "unlockLevel": 2,
+        "icon": "CU-10"
       },
       {
         "id": "al_equip",
@@ -108,18 +110,20 @@
           "equip_ticket": 30
         },
         "weeklyLimit": 6,
-        "unlockLevel": 1
+        "unlockLevel": 1,
+        "icon": "CU-07"
       },
       {
-        "id": "al_ore",
-        "nameKo": "제련석 4,000",
-        "cost": 50,
+        "id": "al_equip_big",
+        "nameKo": "장비 소환권 100",
+        "cost": 110,
         "grant": {
-          "forge_ore": 4000
+          "equip_ticket": 100
         },
-        "weeklyLimit": 4,
-        "unlockLevel": 3,
-        "note": "제련석은 장비 소환 레벨(시간 게이트)의 재료라 대량 배출 금지 — 주 1.6만이 상한."
+        "weeklyLimit": 2,
+        "unlockLevel": 4,
+        "icon": "CU-07",
+        "note": "대량 묶음 — 낱개(30장/40코인)보다 단가가 좋아 레벨 4 의 보상이 된다."
       },
       {
         "id": "al_key",
@@ -129,8 +133,9 @@
           "dungeon_key_all": 1
         },
         "weeklyLimit": 3,
-        "unlockLevel": 4,
-        "note": "전 던전 열쇠 +1개씩. 입장이 곧 일일 배출이라 무한정 팔면 던전 밸런스가 무너진다."
+        "unlockLevel": 3,
+        "note": "전 던전 열쇠 +1개씩. 입장이 곧 일일 배출이라 무한정 팔면 던전 밸런스가 무너진다.",
+        "icon": "DK-01"
       },
       {
         "id": "al_frame",
@@ -141,10 +146,12 @@
         },
         "seasonLimit": 1,
         "note": "장식. 전투력에 영향이 없는 보상이 하나는 있어야 코인을 계속 모을 이유가 생긴다.",
-        "unlockLevel": 5
+        "unlockLevel": 5,
+        "icon": "PF-S1"
       }
     ],
-    "unlockNote": "품목마다 unlockLevel — 연합 레벨이 낮으면 잠긴 채 보인다. 숨기지 않는 이유: 잠긴 품목이 보여야 기부(레벨업)의 목적지가 된다."
+    "unlockNote": "품목마다 unlockLevel — 연합 레벨이 낮으면 잠긴 채 보인다. 숨기지 않는 이유: 잠긴 품목이 보여야 기부(레벨업)의 목적지가 된다.",
+    "oreRemovedNote": "제련석 품목은 뺐다 (2026-08-24) — forge_ore 는 배출만 있고 소모처가 아직 없다(장비 레벨은 골드+시간). 소모처가 생기면 되살린다."
   },
   "boss": {
     "schedule": "weekly",
@@ -270,7 +277,7 @@
         "xp": 2000,
         "nameKo": "이름난 연합",
         "unlocks": [
-          "al_ore"
+          "al_key"
         ]
       },
       {
@@ -278,7 +285,7 @@
         "xp": 6000,
         "nameKo": "번영하는 연합",
         "unlocks": [
-          "al_key"
+          "al_equip_big"
         ]
       },
       {

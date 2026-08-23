@@ -126,7 +126,10 @@ export class AllianceVillage {
       if (this.stick) {
         const { dx, dy } = this.stick;
         const mag = Math.hypot(dx, dy);
-        if (mag > 0.12) {                      // 데드존 — 미세 떨림에 안 걷는다
+        // 데드존 — 건물을 누른 채면 0.3 으로 올린다. 탭하려다 살짝 끌린 것을
+        // 걷기로 읽으면 "누르고 있는데 캐릭터가 움직인다"가 된다 (실사용 보고)
+        const dead = this.holdBd ? 0.3 : 0.12;
+        if (mag > dead) {
           const c = this.capPos;
           c.x = Math.max(3, Math.min(97, c.x + dx * SPEED * dt));
           // 세로는 원근 때문에 살짝 느리게. 하늘(30%) 위로는 못 간다
