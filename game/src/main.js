@@ -94,6 +94,9 @@ const S = {
   // sentDay/recvDay 는 dayIdx. 서버 전에는 데모 친구가 자리를 지킨다
   friends: { list: [], sentDay: null, recvDay: null },
   allyDonate: { day: null, gold: 0, eq: 0 },   // 일일 기부 횟수
+  allyXp: 0,                               // 연합 XP — 기부 코인 누적 (안 줄어든다)
+  allyLeftAt: null,                        // 탈퇴 시각 — 24시간 재가입 쿨다운
+  allyShopBuy: { week: null, n: {} },      // 연합 상점 주간 구매 횟수
   capLv: 1, capXp: 0,                      // 단장(계정) 레벨. 스탯 효과 없음
   codex: { mercenary: [], skill: {} },     // 1회 획득 시 영구 등록
   trainLv: 0,                              // 훈련소
@@ -2921,7 +2924,9 @@ function demoAlliances() {
 function openAllianceGate() {
   const A = D.alliance;
   const need = A.membership.joinRequirement.minStage;
-  const canJoin = S.maxStage >= need;
+  const coolMs = A.membership.leaveCooldownHours * 3600e3;
+  const coolLeft = S.allyLeftAt ? Math.max(0, S.allyLeftAt + coolMs - Date.now()) : 0;
+  const canJoin = S.maxStage >= need && coolLeft <= 0;
   const cost = A.membership.createCost.gold;
   const rows = demoAlliances().map(a => `
     <div class="frow" style="padding:8px 11px;margin-bottom:5px">
@@ -2937,7 +2942,8 @@ function openAllianceGate() {
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${A.membership.maxMembersNote}</div>`;
   $('#ovb').innerHTML = `
-    ${canJoin ? '' : `<div class="pr-note" style="color:var(--warn)">${t('스테이지 {0} 부터 연합에 들어갈 수 있습니다', need)}</div>`}
+    ${S.maxStage < need ? `<div class="pr-note" style="color:var(--warn)">${t('스테이지 {0} 부터 연합에 들어갈 수 있습니다', need)}</div>` : ''}
+    ${coolLeft > 0 ? `<div class="pr-note" style="color:var(--warn)">${t('탈퇴 후 {0} 뒤에 가입할 수 있습니다', dur(Math.ceil(coolLeft / 1000)))}</div>` : ''}
     <div class="cs-card" style="--au:var(--gold)">
       <img class="cs-fx" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
       <div class="cs-body"><b>${t('연합 만들기')}</b>
@@ -3292,6 +3298,16 @@ function grantMedalItem(id) {
  * 기부 — alliance.json > contribution.donate. 골드는 두 번째 무한 골드 배수구다.
  * 일일 한도는 마을이 "매일 들를 이유"가 되는 선에서 데이터가 정한다.
  */
+/** 연합 레벨 — 기부 코인 누적(allyXp)이 XP 다 (alliance.json > level) */
+function allyLevel() {
+  const L = D.alliance.level.levels;
+  let cur = L[0];
+  for (const l of L) if ((S.allyXp || 0) >= l.xp) cur = l;
+  return cur;
+}
+const allyNextLevel = () =>
+  D.alliance.level.levels.find(l => l.xp > (S.allyXp || 0)) || null;
+
 function donate(kind) {
   const d = D.alliance.contribution.donate[kind];
   if (!d) return;
@@ -3309,6 +3325,7 @@ function donate(kind) {
   }
   a[key]++;
   S.allyCoin = (S.allyCoin || 0) + d.coin;
+  S.allyXp = (S.allyXp || 0) + d.coin;      // 코인 1 = XP 1. 써도 XP 는 남는다
   save(); renderTop(); alli.render();
   gainToast([['alliance_coin', d.coin]]);
   if ($('#ov').classList.contains('show')) openAlliance('donate');
@@ -3321,6 +3338,50 @@ const ALLY_DEMO = [
   { ava: 'N-03', name: '개굴개굴', role: '단원', coin: 180, on: false, last: '3시간 전' },
   { ava: 'SR-06', name: '숲사슴', role: '단원', coin: 95, on: false, last: '어제' },
 ];
+
+/** 연합 상점 구매. 코인만 깎는다 — XP 는 그대로 (성장은 안 되돌린다) */
+function allyBuy(id) {
+  const x = D.alliance.shop.items.find(i => i.id === id);
+  if (!x) return;
+  if (allyLevel().lv < (x.unlockLevel || 1)) return toast(t('연합 레벨이 부족합니다'));
+  const wk = weekIdx(Date.now());
+  if (S.allyShopBuy.week !== wk) S.allyShopBuy = { week: wk, n: {} };
+  const used = S.allyShopBuy.n[id] || 0;
+  if (x.weeklyLimit && used >= x.weeklyLimit) return toast(t('이번 주 한도를 다 샀습니다'));
+  if ((S.allyCoin || 0) < x.cost) return toast(t('연합 코인이 부족합니다'));
+  S.allyCoin -= x.cost;
+  S.allyShopBuy.n[id] = used + 1;
+  const pairs = [];
+  for (const [k, v] of Object.entries(x.grant)) {
+    if (k === 'forge_ore') { S.forgeOre = (S.forgeOre || 0) + v; pairs.push(['forge_ore', v]); }
+    else if (k === 'dungeon_key_all') {
+      for (const dg of D.dungeons.dungeons) S.dgKeys[dg.id] = (S.dgKeys[dg.id] || 0) + v;
+      pairs.push(['dungeon_key', v * D.dungeons.dungeons.length]);
+    } else if (k === 'profile_frame') {
+      S.profile.ownedFrames = S.profile.ownedFrames || [];
+      if (!S.profile.ownedFrames.includes(v)) S.profile.ownedFrames.push(v);
+    } else {
+      const got = passGrant({ [k]: v });
+      pairs.push(...got.pairs);
+    }
+  }
+  save(); renderTop(); openAlliance('shop');
+  if (pairs.length) gainToast(pairs.filter(p => CUR_ICON[p[0]]));
+  toast(`${x.nameKo} ${t('구매')}`);
+}
+
+/** 연합 탈퇴 — 24시간 재가입 쿨다운 (alliance.json > leaveCooldownHours) */
+function allyLeave() {
+  if (!S.ally) return;
+  const h = D.alliance.membership.leaveCooldownHours;
+  if (!confirm(t('연합을 탈퇴하면 {0}시간 동안 다른 연합에 가입할 수 없습니다. 탈퇴할까요?', h))) return;
+  S.ally = null;
+  S.allyLeftAt = Date.now();
+  save();
+  toast(t('연합을 탈퇴했습니다'));
+  $('#ov').classList.remove('show', 'forced');
+  document.querySelector('#alli')?.classList.remove('show');
+}
 
 function openAlliance(tab = 'home') {
   const A = D.alliance;
@@ -3340,7 +3401,7 @@ function openAlliance(tab = 'home') {
     return `<div class="al-hero">
         <img class="al-emblem" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
         <div class="al-hero-t">
-          <b>냥냥 용병단 <i class="al-lv">Lv 3</i></b>
+          <b>${S.ally?.name || '냥냥 용병단'} <i class="al-lv">Lv ${allyLevel().lv}</i></b>
           <span>단원 ${ALLY_DEMO.length + 1} / ${A.membership.maxMembers} · 주간 기여 ${coin}${num((S.allyCoin || 0))}</span>
           <em>"매일 기부하고 주말엔 보스! (서버 연동 전 데모)"</em>
         </div>
@@ -3350,6 +3411,14 @@ function openAlliance(tab = 'home') {
         <div><span>오늘 기부</span><b>${doneN} / ${capN}</b></div>
         <div><span>보스 단계</span><b>${(S.allyBossTier || 0) + 1}단계</b></div>
       </div>
+      ${(() => {
+        const nx = allyNextLevel();
+        if (!nx) return `<div class="al-lvbar"><i style="width:100%"></i><b>${t('최고 레벨')}</b></div>`;
+        const prev = allyLevel().xp;
+        const p = ((S.allyXp || 0) - prev) / (nx.xp - prev) * 100;
+        return `<div class="al-lvbar"><i style="width:${p}%"></i>
+          <b>Lv ${nx.lv} ${t('까지')} ${num(nx.xp - (S.allyXp || 0))} XP</b></div>`;
+      })()}
       <button class="rt-b go" data-al-go="donate" style="width:100%;margin-top:8px">기부하러 가기</button>`;
   };
 
@@ -3378,16 +3447,31 @@ function openAlliance(tab = 'home') {
 
   const shop = () => {
     const S2 = A.shop;
-    return S2.items.map(x => {
-      const g = Object.entries(x.grant)
-        .map(([k, v]) => `${CUR_KO[k] || k} ${typeof v === 'number' ? num(v) : ''}`).join(' · ');
-      const lim = x.weeklyLimit ? `주 ${x.weeklyLimit}회` : `시즌 ${x.seasonLimit}회`;
-      return `<div class="frow" style="padding:9px 11px">
-        <span><b style="font-size:12px">${x.nameKo}</b>
-          <span class="k" style="display:block">${g} · ${lim}</span></span>
-        <span class="v">${coin}${x.cost}</span></div>`;
-    }).join('')
-      + `<div class="sh-note">${S2.excludedReason}</div>`;
+    const lv = allyLevel().lv;
+    // 주간 구매 기록 — 월요일 05:00 리셋 (임무 주간과 같은 시계)
+    const wk = weekIdx(Date.now());
+    if (S.allyShopBuy.week !== wk) S.allyShopBuy = { week: wk, n: {} };
+    return `<div class="frow"><span class="k">${t('연합 레벨')}</span>
+        <span class="v">Lv ${lv} · ${allyLevel().nameKo}</span></div>`
+      + S2.items.map(x => {
+        const g = Object.entries(x.grant)
+          .map(([k, v]) => `${CUR_KO[k] || k} ${typeof v === 'number' ? num(v) : ''}`).join(' · ');
+        const lim = x.weeklyLimit ? `주 ${x.weeklyLimit}회` : `시즌 ${x.seasonLimit}회`;
+        const locked = lv < (x.unlockLevel || 1);
+        const used = S.allyShopBuy.n[x.id] || 0;
+        const soldout = x.weeklyLimit && used >= x.weeklyLimit;
+        return `<div class="frow" style="padding:9px 11px;margin-bottom:5px;${
+            locked ? 'opacity:.5' : ''}">
+          <span><b style="font-size:12px">${x.nameKo}</b>
+            <span class="k" style="display:block">${g} · ${lim}${
+              x.weeklyLimit ? ` (${used}/${x.weeklyLimit})` : ''}</span></span>
+          ${locked
+            ? `<span class="v" style="font-size:11px">🔒 ${t('연합 Lv {0}', x.unlockLevel)}</span>`
+            : `<button class="mdBuy${soldout || (S.allyCoin || 0) < x.cost ? ' off' : ''}"
+                data-albuy="${x.id}" ${soldout ? 'disabled' : ''}>${coin}${x.cost}</button>`}
+        </div>`;
+      }).join('')
+      + `<div class="sh-note">${S2.unlockNote}</div>`;
   };
 
   // 단원 리스트 관례: 아바타 + 이름/직위 + 기여도 + 접속 표시.
@@ -3403,6 +3487,7 @@ function openAlliance(tab = 'home') {
        <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
        <span class="al-mem-c">${coin}${num(m.coin)}</span>
        <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('')
+    + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`
     + '<div class="sh-note">서버 연동 전 데모 명단입니다. 실명단은 연합 컬렉션에서 온다.</div>';
 
   // 기부 — 마을 창고에서 온다. 보기만 하는 표가 아니라 실제 실행 버튼이다
@@ -3428,6 +3513,9 @@ function openAlliance(tab = 'home') {
   $('#ovt').textContent = '연합';
   $('#ovcard').dataset.skin = 'alliance';
   $('#ovb').innerHTML = head + ({ home, boss, donate: donateTab, shop, member }[tab] || home)();
+  $('#ovb').querySelector('[data-al-leave]')?.addEventListener('click', allyLeave);
+  $('#ovb').querySelectorAll('[data-albuy]').forEach(b =>
+    b.addEventListener('click', () => allyBuy(b.dataset.albuy)));
   $('#ovb').querySelectorAll('[data-dn]').forEach(b =>
     b.addEventListener('click', () => donate(b.dataset.dn)));
   $('#ovb').querySelectorAll('[data-al-go]').forEach(b =>
@@ -3448,6 +3536,7 @@ const CUR_KO = {
   gold: '골드', diamond: '다이아', equip_ticket: '장비 소환권',
   merc_ticket: '용병 소환권', skill_ticket: '스킬 소환권',
   speedup_5m: '모래시계', alliance_coin: '연합 코인', arena_medal: '훈장',
+  forge_ore: '제련석', dungeon_key: '던전 열쇠', dungeon_key_all: '전 던전 열쇠 +1',
   profile_frame: '프로필 프레임',
 };
 
@@ -3571,6 +3660,7 @@ function toast(msg) {
 const CUR_ICON = {
   diamond: 'CU-01', gold: 'CU-04', merc_ticket: 'CU-05', skill_ticket: 'CU-06',
   equip_ticket: 'CU-07', speedup_5m: 'CU-10', arena_medal: 'CU-11', alliance_coin: 'CU-12',
+  forge_ore: 'CU-03', dungeon_key: 'DK-01',
 };
 
 /**
