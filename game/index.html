@@ -1218,9 +1218,6 @@
   .ml-what{flex:1;font-size:12px}
   .ml-what b{font-weight:800}
 
-  /* 부트 로고 — 에셋(GT-LOGO)이 오면 타이틀 위에 뜬다. 없으면 조용히 사라진다 */
-  #bootLogo{display:block;width:150px;height:150px;object-fit:contain;margin:0 auto 8px;
-    filter:drop-shadow(0 6px 16px #000c)}
   /* 아레나 상대 행 — 아바타 + 정보. 행 전체가 눌린다 */
   .af-row{cursor:pointer;display:flex;align-items:center;gap:9px}
   .af-ava{width:34px;height:34px;object-fit:contain;flex:0 0 auto;border-radius:50%;
@@ -2960,7 +2957,6 @@
   <!-- 표준 모바일 로딩 구도: 중앙 = 타이틀(간판), 하단 = 진행바.
        바를 중앙에 두면 타이틀과 싸운다 -->
   <div id="bootMain">
-    <img id="bootLogo" src="/assets/ui/GT-LOGO.png" alt="">
     <img id="bootLogo" src="/assets/ui/GT-LOGO.png" alt="" onerror="this.remove()">
     <b id="bootTitle">냥냥 용병단</b>
     <span id="bootSub">NYANG NYANG MERCENARIES</span>
