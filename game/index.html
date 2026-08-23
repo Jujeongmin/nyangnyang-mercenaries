@@ -210,9 +210,34 @@
     align-items:center;justify-content:center;gap:7px;background:#000;
     touch-action:none}
   #pwrveil.show{display:flex}
-  .pv-moon{font-size:38px;filter:drop-shadow(0 0 18px #7d8ba877);
-    animation:pvBob 3.2s ease-in-out infinite}
-  @keyframes pvBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  /* 자는 단장. **정지 이미지 한 장**이다 — 캔버스는 stage.visible=false 로
+     꺼져 있고, 여기서 스프라이트를 돌리면 절전이 절전이 아니게 된다.
+     움직이는 것은 transform 과 opacity 뿐이라 컴포지터가 처리하고 리페인트가 없다 */
+  .pv-cat{position:relative;width:132px;height:132px;display:flex;
+    align-items:flex-end;justify-content:center;margin-bottom:2px}
+  /* 달빛 — 이미지가 아니라 정지 그라디언트다. 애니메이션을 걸면 매 프레임
+     다시 칠해야 해서 OLED 에서 검은 픽셀을 꺼 두는 이득이 사라진다 */
+  .pv-cat::before{content:"";position:absolute;left:50%;top:-6px;
+    width:150px;height:150px;transform:translateX(-50%);border-radius:50%;
+    background:radial-gradient(circle,#1b2436 0%,transparent 70%)}
+  .pv-cat img{width:118px;height:auto;object-fit:contain;opacity:.72;
+    filter:grayscale(.35) brightness(.78);
+    animation:pvBreathe 5.4s ease-in-out infinite}
+  /* 살짝 기울여 조는 자세로 읽히게 한다 — 전용 취침 에셋이 나오기 전까지의 대역이다 */
+  @keyframes pvBreathe{0%,100%{transform:rotate(7deg) translateY(0) scale(1)}
+    50%{transform:rotate(7deg) translateY(-4px) scale(1.015)}}
+  .pv-z{position:absolute;right:6px;top:4px;display:flex;align-items:flex-start;gap:2px}
+  .pv-z i{font-style:normal;font-weight:800;color:#7d8ba8;opacity:0;
+    animation:pvZ 3.6s ease-in-out infinite}
+  .pv-z i:nth-child(1){font-size:11px;animation-delay:0s}
+  .pv-z i:nth-child(2){font-size:14px;animation-delay:.5s}
+  .pv-z i:nth-child(3){font-size:18px;animation-delay:1s}
+  @keyframes pvZ{0%{opacity:0;transform:translateY(6px)}
+    25%{opacity:.85}60%{opacity:.5}100%{opacity:0;transform:translateY(-16px)}}
+  @media (prefers-reduced-motion:reduce){
+    .pv-cat img,.pv-z i{animation:none}
+    .pv-z i{opacity:.55}
+  }
   .pv-clock{font-size:34px;font-weight:200;letter-spacing:3px;color:#dbe4f2}
   #pwrveil b{font-size:13px;color:#8b98ad;font-weight:700}
   #pwrveil>span{font-size:11px;color:#556077}
@@ -2510,7 +2535,10 @@
 <!-- 절전 덮개 — #app **밖**이다. 안에 두면 VS(z30)·상단바·네비가 덮개 위로
      새고, #app 을 통째로 숨기는 것도 불가능해진다. 밀어서 해제 -->
 <div id="pwrveil">
-  <div class="pv-moon">🌙</div>
+  <div class="pv-cat">
+    <img src="/assets/captain/captain_warrior.png" alt="" onerror="this.remove()">
+    <span class="pv-z"><i>z</i><i>z</i><i>Z</i></span>
+  </div>
   <div class="pv-clock">00:00</div>
   <b>절전 중</b>
   <span>전투·보상은 계속 진행됩니다</span>

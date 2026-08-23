@@ -745,6 +745,22 @@ export class BattleScene {
     return Math.min(want, s * cap);
   }
 
+  /**
+   * 스킬 한 방의 평타 대비 배율과 대상 수.
+   * 배율 = atkRatio x (등급계수 / 기준등급계수) x (1 + 레벨*0.06)
+   * — skills.json > effectScaling 과 같은 식이고 UI 툴팁도 이 값을 쓴다.
+   * 피해가 없는 스킬(버프·회복)은 평타로 친다. 시전 연출만 하고 수치는 안 만든다.
+   */
+  skillDmg(active) {
+    const sk = this.D.skills.skills.find(k => k.id === active.id);
+    const e = sk?.effect;
+    if (!e?.atkRatio) return null;
+    const gc = this.D.skills.gradeCoef;
+    const base = gc[this.D.skills.effectScaling.baselineGrade] || 600000;
+    const scale = (gc[active.grade] || base) / base * (1 + (active.level || 0) * 0.06);
+    return { mult: e.atkRatio * scale, targets: e.targets || 1 };
+  }
+
   hitFoe(from, foe, skill) {
     // 패배·웨이브 전환의 clearFoes 뒤에 늦게 도착한 공격 콜백이 파괴된 rig 를
     // 만지면 null.x 로 터지고, 그 예외가 틱 루프를 세운다 — 실제로 그랬다.
@@ -752,8 +768,26 @@ export class BattleScene {
     const crit = Math.random() < 0.15;
     // 파티 총 DPS 를 공격 1회분으로 환산 — 실제 판정은 서버가 한다
     const per = this.partyDps / Math.max(1, this.units.length) * from.cdMax;
-    const dmg = per * (skill ? 6 : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
+    // 스킬 배율은 **데이터에서** 온다 (skills.json > effect.atkRatio x 등급·레벨 배율).
+    // 예전엔 등급·레벨과 무관하게 무조건 x6 이라, 툴팁의 "공격력의 240%"와
+    // 실제 타격이 아무 관계가 없었다. sim/engine.js 와 같은 식이다.
+    const sd = skill && from.usingSkill ? this.skillDmg(from.usingSkill) : null;
+    const dmg = per * (sd ? sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1);
     foe.hp -= dmg;
+    // 광역·관통은 남은 적에게도 같은 값이 들어간다. 연출은 주 대상만 크게 하고
+    // 곁불은 숫자만 띄운다 — 다섯 군데서 같은 이펙트가 터지면 화면이 뭉갠다
+    if (sd && sd.targets > 1) {
+      const rest = this.foes.filter(f => f !== foe && f.hp > 0).slice(0, sd.targets - 1);
+      for (const t of rest) {
+        const d2 = per * sd.mult * rnd(0.9, 1.1);
+        t.hp -= d2;
+        if (t.rig?.view && !t.rig.view.destroyed) {
+          this.numbers.spawn(t.rig.view.x, t.rig.view.y - t.rig.h * 0.9, d2, 'normal');
+          this.impact.flash(t.rig);
+          if (t.hp <= 0) this.killFoe(t);
+        }
+      }
+    }
 
     // 타격 지점 — 몸통 중앙보다 조금 위가 잘 읽힌다
     const hx = foe.rig.view.x, hy = foe.rig.view.y - foe.rig.h * 0.52;
