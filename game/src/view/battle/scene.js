@@ -233,7 +233,10 @@ export class BattleScene {
       this.field.addChild(this.captain.view);
       // 이벤트 한정 날개 — 단장 뒤에 붙는 코스메틱. 에셋이 없으면 조용히 넘어간다
       if (this.captainWing) {
-        const wtex = await this.load(`/assets/captain/EV-${this.captainWing.toUpperCase()}.png`)
+        const wingAsset = this.captainWing === 'wing_launch'
+          ? 'EV-WING1'
+          : `EV-${this.captainWing.toUpperCase()}`;
+        const wtex = await this.load(`/assets/captain/${wingAsset}.png`)
           .catch(() => null);
         if (wtex) {
           const w = new (PIXI().Sprite)(wtex);

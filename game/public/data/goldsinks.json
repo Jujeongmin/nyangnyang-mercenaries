@@ -179,7 +179,7 @@
               "effect": "party_atk",
               "perLevel": 0.012,
               "max": 0.6,
-              "fx": "PX-01",
+              "fx": "CS-W1",
               "descKo": "아군 전체 공격력 +{v}"
             },
             "archer": {
@@ -188,7 +188,7 @@
               "effect": "party_atkspeed",
               "perLevel": 0.012,
               "max": 0.6,
-              "fx": "PX-02",
+              "fx": "CS-A1",
               "descKo": "아군 전체 공격 속도 +{v}"
             },
             "mage": {
@@ -197,7 +197,7 @@
               "effect": "skill_damage",
               "perLevel": 0.024,
               "max": 1.2,
-              "fx": "PX-03",
+              "fx": "CS-M1",
               "descKo": "스킬 피해 +{v}"
             }
           },
@@ -209,7 +209,7 @@
               "effect": "boss_damage",
               "perLevel": 0.01,
               "max": 0.5,
-              "fx": "SFX-04",
+              "fx": "CS-W2",
               "descKo": "보스에게 주는 피해 +{v}"
             },
             "archer": {
@@ -218,7 +218,7 @@
               "effect": "double_hit",
               "perLevel": 0.005,
               "max": 0.25,
-              "fx": "SFX-07",
+              "fx": "CS-A2",
               "descKo": "평타가 {v} 확률로 2회 타격"
             },
             "mage": {
@@ -227,7 +227,7 @@
               "effect": "skill_cooldown",
               "perLevel": 0.006,
               "max": 0.3,
-              "fx": "SFX-10",
+              "fx": "CS-M2",
               "descKo": "스킬 쿨타임 -{v}"
             }
           },

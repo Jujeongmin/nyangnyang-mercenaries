@@ -1851,7 +1851,7 @@ function renderCsChip() {
     if (!el) return;
     if (!sk) { el.hidden = true; return; }
     el.hidden = false;
-    el.innerHTML = `<img src="/assets/fx/${sk.fx}.png" alt=""
+    el.innerHTML = `<img src="/assets/skill/${sk.fx}.png" alt=""
         onerror="this.remove()"><i>Lv${lv || 0}</i>`;
     el.title = `${sk.nameKo} — ${sk.descKo.replace('{v}', pct(val))}`;
   };
@@ -2246,7 +2246,7 @@ function openEvents() {
   const left = evDaysLeft(D.events.diceBoard.durationDays);
   const over = left <= 0;
   banners.push(`<button class="evb${over ? ' end' : ''}" data-ev="dice"
-      style="--img:url(/assets/art/LR-01-ART.png)">
+      style="--img:url(/assets/ui/EV-01.png)">
     <span class="evb-tag">${over ? t('종료') : t('출시 기념')}</span>
     ${over ? '' : `<span class="evb-dday">D-${left}</span>`}
     <b>${t('냥냥 주사위')}</b>
@@ -2594,7 +2594,7 @@ function openPromotion() {
       const lv = S.promoSkillLv || 0, mx = csDef().maxLevel;
       const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
       return `<div class="cs-card" style="--au:${PROMO_COL[promoTier(S.promoClass)]}">
-        <img class="cs-fx" src="/assets/fx/${sk.fx}.png" alt="" onerror="this.remove()">
+        <img class="cs-fx" src="/assets/skill/${sk.fx}.png" alt="" onerror="this.remove()">
         <div class="cs-body">
           <b>${sk.nameKo} <i>Lv ${lv}</i></b>
           <span>${sk.descKo.replace('{v}', pct(csVal()))}${lv < mx
@@ -2615,7 +2615,7 @@ function openPromotion() {
       const lv = S.promoSkillLv2 || 0, mx = csDef().maxLevel;
       const pct = v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%';
       return `<div class="cs-card" style="--au:${PROMO_COL[3]}">
-        <img class="cs-fx" src="/assets/fx/${sk2.fx}.png" alt="" onerror="this.remove()">
+        <img class="cs-fx" src="/assets/skill/${sk2.fx}.png" alt="" onerror="this.remove()">
         <div class="cs-body">
           <b>${sk2.nameKo} <i>Lv ${lv}</i></b>
           <span>${sk2.descKo.replace('{v}', pct(cs2Val()))}${lv < mx
