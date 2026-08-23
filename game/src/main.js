@@ -102,6 +102,10 @@ const S = {
   // day/week 가 바뀌면 통째로 갈아 끼운다 (dailies.json > dailyQuests/weeklyQuests)
   dq: { day: null, c: {}, claimed: [], full: 0 },
   wq: { week: null, c: {}, claimed: [] },
+  // 출시 7일 축제 — 접속일 기준 하루 1칸 (dailies.json > newbie7Day)
+  ev7: { day: 0, lastAt: null },
+  // 무료 1000뽑 — 스테이지 마일스톤 자동 지급 (free1000.json). total = 지급 누계
+  f1k: { claimed: [], total: 0 },
   mailbox: [],
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
@@ -438,6 +442,7 @@ function syncNav() {
     x.classList.toggle('on', !!navTab && x.dataset.tab === navTab));
   // 임무 수령 대기 — 사이드 아이콘 빨간 점. 놓치면 사라지는 것이라 점을 붙인다
   document.querySelector('[data-s="mission"]')?.classList.toggle('hasnew', mqWaiting());
+  document.querySelector('[data-s="event"]')?.classList.toggle('hasnew', ev7Ready());
 }
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
@@ -1949,6 +1954,151 @@ function openMissions(kind = 'daily') {
  */
 const attendToday = () => new Date().toISOString().slice(0, 10);
 
+// ── 이벤트 ────────────────────────────────────────────────
+// 출시 7일 축제 — 출석과 같은 리듬(하루 1칸)이되 보상이 훨씬 크다.
+// 데이터는 dailies.json > newbie7Day. 7칸을 다 받으면 배너가 내려간다.
+const ev7Done = () => (S.ev7?.day || 0) >= D.dailies.newbie7Day.days.length;
+const ev7Ready = () => !ev7Done() && S.ev7.lastAt !== attendToday();
+
+function claimEv7() {
+  if (ev7Done()) return;
+  if (!ev7Ready()) return toast(t('오늘 보상은 이미 받았습니다'));
+  const d = D.dailies.newbie7Day.days[S.ev7.day];
+  const got = passGrant(d.grant || {});
+  S.ev7.day++;
+  S.ev7.lastAt = attendToday();
+  save(); renderTop(); syncNav(); openEventDetail('launch7');
+  if (got.pairs.length) gainToast(got.pairs);
+}
+
+// 무료 1000뽑 — 스테이지 마일스톤 자동 지급. 수령 버튼이 없다:
+// 지급 자체가 자동이라야 "스테이지를 밀면 계속 나온다"로 읽힌다.
+function f1kSplit(tickets, split) {
+  const out = {};
+  let used = 0;
+  const keys = Object.keys(split);
+  keys.forEach((k, i) => {
+    const v = i === keys.length - 1 ? tickets - used : Math.round(tickets * split[k]);
+    used += v;
+    if (v > 0) out[k] = v;
+  });
+  return out;
+}
+
+/** maxStage 까지의 미지급 마일스톤을 전부 지급한다. 승리 시·부트 시 부른다 */
+function f1kCatchup() {
+  const F = D.free1000;
+  S.f1k = S.f1k || { claimed: [], total: 0 };
+  const pairs = [];
+  for (const b of F.distribution) {
+    for (let st = b.fromStage; st <= b.toStage; st += b.interval) {
+      if (st > S.maxStage) break;
+      if (S.f1k.claimed.includes(st)) continue;
+      S.f1k.claimed.push(st);
+      const got = passGrant(f1kSplit(b.ticketsPerGrant, b.split));
+      S.f1k.total += b.ticketsPerGrant;
+      pairs.push(...got.pairs);
+    }
+  }
+  if (pairs.length) {
+    // 같은 재화는 합쳐 한 줄로
+    const sum = {};
+    for (const [k, v] of pairs) sum[k] = (sum[k] || 0) + v;
+    gainToast(Object.entries(sum));
+    save(); renderTop();
+  }
+}
+
+/** 다음 지급 스테이지와 수량. 배너·상세의 훅 문구가 이걸 쓴다 */
+function f1kNext() {
+  for (const b of D.free1000.distribution) {
+    for (let st = b.fromStage; st <= b.toStage; st += b.interval) {
+      if (!S.f1k.claimed.includes(st)) return { stage: st, n: b.ticketsPerGrant };
+    }
+  }
+  return null;
+}
+
+/**
+ * 이벤트 탭 — 배너 목록. 배너가 곧 입구다: 그림 위에 제목·진행이 얹히고,
+ * 누르면 상세로 들어간다. 끝난 이벤트 배너는 회색으로 내려앉는다.
+ */
+function openEvents() {
+  const nx = f1kNext();
+  const banners = [];
+  banners.push(`<button class="evb${ev7Done() ? ' end' : ''}" data-ev="launch7"
+      style="--img:url(/assets/art/LR-01-ART.png)">
+    <span class="evb-tag">${ev7Done() ? t('종료') : t('진행 중')}</span>
+    <b>${t('출시 기념 7일 축제')}</b>
+    <span class="evb-sub">${ev7Done() ? t('모든 보상을 받았습니다')
+      : t('{0}일차 보상 대기', Math.min(7, S.ev7.day + 1))}</span>
+    ${ev7Ready() ? `<i class="evb-dot"></i>` : ''}
+  </button>`);
+  banners.push(`<button class="evb${nx ? '' : ' end'}" data-ev="free1000"
+      style="--img:url(/assets/art/UR-01-ART.png)">
+    <span class="evb-tag">${nx ? t('진행 중') : t('종료')}</span>
+    <b>${t('무료 1000뽑')}</b>
+    <span class="evb-sub">${num(S.f1k.total)} / 1000${nx
+      ? ` · ${t('다음: 스테이지 {0}', nx.stage)}` : ''}</span>
+    <span class="evb-bar"><i style="width:${S.f1k.total / 10}%"></i></span>
+  </button>`);
+
+  $('#ovt').textContent = t('이벤트');
+  delete $('#ovcard').dataset.skin;
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = '';
+  $('#ovb').innerHTML = banners.join('');
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  $('#ovb').querySelectorAll('[data-ev]').forEach(b =>
+    b.addEventListener('click', () => openEventDetail(b.dataset.ev)));
+}
+
+function openEventDetail(id) {
+  const gicons = g => Object.entries(g || {}).map(([k, v]) =>
+    `<em>${CUR_ICON[k] ? `<img src="/assets/ui/${CUR_ICON[k]}.png" alt="" onerror="this.remove()">` : ''}${num(v)}</em>`
+  ).join('');
+  const h = [`<button class="ev-back" id="evBack">‹ ${t('이벤트 목록')}</button>`];
+
+  if (id === 'launch7') {
+    const days = D.dailies.newbie7Day.days;
+    h.push(`<div class="pr-note">${t('매일 접속해 7일간 보상을 받으세요')}</div>`);
+    h.push('<div class="ev7-grid">' + days.map((d, i) => {
+      const done = i < S.ev7.day;
+      const now = i === S.ev7.day && ev7Ready();
+      return `<div class="ev7-cell${done ? ' done' : ''}${now ? ' now' : ''}${d.highlight ? ' hi' : ''}">
+        <b>${t('{0}일', d.day)}</b>${gicons(d.grant)}${done ? '<i>✓</i>' : ''}
+      </div>`;
+    }).join('') + '</div>');
+    h.push(ev7Done()
+      ? `<div class="sh-note">${t('모든 보상을 받았습니다')}</div>`
+      : `<button class="fgbtn" id="ev7Claim" ${ev7Ready() ? '' : 'disabled'}>
+          ${ev7Ready() ? t('{0}일차 보상 받기', S.ev7.day + 1) : t('내일 다시 받을 수 있습니다')}</button>`);
+  } else {
+    const F = D.free1000;
+    const nx = f1kNext();
+    h.push(`<div class="ev-big"><b>${num(S.f1k.total)}</b> / 1000</div>`);
+    h.push(`<div class="mq-gauge" style="position:static;height:10px;margin:0 2px 10px">
+      <i style="width:${S.f1k.total / 10}%"></i></div>`);
+    h.push(nx ? `<div class="pr-note">${t('다음 지급: 스테이지 {0} (소환권 {1}장)', nx.stage, nx.n)}</div>`
+              : `<div class="pr-note">${t('모든 보상을 받았습니다')}</div>`);
+    h.push('<div class="lbl" style="margin:8px 0 6px">' + t('지급 구간') + '</div>');
+    h.push(F.distribution.map(b => {
+      const got = S.f1k.claimed.filter(st => st >= b.fromStage && st <= b.toStage).length;
+      return `<div class="frow" style="padding:7px 10px;margin-bottom:5px">
+        <span class="k">${b.band}</span>
+        <span class="v" style="font-size:11px">${got}/${b.grants} · ${t('{0}장씩', b.ticketsPerGrant)}</span>
+      </div>`;
+    }).join(''));
+    h.push(`<div class="sh-note">${t('스테이지를 돌파하면 자동으로 지급됩니다')}</div>`);
+  }
+
+  $('#ovt').textContent = t('이벤트');
+  $('#ovb').innerHTML = h.join('');
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  $('#evBack').addEventListener('click', openEvents);
+  $('#ev7Claim')?.addEventListener('click', claimEv7);
+}
+
 function attendState() {
   const a = S.attend;
   const month = attendToday().slice(0, 7);
@@ -3353,6 +3503,7 @@ function onEvent(e) {
     $('#bossGo').classList.remove('show');
     // 클리어 표시는 띄우지 않는다 — 매 스테이지 뜨면 진행이 끊긴다
     S.maxStage = Math.max(S.maxStage, S.stage);
+    f1kCatchup();
     // 보스 몫만. 잡몹 몫은 처치할 때마다 이미 들어갔다
     S.gold += Math.round(stageGold() * D.stages.rewards.repeatClear.gold.split.boss);
     mq('stage');
@@ -3656,9 +3807,11 @@ function bootLangPick() {
   });
   // 사이드 열 + 상단 우편. data-s 를 가진 것은 전부 같은 경로로 연다
   document.querySelectorAll('.side button, #top button[data-s]').forEach(b => b.addEventListener('click', () => {
+    if (b.id === 'pwrSave') return;          // 전용 리스너가 따로 있다 (pwr)
     if (b.dataset.s === 'arena') openArena();
     else if (b.dataset.s === 'attend') openAttend();
     else if (b.dataset.s === 'mission') openMissions();
+    else if (b.dataset.s === 'event') openEvents();
     else if (b.dataset.s === 'pass') openPass();
     else if (b.dataset.s === 'codex') codex.open();
     else if (b.dataset.s === 'training') openTraining();
@@ -3802,6 +3955,10 @@ function bootLangPick() {
     syncNav();
     save();
   }, 1000);
+
+  // 무료 1000뽑 — 이 기능이 생기기 전에 이미 지나온 스테이지 몫을 소급 지급한다.
+  // 승리 핸들러만으로는 기존 세이브가 영영 못 받는다
+  f1kCatchup();
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));

@@ -259,7 +259,7 @@
     justify-content:center;font-size:16px;cursor:grab;z-index:2;
     transition:left .18s ease;touch-action:none}
   #pvHandle.drag{transition:none;cursor:grabbing}
-  #pwrSave.on{background:#2b3650;border-color:#7d8ba8;color:var(--txt)}
+
 
   /* 잠긴 배속 — 숨기지 않는다. 안 보이면 해금이 보상으로 안 읽힌다 */
   .sbtn.lock{opacity:.45;border-style:dashed}
@@ -480,7 +480,10 @@
     justify-content:center;background:#060a12c8}
   #wall.show{display:flex}
   #wallCard{width:82%;max-width:300px;background:var(--panel);border:1px solid var(--line);
-    border-radius:13px;padding:13px 14px}
+    border-radius:13px;padding:13px 14px;
+    /* 640 높이에서 전투 영역이 ~205px 라 카드가 밖으로 48px 나갔다.
+       영역 안에 가두고 안에서 스크롤한다 */
+    max-height:94%;overflow-y:auto}
   #wallCard>b{display:block;font-size:14px;color:var(--warn);margin-bottom:8px}
   .w-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
   .w-row span{color:var(--dim)}
@@ -885,9 +888,8 @@
   /* 제작대 확률창 — 한 번에 한 레벨만 보여 주고 ‹ › 로 넘긴다.
      화살표는 flex 로 자리를 잡는다. 절대배치로 얹으면 좁은 화면에서 글자를 밟는다 */
   /* 제작대 소환 버튼 두 개. 그리드라 글자 길이가 달라도 폭이 안 흔들린다 */
-  /* 절전 버튼 — 그림이 없으면 이모지로 떨어진다 */
-  #pwrSave img{display:block;width:20px;height:20px;object-fit:contain;margin:0 auto;
-    filter:drop-shadow(0 1px 2px #000a)}
+  /* 절전 버튼 — 사이드 열 문법을 그대로 쓴다. 켜져 있으면 달이 빛난다 */
+  #pwrSave.on{border-color:#7d8ba8;box-shadow:0 0 8px #7d8ba8aa}
 
   /* ── 임무(일일·주간) ──
      참고한 방치형들의 배치를 따른다: 위에 포인트 게이지와 보상 상자, 아래 퀘스트 줄.
@@ -1006,6 +1008,51 @@
     color:#2a1c05;background:linear-gradient(180deg,#ffd76a,#e8a72c);
     border-radius:6px;padding:2px 8px}
   .pr-btn img{width:14px;height:14px;vertical-align:-2px}
+
+  /* ── 이벤트 배너 ──
+     배너가 곧 입구다. 도감 일러(--img)를 오른쪽에 깔고 왼쪽에서 어두운
+     그라디언트로 눌러 글자를 세운다 — 전용 배너 아트(EV-*)가 오면 갈아 끼운다 */
+  .evb{position:relative;display:block;width:100%;min-height:86px;margin-bottom:9px;
+    padding:12px 96px 12px 14px;text-align:left;cursor:pointer;font-family:inherit;
+    border:2px solid var(--line);border-radius:13px;overflow:hidden;color:var(--txt);
+    background:
+      linear-gradient(90deg, #241a12 0%, #241a12ee 46%, #241a1240 100%),
+      var(--img) right center/auto 150% no-repeat, var(--card)}
+  .evb:active{transform:translateY(1px)}
+  .evb b{display:block;font-size:15px;margin:2px 0 3px;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  .evb-tag{display:inline-block;font-size:9px;font-weight:800;color:#2a1c05;
+    background:linear-gradient(180deg,#ffd76a,#e8a72c);border-radius:5px;padding:1px 7px}
+  .evb.end .evb-tag{background:var(--ink);color:var(--dim)}
+  .evb-sub{display:block;font-size:11px;color:var(--dim)}
+  .evb-bar{display:block;height:6px;margin-top:6px;border-radius:4px;
+    background:var(--ink);overflow:hidden}
+  .evb-bar i{display:block;height:100%;background:linear-gradient(90deg,#e8a72c,var(--gold))}
+  .evb.end{opacity:.55;filter:grayscale(.45)}
+  .evb-dot{position:absolute;right:10px;top:10px;width:10px;height:10px;border-radius:50%;
+    background:var(--warn);box-shadow:0 0 7px var(--warn)}
+  .ev-back{display:block;margin-bottom:10px;padding:7px 12px;cursor:pointer;
+    font-family:inherit;font-size:12px;font-weight:800;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:9px}
+  .ev-big{text-align:center;font-size:13px;color:var(--dim);margin:2px 0 6px}
+  .ev-big b{font-size:26px;color:var(--gold);
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400}
+  /* 7일 축제 그리드 — 출석 칸과 같은 문법. 7칸이라 4+3 */
+  .ev7-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+  .ev7-cell{position:relative;background:var(--card);border:2px solid var(--line);
+    border-radius:11px;padding:8px 4px;text-align:center;min-height:60px}
+  .ev7-cell b{display:block;font-size:10px;color:var(--dim);margin-bottom:3px}
+  .ev7-cell em{font-style:normal;display:inline-flex;align-items:center;gap:2px;
+    font-size:10px;font-weight:800;margin:0 2px}
+  .ev7-cell em img{width:13px;height:13px;object-fit:contain}
+  .ev7-cell.done{opacity:.5}
+  .ev7-cell.done i{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-style:normal;font-size:19px;color:var(--up);
+    background:#0008;border-radius:9px}
+  .ev7-cell.now{border-color:var(--gold);box-shadow:0 0 9px #ffc94a66;
+    animation:qDone 1.15s ease-in-out infinite}
+  .ev7-cell.hi{border-color:var(--dia)}
+  .ev7-cell.hi.now{border-color:var(--gold)}
 
   .fg-pull{display:grid;gap:6px;margin:6px 0 2px}
   .fg-pull .fgbtn{display:flex;flex-direction:column;align-items:center;gap:2px;
@@ -2329,13 +2376,14 @@
   .ps-tier b{font-size:14px;font-weight:900;line-height:1}
   .ps-tier span{font-size:9px;color:var(--dim)}
   .ps-cell{position:relative;display:flex;flex-wrap:wrap;align-items:center;
-    justify-content:center;gap:4px;padding:8px 6px 16px;cursor:pointer;font-family:inherit;
+    justify-content:center;gap:3px 4px;padding:6px 6px 14px;cursor:pointer;font-family:inherit;
     background:none;border-style:solid;border-width:10px;border-radius:0;
-    border-image:var(--f-card) 122 fill stretch;color:var(--txt);min-height:64px}
+    border-image:var(--f-card) 122 fill stretch;color:var(--txt);min-height:78px}
   .ps-cell.off{opacity:.45;cursor:default}
   .ps-cell.done{opacity:.6}
-  .ps-c{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800}
-  .ps-c img{width:14px;height:14px;object-fit:contain}
+  .ps-c{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800;
+    line-height:1}
+  .ps-c img{width:12px;height:12px;object-fit:contain}
   .ps-deco{color:var(--gold);font-size:10px}
   .ps-mark{position:absolute;left:0;right:0;bottom:1px;font-style:normal;
     font-size:9px;font-weight:800;color:var(--dim)}
@@ -2431,7 +2479,10 @@
        right:40px 은 여전히 그 밑이었다 */
     /* 폭을 안 묶으면 #hudTop 의 flex 늘어남 때문에 133px 까지 벌어져
        중앙 스테이지 글자를 침범한다 (실측) */
-    #speed{right:auto;left:44px;top:2px;width:auto;max-width:104px;gap:2px}
+    #speed{right:auto;left:44px;top:2px;width:auto;max-width:84px;gap:2px}
+    /* 보스 도전 버튼이 배속 줄과 2px 스쳤다 — 절전을 사이드로 옮겨 줄이 짧아졌지만
+       412px 에서는 그래도 붙는다. 아래로 6px 더 내린다 */
+    #bossGo{top:calc(100% + 14px)}
     #speed .sbtn{padding:1px 5px;font-size:9px;flex:0 0 auto}
     #timer{position:absolute;top:2px;right:44px;font-size:15px;margin:0}
     /* 중앙 HUD 는 배속 줄(≈96px)과 사이드(40px)를 뺀 폭 안에서만 산다.
@@ -2448,8 +2499,9 @@
        충돌원 자체를 없앤다 — 세로가 모자랄 때는 자리를 옮기는 게 답이다 */
     #quest{padding:3px 8px}
     #qbar{height:4px}
-    /* 배너가 하단을 쓰므로 스킬바를 그 위로 올린다 (배너 높이 ≈28px + 여유) */
-    #skillbar{bottom:34px}
+    /* 퀘스트 배너가 하단 패널(#fgRow)로 옮겨져 이 자리가 비었다 — 스킬바를
+       하단에 붙인다. 34px 는 배너가 여기 있던 시절의 유령 여백이었다 */
+    #skillbar{bottom:6px}
     #qname{max-width:none}
     /* 퀘스트 이름은 줄이지 말고 **말줄임**으로. 폰트를 더 줄이면 안 읽힌다 */
     /* 이름은 배너 폭을 다 쓰고 넘치면 말줄임. 진행도(#qprog)가 자리를 먼저 잡는다 */
@@ -2470,6 +2522,15 @@
     #skRow{max-width:100%;flex-wrap:nowrap}
     #skills{gap:3px}
     .sk{width:clamp(18px,calc((100cqw - 150px)/8),30px)}
+    /* VS 연출 — 그림이 세로 공간을 넘지 않게 높이로도 묶는다. 폭 56% 는
+       360x640(전투 영역 ~205px)에서 세로로 터졌다 */
+    #vsBoss img,#vsCap img{max-height:24cqh}
+    #vsBoss,#vsCap{width:48%}
+    #vsMark{font-size:44px}
+    /* 벽 안내 카드 — 좁은 화면은 글자도 한 단계 줄인다 */
+    #wallCard{padding:10px 11px}
+    #wallCard>b{font-size:12px}
+    .w-row{font-size:11px}
     #skAuto{width:26px;height:26px;font-size:7px}
     #dpsInfo{font-size:9px}
   }
@@ -2514,10 +2575,6 @@
             <button class="sbtn on" data-sp="1">1x</button>
             <button class="sbtn" data-sp="2">2x</button>
             <button class="sbtn" data-sp="3">3x</button>
-            <!-- 절전 — 렌더만 6fps. 방치형은 화면을 몇 시간씩 켜 둔다 (skipBattle) -->
-            <button class="sbtn" id="pwrSave" title="절전 모드"><img
-              src="/assets/ui/IC-POWERSAVE.png" alt="절전"
-              onerror="this.onerror=null;this.replaceWith('💤')"></button>
           </div>
         </div>
       </div>
@@ -2547,6 +2604,10 @@
     <div class="side" id="sideR">
       <button data-s="arena"><img src="/assets/ui/IC-ARENA.png" alt="" onerror="this.remove()"><span>아레나</span></button>
       <button data-s="rank"><img src="/assets/ui/IC-RANK.png" alt="" onerror="this.remove()"><span>랭킹</span></button>
+      <!-- 절전 — 배속 줄에 끼어 있던 것을 옮겼다. 배속과 절전은 하는 일이 달라
+           같은 줄에 있으면 네 번째 배속처럼 읽힌다 (실제로 오터치 버그도 났었다) -->
+      <button id="pwrSave" title="절전 모드"><img src="/assets/ui/IC-POWERSAVE.png" alt=""
+        onerror="this.remove()"><span>절전</span></button>
     </div>
     <button id="chest"><img id="chestImg" src="/assets/ui/CH-01.png" alt=""><span id="chestT">0분</span></button>
     <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div></div><span id="dpsInfo"></span></div>
