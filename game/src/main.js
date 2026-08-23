@@ -1047,8 +1047,9 @@ function renderChest() {
   const h = idleHours();
   const cap = idleDef().maxAccumulationHours;
   const r = cap ? h / cap : 0;
-  // "1.4시간" 은 얼마가 쌓였는지를 안 알려 준다. 받을 골드를 그대로 적는다
-  $('#chestT').textContent = num(idleGold(h));
+  // 상자 라벨은 **얼마나 쌓였나(시간)** 다 — 액수는 눌러서 패널에서 본다.
+  // 좁은 라벨에 큰 숫자를 넣으면 상자 그림을 덮는다
+  $('#chestT').textContent = h < 1 ? `${Math.floor(h * 60)}분` : `${h.toFixed(1)}시간`;
   const step = r >= 0.7 ? 3 : r >= 0.3 ? 2 : 1;
   const src = `/assets/ui/CH-0${step}.png`;
   const img = $('#chestImg');
@@ -2324,7 +2325,8 @@ function renderDiceBoard() {
       const [k, v] = Object.entries(c.grant)[0];
       inner = `<img src="/assets/ui/${CUR_ICON[k]}.png" alt=""><b>${num(v)}</b>`;
     } else if (c.type === 'gold_h') {
-      inner = `<img src="/assets/ui/CU-04.png" alt=""><b>${c.v}h</b>`;
+      // "4h" 는 얼마를 받는지 안 알려 준다. 지금 내 진행도로 환산한 액수를 적는다
+      inner = `<img src="/assets/ui/CU-04.png" alt=""><b>${num(idleGold(c.v))}</b>`;
     } else if (c.type === 'again') {
       // 주사위 그림이 있으면 그림, 없으면 이모지 — setDiceFace 와 같은 폴백
       inner = `<i><img src="/assets/ui/EV-DICE-1.png" alt="🎲"
@@ -2529,6 +2531,20 @@ function openEventDetail(id) {
       <button class="${dTab === 'shop' ? 'on' : ''}" data-dctab="shop">${t('상점')}</button>
     </div>`);
     if (dTab === 'shop') {
+      // 한정 코스메틱은 **여기 하나**에서만 얻는다 (판에서 뺐다). 누적 굴림이
+      // 쌓이면 자동으로 들어온다 — 사는 게 아니라 목표라서 상점 맨 위다
+      h.push(`<div class="lbl" style="margin:2px 0 6px">${t('누적 굴림 상품')}
+        <b style="color:var(--gold)">${num(S.dice.totalRolls || 0)}${t('회')}</b></div>`);
+      h.push('<div class="dc-shop">' + (E.rollRewards || []).map(r => {
+        const got = r.title ? S.profile.ownedTitles.includes(r.title)
+          : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
+          : S.cosmetics.owned.includes(r.cosmetic);
+        return `<button class="dc-prize${got ? ' got' : ''}${
+            (S.dice.totalRolls || 0) >= r.rolls ? '' : ' far'}" data-prize="${(E.rollRewards).indexOf(r)}">
+          <u>${r.rolls}${t('회')}</u><em>${r.kindKo}</em><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
+        </button>`;
+      }).join('') + '</div>');
+      h.push(`<div class="lbl" style="margin:12px 0 6px">${t('주사위 구매')}</div>`);
       // 주사위 상점 — 다이아 상품과 같은 카드 문법. 그림이 값의 크기를 말한다
       h.push('<div class="dc-store">' + (E.rollShop?.options || []).map((o, i) => `
         <button class="dc-item" data-dcbuy="${i}">
@@ -2550,15 +2566,6 @@ function openEventDetail(id) {
       </div>
     </div>`);
     h.push(`<div class="pr-note">${t('누적 굴림 {0}회', num(S.dice.totalRolls || 0))}</div>`);
-    h.push('<div class="dc-shop">' + (E.rollRewards || []).map(r => {
-      const got = r.title ? S.profile.ownedTitles.includes(r.title)
-        : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
-        : S.cosmetics.owned.includes(r.cosmetic);
-      return `<button class="dc-prize${got ? ' got' : ''}${
-          (S.dice.totalRolls || 0) >= r.rolls ? '' : ' far'}" data-prize="${(E.rollRewards).indexOf(r)}">
-        <u>${r.rolls}${t('회')}</u><em>${r.kindKo}</em><b>${r.nameKo}</b>${got ? '<i>✓</i>' : ''}
-      </button>`;
-    }).join('') + '</div>');
     h.push(`<div class="frow"><span class="k">${t('완주 보상')}</span>
       <span class="v" style="font-size:11px">${Object.entries(E.lapBonus).map(([k, v]) =>
         `${CUR_KO[k] || k} ${num(v)}`).join(' · ')}</span></div>`);
@@ -3485,7 +3492,8 @@ function openArena(view) {
     const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
     return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
       <span class="af-ava"><img src="/assets/captain/captain_${f.capCls}.png" alt=""
-        onerror="this.remove()"></span>
+        onerror="this.remove()">
+        <img class="af-fr" src="/assets/ui/AR-FRAME.png" alt="" onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
       <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
@@ -3508,11 +3516,13 @@ function openArena(view) {
         <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b><u>${tier.nameKo}</u></span>
         <span><i>${t('훈장')}</i><b><img src="/assets/ui/CU-11.png" alt=""
           onerror="this.remove()">${num(S.medal)}</b>
-          <button class="ar-shopb" id="aShop">${t('상점')}</button></span>
+          <button class="ar-shopb ic" id="aShop" title="${t('훈장 상점')}">
+            <img src="/assets/ui/IC-SHOP.png" alt="${t('상점')}"
+              onerror="this.replaceWith(document.createTextNode('${t('상점')}'))"></button></span>
         <span><i>${t('남은 입장')}</i><b>${left} / ${
           a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}</b>
-          ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">${
-            t('광고 +{0}', a.entries.adBonus.entries)}</button>`}</span>
+          ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">+${
+            a.entries.adBonus.entries} ${t('광고')}</button>`}</span>
       </div>`
     + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
         ${claimed ? t('오늘 티어 보상 수령 완료')

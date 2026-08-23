@@ -350,11 +350,11 @@ export class ShopScreen {
   // 연합 기부(하루 700만)와 제작대 골드 투입이 이미 받고 있다.
   exchangeTab() {
     // 다이아 -> 골드. 액수는 방치 공식(idleGold)이라 스테이지가 오르면 같이 오른다.
-    // "N시간 분량" 표기가 정직하다 — 고정 액수는 후반에 휴지조각이 된다
+    // **액수를 제목으로 올린다** — "4시간 분량" 은 얼마인지 모른 채 사게 된다
     const qg = (this.api.data.shop.quickGold || []).map((o, i) => `<div class="sh-card">
-        <b>방치 ${o.hours}시간 분량</b>
-        <span class="sh-desc"><img src="/assets/ui/CU-04.png" alt=""
-          style="width:12px;height:12px;vertical-align:-2px"> ${num(this.api.quickGold(o.hours))}</span>
+        <b><img src="/assets/ui/CU-04.png" alt=""
+          style="width:14px;height:14px;vertical-align:-3px"> ${num(this.api.quickGold(o.hours))}</b>
+        <span class="sh-desc">방치 ${o.hours}시간 분량</span>
         <button class="sh-price" data-goldbuy="${i}">
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>

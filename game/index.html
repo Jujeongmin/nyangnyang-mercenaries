@@ -35,12 +35,21 @@
   /* 숫자 서체. Black Han Sans 로 두면 획이 두껍고 속공간이 좁아 11~13px 에서
      6·8·9 가 서로 뭉갠다 — "굵다"와 "읽힌다"는 다른 문제다. 숫자는 시스템
      굵은 산세리프로 뽑는다(속공간이 넓다). 게임 제목만 디스플레이체로 남긴다. */
-  #cp,#timer,#stgNum,.q-prog,#idGold,.er-card .er-d,.er-card b,
-  .cur b,#caplv,.gain,.rk-sc,.al-sum b,.al-mem-c,.at-cell em,.at-cum em,
+  #timer,#stgNum,.q-prog,#idGold,.er-card .er-d,.er-card b,
+  .gain,.rk-sc,.al-sum b,.al-mem-c,.at-cell em,.at-cum em,
   .sh-price,.sh-cur b,#fgLv,.tw-rw,#pvGold,#wallNeed,#wallMy{
     font-family:system-ui,-apple-system,"Segoe UI","Noto Sans KR",
       "Malgun Gothic","Apple SD Gothic Neo",sans-serif;
     font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+  /* 상단 재화는 **가장 오래 보는 숫자**다. 시스템 산세리프는 읽히긴 해도
+     이 화면(둥근 카툰 냥이)과 톤이 안 맞아 사무적으로 보였다.
+     본문체(Jua)로 되돌리되, 얇은 획을 stroke 로 메워 가독성을 지킨다 —
+     Jua 는 굵기가 하나뿐이라 이 방법이 아니면 힘이 안 실린다 */
+  #cp,.cur b,#caplv{
+    font-family:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:.4px;
+    -webkit-text-stroke:.45px currentColor;paint-order:stroke fill;
+    text-shadow:0 1px 2px #000a}
   #bootTitle{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;
     letter-spacing:.3px}
   html,body{margin:0;height:100%;background:#0f0b08;color:var(--txt);overflow:hidden;
@@ -85,9 +94,11 @@
   /* [+] — 재화에서 상점으로 가는 지름길. 키우기 장르 공통 문법 */
   /* [+] — 재화에서 상점으로 가는 지름길. 재화마다 색을 달리하면(초록·금)
      "무엇을 뜻하는 색인가" 가 생겨 버린다. 같은 황동 단추 하나로 통일한다 */
+  /* line-height 로 세로 중앙을 맞추면 글꼴마다 1~2px 씩 어긋난다 — flex 로 잡는다 */
   #diaPlus,#goldPlus{width:17px;height:17px;margin-left:6px;padding:0;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;line-height:1;
     border:1px solid #ffd76a99;background:radial-gradient(circle at 50% 32%,#ffe9a8,#e8a72c);
-    color:#2a1c05;font-size:13px;font-weight:900;line-height:14px;cursor:pointer;
+    color:#2a1c05;font-size:13px;font-weight:900;cursor:pointer;
     font-family:inherit;box-shadow:0 1px 3px #000a, inset 0 1px 0 #fff8}
   #diaPlus:active,#goldPlus:active{transform:scale(.9);filter:brightness(.92)}
   .dot{width:9px;height:9px;border-radius:50%}
@@ -1023,8 +1034,14 @@
   .mq-h b{font-weight:700}
   .mq-h span{margin-left:auto;font-size:11px;color:var(--dim);
     font-variant-numeric:tabular-nums}
-  .mq-bar{height:6px;border-radius:4px;background:var(--ink);overflow:hidden}
-  .mq-bar i{display:block;height:100%;background:linear-gradient(90deg,#e8a72c,var(--gold))}
+  /* 게이지 홈은 그림(MQ-BAR)이다 — 맨 CSS 막대는 프로토타입처럼 보인다.
+     좌우 끝 장식이 잘리지 않게 border-image 로 늘린다 */
+  .mq-bar{height:10px;border-radius:0;overflow:hidden;
+    border-style:solid;border-width:0 12px;
+    border-image:url(/assets/ui/MQ-BAR.png) 0 24 fill stretch}
+  .mq-bar i{display:block;height:100%;
+    background:linear-gradient(90deg,#e8a72c,var(--gold));
+    box-shadow:0 0 6px #ffc94a66}
   .mq-row.done .mq-bar i{background:var(--up)}
   .mq-p{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;
     font-weight:800;color:var(--gold)}
@@ -1151,6 +1168,12 @@
   .dc-item u{position:absolute;right:8px;top:-8px;text-decoration:none;
     font-size:9px;font-weight:800;background:var(--warn);color:#fff;
     border-radius:6px;padding:2px 8px}
+  /* 주사위판은 **스크롤 없이** 한 화면에 들어와야 한다 — 굴리는 화면에서
+     스크롤이 생기면 판과 버튼을 같이 못 본다. 판 칸과 상품 칸을 줄인다 */
+  #ovcard[data-skin] .dc-wrap{margin-bottom:4px}
+  .dc-shop .dc-prize{padding:6px 4px}
+  .dc-shop .dc-prize u{font-size:11px}
+  .dc-shop .dc-prize b{font-size:9px;min-height:2.4em}
   .dc-tabs{display:flex;gap:5px;margin:2px 0 9px}
   .dc-tabs button{flex:1;position:relative;background:var(--ink);border:1px solid var(--line);
     border-radius:9px;padding:7px 0;font:inherit;font-size:12px;font-weight:800;
@@ -1400,6 +1423,8 @@
     font-weight:800}
   #ovb .ar-stat b img{width:14px;height:14px;object-fit:contain}
   .ar-stat u{text-decoration:none;font-size:9px;color:var(--gold);font-weight:800}
+  .ar-shopb.ic{padding:2px 7px;line-height:0}
+  #ovb .ar-shopb.ic img{width:16px;height:16px;object-fit:contain}
   .ar-shopb{margin-top:2px;background:#241a12;border:1px solid #c9a22766;
     color:var(--gold);border-radius:7px;padding:2px 8px;font-size:9px;
     font-weight:800;font-family:inherit;cursor:pointer}
@@ -1412,7 +1437,9 @@
   #ovb .ar-fight:active{transform:translateY(1px)}
   #ovb .ar-fight:disabled{color:var(--dim);border-color:var(--line);opacity:.6}
 
-  .af-ava{width:48px;height:48px;flex:0 0 auto;
+  .af-fr{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;
+    pointer-events:none}
+  .af-ava{position:relative;width:48px;height:48px;flex:0 0 auto;
     background:url(/assets/ui/AR-FRAME.png) center/contain no-repeat;
     display:flex;align-items:center;justify-content:center}
   #ovb .frow .af-ava img{width:34px;height:34px;object-fit:contain;
@@ -2051,11 +2078,13 @@
     animation:vsFlash .7s ease-out .18s both}
   @keyframes vsFlash{0%{opacity:0;transform:translate(-40%,40%)}
     45%{opacity:1}100%{opacity:.5;transform:none}}
-  #vsBoss,#vsCap{position:absolute;width:56%;display:flex;
+  /* 56% 씩 두 장이 대각으로 겹쳐 서로를 가렸다. 폭을 46% 로 줄이고 높이 상한을
+     둬서 세로로 긴 원화도 화면을 넘지 않게 한다 */
+  #vsBoss,#vsCap{position:absolute;width:46%;max-height:42%;display:flex;
     align-items:center;justify-content:center}
-  #vsBoss{right:2%;top:5%;animation:vsInR .5s cubic-bezier(.2,1.3,.4,1) both}
-  #vsCap{left:2%;bottom:3%;animation:vsInL .5s cubic-bezier(.2,1.3,.4,1) .12s both}
-  #vsBoss img,#vsCap img{width:100%;object-fit:contain;
+  #vsBoss{right:1%;top:4%;animation:vsInR .5s cubic-bezier(.2,1.3,.4,1) both}
+  #vsCap{left:1%;bottom:2%;animation:vsInL .5s cubic-bezier(.2,1.3,.4,1) .12s both}
+  #vsBoss img,#vsCap img{width:100%;max-height:100%;object-fit:contain;
     filter:drop-shadow(0 8px 22px #000c)}
   #vsCap img{transform:scaleX(1)}
   @keyframes vsInL{from{opacity:0;transform:translateX(-60%)}to{opacity:1;transform:none}}
@@ -2569,10 +2598,12 @@
   .fr-av{position:relative;display:inline-block;flex:none}
   /* #ovb .frow img{15px} 보다 특이도가 낮아 얼굴이 15px 로 찌그러져 있었다.
      아바타는 제 크기를 스스로 정한다 — id 를 얹어 그 규칙을 이긴다 */
-  #ovb .fr-av .fr-face, .fr-face{position:absolute;left:9%;top:9%;
-    width:82%;height:82%;object-fit:cover;border-radius:50%;background:#17120f}
-  #ovb .fr-av .fr-ring, .fr-ring{position:absolute;left:0;top:0;
-    width:100%;height:100%;object-fit:contain}
+  /* 링이 두꺼워 얼굴을 파먹었다 — 링을 상자 **밖**으로 밀고 얼굴을 키운다
+     (프로필 액자 .pf-ava 와 같은 처리) */
+  #ovb .fr-av .fr-face, .fr-face{position:absolute;left:4%;top:4%;
+    width:92%;height:92%;object-fit:cover;border-radius:50%;background:#17120f}
+  #ovb .fr-av .fr-ring, .fr-ring{position:absolute;left:-15%;top:-15%;
+    width:130%;height:130%;object-fit:contain}
   .fr-row{display:flex;align-items:center;gap:8px;cursor:pointer}
   /* 친구 탭바 — 목록 / 신청 */
   .fr-tabs{display:flex;gap:5px;margin-bottom:8px}
@@ -3081,8 +3112,8 @@
       width:clamp(16px,calc((100cqw - 158px)/10),25px)}
     /* VS 연출 — 그림이 세로 공간을 넘지 않게 높이로도 묶는다. 폭 56% 는
        360x640(전투 영역 ~205px)에서 세로로 터졌다 */
-    #vsBoss img,#vsCap img{max-height:24cqh}
-    #vsBoss,#vsCap{width:48%}
+    #vsBoss img,#vsCap img{max-height:22cqh}
+    #vsBoss,#vsCap{width:42%}
     #vsMark{font-size:44px}
     /* 벽 안내 카드 — 좁은 화면은 글자도 한 단계 줄인다 */
     #wallCard{padding:10px 11px}
