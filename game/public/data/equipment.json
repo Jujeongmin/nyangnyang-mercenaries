@@ -169,26 +169,26 @@
         "pullsPerAction": 1
       },
       {
-        "summonLv": 3,
+        "summonLv": 6,
         "unlock": "manual_multi",
         "nameKo": "10연 소환",
         "pullsPerAction": 10,
         "discount": 0.1
       },
       {
-        "summonLv": 5,
+        "summonLv": 9,
         "unlock": "auto_summon",
         "nameKo": "자동 소환 해금",
         "pullsPerBatch": 10
       },
       {
-        "summonLv": 8,
+        "summonLv": 13,
         "unlock": "auto_scale",
         "pullsPerBatch": 20,
         "nameKo": "자동 소환 20개씩"
       },
       {
-        "summonLv": 12,
+        "summonLv": 17,
         "unlock": "filter_grade",
         "nameKo": "필터: 등급 하한",
         "pullsPerBatch": 30
@@ -242,7 +242,7 @@
         "nameKo": "자동 소환 700개씩"
       }
     ],
-    "progressionNote": "nameKo 는 화면에 그대로 뜬다. 비어 있으면 auto_scale 같은 내부 키가 노출된다. | 2026-08-24: 초반 해금을 앞당겼다. 자동 소환 Lv10→**Lv5**(누적 1.9시간→27분), 10연 Lv5→Lv3(27분→11분), 20개씩 Lv15→Lv8, 등급 필터 Lv20→Lv12. 자동화가 이 게임의 손맛인데 두 시간을 손으로 눌러야 열리는 건 튜토리얼이 아니라 벌이다. Lv25 이후 구간은 그대로 — 후반 배치 크기는 시간 게이트가 잡아야 한다.",
+    "progressionNote": "해금 레벨은 **누적 대기 시간**으로 읽어야 한다 (economy.json > equipmentSummonLevel.timeMinutes 누적):\n  Lv6 10연 = 38분 · Lv9 자동 = 1.4시간 · Lv13 20개씩 = 4.5시간 · Lv17 등급 필터 = 11.5시간\nv3 에서 한 번 Lv3/5/8/12 까지 당겼다가 되돌렸다 — 11분 만에 10연이 열리면 1회 소환을 눌러 볼 새도 없이 지나가고, 제작대 레벨을 올릴 이유가 사라진다. 반대로 원래 값(Lv5/10/15/20)은 자동이 1.9시간이라 초반이 손가락 노동이었다. 지금은 그 사이다 — 자동은 여전히 원래보다 빠르고(1.9 -> 1.4시간), 10연만 늦췄다.\n확률 해금(equipmentRateBands: Lv5/9/13/17/21/25/29 에서 등급 해금)과 같은 레벨에 맞춰 두었다. 한 레벨에 보상이 둘씩 붙는다.",
     "autoSummon": {
       "trigger": "유저가 자동 소환 ON. 황금 열쇠가 남아있는 동안 반복.",
       "batchIntervalSec": 1,

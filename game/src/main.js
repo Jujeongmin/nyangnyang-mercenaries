@@ -664,6 +664,9 @@ const batchSize = () => {
   return p.length ? p[p.length - 1].pullsPerBatch : 0;
 };
 const autoUnlocked = () => forgeUnlocks().some(p => p.unlock === 'auto_summon');
+/** 그 해금이 열리는 레벨. 안내 문구에 숫자를 박지 않으려고 데이터에서 꺼낸다 */
+const unlockLv = kind =>
+  D.equipment.summon.progression.find(p => p.unlock === kind)?.summonLv ?? '?';
 const multiUnlocked = () => forgeUnlocks().some(p => p.unlock === 'manual_multi');
 
 // --- 렌더 ---
@@ -751,7 +754,7 @@ function renderForgeDock() {
   const b = $('#b_auto');
   b.disabled = !autoUnlocked();
   // 상태는 톱니가 도는지로 말한다 — 글자를 안 쓴다
-  b.title = !autoUnlocked() ? '제작대 Lv 10 에 해금'
+  b.title = !autoUnlocked() ? `제작대 Lv ${unlockLv('auto_summon')} 에 해금`
     : (S.autoWanted ? (S.autoSummon ? '자동 소환 중 · 눌러서 정지' : '결과 대기 중') : '자동 소환 꺼짐');
   b.classList.toggle('on', !!S.autoWanted && autoUnlocked());
 }
@@ -781,7 +784,7 @@ function resumeAuto() {
  *   동시 개수  한 배치에 몇 개를 여는가 (progression.pullsPerBatch 가 상한)
  */
 function openAutoPanel() {
-  if (!autoUnlocked()) return toast(`제작대 Lv 10 부터 자동 소환이 열립니다`);
+  if (!autoUnlocked()) return toast(`제작대 Lv ${unlockLv('auto_summon')} 부터 자동 소환이 열립니다`);
   const maxB = batchSize();
   const opts = [1, 10, 30, 50, 100, maxB].filter((v, i, a) => v <= maxB && a.indexOf(v) === i);
   const cur = S.autoBatch || maxB;
@@ -2502,6 +2505,52 @@ function forgeStageAsset() {
   return st[0];
 }
 
+/** 지금 제작대 레벨의 장비 등급 확률. gacha.json > equipmentRateBands */
+function eqBandNow(lv = S.forgeLv) {
+  const bs = D.gacha.equipmentRateBands.bands;
+  return bs.find(b => lv >= b.minLevel && lv <= b.maxLevel) || bs[bs.length - 1];
+}
+
+/** 등급 확률 줄 — 확률이 있는 등급만, 높은 등급부터 */
+function eqRateRow(band) {
+  return Object.entries(band.rates)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => +b[0] - +a[0])
+    .map(([t, v]) => {
+      const g = D.equipment.grades[+t - 1];
+      return `<span class="eqr-g" style="color:${g.color}">${g.nameKo}
+        <b>${v}%</b></span>`;
+    }).join('');
+}
+
+/**
+ * 제작대 레벨별 확률표. 지금 구간을 금색으로 두고 전 구간을 편다 —
+ * 소환 레벨 창(#smPop)과 같은 문법이다. 확률은 공시 의무 대상이다.
+ */
+function openForgeRates() {
+  const now = eqBandNow();
+  const rows = D.gacha.equipmentRateBands.bands.map(b => {
+    const on = b === now;
+    const opened = b.unlocks
+      ? `<em style="color:${D.equipment.grades[b.unlocks - 1].color}">${
+          D.equipment.grades[b.unlocks - 1].nameKo} 해금</em>` : '';
+    return `<div class="sm-band${on ? ' now' : ''}">
+      <span class="lv">Lv ${b.minLevel}~${b.maxLevel}${opened}</span>
+      <span class="rates">${eqRateRow(b)}</span></div>`;
+  }).join('');
+  $('#smTitle') && ($('#smTitle').textContent = '제작대 확률');
+  $('#smBody').innerHTML = `
+    <div class="sm-now">
+      <div class="sm-nh">현재 <b>Lv ${S.forgeLv}</b>
+        <span>구간 Lv ${now.minLevel}~${now.maxLevel}</span></div>
+      <div class="eqr-list">${eqRateRow(now)}</div>
+    </div>
+    <div class="lbl" style="margin:10px 0 6px">레벨별 확률</div>
+    ${rows}
+    <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}</div>`;
+  $('#smPop').classList.add('show');
+}
+
 function openForge() {
   const next = S.forgeLv + 1;
   const c = forgeCost(next);
@@ -2517,7 +2566,7 @@ function openForge() {
   // 제작대 이미지를 누르면 장비를 소환한다
   h.push(`<div id="fgHero">
       <img src="/assets/ui/FG-0${stageNo}.png" alt="" id="fgSummon" title="탭하여 장비 소환">
-      <div id="fgLvBadge">Lv ${S.forgeLv}</div>
+      <button id="fgLvBadge" title="이 레벨의 장비 등급 확률">Lv ${S.forgeLv} <i>ⓘ</i></button>
       <span id="fgHeroSpark"></span>
       <div id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</div>
     </div>`);
@@ -2581,6 +2630,9 @@ function openForge() {
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#fgSummon')?.addEventListener('click', () => pullOne('#fgHero'));
+  // 레벨 배지를 누르면 이 레벨의 등급 확률을 편다. 제작대는 확률이 레벨로
+  // 갈리는데(equipmentRateBands) 그 값을 볼 데가 없었다
+  $('#fgLvBadge')?.addEventListener('click', e => { e.stopPropagation(); openForgeRates(); });
   $('#fgPayBtn')?.addEventListener('click', payForge);
   $('#fgHgOpen')?.addEventListener('click', openHourglass);
 }
@@ -2726,7 +2778,8 @@ function openEquipInfo(slotId) {
   // 등급·부위는 위 카드에 이미 있고, 기여율(%)은 숫자 감이 안 온다.
   const gain = Math.round(totalCp() - cpWith(slotId, null));
   $('#ovb').innerHTML = `<div class="ei-top" style="--au:${g.color}">
-      <span class="ei-ic" style="border-color:${g.color}">${eqImg(sl, it.tier)}></span>
+      <span class="ei-ic fre-${Math.min(3, eqBand(it.tier))}"
+        style="border-color:${g.color}">${eqImg(sl, it.tier)}></span>
       <span class="ei-name"><b style="color:${g.color}">${g.nameKo} T${it.tier}</b></span>
     </div>`
     + `<div class="frow"><span class="k">전투력 상승량</span>

@@ -877,8 +877,21 @@
   #fgTap{margin-top:6px;font-size:11px;font-weight:800;color:var(--gold);
     display:flex;align-items:center;gap:4px}
   #fgTap img{width:14px;height:14px}
+  /* 등급 확률 줄 — 상세 카드와 확률창이 같이 쓴다 */
+  .eqr-list{display:flex;flex-wrap:wrap;gap:5px 9px}
+  .eqr-g{font-size:11px;font-weight:700}
+  .eqr-g b{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;margin-left:2px}
+  #smBody .sm-band .rates{gap:5px 9px}
+  /* "영웅 해금" 이 62px 칸에서 두 줄로 깨졌다. 레벨과 해금 표시를 위아래로 쌓고
+     칸을 넓힌다 — 가로로 붙이면 어느 해상도에서든 다시 깨진다 */
+  #smBody .sm-band .lv{flex:0 0 84px;display:flex;flex-direction:column;gap:1px;
+    align-items:flex-start}
+  #smBody .sm-band .lv em{margin:0;white-space:nowrap}
   #fgLvBadge{position:absolute;top:0;right:2%;background:var(--ink);border:2px solid var(--ore);
-    border-radius:9px;padding:3px 9px;font-size:13px;font-weight:900;color:var(--ore)}
+    border-radius:9px;padding:3px 9px;font-size:13px;font-weight:900;color:var(--ore);
+    font-family:inherit;cursor:pointer;z-index:4;display:inline-flex;align-items:center;gap:3px}
+  #fgLvBadge i{font-style:normal;font-size:10px;opacity:.75}
+  #fgLvBadge:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   /* 탭 히어로 — 망치 오버레이는 폐기. 타격의 주역은 하단 독의 스트립이고,
      탭은 불똥 + 흔들림만 받는다 */
   /* 대기 상태에서도 폭을 차지해 패널에 가로 스크롤이 생겼다. translate 로 미리 당겨 둔다 */
@@ -1727,12 +1740,22 @@
      회색 금속으로 그려져 있다. 색이 아니라 **장식의 양**이 등급이다 —
      아이템 색·프레임 색이 이미 따로 있어서 액자까지 색을 넣으면 신호가 둘로 갈린다.
      T1~3 단순 / T4~7 리벳 / T8~10 화려. 색은 기존 오라(--au)가 계속 맡는다. */
-  .slot[class*="fre-"]{border-image:none;border:0;background:var(--card);border-radius:9px}
-  .slot[class*="fre-"]::after{content:"";position:absolute;inset:-7%;pointer-events:none;
-    z-index:3;background:var(--fre-img) center/100% 100% no-repeat}
+  /* 인벤 칸에는 액자를 **안 씌운다.** FRE-* 는 1024px 짜리 장식인데 칸은 60px 이라,
+     그 크기에서는 무늬가 읽히지도 않고 장비 그림만 덮는다. 등급은 테두리 색과
+     발광(--au/--aw)으로 말한다 — 액자는 크게 뜨는 상세 카드(.ei-ic)로 옮겼다 */
+  .slot[class*="fre-"]{border:2px solid var(--au);background:var(--card);border-radius:9px;
+    border-image:none;
+    box-shadow:0 0 calc(var(--aw) * 9px) color-mix(in srgb, var(--au) 70%, transparent),
+               inset 0 0 calc(var(--aw) * 7px) color-mix(in srgb, var(--au) 30%, transparent)}
   .fre-1{--fre-img:url(/assets/ui/FRE-01.png)}
   .fre-2{--fre-img:url(/assets/ui/FRE-02.png)}
   .fre-3{--fre-img:url(/assets/ui/FRE-03.png)}
+  /* 상세 카드는 86px 이라 액자 무늬가 실제로 보인다. 그림은 액자 안쪽에 들어가게 줄인다 */
+  .ei-ic[class*="fre-"]{position:relative;overflow:visible;border-color:transparent;
+    background:none;box-shadow:none}
+  .ei-ic[class*="fre-"]::after{content:"";position:absolute;inset:-14%;pointer-events:none;
+    z-index:2;background:var(--fre-img) center/100% 100% no-repeat}
+  .ei-ic[class*="fre-"] img{width:52px;height:52px}
   /* 오라 색을 액자에 얹어 등급이 한눈에 보이게. --au 는 renderEquip 이 넣는다 */
   .slot.g-hi::after{filter:drop-shadow(0 0 5px var(--au))}
 
@@ -2457,7 +2480,7 @@
   <!-- 소환 레벨 상세 — 확률표 + 레벨 보상 수령. 상점(z70) 위에 뜬다 -->
   <div id="smPop">
     <div id="smCard">
-      <div id="smHead"><b>소환 레벨</b><button id="smX">✕</button></div>
+      <div id="smHead"><b id="smTitle">소환 레벨</b><button id="smX">✕</button></div>
       <div id="smBody"></div>
     </div>
   </div>

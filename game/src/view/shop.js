@@ -241,6 +241,9 @@ export class ShopScreen {
       .sort((a, b) => a[1] - b[1])[0];
     const left = next ? Math.max(0, pullsToLevel(tr, next[1]) - exp) : 0;
 
+    // 같은 창을 제작대 확률도 쓴다 — 제목을 되돌려 놓는다
+    const ttl = document.querySelector('#smTitle');
+    if (ttl) ttl.textContent = '소환 레벨';
     document.querySelector('#smBody').innerHTML = `
       <div class="sm-now">
         <div class="sm-nh">현재 <b>Lv ${pg.level}</b>
