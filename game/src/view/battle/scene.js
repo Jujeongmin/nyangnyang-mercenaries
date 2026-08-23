@@ -544,8 +544,13 @@ export class BattleScene {
       f.cd -= s;
       if (f.cd > 0 || f.rig.act) continue;
       f.cd = f.cdMax;
-      const t = this.units[(Math.random() * this.units.length) | 0];
-      if (!t) continue;
+      // **적은 단장만 노린다.** 체력바가 단장 머리 위 하나뿐이라(파티 대표),
+      // 용병을 때리면 맞는 대상과 닳는 바가 서로 달라 무엇이 위험한지 안 읽힌다.
+      // 단장이 없을 때만(부팅 전) 용병으로 떨어진다
+      const t = this.captain
+        ? { rig: this.captain }
+        : this.units[(Math.random() * this.units.length) | 0];
+      if (!t || !t.rig) continue;
       const hit = () => {
         if (!f.rig?.view || f.rig.view.destroyed || !t.rig?.view || t.rig.view.destroyed) return;
         this.damageParty(f);

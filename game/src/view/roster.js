@@ -12,6 +12,8 @@
 // 하고, 여기서 눌러야 편성과 레벨에 반영된다.
 
 
+import { tn } from '../core/i18n.js';
+
 const $ = s => document.querySelector(s);
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 
@@ -205,15 +207,17 @@ export class RosterSheet {
 
   /** 목록 한 칸. 도감과 같은 클래스를 쓴다 (.cx-cell / .lock 이 ??? · 회색을 준다) */
   cell({ id, nameKo, grade, dir, has, on, held, kind }) {
+    // 이름은 사전을 거친다 — 사전에 없으면 한국어 원문 그대로 (i18n.js)
+    const nm = tn(id, nameKo);
     // 등급을 아는 것은 미보유여도 등급 액자를 쓴다 — 액자가 "뽑으면 이 등급"의
     // 예고가 된다. 스킬은 뽑을 때 등급을 굴리므로 미보유면 등급 자체가 없다
     const cls = (grade ? ` g-${grade}` : '') + (has ? '' : ' lock');
-    return `<div class="cx-cell${cls}${on ? ' on' : ''}" title="${nameKo}"${
+    return `<div class="cx-cell${cls}${on ? ' on' : ''}" title="${nm}"${
       has ? ` data-info="${id}"` : ''}>
       <img src="/assets/${dir}/${id}.png" alt="" onerror="this.remove()">
       ${kind ? `<i class="rt-kind">${kind}</i>` : ''}
       ${held ? `<i class="rt-lv">Lv ${held.level || 0}</i>` : ''}
-      <span>${has ? nameKo : '???'}</span>
+      <span>${has ? nm : '???'}</span>
     </div>`;
   }
 }

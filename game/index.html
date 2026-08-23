@@ -629,6 +629,14 @@
   #qprog{color:var(--dim);flex:0 0 auto}
   #qbar{height:3px;background:#0007;border-radius:2px;overflow:hidden;flex:0 0 38px;margin:0}
   #qfill{height:100%;width:0;background:linear-gradient(90deg,#4a6fc0,#5ad8ff)}
+  /* 보상 칩 — 아이콘 위에 개수를 얹는다. 가로가 좁아 글자를 옆에 못 둔다 */
+  #qrw{display:flex;gap:4px;flex:0 0 auto;align-items:center}
+  #qrw span{position:relative;width:20px;height:20px;flex:0 0 auto}
+  #qrw img{width:100%;height:100%;object-fit:contain;
+    filter:drop-shadow(0 1px 2px #000a)}
+  #qrw b{position:absolute;right:-3px;bottom:-3px;font-size:8px;font-weight:400;
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;color:#fff;
+    text-shadow:0 0 3px #000,0 1px 2px #000,-1px 0 2px #000,1px 0 2px #000}
 
   /* 액션 */
   #acts{display:grid;grid-template-columns:1fr 1fr 1fr 52px;gap:5px;margin-top:auto}
@@ -2154,6 +2162,9 @@
       <div id="quest">
         <div id="qtop"><span id="qname">퀘스트 1</span><span id="qprog">0 / 0</span></div>
         <div id="qbar"><div id="qfill"></div></div>
+        <!-- 보상 미리보기 — 아이콘 + 개수. "뭘 주는지"가 안 보이면 퀘스트가
+             할 일 목록으로만 읽힌다 -->
+        <div id="qrw"></div>
       </div>
     </div>
     <!-- 사이드는 축으로 가른다. 좌 = 기간이 있는 것(놓치면 사라진다 → 빨간 점이

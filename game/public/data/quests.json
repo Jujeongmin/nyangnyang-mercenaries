@@ -155,7 +155,7 @@
       "type": "mercenary_summon",
       "target": 10,
       "rewards": {
-        "skill_ticket": 8,
+        "skill_ticket": 10,
         "gold": 40000
       },
       "feedsInto": 3
@@ -164,11 +164,12 @@
       "q": 3,
       "cycle": 1,
       "type": "skill_summon",
-      "target": 8,
+      "target": 10,
       "rewards": {
         "speedup_5m": 6
       },
-      "feedsInto": 4
+      "feedsInto": 4,
+      "targetNote": "스킬 소환 8→10. 앞 퀘스트(Q2) 보상도 10장으로 맞춰 \"받은 만큼 그대로 쓰면 끝난다\"가 성립한다"
     },
     {
       "q": 4,

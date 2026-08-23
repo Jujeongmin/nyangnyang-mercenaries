@@ -446,8 +446,8 @@ function claimQuest() {
   renderQuest(); renderTop();
   // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
   syncSpeedBtns();
+  // 무엇을 받았는지는 획득 배너가 말한다 — 토스트까지 띄우면 같은 말이 두 번이다
   gainToast(Object.entries(def.rewards).filter(([k]) => QUEST_CUR[k]));
-  toast(`퀘스트 ${def.q} 완료`);
   if (speedMax() > before) setTimeout(() => toast(`${speedMax()}배속 해금!`), 1400);
 }
 
@@ -640,7 +640,7 @@ function renderSkills() {
       // 신규 스킬은 그림이 아직 없을 수 있다. 깨진 아이콘 대신 빼 버린다
       d.innerHTML = `<img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">`
         + '<i class="cdwipe"></i>';
-      d.title = `${s.nameKo} ${s.grade} Lv${s.level}`;
+      d.title = `${tn(s.id, s.nameKo)} ${s.grade} Lv${s.level}`;
       d.dataset.sid = s.id;
     } else {
       d.title = `${kind} ${i + 1}번 칸 — 비어 있음`;
@@ -1007,12 +1007,12 @@ function pull(trackId, n) {
       // gacha.json > perItemRateFormula(등급확률 / 그 등급의 종수)가 거짓말이 된다
       const pool = D.skills.skills.filter(x => x.grade === g);
       const sk = pool[(Math.random() * pool.length) | 0];
-      return { grade: sk.grade, name: sk.nameKo, img: `/assets/skill/${sk.id}.png`,
+      return { grade: sk.grade, name: tn(sk.id, sk.nameKo), img: `/assets/skill/${sk.id}.png`,
                id: sk.id, kind: 'skill' };
     }
     const pool = D.characters.characters.filter(c => c.grade === g);
     const c = pool[(Math.random() * pool.length) | 0];
-    return { grade: g, name: c.nameKo, img: `/assets/char/${c.id}.png`,
+    return { grade: g, name: tn(c.id, c.nameKo), img: `/assets/char/${c.id}.png`,
              id: c.id, cls: c.class, kind: 'merc' };
   });
 
@@ -1074,7 +1074,7 @@ function cascade(track, grade, level = 0) {
     S.carry[track] -= up * cost;
     const from = t.level || 0;
     t.level = from + up;
-    log.push({ name: t.nameKo, from, to: t.level });
+    log.push({ name: tn(t.id, t.nameKo), from, to: t.level });
   }
   return log;
 }
@@ -1156,7 +1156,7 @@ function autoEnhance(track) {
     if (own && room > 0) {
       const from = own.level || 0;
       own.level = from + 1;
-      logs.push({ name: own.nameKo, from, to: own.level });
+      logs.push({ name: tn(own.id, own.nameKo), from, to: own.level });
     } else {
       // 만렙이거나 주인 없음 — 버리지 않고 가치로 환산해 넘긴다
       logs.push(...cascade(track, e.grade));
@@ -1564,7 +1564,7 @@ function equipUnit(kind, id) {
       // 꽉 참 — 최저 CP 와 교체
       idx = arr.slice(0, slots).reduce((m, x, k) => skillCp(arr[m]) <= skillCp(x) ? m : k, 0);
       own.push(arr[idx]);
-      toast(`${arr[idx].nameKo} ↔ ${it.nameKo} 교체`);
+      toast(`${tn(arr[idx].id, arr[idx].nameKo)} ↔ ${tn(it.id, it.nameKo)} 교체`);
     }
     arr[idx] = it;
     own.splice(i, 1);
@@ -2240,6 +2240,13 @@ function renderQuest() {
   $('#qname').textContent = `Q${def.q} ${t.label}`;
   $('#qprog').textContent = done ? '수령' : `${num(cur)}/${num(def.target)}`;
   $('#qfill').style.width = Math.min(100, cur / def.target * 100) + '%';
+  // 보상 미리보기 — 담을 자리가 있는 재화만 (QUEST_CUR). 없는 키를 그리면
+  // 화면에는 보이는데 눌러도 안 들어오는 유령 보상이 된다
+  $('#qrw').innerHTML = Object.entries(def.rewards || {})
+    .filter(([k]) => QUEST_CUR[k] && CUR_ICON[k])
+    .map(([k, v]) => `<span title="${CUR_KO[k] || k} ${num(v)}">
+      <img src="/assets/ui/${CUR_ICON[k]}.png" alt="" onerror="this.remove()">
+      <b>${num(v)}</b></span>`).join('');
   $('#quest').classList.toggle('done', done);
 }
 

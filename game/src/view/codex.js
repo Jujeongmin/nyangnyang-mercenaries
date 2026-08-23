@@ -7,6 +7,8 @@
 // 예산은 32% 고정이다 (codex.json > budget.budgetLock). 늘리면 CP 천장이 오르고
 // stages.json 의 곡선·벽·St200 목표가 전부 재계산 대상이 된다.
 
+import { tn } from '../core/i18n.js';
+
 const GC = { N: '#9aa4b5', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 const pct = v => (v * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
@@ -90,9 +92,9 @@ export class CodexScreen {
           // 미보유여도 등급 액자를 쓴다 (색만 죽인다). 용병은 등급이 고정이라
           // 안 뽑아도 무엇인지 알고, 액자가 곧 "이걸 뽑으면 이 등급"이라는 예고다
           return `<div class="cx-cell g-${g}${has ? '' : ' lock'}"
-              ${has ? `data-info="${c.id}" data-kind="merc"` : ''} title="${c.nameKo}">
+              ${has ? `data-info="${c.id}" data-kind="merc"` : ''} title="${tn(c.id, c.nameKo)}">
             <img src="/assets/char/${c.id}.png" alt="">
-            <span>${has ? c.nameKo : '???'}</span>
+            <span>${has ? tn(c.id, c.nameKo) : '???'}</span>
           </div>`;
         }).join('') + `</div>`;
     }).join('')
@@ -117,9 +119,9 @@ export class CodexScreen {
           const has = !!S.codex.skill[s.id];
           // 등급은 미보유여도 안다 — 액자를 깔고 색만 죽인다 (.cx-cell.lock)
           return `<div class="cx-cell g-${s.grade}${has ? '' : ' lock'}"
-              ${has ? `data-info="${s.id}" data-kind="skill"` : ''} title="${s.nameKo} — ${s.grade}">
+              ${has ? `data-info="${s.id}" data-kind="skill"` : ''} title="${tn(s.id, s.nameKo)} — ${s.grade}">
             <img src="/assets/skill/${s.id}.png" alt="" onerror="this.remove()">
-            <span>${has ? s.nameKo : '???'}</span>
+            <span>${has ? tn(s.id, s.nameKo) : '???'}</span>
             <i style="background:${GC[s.grade]}">${s.grade}</i>
           </div>`;
         }).join('') + `</div>`;
