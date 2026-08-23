@@ -287,6 +287,7 @@
 
   /* 건물 — 마을의 주인공이라 크게. big 은 뒷줄 랜드마크 */
   .al-bd{position:absolute;width:158px;text-align:center;cursor:pointer;
+    transform:translateX(-50%);   /* left 가 건물 중심 — 터 중심 좌표를 그대로 쓴다 */
     filter:drop-shadow(0 10px 22px #000b)}
   .al-bd img{width:152px;height:152px;object-fit:contain;pointer-events:none}
   .al-bd.big{width:200px}
@@ -2784,6 +2785,8 @@
       <button data-s="attend"><img src="/assets/ui/IC-ATTEND.png" alt="" onerror="this.remove()"><span>출석</span></button>
       <button data-s="event"><img src="/assets/ui/IC-EVENT.png" alt="" onerror="this.remove()"><span>이벤트</span></button>
       <button data-s="pass"><img src="/assets/ui/IC-PASS.png" alt="" onerror="this.remove()"><span>패스</span></button>
+      <button data-s="friend"><img src="/assets/ui/IC-FRIEND.png" alt=""
+        onerror="this.onerror=null;this.src='/assets/ui/IC-MAIL.png'"><span>친구</span></button>
     </div>
     <div class="side" id="sideR">
       <button data-s="arena"><img src="/assets/ui/IC-ARENA.png" alt="" onerror="this.remove()"><span>아레나</span></button>

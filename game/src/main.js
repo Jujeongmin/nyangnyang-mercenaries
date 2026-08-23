@@ -87,6 +87,12 @@ const S = {
   presets: [null, null, null],
   // 연합 코인 — 프로토타입은 로컬 보유. 서버 연동 시 net/backend.js 로 옮긴다
   allyCoin: 0,
+  // 소속 연합. null 이면 미가입 — 연합 탭이 생성/가입 화면을 연다.
+  // 서버 연동 전에는 로컬 기록뿐이다 (실명단은 verse8 연동 때)
+  ally: null,
+  // 친구 — 선물은 보내는 쪽 코스트가 없다 (표준 문법: 서로 보내면 서로 이득).
+  // sentDay/recvDay 는 dayIdx. 서버 전에는 데모 친구가 자리를 지킨다
+  friends: { list: [], sentDay: null, recvDay: null },
   allyDonate: { day: null, gold: 0, eq: 0 },   // 일일 기부 횟수
   capLv: 1, capXp: 0,                      // 단장(계정) 레벨. 스탯 효과 없음
   codex: { mercenary: [], skill: {} },     // 1회 획득 시 영구 등록
@@ -466,6 +472,7 @@ function syncNav() {
   document.querySelector('[data-s="mission"]')?.classList.toggle('hasnew', mqWaiting());
   document.querySelector('[data-s="event"]')?.classList.toggle('hasnew',
     f1kPendingN() > 0 || diceMissionReady());
+  document.querySelector('[data-s="friend"]')?.classList.toggle('hasnew', friendGiftReady());
 }
 
 /** 완료한 최대 퀘스트 번호. S.quest 는 '지금 진행 중'이라 1을 뺀다 */
@@ -2897,6 +2904,166 @@ const tierOf = score => {
 };
 
 /** 아레나. arena.json > battle.winProbability 로 예상 승률을 보여준다. */
+// ── 연합 게이트 — 미가입이면 생성/가입부터 ─────────────────
+/** 데모 연합 목록 — 서버 연동 전 자리. 날짜 시드라 하루 동안은 같은 목록이다 */
+function demoAlliances() {
+  const day = dayIdx(Date.now());
+  const rng = k => { const x = Math.sin(day * 733 + k * 191) * 10000; return x - Math.floor(x); };
+  const NAMES = ['츄르 원정대', '캣타워 수호자', '연어 동맹', '골골단', '낮잠 기사단',
+    '수염 특공대', '방울 연구소', '츤데레 냥단'];
+  return NAMES.slice(0, 5 + (day % 3)).map((name, i) => ({
+    id: 'demo_' + i, name,
+    members: 8 + Math.floor(rng(i) * 20),
+    weekly: Math.floor(rng(i + 9) * 90000),
+  }));
+}
+
+function openAllianceGate() {
+  const A = D.alliance;
+  const need = A.membership.joinRequirement.minStage;
+  const canJoin = S.maxStage >= need;
+  const cost = A.membership.createCost.gold;
+  const rows = demoAlliances().map(a => `
+    <div class="frow" style="padding:8px 11px;margin-bottom:5px">
+      <span><b style="font-size:12px">${a.name}</b>
+        <span class="k" style="display:block">${t('단원 {0} / {1}', a.members, A.membership.maxMembers)}
+          · ${t('주간 기여 {0}', num(a.weekly))}</span></span>
+      <button class="rt-b go" data-join="${a.id}" data-name="${a.name}"
+        ${canJoin ? '' : 'disabled'}>${t('가입')}</button>
+    </div>`).join('');
+
+  $('#ovt').textContent = t('연합');
+  delete $('#ovcard').dataset.skin;
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${A.membership.maxMembersNote}</div>`;
+  $('#ovb').innerHTML = `
+    ${canJoin ? '' : `<div class="pr-note" style="color:var(--warn)">${t('스테이지 {0} 부터 연합에 들어갈 수 있습니다', need)}</div>`}
+    <div class="cs-card" style="--au:var(--gold)">
+      <img class="cs-fx" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
+      <div class="cs-body"><b>${t('연합 만들기')}</b>
+        <span>${t('내가 단장이 됩니다')} · <img src="/assets/ui/CU-04.png" alt=""
+          style="width:11px;height:11px;vertical-align:-2px"> ${num(cost)}</span></div>
+      <button class="fgbtn cs-up" id="alCreate"
+        ${canJoin && S.gold >= cost ? '' : 'disabled'}>${t('만들기')}</button>
+    </div>
+    <div class="lbl" style="margin:10px 0 6px">${t('가입할 수 있는 연합')}</div>
+    ${rows}
+    <div class="sh-note">${t('서버 연동 전 데모 목록입니다. 가입·생성 기록은 내 기기에 저장됩니다')}</div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+
+  $('#alCreate')?.addEventListener('click', () => {
+    const name = prompt(t('연합 이름 (2~12자)'));
+    if (!name) return;
+    if (name.length < 2 || name.length > 12) return toast(t('이름은 2~12자입니다'));
+    if (S.gold < cost) return toast(t('골드 부족'));
+    S.gold -= cost;
+    S.ally = { id: 'mine', name, role: 'leader', joinedAt: Date.now() };
+    save(); renderTop();
+    toast(t('연합 [{0}] 창설!', name));
+    $('#ov').classList.remove('show');
+    alli.open();
+  });
+  $('#ovb').querySelectorAll('[data-join]').forEach(b =>
+    b.addEventListener('click', () => {
+      S.ally = { id: b.dataset.join, name: b.dataset.name, role: 'member', joinedAt: Date.now() };
+      save();
+      toast(t('연합 [{0}] 가입!', b.dataset.name));
+      $('#ov').classList.remove('show');
+      alli.open();
+    }));
+}
+
+// ── 친구 — 선물은 보내는 쪽 코스트가 없다 ──────────────────
+// 서로 보내면 서로 이득이라 매일 누를 이유가 생긴다. 액수는 방치 골드
+// 공식에 물려 진행도 비례 (고정액은 후반에 휴지조각).
+const FRIEND_GIFT_HOURS = 0.2;          // 친구 1명당 방치 12분 분량
+const FRIEND_MAX = 30;
+
+function demoFriends() {
+  const NAMES = ['까칠한 츄르', '엉덩이 탐정', '식빵 굽는 냥', '새벽 야옹', '츄르 도둑'];
+  return NAMES.map((name, i) => ({
+    id: 'f' + i, name,
+    cp: Math.round(totalCp() * (0.6 + i * 0.2)),
+  }));
+}
+
+function friendState() {
+  const day = dayIdx(Date.now());
+  if (!S.friends.list.length) S.friends.list = demoFriends();   // 서버 전 자리
+  if (S.friends.day !== day) {
+    S.friends.day = day;
+    S.friends.sent = [];      // 오늘 선물 보낸 친구 id
+    S.friends.recv = [];      // 오늘 선물 받은(수령한) 친구 id
+  }
+  return S.friends;
+}
+const friendGiftReady = () => {
+  const f = friendState();
+  return f.list.some(x => !f.sent.includes(x.id) || !f.recv.includes(x.id));
+};
+
+function openFriends() {
+  const f = friendState();
+  const gift = idleGold(FRIEND_GIFT_HOURS);
+  const rows = f.list.map(x => {
+    const sent = f.sent.includes(x.id);
+    const got = f.recv.includes(x.id);
+    return `<div class="frow" style="padding:8px 11px;margin-bottom:5px">
+      <span><b style="font-size:12px">${x.name}</b>
+        <span class="k" style="display:block">CP ${num(x.cp)}</span></span>
+      <span style="display:flex;gap:5px">
+        <button class="rt-b${sent ? '' : ' go'}" data-fsend="${x.id}"
+          ${sent ? 'disabled' : ''}>${sent ? '✓' : t('선물')}</button>
+        <button class="rt-b${got ? '' : ' go'}" data-frecv="${x.id}"
+          ${got ? 'disabled' : ''}>${got ? '✓' : t('받기')}</button>
+      </span></div>`;
+  }).join('');
+  const allLeft = f.list.some(x => !f.sent.includes(x.id)) || f.list.some(x => !f.recv.includes(x.id));
+
+  $('#ovt').textContent = t('친구');
+  delete $('#ovcard').dataset.skin;
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${t('선물을 보내도 내 골드는 줄지 않습니다. 서로 보내면 서로 이득입니다')}</div>`;
+  $('#ovb').innerHTML = `
+    <div class="frow"><span class="k">${t('친구')}</span>
+      <span class="v">${f.list.length} / ${FRIEND_MAX}</span></div>
+    <div class="frow"><span class="k">${t('선물 골드 (1명당)')}</span>
+      <span class="v"><img src="/assets/ui/CU-04.png" alt=""
+        style="width:12px;height:12px;vertical-align:-2px"> ${num(gift)}</span></div>
+    <button class="fgbtn" id="frAll" style="margin:8px 0 10px"
+      ${allLeft ? '' : 'disabled'}>${allLeft ? t('전체 선물 보내기 + 받기') : t('오늘은 다 주고받았습니다')}</button>
+    ${rows}
+    <div class="sh-note">${t('매일 05:00 에 초기화됩니다')}<br>${t('서버 연동 전 데모 친구입니다')}</div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+
+  const recvOne = id => {
+    if (f.recv.includes(id)) return 0;
+    f.recv.push(id);
+    S.gold += gift;
+    return gift;
+  };
+  $('#ovb').querySelectorAll('[data-fsend]').forEach(b =>
+    b.addEventListener('click', () => {
+      if (!f.sent.includes(b.dataset.fsend)) f.sent.push(b.dataset.fsend);
+      save(); syncNav(); openFriends();
+    }));
+  $('#ovb').querySelectorAll('[data-frecv]').forEach(b =>
+    b.addEventListener('click', () => {
+      const g = recvOne(b.dataset.frecv);
+      save(); renderTop(); syncNav(); openFriends();
+      if (g) gainToast([['gold', g]]);
+    }));
+  $('#frAll').addEventListener('click', () => {
+    let got = 0;
+    for (const x of f.list) {
+      if (!f.sent.includes(x.id)) f.sent.push(x.id);
+      got += recvOne(x.id);
+    }
+    save(); renderTop(); syncNav(); openFriends();
+    if (got) gainToast([['gold', got]]);
+  });
+}
+
 function arenaState() {
   const day = dayIdx(Date.now());
   if (S.arena.day !== day) S.arena = { day, used: 0, adUsed: 0,
@@ -4324,7 +4491,7 @@ function bootLangPick() {
     // ui.json > mainScreen.navBar.items 기준. 장비는 하단 패널에 있으므로 뺐다.
     if (t === 'shop') shop.open();
     else if (t === 'dungeon') openDungeons();
-    else if (t === 'alliance') alli.open();
+    else if (t === 'alliance') { if (S.ally) alli.open(); else openAllianceGate(); }
     else if (t === 'merc') roster.open('mercenary');
     else if (t === 'skill') roster.open('skill');
     else toast(`${n.textContent} 탭 — 미구현`);
@@ -4352,6 +4519,7 @@ function bootLangPick() {
     else if (b.dataset.s === 'attend') openAttend();
     else if (b.dataset.s === 'mission') openMissions();
     else if (b.dataset.s === 'event') openEvents();
+    else if (b.dataset.s === 'friend') openFriends();
     else if (b.dataset.s === 'pass') openPass();
     else if (b.dataset.s === 'codex') codex.open();
     else if (b.dataset.s === 'training') openTraining();
