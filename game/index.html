@@ -2232,19 +2232,44 @@
   /* 화면 네 귀 장식 — 오버레이 카드에만. 전투 화면에 두면 캐릭터를 가린다 */
   #ovcard{position:relative}
 
-  /* ── 화면별 스킨 — 오버레이가 전부 같은 얼굴이면 어디에 있는지 잊는다.
-     프레임(9-slice)은 공용으로 두고, 카드 위쪽에 색 띠와 은은한 발광만 차등한다.
-     색은 그 화면의 성격에서 온다: 출석 초록(성장/일일) · 패스 금(프리미엄) ·
-     아레나 적(경쟁) · 훈련소 청동(단련) · 연합 보라(집단) */
-  #ovcard::before{content:"";position:absolute;left:15px;right:15px;top:15px;height:52px;
-    pointer-events:none;z-index:0;opacity:.5;
-    background:linear-gradient(var(--ov-tone,#0000), #0000)}
-  #ovcard[data-skin="attend"]{--ov-tone:#2e7d3288}
-  #ovcard[data-skin="pass"]{--ov-tone:#b8860b88}
-  #ovcard[data-skin="arena"]{--ov-tone:#c6282888}
-  #ovcard[data-skin="training"]{--ov-tone:#8d6e6388}
-  #ovcard[data-skin="alliance"]{--ov-tone:#6a1b9a88}
+  /* ── 화면별 스킨 — 오버레이가 전부 같은 얼굴이면 "AI 가 찍어낸 판" 이 된다.
+     프레임(9-slice)은 공용으로 두고, 카드 상단에 **그 화면의 아트**를 깔고
+     톤 발광을 차등한다. 이미지는 전부 기존 에셋 재사용 — 전용 헤더 아트(PN-*)가
+     생기면 --ov-img 만 갈아끼운다 (에셋_생성_프롬프트.md 13절) */
+  #ovskin{display:none}
+  #ovcard[data-skin] #ovskin{display:block;position:absolute;left:15px;right:15px;top:15px;
+    height:108px;z-index:0;pointer-events:none;
+    background:var(--ov-img) center var(--ov-pos,24%)/cover no-repeat;
+    -webkit-mask:linear-gradient(180deg,#000 30%,#0000 96%);
+    mask:linear-gradient(180deg,#000 30%,#0000 96%);
+    opacity:.48;filter:saturate(1.06)}
+  /* 백드롭 위로 내용이 올라와야 한다 */
+  #ovh,#ovinfo,#ovb{position:relative;z-index:1}
+  #ovcard[data-skin="attend"]  {--ov-tone:#2e7d3288;--ov-img:url(/assets/bg/BG-04.png)}
+  #ovcard[data-skin="pass"]    {--ov-tone:#b8860b88;--ov-img:url(/assets/art/UR-01-ART.png);--ov-pos:14%}
+  #ovcard[data-skin="arena"]   {--ov-tone:#c6282888;--ov-img:url(/assets/bg/BG-03.png)}
+  #ovcard[data-skin="training"]{--ov-tone:#8d6e6388;--ov-img:url(/assets/ui/FG-01.png)}
+  #ovcard[data-skin="alliance"]{--ov-tone:#6a1b9a88;--ov-img:url(/assets/alliance/AL-BG.png);--ov-pos:12%}
+  #ovcard[data-skin="forge"]   {--ov-tone:#ff8c4288;--ov-img:url(/assets/ui/FG-03.png)}
+  #ovcard[data-skin="equip"]   {--ov-tone:#7e6bff88;--ov-img:url(/assets/ui/ALT-03.png);--ov-pos:30%}
+  #ovcard[data-skin="quest"]   {--ov-tone:#3f7dd888;--ov-img:url(/assets/bg/BG-02.png)}
+  #ovcard[data-skin="event"]   {--ov-tone:#ff5da288;--ov-img:url(/assets/ui/EV-01.png)}
+  #ovcard[data-skin="promo"]   {--ov-tone:#ffd75e88;--ov-img:url(/assets/captain/PR-warrior-3.png);--ov-pos:20%}
+  #ovcard[data-skin="friend"]  {--ov-tone:#ffb64888;--ov-img:url(/assets/captain/captain_face_happy.png);--ov-pos:38%}
   #ovcard[data-skin] #ovt{text-shadow:0 1px 3px #000, 0 0 14px var(--ov-tone)}
+
+  /* ── 친구 — 아바타(단장 표정 + 프로필 링) ── */
+  .fr-av{position:relative;display:inline-block;flex:none}
+  .fr-face{position:absolute;inset:9%;width:82%;height:82%;object-fit:cover;
+    border-radius:50%;background:#0b0f17}
+  .fr-ring{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .fr-row{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .fr-hero{display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:10px 0 12px}
+  .fr-hero b{font-size:14px;font-weight:800}
+  .fr-cls{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--dim);
+    background:#0b0f17aa;border:1px solid #ffffff1f;border-radius:999px;padding:3px 9px}
+  .fr-cls img{width:14px;height:14px}
   #ovcard::before,#ovcard::after{content:"";position:absolute;width:26px;height:26px;
     pointer-events:none;z-index:5;opacity:.85;
     background:url(/assets/ui/UI-CORNER.png) center/contain no-repeat}
@@ -2946,6 +2971,7 @@
 
   <div id="ov">
     <div id="ovcard">
+      <i id="ovskin"></i>
       <div id="ovh">
         <span id="ovt"></span>
         <span id="ovcur"></span>

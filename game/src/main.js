@@ -872,7 +872,7 @@ function openAutoPanel() {
     + (S.autoWanted ? '자동 소환 정지' : '자동 소환 시작') + '</button>');
 
   $('#ovt').textContent = '자동 소환';
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'forge';
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -1994,7 +1994,7 @@ function openMissions(kind = 'daily') {
 
   const nextR = def.pointRewards.find(r => !st.claimed.includes(r.points));
   $('#ovt').textContent = t('임무');
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'quest';
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = `
     <div class="mq-tabs">
@@ -2387,7 +2387,7 @@ function openEvents() {
   </button>`);
 
   $('#ovt').textContent = t('이벤트');
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'event';
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
   $('#ovb').innerHTML = banners.join('');
@@ -2710,7 +2710,7 @@ function openPromotion() {
   }).join('');
 
   $('#ovt').textContent = t('전직');
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'promo';
   $('#ovh').classList.remove('has-cur');
   $('#ovb').innerHTML = `
     <div class="frow"><span class="k">${t('훈련소 레벨')}</span>
@@ -2938,7 +2938,7 @@ function openAllianceGate() {
     </div>`).join('');
 
   $('#ovt').textContent = t('연합');
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'alliance';
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${A.membership.maxMembersNote}</div>`;
   $('#ovb').innerHTML = `
@@ -2985,12 +2985,71 @@ function openAllianceGate() {
 const FRIEND_GIFT_HOURS = 0.2;          // 친구 1명당 방치 12분 분량
 const FRIEND_MAX = 30;
 
+const FR_FACES = ['normal', 'happy', 'surprise', 'trouble'];
+const FR_CLS = ['warrior', 'archer', 'mage'];
+
 function demoFriends() {
   const NAMES = ['까칠한 츄르', '엉덩이 탐정', '식빵 굽는 냥', '새벽 야옹', '츄르 도둑'];
   return NAMES.map((name, i) => ({
     id: 'f' + i, name,
     cp: Math.round(totalCp() * (0.6 + i * 0.2)),
   }));
+}
+
+/** 친구 아바타 — 단장 표정 + 프로필 프레임. i 시드라 항상 같은 얼굴이다 */
+const friendAvatar = (i, px) => `
+  <span class="fr-av" style="width:${px}px;height:${px}px">
+    <img class="fr-face" src="/assets/captain/captain_face_${FR_FACES[i % 4]}.png" alt="">
+    <img class="fr-ring" src="/assets/ui/PFRAME-0${(i % 4) + 1}.png" alt="" onerror="this.remove()">
+  </span>`;
+
+/** 친구 프로필 — 목록에서 이름을 누르면 온다. 데모라 수치는 i 시드 */
+function openFriendProfile(i) {
+  const f = friendState();
+  const x = f.list[i];
+  if (!x) return;
+  const cls = FR_CLS[i % 3];
+  const clsKo = { warrior: '전사', archer: '궁수', mage: '마법사' }[cls];
+  const stage = Math.max(1, (S.maxStage || 1) + (i - 2));
+  const sent = f.sent.includes(x.id), got = f.recv.includes(x.id);
+  const gift = idleGold(FRIEND_GIFT_HOURS);
+
+  $('#ovt').textContent = x.name;
+  $('#ovcard').dataset.skin = 'friend';
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = '';
+  $('#ovb').innerHTML = `
+    <div class="fr-hero">
+      ${friendAvatar(i, 92)}
+      <b>${x.name}</b>
+      <span class="fr-cls"><img src="/assets/skill/CS-${cls[0].toUpperCase()}1.png" alt=""
+        onerror="this.remove()">${t(clsKo)} ${t('단장')}</span>
+    </div>
+    <div class="frow"><span class="k">${t('전투력')}</span><span class="v">${num(x.cp)}</span></div>
+    <div class="frow"><span class="k">${t('최고 스테이지')}</span><span class="v">${stage}</span></div>
+    <div class="frow"><span class="k">${t('오늘 선물')}</span>
+      <span class="v">${sent ? t('보냄 ✓') : t('안 보냄')} · ${got ? t('받음 ✓') : t('안 받음')}</span></div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="fgbtn" data-fsend="${x.id}" ${sent ? 'disabled' : ''} style="flex:1">
+        ${sent ? t('선물 보냄') : t('선물 보내기')}</button>
+      <button class="fgbtn" data-frecv="${x.id}" ${got ? 'disabled' : ''} style="flex:1">
+        ${got ? t('받았습니다') : `${t('받기')} +${num(gift)}`}</button>
+    </div>
+    <button class="rt-b" id="frBack" style="width:100%;margin-top:8px">‹ ${t('친구 목록')}</button>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+
+  $('#frBack').addEventListener('click', openFriends);
+  $('#ovb').querySelector('[data-fsend]')?.addEventListener('click', e => {
+    if (!f.sent.includes(x.id)) f.sent.push(x.id);
+    save(); syncNav(); openFriendProfile(i);
+  });
+  $('#ovb').querySelector('[data-frecv]')?.addEventListener('click', e => {
+    if (!f.recv.includes(x.id)) {
+      f.recv.push(x.id); S.gold += gift;
+      save(); renderTop(); syncNav(); gainToast([['gold', gift]]);
+    }
+    openFriendProfile(i);
+  });
 }
 
 function friendState() {
@@ -3011,11 +3070,12 @@ const friendGiftReady = () => {
 function openFriends() {
   const f = friendState();
   const gift = idleGold(FRIEND_GIFT_HOURS);
-  const rows = f.list.map(x => {
+  const rows = f.list.map((x, i) => {
     const sent = f.sent.includes(x.id);
     const got = f.recv.includes(x.id);
-    return `<div class="frow" style="padding:8px 11px;margin-bottom:5px">
-      <span><b style="font-size:12px">${x.name}</b>
+    return `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px" data-fp="${i}">
+      ${friendAvatar(i, 40)}
+      <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
         <span class="k" style="display:block">CP ${num(x.cp)}</span></span>
       <span style="display:flex;gap:5px">
         <button class="rt-b${sent ? '' : ' go'}" data-fsend="${x.id}"
@@ -3027,7 +3087,7 @@ function openFriends() {
   const allLeft = f.list.some(x => !f.sent.includes(x.id)) || f.list.some(x => !f.recv.includes(x.id));
 
   $('#ovt').textContent = t('친구');
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'friend';
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = `<div class="sub" style="line-height:1.5">${t('선물을 보내도 내 골드는 줄지 않습니다. 서로 보내면 서로 이득입니다')}</div>`;
   $('#ovb').innerHTML = `
@@ -3048,6 +3108,11 @@ function openFriends() {
     S.gold += gift;
     return gift;
   };
+  $('#ovb').querySelectorAll('.fr-row').forEach(r =>
+    r.addEventListener('click', e => {
+      if (e.target.closest('button')) return;   // 선물 버튼은 프로필로 안 샌다
+      openFriendProfile(+r.dataset.fp);
+    }));
   $('#ovb').querySelectorAll('[data-fsend]').forEach(b =>
     b.addEventListener('click', () => {
       if (!f.sent.includes(b.dataset.fsend)) f.sent.push(b.dataset.fsend);
@@ -3878,7 +3943,7 @@ function openForge() {
   const reopen = () => { const y = $('#ovb').scrollTop; openForge(); $('#ovb').scrollTop = y; };
 
   $('#ovt').textContent = '제작대';
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'forge';
   // 모래시계는 이 화면에서만 쓰는 재화다. 헤더에 두면 본문이 안 밀린다.
   $('#ovh').classList.add('has-cur');
   $('#ovcur').innerHTML = `${cur('CU-10')}<b>${num(S.hourglass || 0)}</b>`;
@@ -4025,6 +4090,7 @@ function openEquipInfo(slotId) {
   const sl = D.equipment.slots.find(x => x.id === slotId);
   const it = S.equip[slotId];
   $('#ovt').textContent = sl.nameKo;
+  $('#ovcard').dataset.skin = 'equip';
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
 
@@ -4078,7 +4144,7 @@ function openEquipResult(it) {
   }
 
   $('#ovt').textContent = '장비 소환';
-  delete $('#ovcard').dataset.skin;
+  $('#ovcard').dataset.skin = 'equip';
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.add('show', 'forced');   // 닫기 없음 — 반드시 고른다

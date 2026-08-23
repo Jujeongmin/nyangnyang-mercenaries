@@ -288,5 +288,21 @@
   "SK-P14": "Indomitable",
   "SK-P15": "Aura of Retribution",
   "SK-P16": "Judgment"
- }
+ },
+ "최고 스테이지": "Best stage",
+ "오늘 선물": "Today's gifts",
+ "보냄 ✓": "Sent ✓",
+ "안 보냄": "Not sent",
+ "받음 ✓": "Received ✓",
+ "안 받음": "Not received",
+ "선물 보냄": "Gift sent",
+ "선물 보내기": "Send gift",
+ "받았습니다": "Received",
+ "친구 목록": "Friend list",
+ "전사": "Warrior",
+ "궁수": "Archer",
+ "마법사": "Mage",
+ "단장": "Captain",
+ "전투력": "Combat Power",
+ "받기": "Claim"
 }
