@@ -1742,8 +1742,15 @@ function skillDesc(sk, level) {
     case 'crit_chance': return `치명타 확률 +${pct(e.add)}`;
     case 'crit_damage': return `치명타 피해 +${pct(e.add)}`;
     case 'evade_chance': return `회피 확률 +${pct(e.add)}`;
+    case 'opening_burst': return `전투 시작 ${e.sec}초간 공격력 +${pct(e.pct)}`;
+    case 'thorns_aura': return `적이 공격할 때마다 공격력의 ${pct(e.atkPct)} 피해로 되돌림`;
+    case 'vigor': return `초당 최대 체력의 ${(e.maxHpRatioPerSec * mult * 100).toFixed(1)}% 재생`
+      + ` · 체력이 가득 차 있으면 공격력 +${pct(e.fullHpAtkPct)}`;
+    case 'rage_ramp': return `전투가 이어질수록 초당 피해 +${rawPct(e.pctPerSec)}`
+      + ` (최대 +${rawPct(e.maxPct)})`;
     case 'def_pierce': return `적 방어력 ${pct(e.pct)} 무시`;
-    case 'lifesteal': return `피해의 ${pct(e.pct)}만큼 흡혈`;
+    case 'lifesteal': return `피해의 ${pct(e.pct)}만큼 흡혈`
+      + (e.atkPct ? ` · 공격력 +${pct(e.atkPct)}` : '');
     case 'reflect': return `받은 피해의 ${pct(e.pct)}를 반사`;
     case 'execute': return `체력 ${rawPct(e.hpThreshold)} 이하의 적을 ${rawPct(e.chance)} 확률로 즉시 처치`;
     case 'double_hit': return `${rawPct(e.chance)} 확률로 공격력의 ${atk(e.atkRatio)} 추가 타격`;
@@ -2054,7 +2061,8 @@ function openMissions(kind = 'daily') {
     const done = cur >= q.target;
     return `<div class="mq-row${done ? ' done' : ''}">
       <div class="mq-h"><b>${t(q.nameKo)}</b><span>${num(cur)}/${num(q.target)}</span></div>
-      <div class="mq-bar"><i style="width:${cur / q.target * 100}%"></i></div>
+      <div class="mq-bar" style="--seg:${mqSeg(q.target)}"><i
+        style="width:${cur / q.target * 100}%"></i></div>
       <span class="mq-p">+${q.points}</span>
     </div>`;
   }).join('');
@@ -3506,8 +3514,7 @@ function openArena(view) {
     const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
     return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
       <span class="af-ava"><img src="/assets/captain/captain_${f.capCls}.png" alt=""
-        onerror="this.remove()">
-        <img class="af-fr" src="/assets/ui/AR-FRAME.png" alt="" onerror="this.remove()"></span>
+        onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
       <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}

@@ -69,15 +69,15 @@ export const SKILL_FX = {
  */
 export const PASSIVE_FX = {
   'SK-P04': { at: 'hit',  chance: 0.20, asset: 'HIT-06', tint: 0xffd76a, scale: 0.7 }, // 치명타율
-  'SK-P06': { at: 'hit',  chance: 0.12, asset: 'SFX-08', tint: 0xbfe8ff, scale: 0.6 }, // 회피
+  'SK-P06': { at: 'open', asset: 'SFX-06', tint: 0xffe08a, scale: 1.0 },              // 선제
   'SK-P07': { at: 'hit',  chance: 0.30, asset: 'SFX-09', tint: 0x7fe08a, scale: 0.55 }, // 흡혈
-  'SK-P08': { at: 'hit',  chance: 0.18, asset: 'SFX-10', tint: 0x9ad8ff, scale: 0.6 }, // 반사
+  'SK-P08': { at: 'hit',  chance: 0.22, asset: 'SFX-10', tint: 0xc06bff, scale: 0.6 }, // 가시 오라
   'SK-P09': { at: 'kill', chance: 0.45, asset: 'HIT-08', tint: 0xff6b6b, scale: 1.0 }, // 즉사
   'SK-P10': { at: 'hit',  chance: 0.22, asset: 'HIT-03', tint: 0xffffff, scale: 0.7 }, // 이중 공격
   'SK-P11': { at: 'hit',  chance: 0.16, asset: 'HIT-04', tint: 0xffc94a, scale: 0.65 }, // 관통력
   'SK-P12': { at: 'hit',  chance: 0.14, asset: 'HIT-06', tint: 0xff8a4a, scale: 0.85 }, // 치명타 피해
-  'SK-P13': { at: 'aura', tint: 0x7fe08a },                                            // 재생
-  'SK-P14': { at: 'aura', tint: 0xffd76a },                                            // 불굴
+  'SK-P13': { at: 'aura', tint: 0x7fe08a },                                            // 활력
+  'SK-P14': { at: 'aura', tint: 0xff8a4a },                                            // 투지
   'SK-P15': { at: 'kill', chance: 0.60, asset: 'SFX-07', tint: 0xff9a4a, scale: 0.8 }, // 응징의 오라
   'SK-P16': { at: 'kill', chance: 0.50, asset: 'SFX-16', tint: 0xffe08a, scale: 0.9 }, // 심판
 };

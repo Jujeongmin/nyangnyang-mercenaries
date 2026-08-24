@@ -461,6 +461,12 @@ export class BattleScene {
     // 한 조우가 2초쯤이라 쿨 20초짜리는 실제로 40초 넘게 안 나갔다.
     this.tickSkillCd(s);
     this.stepSkillState(s);   // 소환수 수명 · 보호막 지속시간
+    // 전투 경과 시간 — 선제·투지가 읽는다. 웨이브가 바뀌면 startWave 가 0 으로
+    this.fightT = (this.fightT || 0) + s;
+    if (this.pas?.regenPS && this.partyHp != null && this.partyHp < this.partyMaxHp) {
+      this.partyHp = Math.min(this.partyMaxHp,
+        this.partyHp + this.partyMaxHp * this.pas.regenPS * s);
+    }
 
     if (this.phase === 'walk') {
       this.phaseT += s;
@@ -488,6 +494,7 @@ export class BattleScene {
       }
       if (this.phaseT >= dur) {
         this.phase = 'fight';
+        this.fightT = 0;              // 선제(전투 시작 N초)·투지(길수록)의 기준점
         for (const f of this.foes) { f.rig.setBase(f.bx, f.by); f.rig.view.alpha = 1; }
         for (const u of this.units) if (u.by != null) u.rig.base.y = u.by;
         if (this.captain && this.capBy != null) this.captain.base.y = this.capBy;
@@ -677,6 +684,12 @@ export class BattleScene {
     if (this.partyHp == null) return;
     const R = this.D.combat.stageRules;
     const scale = foe.boss ? (R.bossDamageScale ?? 1) : (R.mobDamageScale ?? 0.05);
+    // 가시 오라 — 맞는 순간 적에게 되돌린다. 잡몹도 때리므로 스테이지에서
+    // 실제 딜이 된다 (예전 '반사' 는 받은 피해 비례라 0.05 배 앞에서 무력했다)
+    if (this.pas?.thorns && foe.hp > 0) {
+      foe.hp -= this.partyDps * this.pas.thorns;
+      if (foe.hp <= 0) this.killFoe?.(foe);
+    }
     let raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15);
     // 보호막이 있으면 **먼저** 깎인다 — 이게 없으면 party_shield 는 시전 모션뿐인
     // 장식이 된다 (실제로 그랬다)
@@ -785,6 +798,32 @@ export class BattleScene {
   }
 
   /**
+   * 장착한 패시브의 수치를 모은다. 매 타격마다 배열을 훑으면 프레임마다
+   * 같은 계산을 반복한다 — 편성이 바뀔 때(syncPassiveAura) 한 번만 잰다.
+   *   openPct  전투 시작 N 초 공격력 배수 (선제)
+   *   thorns   적 타격마다 파티 공격력의 N 배 되돌림 (가시 오라)
+   *   ragePS   초당 피해 증가율 / rageMax 상한 (투지)
+   *   vigorAtk 체력이 가득 찼을 때 공격력 배수 (활력)
+   *   lifeAtk  흡혈이 얹는 공격력 배수
+   */
+  calcPassives() {
+    const P = { openPct: 0, openSec: 0, thorns: 0, ragePS: 0, rageMax: 0,
+      vigorAtk: 0, regenPS: 0, lifeAtk: 0, lifePct: 0 };
+    for (const sk of this.passiveSkills || []) {
+      const e = this.D.skills.skills.find(k => k.id === sk.id)?.effect;
+      if (!e) continue;
+      // 스킬 레벨은 피해와 같은 식으로 성장한다 (skillDmg 와 맞춘다)
+      const lv = 1 + (sk.level || 0) * 0.06;
+      if (e.kind === 'opening_burst') { P.openPct += e.pct * lv; P.openSec = Math.max(P.openSec, e.sec); }
+      if (e.kind === 'thorns_aura') P.thorns += e.atkPct * lv;
+      if (e.kind === 'rage_ramp') { P.ragePS += e.pctPerSec * lv; P.rageMax += e.maxPct * lv; }
+      if (e.kind === 'vigor') { P.vigorAtk += e.fullHpAtkPct * lv; P.regenPS += e.maxHpRatioPerSec * lv; }
+      if (e.kind === 'lifesteal') { P.lifePct += e.pct; P.lifeAtk += (e.atkPct || 0) * lv; }
+    }
+    this.pas = P;
+  }
+
+  /**
    * 장착한 패시브 중 이 순간(at)에 걸린 것 하나를 뽑아 연출한다.
    * 여러 개가 한 프레임에 겹치면 무엇이 터진 건지 안 읽히므로 **하나만** 낸다.
    */
@@ -808,6 +847,7 @@ export class BattleScene {
    * 매 프레임 그리지 않고, 장착이 바뀔 때 한 번만 세운다.
    */
   syncPassiveAura() {
+    this.calcPassives();
     const list = this.passiveSkills || [];
     const auras = list.map(sk => PASSIVE_FX[sk.id]).filter(c => c && c.at === 'aura');
     for (const u of [...(this.captain ? [{ rig: this.captain }] : []), ...this.units]) {
@@ -1027,8 +1067,25 @@ export class BattleScene {
     // **평타에 얹는다.** 스킬이 평타를 대체하면 배율이 100% 아래인 스킬
     // (화염구 64%, 유령 용병 95%)은 쓸수록 손해가 된다 — 그냥 때리는 게 낫다.
     // sim/engine.js 도 스킬을 평타 루프와 따로 굴려 같은 시간에 둘 다 넣는다.
-    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1) * bossMul;
+    // 패시브 곱 — 선제(전투 시작 몇 초) · 투지(전투가 길수록) · 활력(만피) ·
+    // 흡혈(고정 공격력). 넷 다 **스테이지 진행에 기여**해야 해서 CP 가 아니라
+    // 여기서 실제로 곱해진다 (skills.json > survivalRedesignNote)
+    const P = this.pas || {};
+    let pasMul = 1;
+    if (P.openPct && this.fightT < (P.openSec || 0)) pasMul += P.openPct;
+    if (P.ragePS) pasMul += Math.min(P.rageMax, P.ragePS * (this.fightT || 0));
+    if (P.vigorAtk && this.partyHp != null && this.partyHp >= this.partyMaxHp * 0.999) {
+      pasMul += P.vigorAtk;
+    }
+    if (P.lifeAtk) pasMul += P.lifeAtk;
+    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1)
+      * bossMul * pasMul;
     foe.hp -= dmg;
+    // 흡혈 — 넣은 피해의 일부를 파티 체력으로. 보스전에서 실제로 버틴다
+    if (this.pas?.lifePct && this.partyHp != null && this.partyHp < this.partyMaxHp) {
+      this.partyHp = Math.min(this.partyMaxHp,
+        this.partyHp + this.partyMaxHp * 0.004 * this.pas.lifePct);
+    }
     // 패시브 연출 — 때리는 순간. 효과가 아니라 "그게 붙어 있다"는 표시다
     this.passiveFxAt('hit', foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.45, foe.rig.h);
     // 폭풍 연사(3차 궁수) — 평타가 한 번 더 때린다. 확률은 main 이 준다.

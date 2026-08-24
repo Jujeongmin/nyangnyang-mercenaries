@@ -356,12 +356,13 @@
    "id": "SK-P06",
    "grade": "R",
    "asset": "skill_SKP06",
-   "nameKo": "회피",
+   "nameKo": "선제",
    "type": "passive",
-   "category": "stat",
+   "category": "special",
    "effect": {
-    "kind": "evade_chance",
-    "add": 0.075
+    "kind": "opening_burst",
+    "pct": 0.35,
+    "sec": 3
    }
   },
   {
@@ -373,19 +374,20 @@
    "category": "special",
    "effect": {
     "kind": "lifesteal",
-    "pct": 0.296
+    "pct": 0.296,
+    "atkPct": 0.06
    }
   },
   {
    "id": "SK-P08",
    "grade": "SR",
    "asset": "skill_SKP08",
-   "nameKo": "반사",
+   "nameKo": "가시 오라",
    "type": "passive",
    "category": "special",
    "effect": {
-    "kind": "reflect",
-    "pct": 0.142
+    "kind": "thorns_aura",
+    "atkPct": 0.11
    }
   },
   {
@@ -442,25 +444,26 @@
    "id": "SK-P13",
    "grade": "SSR",
    "asset": "skill_SKP13",
-   "nameKo": "재생",
+   "nameKo": "활력",
    "type": "passive",
    "category": "survival",
    "effect": {
-    "kind": "regen",
-    "maxHpRatioPerSec": 0.012
+    "kind": "vigor",
+    "maxHpRatioPerSec": 0.012,
+    "fullHpAtkPct": 0.15
    }
   },
   {
    "id": "SK-P14",
    "grade": "UR",
    "asset": "skill_SKP14",
-   "nameKo": "불굴",
+   "nameKo": "투지",
    "type": "passive",
-   "category": "survival",
+   "category": "special",
    "effect": {
-    "kind": "revive_once",
-    "healRatio": 0.2,
-    "perBattle": 1
+    "kind": "rage_ramp",
+    "pctPerSec": 0.02,
+    "maxPct": 0.4
    }
   },
   {
@@ -554,5 +557,6 @@
   "stepAdd": 2,
   "formula": "cost(L) = base + floor((L-1)/stepEvery) * stepAdd",
   "note": "레벨 1 비용은 **등급과 무관하게** 5 다. 5레벨마다 2 씩 오른다. 예전에는 비용이 곧 그 등급의 dupeValue 라(SSR 30, LR 300) 상위 등급일수록 한 레벨에 드는 재료가 폭증했다 — \"SSR 부터 너무 많이 든다\" 가 그 구조였다. 이제 곡선은 하나뿐이고 등급 차이는 **중복이 주는 값(dupeValue)** 쪽에만 남는다."
- }
+ },
+ "survivalRedesignNote": "생존 패시브 5종을 다시 짰다 (2026-08-24). combat.json > stageRules.mobDamageScale 가 0.05 라 스테이지에서는 파티가 죽지 않는다 — 회피·반사·재생·부활은 아레나와 보스전에서만 값을 하는 죽은 칸이었다. 다섯 개 모두 **진행에도 기여**하도록 바꿨다: 선제(전투 시작 폭발) · 흡혈(회복 + 공격력) · 가시 오라(적 타격마다 고정 반사딜) · 활력(회복 + 만피 공격력) · 투지(전투가 길수록 피해 증가). CP 계산식(cpFormula)은 안 건드렸다 — 등급·레벨 기반이라 효과 종류와 무관하다."
 }
