@@ -1,91 +1,92 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "무한의 탑. 층수 = 전투력 지표. 입장 제한 없이 막힐 때까지 오른다.",
-    "designNote": "던전은 일일 배출(열쇠 3개)을 담당하고, 탑은 **상한 없는 도전**을 담당한다. 둘의 역할이 겹치면 하나가 죽는다."
+ "meta": {
+  "version": "1.0",
+  "description": "무한의 탑. 층수 = 전투력 지표. 입장 제한 없이 막힐 때까지 오른다.",
+  "designNote": "던전은 일일 배출(열쇠 3개)을 담당하고, 탑은 **상한 없는 도전**을 담당한다. 둘의 역할이 겹치면 하나가 죽는다."
+ },
+ "entry": {
+  "model": "unlimited",
+  "modelNote": "입장권이 없다. 요구 CP가 지수로 오르므로 자연히 막힌다 — 그 지점이 곧 '내 전투력이 어디까지인가'다. 입장권을 두면 랭킹이 실력이 아니라 입장권 싸움이 된다.",
+  "resumeFrom": "highest_cleared",
+  "resumeNote": "직전에 뚫은 층 다음부터 시작한다. 1층부터 다시 오르게 하면 시간만 먹고 배우는 게 없다.",
+  "retryCost": null
+ },
+ "floors": {
+  "requiredCpFormula": "towerBaseCp * pow(growth, floor - 1)",
+  "towerBaseCp": 800,
+  "growth": 1.135,
+  "growthNote": "메인 스테이지 곡선(구간별 0.2~2%)보다 가파르다. 탑은 '지금 전투력의 끝'을 재는 곳이라 빨리 막혀야 한다. 1층 800 → 50층 약 41만 → 100층 약 2.1억.",
+  "maxFloor": null,
+  "maxFloorNote": "상한 없음. 랭킹이 상한 역할을 한다.",
+  "timeLimitSeconds": 20,
+  "timeLimitNote": "층마다 보스 1마리. combat.json > stageRules.bossTimeSeconds 와 같은 20초다 — 판정 구간이 두 개면 유저가 규칙을 두 번 배워야 한다.",
+  "enemy": {
+   "kind": "boss",
+   "statRatio": {
+    "atk": 35,
+    "def": 30,
+    "hp": 35
+   },
+   "hpMultiplier": 2.4,
+   "assetRotation": "B-01 ~ B-06 을 층마다 순환. 전용 에셋은 10층 단위 마일스톤에만 붙인다."
   },
-  "entry": {
-    "model": "unlimited",
-    "modelNote": "입장권이 없다. 요구 CP가 지수로 오르므로 자연히 막힌다 — 그 지점이 곧 '내 전투력이 어디까지인가'다. 입장권을 두면 랭킹이 실력이 아니라 입장권 싸움이 된다.",
-    "resumeFrom": "highest_cleared",
-    "resumeNote": "직전에 뚫은 층 다음부터 시작한다. 1층부터 다시 오르게 하면 시간만 먹고 배우는 게 없다.",
-    "retryCost": null
+  "towerBaseCpFix": "800000 -> 800 (2026-08-24). 바로 아래 growthNote 가 \"1층 800 → 50층 약 41만 → 100층 약 2.1억\" 이라고 적어 둔 값과 **1000배** 어긋나 있었다. 800000 이면 1층 요구가 무과금 D180 전투력(약 133만)과 맞먹어 탑을 아무도 못 올랐다. 주석 쪽이 원래 설계다 — f2p D7 약 3,200 CP 면 10층 언저리, D30 약 9,300 이면 20층 언저리가 된다."
+ },
+ "rewards": {
+  "model": "rotating_per_floor",
+  "modelNote": "층마다 **다른 재화**를 순서대로 준다. 총량은 고정이고 종류만 돈다. 매 층 같은 걸 주면 5층쯤에서 보상을 안 보게 되는데, 돌아가면 \"다음 층은 뭐지\"가 생겨서 한 층 더 오를 이유가 붙는다. 층이 오를수록 양이 커지지 않는 건 그대로다 — 고층 한 번이 저층 수십 번을 덮어쓰면 '오늘 몇 층 밀었나'가 무의미해진다.",
+  "firstClearOnly": true,
+  "firstClearOnlyNote": "처음 뚫은 층에서만 준다. 같은 층을 반복해 파밍하는 걸 막는다 — 그건 던전의 역할이다.",
+  "milestone": {
+   "every": 10,
+   "bonus": {
+    "diamond": 150,
+    "equip_ticket": 60,
+    "speedup_5m": 4
+   },
+   "note": "10층마다 한 번 더. 고정 보상만 있으면 장기 목표가 안 생긴다. 층당의 약 6배로 맞춘다."
   },
-  "floors": {
-    "requiredCpFormula": "towerBaseCp * pow(growth, floor - 1)",
-    "towerBaseCp": 800000,
-    "growth": 1.135,
-    "growthNote": "메인 스테이지 곡선(구간별 0.2~2%)보다 가파르다. 탑은 '지금 전투력의 끝'을 재는 곳이라 빨리 막혀야 한다. 1층 800 → 50층 약 41만 → 100층 약 2.1억.",
-    "maxFloor": null,
-    "maxFloorNote": "상한 없음. 랭킹이 상한 역할을 한다.",
-    "timeLimitSeconds": 20,
-    "timeLimitNote": "층마다 보스 1마리. combat.json > stageRules.bossTimeSeconds 와 같은 20초다 — 판정 구간이 두 개면 유저가 규칙을 두 번 배워야 한다.",
-    "enemy": {
-      "kind": "boss",
-      "statRatio": {
-        "atk": 35,
-        "def": 30,
-        "hp": 35
-      },
-      "hpMultiplier": 2.4,
-      "assetRotation": "B-01 ~ B-06 을 층마다 순환. 전용 에셋은 10층 단위 마일스톤에만 붙인다."
-    }
-  },
-  "rewards": {
-    "model": "rotating_per_floor",
-    "modelNote": "층마다 **다른 재화**를 순서대로 준다. 총량은 고정이고 종류만 돈다. 매 층 같은 걸 주면 5층쯤에서 보상을 안 보게 되는데, 돌아가면 \"다음 층은 뭐지\"가 생겨서 한 층 더 오를 이유가 붙는다. 층이 오를수록 양이 커지지 않는 건 그대로다 — 고층 한 번이 저층 수십 번을 덮어쓰면 '오늘 몇 층 밀었나'가 무의미해진다.",
-    "firstClearOnly": true,
-    "firstClearOnlyNote": "처음 뚫은 층에서만 준다. 같은 층을 반복해 파밍하는 걸 막는다 — 그건 던전의 역할이다.",
-    "milestone": {
-      "every": 10,
-      "bonus": {
-        "diamond": 150,
-        "equip_ticket": 60,
-        "speedup_5m": 4
-      },
-      "note": "10층마다 한 번 더. 고정 보상만 있으면 장기 목표가 안 생긴다. 층당의 약 6배로 맞춘다."
-    },
-    "rotation": [
-      {
-        "floorMod": 1,
-        "currency": "diamond",
-        "amount": 25
-      },
-      {
-        "floorMod": 2,
-        "currency": "skill_ticket",
-        "amount": 8
-      },
-      {
-        "floorMod": 3,
-        "currency": "equip_ticket",
-        "amount": 10
-      },
-      {
-        "floorMod": 4,
-        "currency": "merc_ticket",
-        "amount": 8
-      }
-    ],
-    "rotationFormula": "rotation[(floor - 1) % rotation.length]",
-    "rotationNote": "4종 순환. 1층 다이아 → 2층 스킬 소환권 → 3층 장비 소환권 → 4층 용병 소환권 → 5층 다시 다이아. 소환권 8장은 다이아 25 와 대략 같은 값이다(용병·스킬 1회 150다이아 기준으로는 더 크지만, 탑이 유일한 소환권 상시 배출처가 아니고 층당 1회뿐이라 총 뽑기 예산 안에 들어온다).",
-    "budgetNote": "README 불변식 5(무과금 D180 누적 약 4,050뽑)를 지킨다. 100층까지 전부 뚫어도 용병·스킬 소환권은 각 25층분 = 200장이다. 던전·퀘스트 배출을 줄이지 않아도 들어가는 양."
-  },
-  "ranking": {
-    "boardId": "rank_tower",
-    "nameKo": "무한의 탑",
-    "score": "highestFloor",
-    "tiebreak": "같은 층이면 **먼저 도달한 쪽**이 위. 시간은 서버가 찍는다.",
-    "submitRule": "층을 새로 뚫었을 때만 제출한다. 실패는 보내지 않는다.",
-    "antiCheat": "클라가 보낸 층수를 믿지 않는다. 서버가 유저 state 의 CP 로 requiredCpFormula 를 역산해 도달 가능한 층인지 검증한다.",
-    "season": {
-      "resetsWith": "rank_score",
-      "note": "시즌이 끝나도 층수는 유지한다. 초기화하면 며칠치 진행이 사라져 이탈한다. 순위표만 새로 연다."
-    }
-  },
-  "ui": {
-    "entry": "하단 네비 던전 화면 맨 위 카드. 네비는 한 줄(5탭)을 넘기지 않는다 — 탭이 6개가 되면 세로형에서 글자가 뭉개진다. 사이드 열도 이미 8개라 더 못 넣는다.",
-    "showNextFloorCp": "다음 층 요구 CP 를 항상 띄운다. 막힌 이유가 '운'이 아니라 '전투력'이라는 게 보여야 강화하러 간다.",
-    "showBestFloor": "최고 층과 현재 순위를 같이 띄운다."
+  "rotation": [
+   {
+    "floorMod": 1,
+    "currency": "diamond",
+    "amount": 25
+   },
+   {
+    "floorMod": 2,
+    "currency": "skill_ticket",
+    "amount": 8
+   },
+   {
+    "floorMod": 3,
+    "currency": "equip_ticket",
+    "amount": 10
+   },
+   {
+    "floorMod": 4,
+    "currency": "merc_ticket",
+    "amount": 8
+   }
+  ],
+  "rotationFormula": "rotation[(floor - 1) % rotation.length]",
+  "rotationNote": "4종 순환. 1층 다이아 → 2층 스킬 소환권 → 3층 장비 소환권 → 4층 용병 소환권 → 5층 다시 다이아. 소환권 8장은 다이아 25 와 대략 같은 값이다(용병·스킬 1회 150다이아 기준으로는 더 크지만, 탑이 유일한 소환권 상시 배출처가 아니고 층당 1회뿐이라 총 뽑기 예산 안에 들어온다).",
+  "budgetNote": "README 불변식 5(무과금 D180 누적 약 4,050뽑)를 지킨다. 100층까지 전부 뚫어도 용병·스킬 소환권은 각 25층분 = 200장이다. 던전·퀘스트 배출을 줄이지 않아도 들어가는 양."
+ },
+ "ranking": {
+  "boardId": "rank_tower",
+  "nameKo": "무한의 탑",
+  "score": "highestFloor",
+  "tiebreak": "같은 층이면 **먼저 도달한 쪽**이 위. 시간은 서버가 찍는다.",
+  "submitRule": "층을 새로 뚫었을 때만 제출한다. 실패는 보내지 않는다.",
+  "antiCheat": "클라가 보낸 층수를 믿지 않는다. 서버가 유저 state 의 CP 로 requiredCpFormula 를 역산해 도달 가능한 층인지 검증한다.",
+  "season": {
+   "resetsWith": "rank_score",
+   "note": "시즌이 끝나도 층수는 유지한다. 초기화하면 며칠치 진행이 사라져 이탈한다. 순위표만 새로 연다."
   }
+ },
+ "ui": {
+  "entry": "하단 네비 던전 화면 맨 위 카드. 네비는 한 줄(5탭)을 넘기지 않는다 — 탭이 6개가 되면 세로형에서 글자가 뭉개진다. 사이드 열도 이미 8개라 더 못 넣는다.",
+  "showNextFloorCp": "다음 층 요구 CP 를 항상 띄운다. 막힌 이유가 '운'이 아니라 '전투력'이라는 게 보여야 강화하러 간다.",
+  "showBestFloor": "최고 층과 현재 순위를 같이 띄운다."
+ }
 }

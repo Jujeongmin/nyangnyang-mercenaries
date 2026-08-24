@@ -27,7 +27,8 @@
   "adBonusNote": "광고 1회당 해당 던전 열쇠 +2. dailyLimit 1."
  },
  "unlockOrder": {
-  "note": "해금 순서가 곧 성장 순서다. 골드(강화) -> 열쇠(장비뽑기) -> 제련석(장비레벨) -> 다이아(용병·스킬) 순으로 시스템이 하나씩 열려 신규 유저가 7개 재화를 한꺼번에 마주치지 않는다."
+  "note": "해금 순서가 곧 성장 순서다. 골드(강화) -> 열쇠(장비뽑기) -> 제련석(장비레벨) -> 다이아(용병·스킬) 순으로 시스템이 하나씩 열려 신규 유저가 7개 재화를 한꺼번에 마주치지 않는다.",
+  "questSyncNote": "해금 값은 **그 던전을 요구하는 퀘스트 직전**이다 (2026-08-24). 판정이 questDone(n) = \"n 번째를 끝냈나\" 라서, Q5 에서 열리려면 값이 4 여야 한다. 던전 퀘스트는 (k-1)*6+5 번이고 quest.js > DUNGEON_BY_CYCLE 이 어느 던전인지 정한다 — 둘 중 하나를 바꾸면 다른 쪽도 같이 봐야 한다. 예전에는 어긋나서 잠긴 던전을 깨라는 퀘스트가 여럿 걸렸다."
  },
  "dungeons": [
   {
@@ -42,7 +43,7 @@
     "reason": "v2 스테이지 곡선(벽 포함) 재산출. 광산이 생애 골드의 15%를 담당하도록 맞춘 값."
    },
    "unlockCp": 610000,
-   "unlockQuest": 7,
+   "unlockQuest": 4,
    "estimatedUnlockDay": 1,
    "purpose": "장비 강화 자금",
    "unlockCpHistory": {
@@ -75,7 +76,7 @@
    "reward": "gold",
    "baseYield": 3000,
    "unlockCp": 10300000,
-   "unlockQuest": 40,
+   "unlockQuest": 34,
    "estimatedUnlockDay": 12,
    "purpose": "장비 소환 레벨업",
    "unlockCpHistory": {
@@ -96,7 +97,7 @@
     "reason": "무료 1000뽑 도입 보정. 보정 없이는 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다. free1000.json > economyImpact 참조."
    },
    "unlockCp": 22400000,
-   "unlockQuest": 60,
+   "unlockQuest": 46,
    "estimatedUnlockDay": 25,
    "purpose": "용병·스킬 소환 (핵심)",
    "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
@@ -112,7 +113,7 @@
    "reward": "ticket_mixed",
    "baseYield": 3,
    "unlockCp": 327000000,
-   "unlockQuest": 150,
+   "unlockQuest": 58,
    "estimatedUnlockDay": 110,
    "purpose": "종합 보상",
    "yieldSplit": {

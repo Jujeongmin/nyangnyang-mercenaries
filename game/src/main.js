@@ -4712,6 +4712,7 @@ function questGoto(t) {
   if (t.goto === 'shop') shop.open(t.track);
   else if (t.goto === 'forge') openForge();
   else if (t.goto === 'dungeon') openDungeons();
+  else if (t.goto === 'tower') tower.open();
 }
 
 /** 이 스테이지 1회 클리어의 골드 총액 (stages.json > rewards.repeatClear.gold) */

@@ -25,22 +25,40 @@ const CUR_NAME = {
  *   goto  화면 키. track 이 있으면 그 화면 안에서 해당 트랙까지 연다.
  */
 /**
- * 사이클별 던전. 던전 해금 순서와 같다 (dungeons.json > dungeons 순서) —
- * 1~2 사이클은 황금 광산, 3~4 는 보물 창고, 그 뒤로 하나씩 올라간다.
- * 사이클이 표보다 길면 마지막 던전이 계속 나온다.
+ * 사이클별 던전 목표. 퀘스트 번호는 (k-1)*6 + 5 다 — k1→Q5, k2→Q11, k3→Q17…
+ *
+ * **던전 해금(dungeons.json > unlockQuest)보다 뒤에 와야 한다.** 예전에는
+ * Q5 가 황금 광산을 요구하는데 해금이 Q8 이라 잠긴 던전을 깨라는 퀘스트가
+ * 걸렸다. 지금은 해금 값을 각 퀘스트 직전으로 내려 맞춰 뒀다.
+ *
+ * 'tower' 는 무한의 탑이다. 입장권이 없어 하루에 여러 층을 오를 수 있으니,
+ * 열쇠를 기다려야 하는 던전 사이에 끼워 진행이 멈추지 않게 한다.
  */
-export const DUNGEON_BY_CYCLE = ['gold_mine', 'gold_mine', 'treasure_vault',
-  'treasure_vault', 'furnace', 'crystal_cave', 'trial_tower'];
+export const DUNGEON_BY_CYCLE = [
+  'gold_mine',       // k1  Q5   해금 Q5
+  'gold_mine',       // k2  Q11
+  'treasure_vault',  // k3  Q17  해금 Q17
+  'gold_mine',       // k4  Q23
+  'tower',           // k5  Q29
+  'furnace',         // k6  Q35  해금 Q35
+  'tower',           // k7  Q41
+  'crystal_cave',    // k8  Q47  해금 Q47
+  'tower',           // k9  Q53
+  'trial_tower',     // k10 Q59  해금 Q59
+];
 
-/** 이 사이클이 그 던전을 몇 번째로 요구하는가 (1부터). 층수를 여기에 건다 */
+/** 이 사이클이 그 던전(또는 탑)을 몇 번째로 요구하는가 (1부터) */
 export function dungeonNth(k) {
   const i = Math.min(k, DUNGEON_BY_CYCLE.length) - 1;
   const id = DUNGEON_BY_CYCLE[i];
   let n = 0;
   for (let j = 0; j <= i; j++) if (DUNGEON_BY_CYCLE[j] === id) n++;
-  // 표를 넘어선 사이클은 마지막 던전을 계속 판다 — 그만큼 더 깊이
+  // 표를 넘어선 사이클은 마지막 것을 계속 요구한다 — 그만큼 더 깊이
   return n + Math.max(0, k - DUNGEON_BY_CYCLE.length);
 }
+/** 이 사이클의 목표가 무한의 탑인가 */
+export const isTowerCycle = k =>
+  DUNGEON_BY_CYCLE[Math.min(k, DUNGEON_BY_CYCLE.length) - 1] === 'tower';
 
 export const QUEST_TYPE = {
   stage_clear: { label: '스테이지 돌파', goto: null, verb: '' },
@@ -48,6 +66,9 @@ export const QUEST_TYPE = {
   skill_summon: { label: '스킬 소환', goto: 'shop', track: 'skill', verb: '스킬 소환으로' },
   equip_summon_level: { label: '제작대 레벨', goto: 'forge', verb: '제작대로' },
   dungeon_floor: { label: '던전 도달', goto: 'dungeon', verb: '던전으로' },
+  // 무한의 탑 — 입장권이 없어 전투력만 되면 바로 오른다. 던전이 열쇠를
+  // 기다리는 동안 진행이 멈추지 않게 사이사이에 넣는다
+  tower_floor: { label: '무한의 탑', goto: 'tower', verb: '무한의 탑으로' },
   // 처치 수는 방치 중에도 저절로 오른다 — "가서 뭘 해라"가 아니라
   // "계속 돌리면 찬다". 그래서 옮길 데가 없다 (goto: null)
   monster_kill: { label: '몬스터 처치', goto: null, verb: '' },
@@ -63,7 +84,10 @@ export function questAt(D, n) {
   if (ex) return { ...ex, auto: false };
 
   const k = Math.ceil(n / D.quests.cycle.length);
-  const slot = D.quests.cycle.slots[((n - 1) % D.quests.cycle.length)];
+  const slot0 = D.quests.cycle.slots[((n - 1) % D.quests.cycle.length)];
+  // 던전 칸이 탑 차례면 유형을 바꿔 끼운다 (DUNGEON_BY_CYCLE)
+  const slot = slot0.type === 'dungeon_floor' && isTowerCycle(k)
+    ? { ...slot0, type: 'tower_floor' } : slot0;
   const target = {
     stage_clear: () => 5 * k,
     mercenary_summon: () => Math.round(10 * Math.pow(k, 1.6)),
@@ -72,6 +96,8 @@ export function questAt(D, n) {
     // 열쇠가 던전마다 하루 3개(리필)다. 3*k 로 두면 사이클 7 에 21층을 요구해
     // 며칠이 걸린다 — **새 던전이면 2층**, 같은 던전을 또 요구할 때만 2층씩 깊게
     dungeon_floor: () => 2 * dungeonNth(k),
+    // 탑은 열쇠를 안 쓴다 — 다섯 층씩 끊어 올린다 (요구 CP 는 1.135^층)
+    tower_floor: () => 5 * dungeonNth(k),
     power_reach: () => Math.round(3000 * Math.pow(1.9, k - 1)),
   }[slot.type]();
 
@@ -100,6 +126,7 @@ export function questProgress(S, def) {
       if (def.dungeon) return Math.max(0, (dg[def.dungeon]?.floor || 1) - 1);
       return Object.values(dg).reduce((a, d) => Math.max(a, d.floor - 1), 0);
     }
+    case 'tower_floor': return S.tower?.best || 0;
     case 'monster_kill': return S.kills || 0;
     case 'power_reach': return 0;   // main 이 CP 를 넣어준다
     default: return 0;
