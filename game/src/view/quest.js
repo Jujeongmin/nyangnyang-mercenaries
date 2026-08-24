@@ -3,7 +3,8 @@
 // quests.json > ui.showNextRewardNote:
 //   "'다음 보상: 용병 소환권 40' 이 화면에 떠 있으면 유저가 지금 뭘 해야 할지 자동으로 안다."
 //
-// 6칸 순환 구조 (cycle.slots) — 스테이지 → 용병소환 → 스킬소환 → 제작대 → 던전 → 전투력.
+// 7칸 순환 구조 (cycle.slots) — 스테이지 → 용병소환 → 스킬소환 → 제작대 → 던전 →
+// 훈련소 → 전투력. 훈련소는 2026-08-24 에 넣었다 (전직 게이트인데 사이클에 없었다).
 // 각 칸은 다음 칸에 필요한 재화를 보상으로 준다 (supplyRate). 그래서 퀘스트를 따라가면
 // 시스템 전체를 한 바퀴 돌게 된다.
 
@@ -25,7 +26,8 @@ const CUR_NAME = {
  *   goto  화면 키. track 이 있으면 그 화면 안에서 해당 트랙까지 연다.
  */
 /**
- * 사이클별 던전 목표. 퀘스트 번호는 (k-1)*6 + 5 다 — k1→Q5, k2→Q11, k3→Q17…
+ * 사이클별 던전 목표. 7칸 사이클이라 퀘스트 번호는 (k-1)*7 + 5 다 —
+ * 자동 구간에서는 k4→Q26, k5→Q33, k6→Q40, k8→Q54, k10→Q68.
  *
  * **던전 해금(dungeons.json > unlockQuest)보다 뒤에 와야 한다.** 예전에는
  * Q5 가 황금 광산을 요구하는데 해금이 Q8 이라 잠긴 던전을 깨라는 퀘스트가
@@ -98,22 +100,36 @@ export function questAt(D, n) {
     ? { ...slot0, type: 'tower_floor' } : slot0;
   const target = {
     stage_clear: () => 5 * k,
-    mercenary_summon: () => Math.round(10 * Math.pow(k, 1.6)),
-    skill_summon: () => Math.round(8 * Math.pow(k, 1.6)),
+    // **소환은 항상 10회다.** 바로 앞 퀘스트가 소환권 10장을 주므로
+    // "받은 만큼 그대로 쓰면 끝난다" 가 성립한다 — 사이클마다 목표를 늘리면
+    // 그 성립이 깨지고, 유저는 자기가 얼마나 모아야 하는지 매번 다시 센다
+    mercenary_summon: () => 10,
+    skill_summon: () => 10,
     equip_summon_level: () => Math.min(2 * k, 60),
     // 열쇠가 던전마다 하루 3개(리필)다. 3*k 로 두면 사이클 7 에 21층을 요구해
     // 며칠이 걸린다 — **새 던전이면 2층**, 같은 던전을 또 요구할 때만 2층씩 깊게
     dungeon_floor: () => 2 * dungeonNth(k),
     // 탑은 열쇠를 안 쓴다 — 다섯 층씩 끊어 올린다 (요구 CP 는 1.135^층)
     tower_floor: () => 5 * dungeonNth(k),
-    power_reach: () => Math.round(3000 * Math.pow(1.9, k - 1)),
+    // CP 를 400 으로 나눈 뒤의 값이다 (2026-08-24). 3000×1.9^(k-1) 이던 시절엔
+    // 사이클 5 에서 39,096 을 요구했는데 그건 새 스케일로 LR 한 장 값이다
+    // 훈련소 — 골드를 태우는 칸. 4k 면 사이클 4 에 Lv16(누적 약 2만골드) 이다
+    training_level: () => 4 * k,
+    power_reach: () => Math.round(2000 * Math.pow(1.9, k - 2)),
   }[slot.type]();
 
   // 보상은 다음 퀘스트가 요구하는 자원 × supplyRate 로 역산된다.
   const supply = k <= 1 ? 1.0 : k <= 2 ? 0.9 : k <= 3 ? 0.8 : k <= 4 ? 0.7 : 0.6;
   const base = Math.round(2000 * Math.pow(1.55, k));
-  const rewards = { gold: Math.round(base * 12 * supply), diamond: Math.round(60 * k * supply) };
-  if (n % 10 === 0) { rewards.diamond *= 4; rewards.merc_ticket = 10 * k; }
+  // 골드는 **1/10** 이다 (×12 → ×1.2). 초반 비용을 낮추면서 명시 퀘스트 보상도
+  // 같이 내렸는데 자동 구간만 옛 배수로 두면 Q25 부터 갑자기 12만이 쏟아진다
+  const rewards = { gold: Math.round(base * 1.2 * supply), diamond: Math.round(60 * k * supply) };
+  // **다음 퀘스트가 소환이면 그 소환권 10장을 여기서 준다.** 소환 목표가 항상
+  // 10 회라, 앞 퀘스트 보상이 곧 그 퀘스트의 밑천이 된다 (quests.json > chainInvariant)
+  const nextType = D.quests.cycle.slots[(n % D.quests.cycle.length)].type;
+  if (nextType === 'mercenary_summon') rewards.merc_ticket = 10;
+  if (nextType === 'skill_summon') rewards.skill_ticket = 10;
+  if (n % 10 === 0) rewards.diamond *= 4;
   const out = { q: n, cycle: k, type: slot.type, target, rewards, auto: true };
   // 던전 퀘스트는 **어느 던전인지**가 붙어야 한다. 안 붙이면 "아무 던전이나
   // 최고층" 이 되어, 이미 깊이 판 던전 덕에 새 퀘스트가 시작하자마자 완료된다
@@ -125,10 +141,16 @@ export function questAt(D, n) {
 export function questProgress(S, def) {
   switch (def.type) {
     case 'stage_clear': return S.maxStage;
-    case 'mercenary_summon': return S.summonExp.mercenary;
-    case 'skill_summon': return S.summonExp.skill;
+    // 아래 넷은 전부 **이번 퀘스트 동안** 의 값이다 (소환·제작·처치). 기준점은 퀘스트를 넘길 때 다시 찍는다
+    // (main.js > markQuestBase). 누적으로 세면 목표가 131 처럼 커지고, 미리
+    // 많이 뽑아 둔 사람은 새 퀘스트가 시작하자마자 완료된다.
+    // questBase 가 없는 옛 세이브는 누적 그대로 본다 — 갑자기 목표가 늘지 않게
+    case 'mercenary_summon':
+      return S.summonExp.mercenary - (S.questBase?.merc ?? 0);
+    case 'skill_summon':
+      return S.summonExp.skill - (S.questBase?.skill ?? 0);
     case 'equip_summon_level': return S.forgeLv;
-    case 'equip_summon_count': return S.eqSummons || 0;
+    case 'equip_summon_count': return (S.eqSummons || 0) - (S.questBase?.eq ?? 0);
     case 'training_level': return S.trainLv || 0;
     case 'dungeon_floor': {
       // **지정된 던전만** 본다. 지정이 없는 옛 저장본은 최고층으로 넘어간다
@@ -137,7 +159,7 @@ export function questProgress(S, def) {
       return Object.values(dg).reduce((a, d) => Math.max(a, d.floor - 1), 0);
     }
     case 'tower_floor': return S.tower?.best || 0;
-    case 'monster_kill': return S.kills || 0;
+    case 'monster_kill': return (S.kills || 0) - (S.questBase?.kills ?? 0);
     case 'power_reach': return 0;   // main 이 CP 를 넣어준다
     default: return 0;
   }

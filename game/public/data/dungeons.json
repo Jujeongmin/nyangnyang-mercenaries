@@ -58,7 +58,7 @@
    "reward": "equip_ticket",
    "baseYield": 22,
    "unlockCp": 5975,
-   "unlockQuest": 18,
+   "unlockQuest": 16,
    "estimatedUnlockDay": 3,
    "purpose": "장비 소환 횟수",
    "unlockCpHistory": {
@@ -76,7 +76,7 @@
    "reward": "gold",
    "baseYield": 3000,
    "unlockCp": 25750,
-   "unlockQuest": 40,
+   "unlockQuest": 39,
    "estimatedUnlockDay": 12,
    "purpose": "장비 소환 레벨업",
    "unlockCpHistory": {
@@ -97,7 +97,7 @@
     "reason": "무료 1000뽑 도입 보정. 보정 없이는 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다. free1000.json > economyImpact 참조."
    },
    "unlockCp": 56000,
-   "unlockQuest": 60,
+   "unlockQuest": 53,
    "estimatedUnlockDay": 25,
    "purpose": "용병·스킬 소환 (핵심)",
    "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
@@ -113,7 +113,7 @@
    "reward": "ticket_mixed",
    "baseYield": 3,
    "unlockCp": 817500,
-   "unlockQuest": 150,
+   "unlockQuest": 67,
    "estimatedUnlockDay": 110,
    "purpose": "종합 보상",
    "yieldSplit": {

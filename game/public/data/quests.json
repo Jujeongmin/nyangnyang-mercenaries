@@ -6,7 +6,7 @@
   "sideEffect": "Q1~Q6만 따라가면 6개 시스템을 전부 경험한다. 별도 튜토리얼이 불필요해진다."
  },
  "cycle": {
-  "length": 6,
+  "length": 7,
   "slotFormula": "slot = ((N - 1) mod 6) + 1",
   "cycleFormula": "k = ceil(N / 6)",
   "slots": [
@@ -62,6 +62,16 @@
    },
    {
     "slot": 6,
+    "type": "training_level",
+    "targetFormula": "4 * k",
+    "needs": "골드",
+    "prevRewardShouldGive": [
+     "gold"
+    ],
+    "note": "2026-08-24 추가. 전직 게이트(goldsinks > training_camp.promotion)인데 사이클에 없어서 Q8 이후로 한 번도 안 나왔다. 골드 소모처를 사이클이 직접 가리켜야 벌어 둔 골드가 갈 곳이 생긴다."
+   },
+   {
+    "slot": 7,
     "type": "power_reach",
     "targetFormula": "권장CP * 1.1",
     "needs": "모든 성장 재화",
@@ -70,7 +80,8 @@
      "ticket_mixed"
     ]
    }
-  ]
+  ],
+  "lengthNote": "6 → 7 (2026-08-24). 훈련소 칸을 정식으로 넣었다."
  },
  "supplyRate": {
   "formula": "reward(N) = requiredAmount(N+1) * supplyRate(k)",
@@ -157,7 +168,7 @@
    "rewards": {
     "gold": 1200
    },
-   "targetNote": "용병. Q1 보상 10장으로 정확히 채워진다 — 여기서 첫 파티가 생긴다.",
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다.",
    "feedsInto": 3
   },
   {
@@ -192,7 +203,7 @@
    "rewards": {
     "gold": 2000
    },
-   "targetNote": "스킬. Q4 보상 10장으로 채워진다. 보상 2,000 은 Q6(제작대 Lv2)의 **정확한 총액**이다.",
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다.",
    "feedsInto": 6
   },
   {
@@ -227,7 +238,8 @@
    "rewards": {
     "diamond": 300,
     "merc_ticket": 10,
-    "gold": 2000
+    "gold": 2000,
+    "skill_ticket": 10
    },
    "targetNote": "훈련소. 골드를 태워 전 용병을 올리는 곳이자 전직의 게이트다. 여기까지가 온보딩 한 바퀴.",
    "feedsInto": 9
@@ -236,11 +248,12 @@
    "q": 9,
    "cycle": 2,
    "type": "skill_summon",
-   "target": 24,
+   "target": 10,
    "rewards": {
     "speedup_5m": 15
    },
-   "feedsInto": 10
+   "feedsInto": 10,
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
   },
   {
    "q": 10,
@@ -249,7 +262,7 @@
    "target": 4,
    "rewards": {
     "diamond": 500,
-    "gold": 20000,
+    "gold": 3000,
     "equip_ticket": 70
    },
    "milestone": true,
@@ -272,12 +285,13 @@
    "q": 12,
    "cycle": 2,
    "type": "power_reach",
-   "target": 12000,
+   "target": 2000,
    "rewards": {
-    "gold": 20000,
+    "gold": 3000,
     "equip_ticket": 60
    },
-   "feedsInto": 13
+   "feedsInto": 13,
+   "targetNote": "CP 400 축소에 맞춘 값. 이 시점의 예상 전력은 용병 3칸(R~SR) + 장비 몇 칸 이다."
   },
   {
    "q": 13,
@@ -285,7 +299,7 @@
    "type": "stage_clear",
    "target": 15,
    "rewards": {
-    "merc_ticket": 40,
+    "merc_ticket": 10,
     "diamond": 200
    },
    "feedsInto": 14
@@ -294,22 +308,24 @@
    "q": 14,
    "cycle": 3,
    "type": "mercenary_summon",
-   "target": 62,
+   "target": 10,
    "rewards": {
-    "skill_ticket": 32,
+    "skill_ticket": 10,
     "diamond": 200
    },
-   "feedsInto": 15
+   "feedsInto": 15,
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
   },
   {
    "q": 15,
    "cycle": 3,
    "type": "skill_summon",
-   "target": 50,
+   "target": 10,
    "rewards": {
     "speedup_5m": 20
    },
-   "feedsInto": 16
+   "feedsInto": 16,
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
   },
   {
    "q": 16,
@@ -317,7 +333,7 @@
    "type": "equip_summon_level",
    "target": 6,
    "rewards": {
-    "gold": 50000,
+    "gold": 8000,
     "equip_ticket": 110
    },
    "feedsInto": 17
@@ -339,13 +355,14 @@
    "q": 18,
    "cycle": 3,
    "type": "power_reach",
-   "target": 35000,
+   "target": 4200,
    "rewards": {
-    "gold": 80000,
+    "gold": 12000,
     "equip_ticket": 90
    },
    "unlock": "treasure_vault",
-   "feedsInto": 19
+   "feedsInto": 19,
+   "targetNote": "CP 400 축소에 맞춘 값. 이 시점의 예상 전력은 SR 3~4칸 + 장비 6칸 이다."
   },
   {
    "q": 19,
@@ -353,7 +370,7 @@
    "type": "stage_clear",
    "target": 20,
    "rewards": {
-    "merc_ticket": 60,
+    "merc_ticket": 10,
     "diamond": 250
    },
    "feedsInto": 20
@@ -362,23 +379,25 @@
    "q": 20,
    "cycle": 4,
    "type": "mercenary_summon",
-   "target": 105,
+   "target": 10,
    "rewards": {
     "diamond": 800,
-    "skill_ticket": 50
+    "skill_ticket": 10
    },
    "milestone": true,
-   "feedsInto": 21
+   "feedsInto": 21,
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
   },
   {
    "q": 21,
    "cycle": 4,
    "type": "skill_summon",
-   "target": 84,
+   "target": 10,
    "rewards": {
     "speedup_5m": 30
    },
-   "feedsInto": 22
+   "feedsInto": 22,
+   "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
   },
   {
    "q": 22,
@@ -386,7 +405,7 @@
    "type": "equip_summon_level",
    "target": 8,
    "rewards": {
-    "gold": 200000,
+    "gold": 30000,
     "equip_ticket": 180
    },
    "feedsInto": 23
@@ -408,13 +427,13 @@
    "q": 24,
    "cycle": 4,
    "type": "monster_kill",
-   "target": 4200,
+   "target": 300,
    "rewards": {
-    "gold": 500000,
+    "gold": 40000,
     "equip_ticket": 260
    },
    "feedsInto": 25,
-   "targetNote": "몬스터 처치 누적. 방치 중에도 차므로 벽이 아니라 진도 표시다"
+   "targetNote": "회차 기준(이번 퀘스트 동안 300마리 ≈ 25 스테이지). 4,200 은 누적이던 시절 값이다."
   }
  ],
  "generationRule": {
@@ -513,20 +532,24 @@
    "note": "Q7 이 이 던전 2층을 요구한다"
   },
   {
-   "quest": 18,
-   "dungeon": "treasure_vault"
+   "quest": 16,
+   "dungeon": "treasure_vault",
+   "note": "Q17 이 이 던전 2층을 요구한다"
   },
   {
-   "quest": 40,
-   "dungeon": "furnace"
+   "quest": 39,
+   "dungeon": "furnace",
+   "note": "자동 구간의 던전 칸이 Q40 이다 (7칸 사이클 k6)"
   },
   {
-   "quest": 60,
-   "dungeon": "crystal_cave"
+   "quest": 53,
+   "dungeon": "crystal_cave",
+   "note": "자동 구간 Q54 (k8)"
   },
   {
-   "quest": 150,
-   "dungeon": "trial_tower"
+   "quest": 67,
+   "dungeon": "trial_tower",
+   "note": "자동 구간 Q68 (k10)"
   }
  ],
  "speedUnlockQuests": {
@@ -573,5 +596,7 @@
  "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다.",
  "dungeonQuestNote": "던전 퀘스트 층수 (2026-08-24). 열쇠는 **던전마다** 하루 3개이고 리필이라 모을 수도 없다 — 한 퀘스트가 하루 안에 끝나는 분량이어야 한다. Q11 황금 광산 2층 / Q17 보물 창고 2층(새 던전이라 낮게) / Q23 황금 광산 3층. 새 던전을 만나면 2층부터, 이미 판 던전은 한 층씩 더 깊이 요구한다.",
  "onboardingNote": "Q1~Q8 은 기능을 하나씩 소개하는 온보딩이다 (2026-08-24 재작성): 제작대 → 용병 → 전투 → 방치 → 스킬 → 제작대 레벨 → 던전 → 훈련소. 각 보상은 바로 다음 퀘스트가 요구하는 것을 준다. 던전 열쇠만 예외로 안 준다 — 매일 3개 리필 + 광고 2개가 이미 공급원이라 보상으로 겹치면 일일 배출 상한이 무너진다.",
- "goldRewardNote": "2026-08-24: 퀘스트 골드를 1/10 로 낮췄다. 초반 비용(제작대·훈련소)을 같이 낮추고 몹 수입을 3배로 올려서, 퀘스트가 골드를 통째로 대신 주던 구조를 뺐다."
+ "goldRewardNote": "2026-08-24: 퀘스트 골드를 1/10 로 낮췄다. 초반 비용(제작대·훈련소)을 같이 낮추고 몹 수입을 3배로 올려서, 퀘스트가 골드를 통째로 대신 주던 구조를 뺐다.",
+ "rescaleNote": "2026-08-24: CP 를 400 으로 나누고 초반 골드 비용을 낮추면서 Q9~Q24 의 골드 보상과 전투력 목표를 다시 잡았다.",
+ "summonCountNote": "2026-08-24: 소환 퀘스트를 **누적 소환수 → 이번 퀘스트 동안의 회차**로 바꿨다. 누적이면 목표가 131 처럼 커지고, 미리 뽑아 둔 사람은 퀘스트가 시작하자마자 완료된다. 기준점은 main.js > markQuestBase 가 퀘스트를 넘길 때 찍는다."
 }

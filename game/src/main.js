@@ -72,6 +72,9 @@ const S = {
   hgUse: 1,                                // 시간 단축에 한 번에 쓸 개수 (창 #hgPop)
   hourglass: 0,
   quest: 1, questProg: 0,
+  // 소환 퀘스트의 기준점. "이번 퀘스트 동안 N회" 를 세려고 퀘스트를 넘길 때마다
+  // 다시 찍는다 (markQuestBase). 신규는 아무것도 안 뽑았으니 0 이다
+  questBase: { merc: 0, skill: 0, eq: 0, kills: 0 },
   // 던전 열쇠 — 던전별로 따로 센다. 매일 05:00 KST 에 3개로 채워진다.
   dgKeys: {}, dgKeyDay: 0,
   // 무한의 탑 — 입장 제한 없음, 직전에 뚫은 층 다음부터
@@ -616,6 +619,24 @@ function slotsOf(kind) {
 }
 
 /** 보상 수령. 실제로는 서버 함수다 (net/backend.js > claimQuest). */
+/**
+ * 회차형 퀘스트의 기준점. **"이번 퀘스트 동안 몇 번 했나"** 를 센다 —
+ * 소환(용병·스킬) · 무기 제작 · 몬스터 처치가 여기에 해당한다.
+ *
+ * 예전에는 계정 누적 소환수(summonExp)를 그대로 목표와 비교했다 — 그래서
+ * 사이클 5 의 목표가 131 처럼 커졌고, 이미 많이 뽑아 둔 사람은 새 퀘스트가
+ * 시작하자마자 완료됐다. 기준점을 퀘스트마다 다시 찍으면 목표를 10~30 같은
+ * 읽히는 숫자로 둘 수 있다.
+ */
+function markQuestBase() {
+  S.questBase = {
+    merc: S.summonExp?.mercenary || 0,
+    skill: S.summonExp?.skill || 0,
+    eq: S.eqSummons || 0,      // 무기 제작 횟수
+    kills: S.kills || 0,       // 몬스터 처치
+  };
+}
+
 function claimQuest() {
   const def = questAt(D, S.quest);
   if (qProgress(def) < def.target) return toast(t('아직 조건 미달'));
@@ -626,6 +647,9 @@ function claimQuest() {
   // **올리기 전에** 잰다. 뒤에서 재면 이미 해금된 값이라 알림이 안 뜬다
   const before = speedMax();
   S.quest++;
+  // 소환 퀘스트의 기준점을 여기서 다시 찍는다 — "이번 퀘스트 동안 N회" 라서
+  // 누적값이 아니라 **직전 퀘스트를 넘긴 순간부터** 센다 (questBase)
+  markQuestBase();
   save();
   renderQuest(); renderTop();
   // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
