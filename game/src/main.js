@@ -989,7 +989,7 @@ function renderEquip() {
       continue;
     }
     d.className = 'slot future';
-    d.innerHTML = `<img class="lk" src="/assets/ui/UI-LOCK.png" alt=""><span>${nm}</span>`;
+    d.innerHTML = `<img class="lk" src="/assets/ui/IC-LOCK-S.png" alt=""><span>${nm}</span>`;
     d.title = `${nm} — 업데이트 예정`;
     future.appendChild(d);
   }
@@ -3001,7 +3001,7 @@ function dungeonHtml() {
           ? `<span class="ent">${st.floor}층</span>
              <span class="keys"><img src="/assets/ui/${dg.keyId}.png" alt="열쇠"
                ><b>${dgKeysOf(dg.id)}<i>/${entries}</i></b></span>`
-          : `<span class="ent lockv"><img class="lockIc" src="/assets/ui/UI-LOCK.png" alt="잠김"
+          : `<span class="ent lockv"><img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김"
              ><i>퀘스트 ${dg.unlockQuest}</i></span>`}
       </div>`;
     }).join('')
@@ -3114,10 +3114,14 @@ const FR_FACES = ['normal', 'happy', 'surprise', 'trouble'];
 const FR_CLS = ['warrior', 'archer', 'mage'];
 
 function demoFriends() {
+  // publicProfile() 과 같은 필드만 — 서버가 붙으면 findProfiles() 가 준다
   const NAMES = ['까칠한 츄르', '엉덩이 탐정', '식빵 굽는 냥', '새벽 야옹', '츄르 도둑'];
+  const CLS = ['warrior', 'archer', 'mage'];
   return NAMES.map((name, i) => ({
     id: 'f' + i, name,
     cp: Math.round(totalCp() * (0.6 + i * 0.2)),
+    stage: Math.max(1, (S.maxStage || 1) + (i - 2) * 5),
+    capCls: CLS[i % 3],
   }));
 }
 
@@ -3134,9 +3138,10 @@ function openFriendProfile(i) {
   const f = friendState();
   const x = f.list[i];
   if (!x) return;
-  const cls = FR_CLS[i % 3];
+  // 화면이 지어내면 안 된다 — 서버가 주는 필드만 읽는다 (publicProfile)
+  const cls = x.capCls || FR_CLS[i % 3];
   const clsKo = { warrior: '전사', archer: '궁수', mage: '마법사' }[cls];
-  const stage = Math.max(1, (S.maxStage || 1) + (i - 2));
+  const stage = x.stage ?? 0;
   const sent = f.sent.includes(x.id), got = f.recv.includes(x.id);
   const gift = idleGold(FRIEND_GIFT_HOURS);
 
@@ -3429,6 +3434,29 @@ const arenaLeft = () => {
  * 상대 3명. 다섯 명을 늘어놓으면 화면이 넘쳐 스크롤이 생겼다 —
  * 셋만 띄우고 **새로 고침**으로 다른 상대를 부른다 (S.arena.foeSeed).
  */
+/**
+ * 남에게 보여 줄 내 프로필. **서버 컬렉션에 올라가는 것과 같은 모양**이다
+ * (server.js > submitProfile). 아레나 상대·친구 카드도 이 모양을 읽으므로,
+ * 화면에 항목을 더하려면 여기와 서버 양쪽에 필드를 더해야 한다.
+ *
+ * 여기 없는 것은 실서버에서 **가져올 수 없다** — 개인 세이브는 본인만 읽는다.
+ */
+function publicProfile() {
+  return {
+    account: null,                       // 서버가 $sender.account 로 채운다
+    nickname: S.profile?.nick || '단장',
+    cp: Math.round(totalCp()),
+    stage: S.maxStage || 0,
+    capCls: S.promoClass || 'warrior',
+    party: S.party.filter(Boolean).slice(0, 5)
+      .map(x => ({ id: x.id, grade: x.grade, level: x.level || 0 })),
+    title: S.profile?.title || '',
+    frame: S.profile?.frame || '',
+    wing: S.cosmetics?.wing || '',
+    arenaScore: S.arenaScore || 0,
+  };
+}
+
 function arenaFoes() {
   const my = totalCp();
   const day = dayIdx(Date.now());
@@ -3442,10 +3470,13 @@ function arenaFoes() {
     const party = Array.from({ length: 5 }, (_, j) =>
       pool[Math.floor(rng(i * 7 + j) * pool.length)]);
     const capCls = ['warrior', 'archer', 'mage'][Math.floor(rng(i + 40) * 3)];
+    // **publicProfile() 과 같은 필드만** 쓴다 — 서버가 붙으면 이 자리에
+    // findProfiles() 결과가 그대로 들어온다 (server.js > submitProfile)
     return {
       i, name: `단장 ${1000 + Math.floor(rng(i) * 8999)}`,
       cp: Math.round(my * k * (0.95 + rng(i + 9) * 0.1)),
       score: Math.max(0, S.arenaScore + Math.round((k - 1) * 400)),
+      stage: Math.max(1, (S.maxStage || 1) + Math.round((k - 1) * 30)),
       party, capCls,
     };
   });
@@ -3576,7 +3607,7 @@ function openFoeInfo(i) {
       <div>
         <b>${f.name}</b>
         <span>${CLASS_KO[f.capCls]} ${t('단장')} · ${t('전투력')} ${num(f.cp)}</span>
-        <span>${t('점수')} ${num(f.score)}</span>
+        <span>${t('점수')} ${num(f.score)} · ${t('최고 스테이지')} ${num(f.stage || 0)}</span>
       </div>
     </div>
     <div class="lbl" style="margin:8px 0 6px">${t('착용 용병')}</div>
@@ -3994,6 +4025,16 @@ function runDungeon(dg) {
  * 메인 화면 퀘스트 바. 상시 노출되고 누르면 이동하거나 수령한다.
  * quests.json > ui.showNextRewardNote — 다음 보상이 보이면 뭘 할지 자동으로 안다.
  */
+/** 퀘스트 이름. 던전 퀘스트면 던전 이름을 붙인다 */
+function questLabel(def) {
+  const base = QUEST_TYPE[def.type]?.label || '';
+  if (def.type === 'dungeon_floor' && def.dungeon) {
+    const dg = D.dungeons.dungeons.find(x => x.id === def.dungeon);
+    if (dg) return `${dg.nameKo} ${def.target}층`;
+  }
+  return base;
+}
+
 function renderQuest() {
   const def = questAt(D, S.quest);
   const cur = qProgress(def);
@@ -4001,7 +4042,9 @@ function renderQuest() {
   const t = QUEST_TYPE[def.type];
   // 완료하면 카드가 통째로 "받아라"로 바뀐다 — 진행 숫자를 그대로 두면
   // 다 찼는데도 아직 할 일처럼 읽힌다
-  $('#qname').textContent = done ? `Q${def.q} 완료` : `Q${def.q} ${t.label}`;
+  // 던전 퀘스트는 **어느 던전**인지가 이름에 들어가야 한다 — "던전 도달" 만
+  // 보면 다섯 던전 중 어디를 파야 하는지 알 수 없다
+  $('#qname').textContent = done ? `Q${def.q} 완료` : `Q${def.q} ${questLabel(def)}`;
   $('#qprog').textContent = done ? '보상 받기' : `${num(cur)}/${num(def.target)}`;
   $('#qfill').style.width = Math.min(100, cur / def.target * 100) + '%';
   // 보상 미리보기 — 담을 자리가 있는 재화만 (QUEST_CUR). 없는 키를 그리면
@@ -4320,7 +4363,7 @@ function openForge() {
       return `<div class="frow" style="opacity:${on ? 1 : .42};padding:6px 10px;margin-bottom:5px">
         <span class="k">Lv ${p.summonLv}</span>
         <span class="v" style="font-size:11px">${p.nameKo || p.unlock}</span>
-        <span>${on ? '✅' : `<img class="lockIc" src="/assets/ui/UI-LOCK.png" alt="잠김">`}</span></div>`;
+        <span>${on ? '✅' : `<img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김">`}</span></div>`;
     }).join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 

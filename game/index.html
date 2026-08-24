@@ -215,10 +215,14 @@
     box-shadow:0 0 10px #ffc94a88;transition:width .3s}
   #bootMsg{font-size:11px;color:#e8d9b0;text-shadow:0 1px 3px #000}
   /* 언어 선택 — 진행이 끝나면 첫 실행에만 뜬다 */
-  #bootLang{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  /* 화면 한가운데에 두면 로고(#bootLogo)를 반쯤 덮는다. 로고 아래로 내린다 —
+     top 을 62% 로 두고 자기 높이만큼만 위로 당긴다(translateY 0) */
+  #bootLang{position:absolute;left:50%;top:62%;transform:translateX(-50%);
     display:none;flex-direction:column;gap:7px;align-items:center;
     background:var(--card)f2;border:1px solid var(--gold);border-radius:14px;
     padding:16px 22px;box-shadow:0 16px 50px #000c;z-index:2}
+  /* 언어 선택이 떠 있는 동안에는 로고를 살짝 올려 자리를 비운다 */
+  #boot:has(#bootLang.show) #bootMain{justify-content:flex-start;padding-top:12%}
   #bootLang.show{display:flex}
   #bootLang>b{font-size:13px}
   #bootLangBtns{display:flex;flex-direction:column;gap:7px}

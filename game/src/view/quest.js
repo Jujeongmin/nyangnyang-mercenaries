@@ -24,12 +24,20 @@ const CUR_NAME = {
  * 퀘스트 유형 → 문구와 이동할 곳.
  *   goto  화면 키. track 이 있으면 그 화면 안에서 해당 트랙까지 연다.
  */
+/**
+ * 사이클별 던전. 던전 해금 순서와 같다 (dungeons.json > dungeons 순서) —
+ * 1~2 사이클은 황금 광산, 3~4 는 보물 창고, 그 뒤로 하나씩 올라간다.
+ * 사이클이 표보다 길면 마지막 던전이 계속 나온다.
+ */
+export const DUNGEON_BY_CYCLE = ['gold_mine', 'gold_mine', 'treasure_vault',
+  'treasure_vault', 'furnace', 'crystal_cave', 'trial_tower'];
+
 export const QUEST_TYPE = {
   stage_clear: { label: '스테이지 돌파', goto: null, verb: '' },
   mercenary_summon: { label: '용병 소환', goto: 'shop', track: 'mercenary', verb: '용병 소환으로' },
   skill_summon: { label: '스킬 소환', goto: 'shop', track: 'skill', verb: '스킬 소환으로' },
   equip_summon_level: { label: '제작대 레벨', goto: 'forge', verb: '제작대로' },
-  dungeon_floor: { label: '던전 돌파', goto: 'dungeon', verb: '던전으로' },
+  dungeon_floor: { label: '던전 도달', goto: 'dungeon', verb: '던전으로' },
   // 처치 수는 방치 중에도 저절로 오른다 — "가서 뭘 해라"가 아니라
   // "계속 돌리면 찬다". 그래서 옮길 데가 없다 (goto: null)
   monster_kill: { label: '몬스터 처치', goto: null, verb: '' },
@@ -51,6 +59,7 @@ export function questAt(D, n) {
     mercenary_summon: () => Math.round(10 * Math.pow(k, 1.6)),
     skill_summon: () => Math.round(8 * Math.pow(k, 1.6)),
     equip_summon_level: () => Math.min(2 * k, 60),
+    // 사이클마다 3층씩. 어느 던전인지는 아래 DUNGEON_BY_CYCLE 이 정한다
     dungeon_floor: () => 3 * k,
     power_reach: () => Math.round(3000 * Math.pow(1.9, k - 1)),
   }[slot.type]();
@@ -60,7 +69,11 @@ export function questAt(D, n) {
   const base = Math.round(2000 * Math.pow(1.55, k));
   const rewards = { gold: Math.round(base * 12 * supply), diamond: Math.round(60 * k * supply) };
   if (n % 10 === 0) { rewards.diamond *= 4; rewards.merc_ticket = 10 * k; }
-  return { q: n, cycle: k, type: slot.type, target, rewards, auto: true };
+  const out = { q: n, cycle: k, type: slot.type, target, rewards, auto: true };
+  // 던전 퀘스트는 **어느 던전인지**가 붙어야 한다. 안 붙이면 "아무 던전이나
+  // 최고층" 이 되어, 이미 깊이 판 던전 덕에 새 퀘스트가 시작하자마자 완료된다
+  if (slot.type === 'dungeon_floor') out.dungeon = DUNGEON_BY_CYCLE[Math.min(k, DUNGEON_BY_CYCLE.length) - 1];
+  return out;
 }
 
 /** 현재 진행도. 상태에서 직접 읽는다 — 별도 카운터를 두면 어긋난다. */
@@ -70,8 +83,12 @@ export function questProgress(S, def) {
     case 'mercenary_summon': return S.summonExp.mercenary;
     case 'skill_summon': return S.summonExp.skill;
     case 'equip_summon_level': return S.forgeLv;
-    case 'dungeon_floor':
-      return Object.values(S.dg || {}).reduce((a, d) => Math.max(a, d.floor - 1), 0);
+    case 'dungeon_floor': {
+      // **지정된 던전만** 본다. 지정이 없는 옛 저장본은 최고층으로 넘어간다
+      const dg = S.dg || {};
+      if (def.dungeon) return Math.max(0, (dg[def.dungeon]?.floor || 1) - 1);
+      return Object.values(dg).reduce((a, d) => Math.max(a, d.floor - 1), 0);
+    }
     case 'monster_kill': return S.kills || 0;
     case 'power_reach': return 0;   // main 이 CP 를 넣어준다
     default: return 0;

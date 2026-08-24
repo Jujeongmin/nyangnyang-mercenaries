@@ -106,4 +106,58 @@ class Server {
       account: $sender.account, score, nickname, createdAt: Date.now(),
     });
   }
+
+  /**
+   * 공개 프로필 스냅샷. **남이 볼 수 있는 것은 여기 담긴 것뿐이다** —
+   * 아레나 상대 카드, 친구 목록, 랭킹 행이 전부 이 컬렉션에서 읽는다.
+   * 개인 세이브($global.getMyState)는 본인만 읽을 수 있어 남의 편성을
+   * 가져올 수 없다. 화면이 보여 주는 항목이 늘면 여기도 같이 늘려야 한다.
+   *
+   * 크기: party 5개 x (id·grade·level) + 코스메틱 3개 ≈ 300바이트.
+   * 컬렉션 아이템 상한이 문서에 없어 넉넉히 잡아도 안전한 크기다.
+   */
+  async submitProfile(p) {
+    if (!p || typeof p !== 'object') throw new Error('profile');
+    if (!p.nickname || p.nickname.length > 15) throw new Error('nickname');
+    if (typeof p.cp !== 'number' || !Number.isFinite(p.cp) || p.cp < 0) throw new Error('cp');
+    const party = Array.isArray(p.party) ? p.party.slice(0, 5).map(x => ({
+      id: String(x.id || '').slice(0, 12),
+      grade: String(x.grade || '').slice(0, 3),
+      level: Math.max(0, Math.min(99, x.level | 0)),
+    })) : [];
+    const item = {
+      account: $sender.account,
+      nickname: String(p.nickname).slice(0, 15),
+      cp: Math.floor(p.cp),
+      stage: Math.max(0, p.stage | 0),
+      capCls: ['warrior', 'archer', 'mage'].includes(p.capCls) ? p.capCls : 'warrior',
+      party,
+      title: String(p.title || '').slice(0, 24),
+      frame: String(p.frame || '').slice(0, 24),
+      wing: String(p.wing || '').slice(0, 24),
+      arenaScore: Math.max(0, p.arenaScore | 0),
+      updatedAt: Date.now(),
+    };
+    const mine = await $global.getCollectionItems('profiles', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account }],
+    });
+    for (const it of mine) await $global.deleteCollectionItem('profiles', it.id);
+    return $global.addCollectionItem('profiles', item);
+  }
+
+  /**
+   * 상대 후보. 아레나는 내 전투력 주변에서, 친구 찾기는 아무나 뽑는다.
+   * 실매칭이 아니라 **표본**이다 — 정교한 매칭은 서버 부하가 커서 나중에.
+   */
+  async findProfiles({ minCp = 0, maxCp = Number.MAX_SAFE_INTEGER, limit = 12 } = {}) {
+    const rows = await $global.getCollectionItems('profiles', {
+      filters: [
+        { field: 'cp', operator: '>=', value: Math.max(0, minCp | 0) },
+        { field: 'cp', operator: '<=', value: maxCp },
+      ],
+      limit: Math.min(50, Math.max(1, limit | 0)),
+    });
+    // 본인은 뺀다 — 자기 자신과 싸우거나 친구 신청하게 되면 안 된다
+    return rows.filter(r => r.account !== $sender.account);
+  }
 }
