@@ -39,6 +39,10 @@ const S = {
   // 캐스케이드 이월. 레벨로 못 바꾼 중복 가치가 여기 남아 다음 중복 때 합산된다.
   // (혼을 폐기해서 적립할 재화가 없다 — economy.json > cascade.carryNote)
   carry: { mercenary: 0, skill: 0 },
+  // 1:1 개편 때 옛 이월 포인트를 한 번 비웠다는 표시 (load 참고).
+  // **기본값은 0 이어야 한다** — 1 로 두면 Object.assign 이 옛 세이브를 덮은 뒤에도
+  // 기본값이 남아 "이미 비웠다" 로 읽혀 리셋이 안 돈다 (실제로 그랬다)
+  carryReset1to1: 0,
   skills: { active: [], passive: [] },
   // 보유함 — 뽑았지만 장착 안 된 것. 장착분(party/skills)과 배열을 나눠 가진다.
   // 같은 객체를 두 배열이 참조하게 하면 JSON 세이브를 거치며 동일성이 깨져 레벨이 갈라진다.
@@ -600,6 +604,14 @@ function load() {
     for (const t of ['mercenary', 'skill']) {
       S.pend[t] = (S.pend[t] || []).map(e =>
         typeof e === 'string' ? { id: null, grade: e } : e);
+    }
+    // 이월 포인트(carry)는 예전에 **등급 배수**로 쌓였다 (LR 중복 하나 = 300).
+    // 지금은 1 포인트 = 1 레벨이라, 옛 값을 그대로 두면 스킬 150레벨을 공짜로
+    // 받는다. 환산할 기준이 없으므로(어느 등급이 얼마나 쌓였는지 기록이 없다)
+    // 한 번만 0 으로 내린다. 다음 중복부터는 새 규칙으로 정확히 쌓인다.
+    if (!S.carryReset1to1) {
+      S.carry = { mercenary: 0, skill: 0 };
+      S.carryReset1to1 = 1;
     }
     // 전직 배타 규칙(promoClass) 이전의 세이브 — 여러 직군이 승급돼 있을 수 있다.
     // 가장 높은 단계 하나만 "고른 길"로 남기고 나머지는 1로 되돌린다
@@ -1222,21 +1234,22 @@ function pull(trackId, n) {
 // ─────────────────────────────────────────────
 // 캐스케이드 — economy.json > cascade
 //
-// 캡을 찍었거나 편성에 못 든 중복은 **가치로 환산**해 편성된 대상의 레벨로 넘긴다.
-// 등급별 가치는 dupeValue (N 1 / R 3 / SR 10 / SSR 30 / UR 100 / LR 300),
-// 레벨 1당 비용은 **대상 등급의** 가치다. 그래서 N 100장으로 UR 을 1레벨 올린다.
+// 캡을 찍었거나 편성에 못 든 중복은 버리지 않고 **편성된 대상의 레벨로 넘긴다**.
+// 규칙은 하나다: **중복 1개 = 레벨 1**. 등급을 안 본다 (dupeValue·levelCost 전부 1).
 //
-// 나머지를 버리면 N 중복이 영원히 무가치해진다. 혼을 폐기했으므로 적립할 재화도
-// 없다 — 트랙별 이월 카운터에 남겨 다음 중복 때 합산한다.
+// 예전에는 등급마다 값이 달라(N 1 … LR 300) "N 100장 = UR 1레벨" 이었다. 계산이
+// 필요한 만큼 유저가 확인할 것도 늘었고, 두 값 중 하나만 손대면 LR 이 중복 두 개로
+// 만렙이 되는 식으로 조용히 뒤집혔다. 1:1 이면 그런 어긋남이 구조적으로 안 생긴다.
 // ─────────────────────────────────────────────
 
 /**
- * 레벨 L(0-based 현재 레벨에서 L+1 로 올릴 때) 한 칸의 비용.
- * **등급을 안 본다** — characters/skills.json > levelCost 의 한 곡선을 모두가 쓴다.
+ * 레벨 한 칸의 비용. 지금은 **늘 1** 이다 — 등급도 현재 레벨도 안 본다.
+ * 식을 남겨 두는 이유: 나중에 계단을 다시 넣고 싶어지면 데이터만 고치면 된다
+ * (characters/skills.json > levelCost).
  */
 function lvCost(track, level) {
   const c = (track === 'skill' ? D.skills : D.characters).levelCost
-    || { base: 5, stepEvery: 5, stepAdd: 2 };
+    || { base: 1, stepEvery: 1, stepAdd: 0 };
   return c.base + Math.floor(level / c.stepEvery) * c.stepAdd;
 }
 
