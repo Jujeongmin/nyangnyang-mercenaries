@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "validate": "node tools/validate.mjs",
     "audit": "node tools/audit.mjs",
-    "check": "npm run validate && npm run audit"
+    "check": "npm run validate && npm run audit",
+    "dev:host": "vite --host"
   },
   "devDependencies": {
     "vite": "^7.1.7"

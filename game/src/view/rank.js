@@ -9,6 +9,7 @@
 // 여기 목록은 화면 검증용 더미다. antiCheat 원칙상 점수는 전부 서버가 산출한다.
 
 import { cpNum, num } from '../core/fmt.js';
+import { LANGS } from '../core/i18n.js';
 
 
 const NAMES = ['냥냥단장', '불꽃여우', '별빛기사', '해태단', '구미호', '판다현자', '백호',
@@ -182,6 +183,14 @@ export class SettingsScreen {
     // 죽은 토글이었다). 사운드 슬라이더는 엔진 연동 전이지만 값 저장용으로 남긴다
     // — 소리가 붙는 즉시 이 값이 적용된다 (사용자 결정).
     this.el.querySelector('#stBody').innerHTML = `
+      <div class="st-h">일반</div>
+      <!-- 언어. 첫 부팅 화면에서 한 번 고르고 나면 다시 물을 자리가 없어서
+           여기에 둔다. 라벨을 "언어 / Language" 로 둔 것은, 잘못 고른 사람이
+           한글을 못 읽는 상태로 이 줄을 찾아야 하기 때문이다 -->
+      <div class="st-row"><span>언어 / Language</span>
+        ${seg('lang', LANGS.map(l => ({ v: l.id, t: l.label })), S.lang || 'ko')}</div>
+      <div class="sh-note">언어를 바꾸면 게임이 다시 시작됩니다 — 진행은 저장됩니다.</div>
+
       <div class="st-h">연출</div>
       <div class="st-row"><span>타격 이펙트</span>
         ${seg('fx', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.fxOn === false ? 0 : 1)}</div>
@@ -206,7 +215,10 @@ export class SettingsScreen {
         gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.</div>`;
 
     this.el.querySelectorAll('.st-seg button').forEach(b => b.addEventListener('click', () => {
-      this.api.set(b.parentElement.dataset.k, +b.dataset.v);
+      // 같은 세그먼트를 ON/OFF(숫자)와 언어(문자열 'ko'·'en')가 같이 쓴다.
+      // 전부 +v 로 받으면 언어가 NaN 으로 들어간다
+      const v = b.dataset.v;
+      this.api.set(b.parentElement.dataset.k, /^-?\d+(\.\d+)?$/.test(v) ? +v : v);
       this.render();
     }));
     this.el.querySelectorAll('.st-rng').forEach(r => r.addEventListener('input', () => {

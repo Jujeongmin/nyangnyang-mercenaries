@@ -36,6 +36,14 @@
 
 const SAVE_VERSION = 1;
 const MAX_BYTES = 200 * 1024;
+// Firestore 문서 한도는 **두 축**이고 서로 별개다:
+//   1MB      문서 바이트 — 값이 큰가
+//   40,000   인덱스 엔트리 — 필드가 많은가. Firestore 가 모든 필드를 자동 색인하고
+//            leaf(스칼라 하나 또는 배열 원소 하나) 1개당 약 2엔트리다
+// 둘 중 하나만 넘어도 저장이 **재시도 없이 조용히 실패**한다. 바이트만 재면
+// 200KB 짜리 작은 값 수만 개가 40k 를 먼저 넘겨 통과해 버린다 — 그래서 leaf 도 센다.
+// 15,000 leaf ≈ 30,000 엔트리로, 상한의 75% 에서 막는다 (여유 25%).
+const MAX_LEAVES = 15000;
 const CURRENCY_FIELDS = ['dia', 'gold', 'eqTicket', 'mercTicket', 'skillTicket',
   'hourglass', 'medal', 'allyCoin'];
 
@@ -51,12 +59,34 @@ function progressScore(s) {
     + (s.quest || 0) * 100;
 }
 
+/**
+ * leaf 개수. Firestore 인덱스 엔트리의 근사치를 내는 유일한 방법이다 —
+ * 스칼라 하나, 배열 원소 하나가 각각 leaf 다. 재귀 깊이는 세이브 구조상 얕다.
+ *
+ * **한 번 부풀면 되돌리기 어렵다**: Firestore 는 merge 저장이라 클라가 필드를
+ * 지워도 문서에는 남는다. 그래서 "넘으면 거부" 가 사실상 유일한 예방책이고,
+ * 넘긴 뒤에 줄이는 것으로는 안 풀린다 ($global 을 통째로 비우기 전까지).
+ */
+function countLeaves(v, depth = 0) {
+  if (v === null || typeof v !== 'object') return 1;
+  if (depth > 12) return 1;                       // 순환·과도한 중첩 방어
+  let n = 0;
+  if (Array.isArray(v)) {
+    for (const x of v) n += countLeaves(x, depth + 1);
+    return n;
+  }
+  for (const k of Object.keys(v)) n += countLeaves(v[k], depth + 1);
+  return n;
+}
+
 function validate(payload) {
   if (!payload || payload.v !== SAVE_VERSION || typeof payload.s !== 'object') {
     throw new Error('bad_format');
   }
   const bytes = JSON.stringify(payload).length;
   if (bytes > MAX_BYTES) throw new Error('too_big:' + bytes);
+  const leaves = countLeaves(payload.s);
+  if (leaves > MAX_LEAVES) throw new Error('too_many_fields:' + leaves);
   const s = payload.s;
   for (const f of CURRENCY_FIELDS) {
     if (typeof s[f] === 'number' && (s[f] < 0 || !Number.isFinite(s[f]))) {

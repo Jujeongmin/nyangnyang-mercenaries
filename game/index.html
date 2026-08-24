@@ -190,23 +190,95 @@
   .at-cum.done{opacity:.55}
 
   /* ── 부트 로딩 ── */
-  #boot{position:fixed;inset:0;z-index:210;display:flex;flex-direction:column;
-    align-items:center;
-    background:url(/assets/bg/BG-01.png) center/cover}
-  /* 배경 그림 위에 어둑한 비네트 — 타이틀이 그림을 이긴다 */
+  /* #app 과 **같은 세로 기둥**에 맞춘다 (width:100%;max-width:480px;margin:0 auto).
+     inset:0 만 두면 데스크톱에서 로딩만 창 전체로 퍼져서, 탭한 순간 480px
+     세로 화면으로 확 줄어든다 — 같은 게임의 두 화면이 다른 비율로 보인다.
+     left/right 가 0 이라 max-width 가 남긴 여백을 margin:auto 가 반씩 먹어
+     가운데로 선다. 기둥 밖은 body 색(#0f0b08) — 게임 화면의 레터박스와 같다 */
+  #boot{position:fixed;inset:0;width:100%;max-width:480px;margin:0 auto;
+    z-index:210;display:flex;flex-direction:column;
+    align-items:center;overflow:hidden;
+    /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
+       타이틀 전용 그림(TT-BG)이 없던 시절의 화면(BG-01)이 폴백이다 */
+    background:url(/assets/ui/TT-BG.webp) center/cover,
+               url(/assets/bg/BG-01.png) center/cover}
+  /* 비네트. TT-BG 는 아래쪽이 이미 어둡게 그려져 있어(21-2 의 가림 표)
+     예전만큼 덮을 필요가 없다 — 덮으면 하늘색이 죽는다 */
   #boot::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(circle at 50% 34%,#150f0b22,#150f0bcc 78%)}
+    background:radial-gradient(circle at 50% 40%,#150f0b00,#150f0b88 88%)}
   #boot.hide{opacity:0;pointer-events:none;transition:opacity .4s}
+  /* ── 타이틀 레이어 (TT-*) ──
+     그림은 전부 정지 이미지 한 장이고 움직임은 여기서 만든다 (에셋 규칙 1-4).
+     transform·opacity 만 건드려서 매 프레임 다시 칠할 것이 없다 */
+  #bootFx{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  /* 빛줄기 — screen 합성이라 검은 픽셀은 사라지고 밝은 부분만 더해진다 */
+  #ttRay{position:absolute;left:-12%;top:-5%;width:124%;
+    mix-blend-mode:screen;animation:ttRayBreathe 9s ease-in-out infinite}
+  @keyframes ttRayBreathe{0%,100%{opacity:.2}50%{opacity:.4}}
+  /* 구름 — 두 벌이 한 벌 폭(180%)씩 어긋나 서 있다가 같이 왼쪽으로 흐른다.
+     그림 좌우 끝이 투명이라(21-4) 이어지는 지점이 안 보인다 */
+  #ttClouds{position:absolute;left:0;top:4%;width:100%;height:26%}
+  #ttClouds img{position:absolute;top:0;width:180%;height:auto;opacity:.9;
+    animation:ttDrift 80s linear infinite}
+  #ttClouds img:first-child{left:0}
+  #ttClouds img:last-child{left:180%}
+  @keyframes ttDrift{to{transform:translateX(-180%)}}
+  /* 전경 풀 — **이어붙이지 않는다.** 화면보다 넓게 깔고 좌우로 조금 흔들 뿐이라
+     이음매 자체가 없다. 구름과 반대로 느리게 움직여 깊이가 생긴다 */
+  #ttFore{position:absolute;left:-9%;bottom:-2%;width:118%;
+    animation:ttSway 26s ease-in-out infinite alternate}
+  @keyframes ttSway{from{transform:translateX(0)}to{transform:translateX(3.5%)}}
+  /* 반짝이 — 그림 한 장을 main.js 가 여러 개 뿌린다 (bootSparks) */
+  .tt-spark{position:absolute;opacity:0;
+    animation:ttTwinkle 3.4s ease-in-out infinite}
+  @keyframes ttTwinkle{0%,100%{opacity:0;transform:scale(.55)}
+    50%{opacity:.9;transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){
+    #ttRay,#ttClouds img,#ttFore,.tt-spark,#bootSign{animation:none}
+    #ttRay{opacity:.3}
+    .tt-spark{opacity:.65}
+  }
+
   #bootMain{position:relative;flex:1;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:4px}
-  #bootLogo{width:min(280px,72vw);filter:drop-shadow(0 12px 30px #000c);
-    animation:pvBob 2.6s ease-in-out infinite}
-  #bootTitle{font-size:34px;font-weight:900;color:var(--gold);letter-spacing:2px;
+  /* 간판. 흔들리는 것은 그림이 아니라 **간판 통째**다 — 글자가 판에 박혀
+     있어야 하니 둘이 따로 움직이면 안 된다.
+     container 를 선언해 글자 크기를 간판 폭에 매단다(cqi = 폭의 1%).
+     px 로 두면 좁은 폰에서 그림만 줄고 글자는 그대로라 판 밖으로 넘친다 */
+  /* 간판이 아주 조금 떠 있다. 원래 `pvBob` 을 불렀는데 **그런 키프레임이
+     이 파일 어디에도 없었다** — 이름만 있고 움직임은 없었다. 여기서 정의한다.
+     이름을 tt- 로 바꾼 것은 pv- 가 절전 덮개(#pwrveil)의 접두사라서다 */
+  #bootSign{container:sign / inline-size;position:relative;width:min(280px,72vw);
+    animation:ttBob 3.4s ease-in-out infinite}
+  /* 3px 이면 충분하다. 더 흔들면 간판이 아니라 풍선이 된다 */
+  @keyframes ttBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  #bootLogo{display:block;width:100%;filter:drop-shadow(0 12px 30px #000c)}
+  /* 나무판 안쪽 — GT-LOGO.png(512²) 실측 좌 92 우 420 상 222 하 332 을
+     비율로 옮긴 값이다. 그림을 갈면 이 네 숫자를 다시 잰다 */
+  #bootTitle{position:absolute;left:19%;right:19%;top:43.5%;height:21.5%;
+    display:flex;align-items:center;justify-content:center;white-space:nowrap;
+    font-size:10cqi;letter-spacing:.5px;
+    /* 색·굵기 주의:
+       · Black Han Sans 는 **굵기가 400 하나뿐**이다. 900 을 주면 브라우저가
+         가짜 굵게를 씌워 획이 서로 붙고 받침이 뭉갠다. 400 이 원래 굵기다
+       · 금색(--gold)을 나무판 위에 올리면 밝기가 비슷해 글자가 판에 잠긴다.
+         크림색 + 어두운 테두리로 간다 — 판에 새긴 글씨의 대비다 */
+    font-weight:400;color:#fff3d6;
+    -webkit-text-stroke:.7px #3a220e;paint-order:stroke fill;
+    text-shadow:0 2px 0 #40260f, 0 3px 8px #0009}
+  /* 그림이 없을 때 — 옛 배치(그냥 큰 글자)로 돌아간다 */
+  #bootSign.nologo{width:auto;animation:none}
+  #bootSign.nologo #bootTitle{position:static;height:auto;font-size:34px;
+    letter-spacing:1px;color:var(--gold);-webkit-text-stroke:0;
     text-shadow:0 3px 0 #7a4a00, 0 6px 14px #000c, 0 0 30px #ffc94a66}
   #bootSub{font-size:10px;letter-spacing:5px;color:#f2e5dbaa;
     text-shadow:0 1px 3px #000}
   #bootBottom{position:relative;flex:0 0 auto;width:100%;display:flex;
     flex-direction:column;align-items:center;gap:7px;padding:0 26px 34px}
+  /* 전경 풀(TT-FORE)이 화면 아래 약 13% 를 먹는다. 진행바와 시작 문구가
+     그 위에 얹히면 풀·꽃과 글자가 겹쳐 지저분해진다 — 풀 위로 올린다.
+     :has 라서 **그림이 없으면 이 규칙도 안 걸린다** (예전 여백 그대로) */
+  #boot:has(#ttFore) #bootBottom{padding-bottom:104px}
   #bootBar{width:100%;max-width:340px;height:12px;background:#17120fcc;
     border:1px solid #3a2c12;border-radius:7px;overflow:hidden;
     box-shadow:inset 0 2px 4px #000a}
@@ -214,6 +286,24 @@
     background:linear-gradient(90deg,#b8860b,var(--gold) 60%,#ffe9a8);
     box-shadow:0 0 10px #ffc94a88;transition:width .3s}
   #bootMsg{font-size:11px;color:#e8d9b0;text-shadow:0 1px 3px #000}
+  /* 탭하여 시작 — 로딩이 끝나면(#boot.ready) 진행바·플레이버가 빠지고
+     이것만 남는다. 둘을 같이 두면 "다 됐는데 왜 안 넘어가지" 로 읽힌다.
+     자리를 뺏지 않도록 진행바와 같은 높이(12px+7px gap)를 물려받는다 */
+  /* Jua 도 굵기가 400 하나다 — 800 은 가짜 굵게라 작은 글자에서 먼저 뭉갠다.
+     힘은 stroke 로 준다 (#cp 와 같은 수법). 배경이 풀밭·하늘로 밝을 때도
+     읽히도록 금색이 아니라 크림색이다 */
+  #bootStart{display:none;font-size:15px;font-weight:400;letter-spacing:1px;
+    color:#fff3d6;-webkit-text-stroke:.5px #2a1a0c;paint-order:stroke fill;
+    text-shadow:0 2px 0 #40260f, 0 3px 10px #000b;
+    padding:9px 0 8px}
+  #boot.ready{cursor:pointer}
+  #boot.ready #bootBar,#boot.ready #bootMsg{display:none}
+  #boot.ready #bootStart{display:block;animation:bootStartPulse 1.7s ease-in-out infinite}
+  @keyframes bootStartPulse{0%,100%{opacity:.5;transform:scale(.98)}
+    50%{opacity:1;transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){
+    #boot.ready #bootStart{animation:none;opacity:.95}
+  }
   /* 언어 선택 — 진행이 끝나면 첫 실행에만 뜬다 */
   /* 화면 한가운데에 두면 로고(#bootLogo)를 반쯤 덮는다. 로고 아래로 내린다 —
      top 을 62% 로 두고 자기 높이만큼만 위로 당긴다(translateY 0) */
@@ -235,7 +325,11 @@
   /* 절전 덮개 — AOD 풍. 새카만 바탕에 시계·달만 */
   /* 완전 불투명 검정 — OLED 에서 검은 픽셀은 꺼진 픽셀이다. 캔버스도
      stage.visible=false 로 안 그린다 (scene.setPowerSave) */
-  #pwrveil{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
+  /* #boot 과 같은 이유로 #app 의 세로 기둥에 맞춘다 — 덮개만 창 전체로 퍼지면
+     해제한 순간 480px 화면으로 줄어든다. 기둥 밖은 body 색이 그대로 보이고,
+     어차피 그 색(#0f0b08)이 덮개의 검정과 거의 같아 티가 안 난다 */
+  #pwrveil{position:fixed;inset:0;width:100%;max-width:480px;margin:0 auto;
+    z-index:200;display:none;flex-direction:column;
     align-items:center;justify-content:center;gap:7px;background:#000;
     touch-action:none}
   #pwrveil.show{display:flex}
@@ -295,6 +389,83 @@
      붙이면 글자와 부딪힌다 */
   #result{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
     background:#0009;font-size:26px;font-weight:900;letter-spacing:2px}
+
+  /* 아레나 패배 — 캔버스가 회색으로 빠진다 */
+  #cv.gray{filter:grayscale(1) brightness(.7);transition:filter .35s}
+
+  /* ── 아레나 양측 체력바 ──
+     내 쪽은 왼쪽에서, 상대는 오른쪽에서 줄어든다 — 화면의 좌우 진영과 같은
+     방향이라 어느 막대가 누구 것인지 읽을 필요가 없다 */
+  #arBars{position:absolute;left:0;right:0;top:6px;z-index:6;display:none;
+    gap:8px;padding:0 10px}
+  #arBars.show{display:flex}
+  #arBars>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  #arBars b{font-size:10px;font-weight:800;color:#f2e5db;text-shadow:0 1px 3px #000;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #arBars .ar-foe{align-items:flex-end}
+  #arBars span{display:block;width:100%;height:9px;border-radius:5px;
+    background:#17120fcc;border:1px solid #3a2c12;overflow:hidden;
+    box-shadow:inset 0 2px 4px #000a}
+  #arBars i{display:block;height:100%;width:100%;
+    transition:width .12s linear}
+  #arBars .ar-me i{background:linear-gradient(90deg,#4fa83d,#7fd86a)}
+  /* 상대 막대는 **오른쪽 끝을 붙박고** 왼쪽으로 줄어든다 */
+  #arBars .ar-foe span{display:flex;justify-content:flex-end}
+  #arBars .ar-foe i{background:linear-gradient(90deg,#c0392b,#ff6b5a)}
+
+  /* 점수 카운트업 */
+  #arScore{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
+    z-index:7;display:none;font-size:34px;font-weight:900;
+    text-shadow:0 3px 0 #000a,0 6px 18px #000c}
+  #arScore.show{display:block;animation:arPop .5s cubic-bezier(.2,1.5,.4,1)}
+  #arScore.up{color:var(--gold)}
+  #arScore.down{color:#ff8a8a}
+  @keyframes arPop{from{transform:translate(-50%,-50%) scale(.7);opacity:0}
+    to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+
+  /* ── 던전 층 간판 ──
+     전투 화면 위쪽에 걸린다. 상단바(#top)와 HUD 아래, 유닛 위 */
+  #dgSign{position:absolute;left:50%;top:8%;z-index:6;display:none;
+    transform:translate(-50%,-140%);
+    flex-direction:column;align-items:center;gap:1px;
+    padding:7px 20px 8px;border-radius:12px;
+    background:linear-gradient(180deg,#5a4028,#3a2718);
+    border:2px solid var(--brass);
+    box-shadow:0 8px 22px #000a, inset 0 1px 0 #ffffff26;
+    /* 못 두 개. 간판이 매달린 물건으로 읽힌다 */
+    background-clip:padding-box}
+  #dgSign::before,#dgSign::after{content:"";position:absolute;top:6px;width:5px;height:5px;
+    border-radius:50%;background:#d9b25a;box-shadow:inset 0 -1px 1px #0008}
+  #dgSign::before{left:8px} #dgSign::after{right:8px}
+  #dgSign.show{display:flex;animation:dgDrop .42s cubic-bezier(.22,1.4,.36,1) forwards}
+  #dgSign b{font-size:12px;color:#e8d4b0;font-weight:800;letter-spacing:.5px}
+  #dgSign i{font-style:normal;font-size:19px;font-weight:900;color:var(--gold);
+    text-shadow:0 2px 0 #4a2c0e,0 3px 8px #0009;line-height:1.1}
+  /* 위에서 떨어져 박힌다 — 끝에서 살짝 튕기는 것은 위 cubic-bezier 가 만든다 */
+  @keyframes dgDrop{from{transform:translate(-50%,-140%)}to{transform:translate(-50%,0)}}
+  /* 돌파 — 간판이 가로축으로 한 바퀴 뒤집히고 그 사이에 숫자가 바뀐다 */
+  /* 포기 — 간판 **바로 아래 중앙**. 타격 이펙트는 화면 가운데 아래에서 터지므로
+     이 높이는 대체로 안 겹치고, 좌우 아이콘 열과도 안 부딪힌다.
+     작게 두는 것은 의도다 — 자주 쓸 버튼이 아니고 오터치가 비싸다(열쇠 1개) */
+  /* 간판과 **같은 기준선(top:8%)** 에서 출발해 간판 높이(56px)+여백만큼 내린다.
+     % 로 따로 잡으면 화면이 길어질수록 간판에서 멀어지고, 짧으면 간판 위로 겹친다 —
+     실제로 375×812 에서 간판 안으로 19px 파고들었다 */
+  #dgQuit{position:absolute;left:50%;top:8%;z-index:6;display:none;
+    transform:translate(-50%,66px);
+    padding:5px 14px;border-radius:13px;font:inherit;font-size:11px;font-weight:800;
+    color:#e8d4b0;background:#17120fdd;border:1px solid #5a4632;
+    box-shadow:0 3px 10px #0008;cursor:pointer}
+  #dgQuit.show{display:block}
+  #dgQuit:active{transform:translate(-50%,66px) scale(.94)}
+
+  #dgSign.flip{animation:dgFlip .5s ease-in-out}
+  @keyframes dgFlip{
+    0%{transform:translate(-50%,0) rotateX(0)}
+    50%{transform:translate(-50%,-6px) rotateX(90deg)}
+    100%{transform:translate(-50%,0) rotateX(0)}}
+  @media (prefers-reduced-motion:reduce){
+    #dgSign.show,#dgSign.flip{animation:none;transform:translate(-50%,0)}
+  }
 
   /* ── 연합 마을 ─────────────────────────────────────────────
      탭하면 단장이 걸어가고, 건물이 곧 메뉴다. 하늘(상단 26%)은 클릭을 안 받는다 */
@@ -835,6 +1006,22 @@
   .dg .keys b{display:inline;font-size:12px;font-weight:900;color:var(--gold)}
   .dg .keys i{font-style:normal;font-size:10px;font-weight:700;color:var(--dim)}
   /* 잠긴 줄은 그림도 죽인다. 투명도만 낮추면 배너가 여전히 화려해 열린 줄과 안 갈린다 */
+  /* 소탕 — 줄 안의 단추다. 입장(줄 전체)과 나란히 있으므로 **눌리는 영역이
+     또렷해야** 한다: 테두리 있는 알약 모양에 최소 44px 폭 */
+  .dg-sweep{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+    gap:1px;min-width:52px;padding:6px 9px;border-radius:10px;
+    background:#17120fdd;border:1px solid var(--brass);color:var(--gold);
+    font:inherit;font-size:11px;font-weight:800;cursor:pointer;
+    box-shadow:0 2px 6px #0008}
+  .dg-sweep i{font-style:normal;font-size:9px;font-weight:700;color:#d9c39a}
+  .dg-sweep:active{transform:scale(.94)}
+  /* 열쇠가 없을 때 — 숨기지 않는다. 있던 단추가 사라지면 "왜 없어졌지" 가 된다.
+     **투명도로만 죽이면 안 된다** — 뒤에 던전 배너 그림이 밝게 깔려 있어서
+     글자가 그림에 먹힌다. 바탕은 오히려 더 짙게 깔고 색만 무채색으로 내린다 */
+  .dg-sweep.off{background:#0d0906ee;border-color:#4a3c2a;color:#9c8a75;
+    box-shadow:none}
+  .dg-sweep.off i{color:#7d6d5c}
+
   .dg.lock{opacity:.62}
   .dg.lock::before{filter:grayscale(1) brightness(.5)}
   /* 잠긴 줄은 층·열쇠 대신 자물쇠 + 요구 CP 한 덩어리 */
@@ -3286,6 +3473,20 @@
     <button id="chest"><img id="chestImg" src="/assets/ui/CH-01.png" alt=""><span id="chestT">0분</span></button>
     <div id="skillbar"><div id="skRow"><button id="skAuto" class="on" title="스킬 자동 사용">AUTO<i>ON</i></button><div id="skills"></div><button id="csChip" hidden title="전직 스킬"></button><button id="csChip2" hidden title="전직 스킬 2"></button></div><span id="dpsInfo"></span></div>
     <div id="result"></div>
+    <!-- 던전 층 간판 — 입장하면 위에서 떨어져 박히고, 돌파하면 숫자가 뒤집힌다.
+         골드 액수보다 "한 층 올라갔다" 가 진행 실감을 만든다 (연출 기획서 2-2) -->
+    <div id="dgSign"><b></b><i></i></div>
+    <!-- 던전 포기. 간판이 떠 있는 동안(=던전 전투 중)에만 보인다.
+         실수로 누르면 열쇠가 날아가므로 두 번 눌러야 나간다 (main.js dgGiveUp) -->
+    <button id="dgQuit">포기</button>
+    <!-- 아레나 양측 체력바 — arena.json > presentation.uiRequirement
+         "유저가 왜 이겼는지/졌는지를 HP바로 납득해야 한다" -->
+    <div id="arBars">
+      <div class="ar-me"><b></b><span><i></i></span></div>
+      <div class="ar-foe"><b></b><span><i></i></span></div>
+    </div>
+    <!-- 아레나 점수 카운트업 -->
+    <div id="arScore"></div>
     <!-- 벽 안내 — 보스 실패 뒤 요구/현재 CP 와 탈출구. 탭하면 닫힌다 -->
     <div id="wall">
       <div id="wallCard">
@@ -3445,16 +3646,40 @@
   <!-- 부트 로딩 — 데이터·씬이 서기 전까지 이게 화면의 전부다.
      첫 실행이면 진행이 끝난 뒤 언어 선택이 겹쳐 뜬다 -->
 <div id="boot">
+  <!-- 타이틀 레이어 (에셋 문서 21절 `TT-*`). 전부 장식이므로 그림이 없으면
+       스스로 빠진다 — 배경은 CSS 가 BG-01 로 떨어진다.
+       fetchpriority=low: 이 그림들이 data/*.json 보다 먼저 받아지면
+       로딩 화면을 꾸미느라 로딩이 늦어진다 -->
+  <div id="bootFx" aria-hidden="true">
+    <img id="ttRay" src="/assets/ui/TT-RAY.webp" alt="" fetchpriority="low"
+      onerror="this.remove()">
+    <!-- 구름 두 벌. 한 벌이 왼쪽으로 다 빠질 때 다른 벌이 이어 들어온다 -->
+    <div id="ttClouds">
+      <img src="/assets/ui/TT-CLOUD.webp" alt="" fetchpriority="low"
+        onerror="this.parentElement.remove()">
+      <img src="/assets/ui/TT-CLOUD.webp" alt="" fetchpriority="low">
+    </div>
+    <img id="ttFore" src="/assets/ui/TT-FORE.webp" alt="" fetchpriority="low"
+      onerror="this.remove()">
+  </div>
   <!-- 표준 모바일 로딩 구도: 중앙 = 타이틀(간판), 하단 = 진행바.
        바를 중앙에 두면 타이틀과 싸운다 -->
   <div id="bootMain">
-    <img id="bootLogo" src="/assets/ui/GT-LOGO.png" alt="" onerror="this.remove()">
-    <b id="bootTitle">냥냥 용병단</b>
+    <!-- 간판 — 제목은 그림 **안쪽 나무판 위**에 앉는다. 그림이 안 뜨면
+         .nologo 로 떨어져서 제목만 글자로 남는다 (이름이 사라지면 안 된다) -->
+    <div id="bootSign">
+      <img id="bootLogo" src="/assets/ui/GT-LOGO.png" alt=""
+        onerror="this.parentElement.classList.add('nologo');this.remove()">
+      <b id="bootTitle">냥냥 용병단</b>
+    </div>
     <span id="bootSub">NYANG NYANG MERCENARIES</span>
   </div>
   <div id="bootBottom">
     <div id="bootBar"><i id="bootFill"></i></div>
     <span id="bootMsg">냥이들을 깨우는 중…</span>
+    <!-- 로딩이 끝나면 진행바 자리를 이게 대신한다 (#boot.ready).
+         문구는 main.js 가 t() 로 다시 쓴다 — 여기 한국어는 폴백이다 -->
+    <b id="bootStart">화면을 눌러 시작</b>
   </div>
   <div id="bootLang">
     <b>언어 / Language</b>

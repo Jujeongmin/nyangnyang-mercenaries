@@ -402,6 +402,29 @@ function setNickname(name) {
   toast(c.free ? '닉네임을 정했습니다' : `닉네임 변경 · 다이아 -${num(c.dia)}`);
 }
 
+/**
+ * 읽은 우편 정리. **세이브에서 개수로 자라는 유일한 배열이었다.**
+ *
+ * 수령해도 claimed 만 찍고 남겨 두면 계정 수명만큼 쌓인다. 일일 보상·아레나
+ * 티어 보상이 우편으로 오므로 하루 몇 통씩 늘고, 우편 한 통이 leaf 5~7개다 —
+ * 1년이면 leaf 만 1만 개다.
+ *
+ * Firestore 문서는 **인덱스 엔트리 40,000** 이 바이트(1MB)와 **별개 축**이라
+ * 크기가 작아도 필드 수로 먼저 죽는다. 게다가 merge 저장이라 한 번 부풀면
+ * 필드를 지워도 문서에는 남는다 — 애초에 안 쌓는 것이 유일한 예방책이다.
+ * (server/server.js 의 MAX_LEAVES 가 같은 이유로 leaf 를 센다)
+ *
+ * 안 받은 우편은 **절대 안 지운다.** 받은 것만 최근 KEEP 통까지 남긴다.
+ */
+const MAIL_KEEP_CLAIMED = 20;
+function pruneMail() {
+  const box = S.mailbox || [];
+  const claimed = box.filter(x => x.claimed);
+  if (claimed.length <= MAIL_KEEP_CLAIMED) return;
+  const drop = new Set(claimed.slice(0, claimed.length - MAIL_KEEP_CLAIMED));
+  S.mailbox = box.filter(x => !drop.has(x));
+}
+
 function claimMail(i) {
   const list = (S.mailbox || []).filter(x => !x.claimed);
   const m0 = list[i];
@@ -411,6 +434,7 @@ function claimMail(i) {
     if (bag) S[bag] += v;
   }
   m0.claimed = true;
+  pruneMail();
   // 우편 빨간 점은 renderCaptain 이 계산한다. 여기서 안 부르면 다 받아도 점이 남는다
   save(); mail.render(); renderCaptain(); renderTop();
   gainToast(Object.entries(m0.grants).filter(([k]) => MAIL_CUR[k]));
@@ -586,11 +610,21 @@ let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: S }));
-      cloudSave();          // Verse8 안이면 30초 스로틀로 올라간다. 밖이면 무동작
-    } catch (e) { console.warn('저장 실패', e); }
+    saveNow();
+    cloudSave();            // Verse8 안이면 30초 스로틀로 올라간다. 밖이면 무동작
   }, 400);
+}
+
+/**
+ * 즉시 저장. save() 는 400ms 디바운스라 **그 사이에 페이지가 사라지면
+ * 마지막 변경이 통째로 날아간다** — location.reload() 직전이 정확히 그 경우다
+ * (언어 변경이 이걸로 한 번 먹혔다). 그런 자리에서만 이걸 쓴다.
+ */
+function saveNow() {
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: S }));
+  } catch (e) { console.warn('저장 실패', e); }
 }
 
 function load() {
@@ -3035,7 +3069,8 @@ function dungeonHtml() {
             : dg.purpose}</span>
         </span>
         ${open
-          ? `<span class="ent">${st.floor}층</span>
+          ? `${sweepBtnHtml(dg, st)}
+             <span class="ent">${st.floor}층</span>
              <span class="keys"><img src="/assets/ui/${dg.keyId}.png" alt="열쇠"
                ><b>${dgKeysOf(dg.id)}<i>/${entries}</i></b></span>`
           : `<span class="ent lockv"><img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김"
@@ -3047,6 +3082,47 @@ function dungeonHtml() {
         D.dungeons.entry.adBonus.entries}). ${D.dungeons.entry.failureCost}</div>`;
 }
 
+/**
+ * 소탕 단추. **한 번이라도 깬 층이 있어야** 뜬다 (1층에서 소탕할 것이 없다).
+ * 깨 본 적 없는 층을 소탕으로 얻을 수 있으면 전투를 아예 안 하고 진행하게 된다.
+ */
+function sweepBtnHtml(dg, st) {
+  const cleared = st.floor - 1;
+  if (cleared < 1) return '';
+  const keys = dgKeysOf(dg.id);
+  return `<button class="dg-sweep${keys < 1 ? ' off' : ''}" data-sweep="${dg.id}"
+    title="${cleared}층 보상 즉시 수령">소탕<i>${cleared}층</i></button>`;
+}
+
+/**
+ * 소탕 — **이미 깬 최고층의 보상만** 즉시 받는다. 전투도 없고 층도 안 오른다.
+ *
+ * 진행은 직접 싸워야만 된다. 소탕으로 층이 오르면 그것은 소탕이 아니라
+ * "전투를 안 보는 진행 수단"이고, 방금 걷어낸 스킵과 같은 물건이 된다.
+ *
+ * 열쇠는 입장과 똑같이 1개 쓴다. 소탕만 공짜면 일일 배출 상한이 무너진다
+ * (dungeons.json > entry.model — 하루에 뭘 얼마나 돌 수 있는지가 곧 열쇠다).
+ */
+function sweepDungeon(dg) {
+  if (dgRun || arRun) return;
+  const st = S.dg[dg.id];
+  const cleared = st.floor - 1;
+  if (cleared < 1) return toast(`${dg.nameKo} — 1층을 먼저 돌파해야 소탕할 수 있습니다`);
+  if (dgKeysOf(dg.id) < 1) {
+    return toast(`${dg.nameKo} 열쇠 부족 · 매일 ${D.dungeons.entry.dailyKeyGrant}개 지급`);
+  }
+  S.dgKeys[dg.id]--;
+  mq('dungeon_enter');          // 열쇠를 쓰는 입장이므로 입장 퀘스트는 센다.
+                                // 층 퀘스트(dungeon_floor)는 층이 안 오르니 안 센다
+  const gain = Math.round(dgYield(dg, cleared));
+  const bag = DG_BAG[dg.reward];
+  if (bag) S[bag] += gain;
+  save(); renderTop(); renderQuest();
+  openDungeons();               // 열쇠 숫자·소탕 단추 상태를 다시 그린다
+  if (bag) gainToast([[dg.reward, gain]]);
+  else toast(`${dg.nameKo} ${cleared}층 소탕`);
+}
+
 /** 시트에 뿌린 던전 줄에 클릭을 건다 */
 function bindDungeons(root) {
   root.querySelector('#twCard')?.addEventListener('click', () => {
@@ -3056,6 +3132,12 @@ function bindDungeons(root) {
   root.querySelectorAll('.dg:not(.lock)').forEach(el =>
     el.addEventListener('click', () =>
       runDungeon(D.dungeons.dungeons.find(d => d.id === el.dataset.id))));
+  // 소탕은 줄 **안에** 있다 — 전파를 막지 않으면 소탕과 입장이 같이 일어난다
+  root.querySelectorAll('[data-sweep]').forEach(b =>
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      sweepDungeon(D.dungeons.dungeons.find(d => d.id === b.dataset.sweep));
+    }));
 }
 
 function openDungeons() { roster.open('dungeon'); }
@@ -3523,26 +3605,108 @@ function arenaFoes() {
  * 도전 — CP 확률 판정 (arena.json > battle). 틱 시뮬이 아닌 이유는
  * whyNotTickSim 에 있다: 5v5 단판은 CP 비교와 상관 0.97이라 계산만 비싸다.
  */
+// 진행 중인 아레나 판. 던전의 dgRun 과 같은 이유로 전역이다
+let arRun = null;
+
+/**
+ * 도전. **판정은 예전 그대로 CP 확률 한 번이고**(arena.json > battle), 달라진
+ * 것은 그 결과를 화면에서 재생한다는 것뿐이다 (hp_drain).
+ *
+ * 틱 시뮬로 안 가는 이유는 arena.json > whyNotTickSim 에 기록돼 있다 —
+ * 위치·사거리가 없어 동일 CP 단판이 결정론적이 되고 직군 승률이 35% 대 100%
+ * 로 갈라졌다. 판정을 그대로 두면 서버 이관도 그대로다.
+ */
 function arenaFight(foe) {
+  if (arRun || dgRun) return;
   if (arenaLeft() < 1) return toast(t('오늘 입장을 다 썼습니다'));
   arenaState().used++;
   const a = D.arena;
-  const p = 1 / (1 + Math.pow(foe.cp / totalCp(), a.battle.winProbability.exponent));
+  const my = totalCp();
+  const p = 1 / (1 + Math.pow(foe.cp / my, a.battle.winProbability.exponent));
   const win = Math.random() < p;
-  const sc = a.scoring;
   let delta;
   if (win) {
     delta = Math.max(10, Math.min(50, 30 - Math.floor((S.arenaScore - foe.score) / 50)));
-    S.arenaScore += delta;
-    mq('arena_win');
   } else {
     delta = -Math.max(5, Math.min(25, 15 + Math.floor((S.arenaScore - foe.score) / 50)));
-    S.arenaScore = Math.max(0, S.arenaScore + delta);
   }
-  mq('arena');
-  save(); renderTop();
-  showResult(win ? `승리! +${delta}` : `패배 ${delta}`, win ? 'var(--up)' : '#ff5a6a');
-  setTimeout(() => openArena(), 900);
+
+  // 점수는 **연출이 끝난 뒤에** 반영한다 — 먼저 올리면 카운트업할 값이 없다
+  arRun = { foe, win, delta, from: S.arenaScore };
+  save();
+  playArenaMatch(foe, win, my);
+}
+
+/**
+ * 연출 재생. 승자의 남은 HP 와 길이는 arena.json > battle.presentation 의 식이다.
+ * CP 격차가 클수록 승자 HP 가 많이 남아 압승으로 보이고, 접전이면 아슬아슬하다.
+ */
+async function playArenaMatch(foe, win, myCp) {
+  const P = D.arena.battle.presentation;
+  // 이긴 쪽 기준의 전력비 — 진 쪽이 나면 상대가 승자다
+  const ratio = win ? foe.cp / Math.max(1, myCp) : myCp / Math.max(1, foe.cp);
+  let remain = Math.min(0.85, Math.max(0.08, 1 - Math.pow(ratio, 2) * 0.9));
+  // 열세가 이기면 신승으로 — 압승 그림이 나오면 "왜 이겼지"가 남는다
+  if (ratio > 1) remain = 0.05 + Math.random() * 0.1;
+  const duration = 6 + 8 * (1 - remain);
+
+  // 아레나 창(#ov)을 닫아야 전투 화면이 보인다
+  roster.close();
+  $('#ov').classList.remove('show', 'forced');
+  showArenaBars(foe);
+  $('#stg').innerHTML = `아레나<i>${foe.name}</i>`;
+  markEncounter(-1);
+
+  // VS 컷 — 이미 만들어 놓고 보스전에만 쓰고 있었다. 사람 대 사람이라는 것이
+  // 한 장으로 읽히는 자리가 여기다 (연출 기획서 3-2)
+  await showVs(foe);
+
+  await scene.setBackground('BG-03');
+  scene.captainClass = S.promoClass || 'warrior';
+  await scene.setParty(S.party);
+  scene.activeSkills = S.skills.active.filter(Boolean);
+  scene.passiveSkills = S.skills.passive.filter(Boolean);
+  scene.syncPassiveAura?.();
+  await scene.startArenaMatch({
+    foeParty: foe.party, win, hpRemain: remain, duration,
+  });
+}
+
+/** 아레나 VS 컷. 보스전 것과 같은 #vs 를 쓰되 오른쪽이 상대 단장이다 */
+function showVs(foe) {
+  $('#vsBossImg').src = `/assets/captain/captain_${foe.capCls || 'warrior'}.png`;
+  $('#vsCapImg').src = `/assets/captain/captain_${S.promoClass || 'warrior'}.png`;
+  const v = $('#vs');
+  v.classList.remove('show'); void v.offsetWidth;
+  v.classList.add('show');
+  return new Promise(r => setTimeout(() => { v.classList.remove('show'); r(); }, 900));
+}
+
+/** 상단 양측 HP 바 — arena.json > presentation.uiRequirement */
+function showArenaBars(foe) {
+  const el = $('#arBars');
+  el.querySelector('.ar-me b').textContent = S.profile?.nick || '단장';
+  el.querySelector('.ar-foe b').textContent = foe.name;
+  el.querySelector('.ar-me i').style.width = '100%';
+  el.querySelector('.ar-foe i').style.width = '100%';
+  el.classList.add('show');
+}
+
+function hideArenaBars() { $('#arBars').classList.remove('show'); }
+
+/** 점수 카운트업. 0.8초 동안 숫자가 굴러간다 — 이긴 값이 즉시 박히면 안 읽힌다 */
+function countUpScore(from, to, win) {
+  const el = $('#arScore');
+  el.classList.remove('up', 'down');
+  el.classList.add('show', win ? 'up' : 'down');
+  const t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 800);
+    el.textContent = num(Math.round(from + (to - from) * k));
+    if (k < 1) requestAnimationFrame(step);
+    else setTimeout(() => el.classList.remove('show'), 900);
+  };
+  requestAnimationFrame(step);
 }
 
 /** 티어 일일 보상 — 하루 1회, 현재 티어 기준 (arena.json > tiers) */
@@ -4037,25 +4201,121 @@ const DG_BG = {
   trial_tower: 'BG-06',      // 마왕성 — 탑
 };
 
-function runDungeon(dg) {
+/** 던전 보상 종류 → 세이브 필드. `ticket_mixed`(시련의 탑)는 아직 자리가 없다 */
+const DG_BAG = { gold: 'gold', equip_ticket: 'eqTicket', diamond: 'dia', speedup_5m: 'hourglass' };
+
+const dgNeedCp = (dg, floor) => dg.unlockCp * Math.pow(1.18, floor - 1);
+const dgYield = (dg, floor) => dg.baseYield * Math.pow(1.15, floor - 1);
+
+/**
+ * 수문장 얼굴. **10층마다 바뀐다** (2026-08-24 결정).
+ * tower.json > enemy.assetRotation 이 적어 둔 "전용 에셋은 10층 단위 마일스톤에만"
+ * 과 같은 규칙이다. 던전마다 시작 얼굴을 어긋나게 잡아 — 그러지 않으면 다섯 던전이
+ * 늘 같은 얼굴을 동시에 갈아 끼워 "던전마다 다른 곳" 이라는 느낌이 사라진다.
+ *
+ * 전용 그림(DGB-*)이 아직 없으면 스테이지 보스(B-*)로 떨어진다.
+ */
+function dgBoss(dg, floor) {
+  const i = Math.max(0, D.dungeons.dungeons.findIndex(x => x.id === dg.id));
+  const n = ((i * 2 + Math.floor((floor - 1) / 10)) % 6) + 1;
+  const id = String(n).padStart(2, '0');
+  return { bossId: `DGB-${id}`, fallback: `B-${id}` };
+}
+
+// 진행 중인 던전. 전투가 끝나면 onEvent 가 이걸 보고 보상을 준다.
+// 전역에 두는 이유 — 전투 결과는 씬에서 비동기로 돌아오므로 호출부의 지역변수가
+// 그때까지 살아 있지 않다.
+let dgRun = null;
+
+/**
+ * 던전 입장. **실제 전투다** (2026-08-24 결정) — 예전에는 전투력 비교 한 줄이었다.
+ * 제한시간 20초 안에 수문장을 잡으면 돌파, 시간이 다 되거나 파티가 전멸하면 실패다.
+ * 열쇠는 승패와 무관하게 소모된다 (dungeons.json > entry.failureCost).
+ */
+async function runDungeon(dg) {
   const st = S.dg[dg.id];
   const entries = D.dungeons.entry.dailyKeyGrant;
+  if (dgRun || arRun) return;              // 전투 중 재입장 금지 — 씬이 하나뿐이다
   if (dgKeysOf(dg.id) < 1) return toast(`${dg.nameKo} 열쇠 부족 · 매일 ${entries}개 지급`);
   S.dgKeys[dg.id]--;
   mq('dungeon_enter');
-  const need = dg.unlockCp * Math.pow(1.18, st.floor - 1);
-  const gain = dg.baseYield * Math.pow(1.15, st.floor - 1);
-  if (totalCp() < need) {
-    // 실패해도 횟수는 소모된다 (dungeons.json > entry.failureCost)
-    openDungeons();
-    return toast(`${dg.nameKo} ${st.floor}층 실패 — ${t('전투력')} ${num(need)} 필요`);
-  }
-  st.floor++;
-  mq('dungeon_floor');
-  const bag = { gold: 'gold', equip_ticket: 'eqTicket', diamond: 'dia', speedup_5m: 'hourglass' }[dg.reward];
-  if (bag) S[bag] += Math.round(gain);
-  openDungeons(); renderTop();
-  toast(`${dg.nameKo} ${st.floor - 1}층 돌파 — ${num(Math.round(gain))}`);
+  save();
+
+
+  dgRun = { dg, floor: st.floor, need: dgNeedCp(dg, st.floor) };
+  roster.close();
+  showDgSign(dg.nameKo, st.floor);
+  // 상단 라벨(#stg)은 **비운다.** 층 간판이 바로 아래에 같은 것을 크게 걸고 있어서
+  // "황금 광산 50층" 이 화면에 두 번 뜬다. 간판 쪽이 주인공이다.
+  // 던전이 끝나면 runStage 가 스테이지 이름으로 다시 채운다.
+  // **아래 await 들보다 먼저** 지운다 — 배경·파티 로드가 늦으면 그동안 스테이지
+  // 이름이 간판과 나란히 떠 있게 된다
+  $('#stg').innerHTML = '';
+  markEncounter(-1);
+
+  await scene.setBackground(DG_BG[dg.id] || 'BG-01');
+  scene.captainClass = S.promoClass || 'warrior';
+  await scene.setParty(S.party);
+  scene.activeSkills = S.skills.active.filter(Boolean);
+  scene.passiveSkills = S.skills.passive.filter(Boolean);
+  scene.syncPassiveAura?.();
+
+  const { bossId, fallback } = dgBoss(dg, st.floor);
+  await scene.startDungeonFloor({
+    floor: st.floor, requiredCp: dgRun.need, partyDps: partyDps(), bossId, fallback,
+  });
+}
+
+/**
+ * 포기. 20초를 다 보고 있을 이유가 없을 때 — 이미 못 이길 판이 보이거나,
+ * 그냥 나가고 싶을 때 누른다. **한 번 누르면 바로 나간다.**
+ *
+ * **열쇠는 안 돌려준다.** 입장에서 이미 소모됐고(dungeons.json > entry.failureCost),
+ * 돌려주면 "질 것 같으면 포기해서 열쇠를 아낀다" 가 최적 플레이가 된다 —
+ * 그러면 하루 3번이라는 제한 자체가 무의미해진다.
+ */
+function dgGiveUp() {
+  const r = dgRun;
+  if (!r) return;
+  scene.abortRun();
+  showResult('포기', '#ff5a6a');
+  toast(`${r.dg.nameKo} ${r.floor}층 포기 — 열쇠는 돌아오지 않습니다`);
+  dgReturn(1100);
+}
+
+/** 던전이 끝나면 항상 여기로 — 간판을 걷고 목록을 열고 방치 전투로 돌아간다 */
+function dgReturn(delay = 1500) {
+  dgRun = null;
+  setTimeout(() => { hideDgSign(); openDungeons(); runStage(); }, delay);
+}
+
+/**
+ * 층 간판. 위에서 떨어져 박히고, 돌파하면 숫자가 뒤집힌다.
+ * 골드 액수보다 **한 층 올라갔다**가 진행 실감을 만든다 (연출 기획서 2-2).
+ * 포기 버튼도 같이 뜬다 — 간판이 있는 동안이 곧 던전 전투 중이다.
+ */
+function showDgSign(name, floor) {
+  const el = $('#dgSign');
+  el.querySelector('b').textContent = name;
+  el.querySelector('i').textContent = `${floor}층`;
+  el.classList.remove('flip');
+  el.classList.add('show');
+  $('#dgQuit').classList.add('show');
+}
+
+function flipDgSign(floor) {
+  const el = $('#dgSign');
+  const i = el.querySelector('i');
+  el.classList.add('flip');
+  // 애니메이션 절반(간판이 모로 서서 안 보이는 순간)에 숫자를 바꾼다
+  setTimeout(() => { i.textContent = `${floor}층`; }, 220);
+  // 이긴 판에서는 포기 버튼이 바로 사라진다 — 남아 있으면 누를 것이 없는데 눌린다
+  $('#dgQuit').classList.remove('show');
+}
+
+function hideDgSign() {
+  $('#dgSign').classList.remove('show', 'flip');
+  $('#dgQuit').classList.remove('show');
 }
 
 /**
@@ -4699,6 +4959,9 @@ async function runTowerFloor(floor) {
 }
 
 async function runStage() {
+  // 던전이 도는 중에는 방치 전투로 안 돌아간다. 예약된 setTimeout(runStage) 이
+  // 던전 입장 직후에 터지면 배경·파티·웨이브를 전부 스테이지 것으로 갈아 버린다
+  if (dgRun) return;
   const bgId = bgFor(S.stage);
   await scene.setBackground(bgId);
   scene.captainClass = S.promoClass || 'warrior';
@@ -4759,6 +5022,9 @@ function stageGold(n = S.stage) {
 }
 
 function onEvent(e) {
+  // 던전 전투 중에 날아오는 **스테이지 이벤트는 옛 판의 잔여물**이다.
+  // 여기서 걸러 내지 않으면 runStage 가 다시 걸려 수문장을 밀어낸다
+  if (dgRun && ['win', 'lose', 'bossReady', 'stage'].includes(e.type)) return;
   if (e.type === 'kill') {
     // 누적 처치. 퀘스트 진행도라 렌더까지 해야 배너가 즉시 찬다
     S.kills = (S.kills || 0) + 1;
@@ -4813,6 +5079,51 @@ function onEvent(e) {
   } else if (e.type === 'towerLose') {
     showResult(`${e.floor}층 실패`, '#ff5a6a');
     setTimeout(() => { tower.open(); runStage(); }, 1200);
+  } else if (e.type === 'arenaHp') {
+    const el = $('#arBars');
+    el.querySelector('.ar-me i').style.width = Math.max(0, e.my * 100) + '%';
+    el.querySelector('.ar-foe i').style.width = Math.max(0, e.foe * 100) + '%';
+  } else if (e.type === 'arenaEnd') {
+    const r = arRun;
+    if (!r) return;
+    arRun = null;
+    S.arenaScore = Math.max(0, r.from + r.delta);
+    mq('arena');
+    if (r.win) mq('arena_win');
+    save(); renderTop();
+    // 점수는 **깎이는 것도 보여 준다.** 진 것을 흐리면 다음에 왜 이겨야 하는지가
+    // 안 남는다 (연출 기획서 3-1)
+    countUpScore(r.from, S.arenaScore, r.win);
+    showResult(r.win ? `승리! +${r.delta}` : `패배 ${r.delta}`, r.win ? 'var(--up)' : '#ff5a6a');
+    // 진 판은 화면이 회색으로 빠진다. 캔버스에 거는 것이라 유닛만이 아니라
+    // 배경까지 같이 죽는다 — 졌다는 것이 한눈에 읽힌다
+    if (!r.win) $('#cv').classList.add('gray');
+    setTimeout(() => {
+      $('#cv').classList.remove('gray');
+      hideArenaBars(); openArena(); runStage();
+    }, 1500);
+  } else if (e.type === 'dungeonWin') {
+    const r = dgRun;
+    if (!r) return;
+    const st = S.dg[r.dg.id];
+    st.floor++;
+    mq('dungeon_floor');
+    const gain = Math.round(dgYield(r.dg, r.floor));
+    const bag = DG_BAG[r.dg.reward];
+    if (bag) S[bag] += gain;
+    save(); renderTop(); renderQuest();
+    // 간판이 먼저 뒤집히고, 보상은 그 뒤에 따라온다 — 순서가 반대면
+    // 숫자가 시선을 가져가서 "한 층 올라갔다" 가 안 남는다
+    flipDgSign(st.floor);
+    if (bag) setTimeout(() => gainToast([[r.dg.reward, gain]]), 420);
+    dgReturn();
+  } else if (e.type === 'dungeonLose') {
+    const r = dgRun;
+    showResult(e.reason === 'wipe' ? '전멸' : '시간 초과', '#ff5a6a');
+    // 왜 졌는지를 남긴다. 토스트 한 줄이면 열쇠만 날린 느낌으로 끝난다 (기획서 2-2)
+    if (r) setTimeout(() => toast(
+      `${r.dg.nameKo} ${r.floor}층 실패 — 권장 ${t('전투력')} ${num(r.need)} · 지금 ${num(totalCp())}`), 700);
+    dgReturn(1400);
   } else if (e.type === 'win') {
     bossLocked = false;
     $('#hudC').classList.remove('farm');
@@ -4916,10 +5227,74 @@ function bootLangPick() {
   });
 }
 
+/**
+ * 타이틀 반짝이. 그림(TT-SPARK)은 **한 장**이고 개수·위치·점멸 시점은 여기서
+ * 만든다 (에셋 규칙 1-4 — 프레임 그림을 여러 장 뽑지 않는다).
+ *
+ * 세로 위치는 에셋 문서 21-2 의 가림 표를 따른다: 간판(28~58%)과
+ * 시작 문구(86%~) 위에는 뿌리지 않는다 — 뿌려도 가려서 안 보인다.
+ */
+function bootSparks(n = 16) {
+  const host = $('#bootFx');
+  if (!host) return;
+  const probe = new Image();
+  probe.onload = () => {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('img');
+      s.src = probe.src;
+      s.className = 'tt-spark';
+      // 하늘과 초원에 번갈아 — 한쪽에만 몰리면 뿌린 티가 난다
+      const top = i % 2 ? 5 + Math.random() * 21 : 60 + Math.random() * 24;
+      s.style.cssText = `left:${(2 + Math.random() * 92).toFixed(1)}%;`
+        + `top:${top.toFixed(1)}%;width:${(9 + Math.random() * 15).toFixed(0)}px;`
+        + `animation-delay:${(Math.random() * 3.4).toFixed(2)}s`;
+      frag.appendChild(s);
+    }
+    host.appendChild(frag);
+  };
+  probe.onerror = () => { /* 그림이 없으면 안 뿌린다. 나머지 화면은 그대로 */ };
+  probe.src = '/assets/ui/TT-SPARK.webp';
+}
+
+/**
+ * 탭하여 시작 — 로딩이 끝나도 화면을 바로 걷지 않는다.
+ *
+ * 100% 를 찍자마자 전투가 굴러가면 플레이어가 앉기 전에 첫 웨이브가 지나간다.
+ * 한 번의 탭이 그 사이를 끊어 준다 — 그리고 그 탭은 **사용자 제스처**라,
+ * 나중에 BGM 을 붙일 때 브라우저 자동재생 잠금을 여는 자리도 여기가 된다.
+ *
+ * 이 promise 가 풀린 뒤에 runStage() 가 돈다.
+ */
+function bootTapToStart() {
+  return new Promise(res => {
+    const box = $('#boot');
+    if (!box) return res();                 // 이미 걷혔으면 그냥 진행
+    const label = $('#bootStart');
+    if (label) label.textContent = t('화면을 눌러 시작');
+    box.classList.add('ready');
+    // pointerdown 하나로 마우스·터치·펜을 다 받는다. 키보드(데스크톱)는 따로.
+    // 어느 쪽이 먼저 오든 start() 는 한 번만 통과한다
+    let done = false;
+    const start = () => {
+      if (done) return;
+      done = true;
+      box.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+      box.classList.add('hide');
+      setTimeout(() => box.remove(), 500);  // CSS 의 opacity .4s 가 끝난 뒤
+      res();
+    };
+    box.addEventListener('pointerdown', start);
+    window.addEventListener('keydown', start);
+  });
+}
+
 (async function boot() {
   // 광고 SDK 는 데이터 로드보다 먼저 건다 — 호스트 메시지 리스너를 일찍 걸수록
   // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
   initAds();
+  bootSparks();
 
   bootStep(12);
   // **세이브를 먼저 읽는다.** 언어 선택은 S.lang 을 보고 "첫 실행인지"를 판단하는데,
@@ -4976,12 +5351,18 @@ function bootLangPick() {
     state: S, data: D,
     set: (k, v) => {
       if (k === 'speed') { S.speed = v; scene.speed = v; syncSpeedBtns(); }
-      else if (k === 'skip') S.skipBattle = !!v;
       else if (k === 'fx') { S.fxOn = !!v; scene.fx.enabled = !!v; }
       else if (k === 'shake') { S.shakeOn = !!v; scene.impact.opts.shake = !!v; }
       else if (k === 'nums') { S.numsOn = !!v; scene.numbers.enabled = !!v; }
       else if (k === 'bgm') S.bgm = v;
       else if (k === 'sfx') S.sfx = v;
+      // 언어는 **다시 시작**한다. 사전만 갈아끼우면 이미 그려진 화면과
+      // index.html 에 박힌 한국어가 그대로 남아 반쯤 번역된 화면이 된다.
+      // 세이브는 localStorage 라 reload 로 잃는 것이 없다
+      else if (k === 'lang') {
+        if (v === S.lang) return;
+        S.lang = v; saveNow(); location.reload(); return;
+      }
       save();
     },
     action: a => {
@@ -5023,6 +5404,9 @@ function bootLangPick() {
   window.__scene = scene;   // 디버그용
   window.__S = S;
   window.__wall = showWallHint;   // 디버그용 — 벽 안내를 손으로 띄워 본다
+  // 던전·아레나는 열쇠·입장 횟수를 태워야 볼 수 있어서 손으로 검사하기 번거롭다.
+  // 콘솔에서 바로 걸어 볼 수 있게 열어 둔다 (window.__scene 과 같은 성격)
+  window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes };
   await scene.init();
   bootStep(82);
 
@@ -5111,6 +5495,7 @@ function bootLangPick() {
 
   // 설정은 사이드 열에서 상단바로 옮겼다. 스테이지 표시는 HUD 진행도와 중복이라 뺐다.
   $('#topSet').addEventListener('click', () => settings.open());
+  $('#dgQuit').addEventListener('click', dgGiveUp);
   // 다이아 [+] — 상점 다이아 탭 지름길
   $('#diaPlus')?.addEventListener('click', () => shop.open('diamond'));
   $('#goldPlus')?.addEventListener('click', () => shop.open('exchange'));
@@ -5290,7 +5675,6 @@ function bootLangPick() {
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));
-  $('#boot')?.classList.add('hide');
-  setTimeout(() => $('#boot')?.remove(), 500);
+  await bootTapToStart();
   await runStage();
 })();

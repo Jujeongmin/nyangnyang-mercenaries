@@ -126,6 +126,24 @@ export class BattleScene {
   }
 
   /**
+   * 확장자 없이 부른다 — **.webp 가 있으면 그것, 없으면 .png**.
+   *
+   * 에셋 382장이 전부 PNG 인데 문서(8절)는 "배포 전 WebP 변환 필수" 라고 적어
+   * 두었다. 한 장씩 굽는 동안 코드가 그대로여야 그 작업을 나눠서 할 수 있다.
+   * (실제로 던전 수문장 6장이 PNG 로 12MB 였다 — 기존 보스 한 장이 200KB 다)
+   *
+   * @returns {{ tex, src }} 텍스처와 **실제로 쓰인 경로**. cutout 이 같은 파일을
+   *   다시 읽어야 해서 경로를 같이 돌려준다
+   */
+  async loadSprite(base) {
+    for (const ext of ['.webp', '.png']) {
+      const t = await this.load(base + ext);
+      if (t) return { tex: t, src: base + ext };
+    }
+    return { tex: null, src: null };
+  }
+
+  /**
    * 배경 교체. 잘라 붙이면 다음 스테이지로 넘어갈 때 화면이 툭 끊긴다.
    * 새 배경을 같은 스크롤 위상으로 겹쳐 띄우고 교차 페이드한다.
    */
@@ -223,8 +241,7 @@ export class BattleScene {
     // 공격 모션도 직업 모션이다 — 궁수 단장이 검을 휘두르면 전직이 안 읽힌다
     const capCls = this.captainClass || 'warrior';
     const capId = `captain_${capCls}`;
-    const capSrc = `/assets/captain/${capId}.png`;
-    const capTex = await this.load(capSrc);
+    const { tex: capTex, src: capSrc } = await this.loadSprite(`/assets/captain/${capId}`);
     if (capTex) {
       const arm = await this.cutoutFor(capId, capSrc);
       this.captain = new UnitRig(PIXI(), capTex, {
@@ -260,10 +277,9 @@ export class BattleScene {
       this.ui.addChild(this.capBar);
     }
     for (const m of party) {
-      const src = m.id === 'CAPTAIN'
-        ? '/assets/captain/captain_warrior.png'
-        : `/assets/char/${m.id}.png`;
-      const t = await this.load(src);
+      const { tex: t, src } = await this.loadSprite(m.id === 'CAPTAIN'
+        ? '/assets/captain/captain_warrior'
+        : `/assets/char/${m.id}`);
       if (!t) continue;
       const arm = await this.cutoutFor(m.id === 'CAPTAIN' ? 'captain_warrior' : m.id, src);
       const rig = new UnitRig(PIXI(), t, {
@@ -285,14 +301,21 @@ export class BattleScene {
     return (t && t.byId && t.byId[id]) || 'charge';
   }
 
-  async spawnWave(kind, ids, hpEach) {
+  /**
+   * @param opt.fallback  그림이 없을 때 대신 쓸 보스 id. 던전 전용 수문장처럼
+   *   **아직 안 그려진 에셋**을 가리킬 수 있는 자리에서 쓴다. 이게 없으면
+   *   load 실패가 `continue` 로 조용히 넘어가 **적이 0마리인 전투**가 된다 —
+   *   보스가 없으니 즉시 승리로 끝난다. 조용한 실패 중 가장 나쁜 쪽이다.
+   */
+  async spawnWave(kind, ids, hpEach, opt = {}) {
     const TR = await this.loadTrim();
     const P = PIXI();
     this.fx?.clear();
     this.clearFoes();
     for (const id of ids) {
-      const src = kind === 'boss' ? `/assets/boss/${id}.png` : `/assets/enemy/${id}.png`;
-      const t = await this.load(src);
+      const dir = kind === 'boss' ? 'boss' : 'enemy';
+      let { tex: t, src } = await this.loadSprite(`/assets/${dir}/${id}`);
+      if (!t && opt.fallback) ({ tex: t, src } = await this.loadSprite(`/assets/boss/${opt.fallback}`));
       if (!t) continue;
       const arm = await this.cutoutFor(id, src);
       const rig = new UnitRig(P, t, {
@@ -369,6 +392,8 @@ export class BattleScene {
 
   /** 스테이지 시작. requiredCp 로 적 HP 를 역산한다. */
   async startStage(stage, requiredCp, partyDps) {
+    // 판 번호. 이전 판이 예약해 둔 지연 콜백을 무효로 만든다
+    this.runId = (this.runId || 0) + 1;
     this.stage = stage;
     this.requiredCp = requiredCp;
     this.partyDps = partyDps;
@@ -500,15 +525,20 @@ export class BattleScene {
         if (this.captain && this.capBy != null) this.captain.base.y = this.capBy;
       }
     } else if (this.phase === 'fight') {
+      // 아레나는 **판정을 하지 않는다** — 정해진 결과로 HP 를 끌고 갈 뿐이다.
+      // combatStep 을 같이 돌리면 진짜 피해가 섞여 들어가 화면과 결과가 어긋난다
+      if (this.mode === 'arena') { this.arenaStep(s); return; }
       this.combatStep(s);
       // 제한이 걸린 구간(보스)에서만 시간이 준다
       if (this.timeLeft != null) {
         this.timeLeft -= s;
         if (this.timeLeft <= 0) {
-          if (this.mode === 'tower') {
+          if (this.mode === 'tower' || this.mode === 'dungeon') {
             this.bossFight = false; this.timeLeft = null;
             this.phase = 'done';
-            this.onEvent({ type: 'towerLose', floor: this.stage });
+            this.onEvent(this.mode === 'tower'
+              ? { type: 'towerLose', floor: this.stage }
+              : { type: 'dungeonLose', floor: this.stage, reason: 'timeout' });
             return;
           }
           // 보스 실패. 여기서 잡몹을 직접 재개하지 않는다 — 재시작의 주인은
@@ -704,7 +734,10 @@ export class BattleScene {
       this.phase = 'done';
       this.bossFight = false;
       this.timeLeft = null;
-      this.onEvent({ type: 'lose', reason: 'wipe' });   // 재시작은 main 이 한다
+      // 전멸. 모드마다 뒤처리가 다르므로(스테이지는 잡몹 재개, 탑·던전은 목록으로)
+      // 이벤트를 갈라 보낸다. 재시작의 주인은 어느 쪽이든 main 하나다
+      const e = { tower: 'towerLose', dungeon: 'dungeonLose' }[this.mode] || 'lose';
+      this.onEvent({ type: e, floor: this.stage, reason: 'wipe' });
     }
   }
 
@@ -1080,7 +1113,10 @@ export class BattleScene {
     if (P.lifeAtk) pasMul += P.lifeAtk;
     const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1)
       * bossMul * pasMul;
-    foe.hp -= dmg;
+    // 아레나는 **체력을 여기서 안 깎는다.** 승패와 HP 곡선은 arenaStep 이 쥐고
+    // 있고 여기 타격은 그림일 뿐이다. 깎게 두면 arenaStep 이 매 프레임 되돌려
+    // 놓는 줄다리기가 되고, 운 나쁘면 그 사이 killFoe 가 먼저 터진다
+    if (this.mode !== 'arena') foe.hp -= dmg;
     // 흡혈 — 넣은 피해의 일부를 파티 체력으로. 보스전에서 실제로 버틴다
     if (this.pas?.lifePct && this.partyHp != null && this.partyHp < this.partyMaxHp) {
       this.partyHp = Math.min(this.partyMaxHp,
@@ -1093,7 +1129,7 @@ export class BattleScene {
     if (!skill && this.doubleHitChance && Math.random() < this.doubleHitChance
         && foe.hp > 0) {
       const d2 = per * rnd(0.9, 1.1) * bossMul;
-      foe.hp -= d2;
+      if (this.mode !== 'arena') foe.hp -= d2;
       setTimeout(() => {
         if (foe.rig?.view && !foe.rig.view.destroyed) {
           this.numbers.spawn(foe.rig.view.x + foe.rig.w * 0.1,
@@ -1108,7 +1144,7 @@ export class BattleScene {
       const rest = this.foes.filter(f => f !== foe && f.hp > 0).slice(0, sd.targets - 1);
       for (const t of rest) {
         const d2 = per * sd.mult * rnd(0.9, 1.1);
-        t.hp -= d2;
+        if (this.mode !== 'arena') t.hp -= d2;
         if (t.rig?.view && !t.rig.view.destroyed) {
           this.numbers.spawn(t.rig.view.x, t.rig.view.y - t.rig.h * 0.9, d2, 'normal');
           this.impact.flash(t.rig);
@@ -1173,7 +1209,8 @@ export class BattleScene {
     this.impact.puff(foe.rig.view.x + foe.rig.w * 0.12, foe.rig.view.y, -1, skill ? 12 : 5);
     this.numbers.spawn(foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.95, dmg, crit ? 'crit' : 'normal');
 
-    if (foe.hp <= 0) this.killFoe(foe);
+    // 아레나의 사망은 arenaStep 이 정한다 (앞에서부터 순서대로 쓰러진다)
+    if (foe.hp <= 0 && this.mode !== 'arena') this.killFoe(foe);
   }
 
   /** 사망 — 페이드아웃 + HIT-08 + 상승 입자 */
@@ -1191,10 +1228,13 @@ export class BattleScene {
 
   async onWaveClear() {
     const S = this.D.stages.enemyDerivation;
-    if (this.mode === 'tower') {
+    if (this.mode === 'tower' || this.mode === 'dungeon') {
       this.bossFight = false;
       this.phase = 'done';
-      this.onEvent({ type: 'towerWin', floor: this.stage });
+      this.timeLeft = null;
+      this.onEvent(this.mode === 'tower'
+        ? { type: 'towerWin', floor: this.stage }
+        : { type: 'dungeonWin', floor: this.stage });
       return;
     }
     if (this.bossFight) {
@@ -1212,7 +1252,12 @@ export class BattleScene {
       return;                       // main 이 VS 연출을 태우고 challengeBoss 를 부른다
     }
     this.phase = 'walk';
-    setTimeout(() => this.nextEncounter(), 600);
+    // **어느 판의 예약인지 기억한다.** 이 600ms 사이에 유저가 던전·탑에 들어가면
+    // 새 전투가 이미 서 있는데 옛 스테이지의 다음 웨이브가 뒤늦게 날아와
+    // spawnWave 의 clearFoes 로 수문장을 지우고 잡몹 5마리를 세운다.
+    // (실제로 그랬다 — 던전에 들어갔더니 적이 5마리였다)
+    const id = this.runId;
+    setTimeout(() => { if (id === this.runId) this.nextEncounter(); }, 600);
   }
 
   /**
@@ -1220,6 +1265,8 @@ export class BattleScene {
    * tower.json > floors — 요구 CP·제한시간·적 비율이 전부 거기서 온다.
    */
   async startTowerFloor(floor, requiredCp, partyDps) {
+    // 판 번호. 이전 판이 예약해 둔 지연 콜백을 무효로 만든다
+    this.runId = (this.runId || 0) + 1;
     const F = this.D.tower.floors;
     this.stage = floor;
     this.requiredCp = requiredCp;
@@ -1243,6 +1290,211 @@ export class BattleScene {
     this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
     this.phase = 'walk';
     this.phaseT = 0;
+  }
+
+  /**
+   * 던전 한 층. **탑과 같은 구조다** — 수문장 하나, 제한시간, 파티 체력.
+   * 다른 것은 배경·수문장 그림·보상뿐이라 전부 인자로 받는다.
+   *
+   * 적 스탯 비율은 `tower.json > floors.enemy` 를 그대로 쓴다. 던전용 표를
+   * 새로 만들면 같은 "요구 CP 짜리 보스" 가 두 콘텐츠에서 다른 체력을 갖게 되고,
+   * 밸런스를 고칠 때 두 곳을 고쳐야 한다. 시간 제한도 같은 20초다
+   * (tower.json > timeLimitNote — "판정 구간이 두 개면 규칙을 두 번 배운다").
+   *
+   * @param o.bossId    수문장 에셋 id (10층마다 바뀐다)
+   * @param o.fallback  그 그림이 아직 없을 때 대신 쓸 id
+   */
+  async startDungeonFloor(o) {
+    // 판 번호. 이전 판이 예약해 둔 지연 콜백을 무효로 만든다
+    this.runId = (this.runId || 0) + 1;
+    const F = this.D.tower.floors;
+    this.stage = o.floor;
+    this.requiredCp = o.requiredCp;
+    this.partyDps = o.partyDps;
+    this.mode = 'dungeon';
+    this.encounter = 0;
+    this.bossFight = true;
+    this.bossPending = true;
+    this.partyMaxHp = Math.max(1, o.requiredCp * 1.6);
+    this.partyHp = this.partyMaxHp;
+    this.shield = 0;
+    this.clearFoes();
+
+    const W = this.D.characters.cpWeights;
+    const r = F.enemy.statRatio;
+    const div = (W.atk * r.atk + W.def * r.def + W.hp * r.hp) / 100;
+    const hp = (o.requiredCp * F.enemy.hpMultiplier / div) * (r.hp / 100);
+    await this.spawnWave('boss', [o.bossId], hp, { fallback: o.fallback });
+    this.onEvent({ type: 'wave', encounter: 0, boss: true });
+    this.timeLeft = o.timeLimit ?? F.timeLimitSeconds;
+    this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
+    this.phase = 'walk';
+    this.phaseT = 0;
+  }
+
+  /**
+   * 아레나 한 판. **arena.json > battle.presentation 의 hp_drain 그대로다.**
+   *
+   * 승패는 밖(main)에서 CP 확률로 **먼저** 정해지고, 여기서는 그 결과에 도달하도록
+   * 양쪽 HP 를 깎는다. 틱 시뮬로 승패를 내지 않는 이유는 같은 파일
+   * `whyNotTickSim` 에 있다 — 위치·사거리가 없어 동일 CP 단판이 결정론적이 되고
+   * 직군 승률이 35% 대 100% 로 갈라진 기록이다.
+   *
+   * 그래서 여기 규칙은 하나다: **지는 쪽 HP 가 반드시 먼저 0 이 된다.**
+   *
+   * @param o.foeParty  상대 5명 [{id, grade, class}]
+   * @param o.win       내가 이기는가 (이미 정해진 결과)
+   * @param o.hpRemain  승자의 남은 HP 비율
+   * @param o.duration  연출 길이(초)
+   */
+  async startArenaMatch(o) {
+    this.runId = (this.runId || 0) + 1;
+    this.mode = 'arena';
+    this.bossFight = false;
+    this.bossPending = false;
+    this.timeLeft = null;
+    this.encounter = 0;
+    this.clearFoes();
+
+    // 양쪽 체력은 **비율**로만 다룬다. 실제 스탯을 쓰면 연출이 판정을 흉내 내려
+    // 들고, 그 순간 화면과 결과가 어긋날 여지가 생긴다
+    this.ar = {
+      t: 0,
+      dur: Math.max(2, o.duration || 8),
+      win: !!o.win,
+      remain: Math.min(0.95, Math.max(0.03, o.hpRemain ?? 0.2)),
+      myHp: 1, foeHp: 1,
+      atkCd: 0,
+      ended: false,
+    };
+    this.partyMaxHp = 1; this.partyHp = 1;   // 파티 체력바가 같은 값을 읽는다
+
+    await this.spawnUnitFoes(o.foeParty);
+    this.onEvent({ type: 'arenaHp', my: 1, foe: 1 });
+    this.phase = 'walk';
+    this.phaseT = 0;
+  }
+
+  /**
+   * 적 자리에 **용병 스프라이트**를 세운다. 잡몹·보스가 아니라 남의 편성이다.
+   * 아레나의 값은 남의 조합을 본다는 데 있어서(연출 기획서 3-2) 그림이 실제
+   * 용병이어야 "저 조합에 졌구나" 가 남는다.
+   */
+  async spawnUnitFoes(party) {
+    const TR = await this.loadTrim();
+    const P = PIXI();
+    this.fx?.clear();
+    this.clearFoes();
+    const list = (party || []).filter(Boolean).slice(0, 5);
+    for (const m of list) {
+      const { tex: t, src } = await this.loadSprite(`/assets/char/${m.id}`);
+      if (!t) continue;
+      const arm = await this.cutoutFor(m.id, src);
+      const rig = new UnitRig(P, t, {
+        size: this.allySize(), grid: [5, 9],
+        // 아군 원화를 적 자리에 세우므로 **좌우를 뒤집는다** — 안 뒤집으면
+        // 다섯이 등을 보이고 선다
+        facing: -1, flip: true,
+        motion: motionForClass(m.class), arm, trim: TR[m.id],
+        ringColor: this.ringColorOf(m.grade),
+        orbs: m.grade === 'UR' || m.grade === 'LR',
+        aura: ['SSR', 'UR', 'LR'].includes(m.grade),
+      });
+      this.field.addChild(rig.view);
+      const bar = new P.Graphics();
+      this.ui.addChild(bar);
+      this.foes.push({ id: m.id, rig, bar, label: null, boss: false, unit: true,
+        atk: 'charge', hp: 1 / list.length, maxHp: 1 / list.length,
+        cd: rnd(0.3, 1.2), cdMax: rnd(1.0, 1.6) });
+    }
+    this.layout();
+  }
+
+  /**
+   * 아레나 진행. 판정이 아니라 **재생**이다 — 시계가 흐른 만큼 양쪽 HP 를
+   * 정해진 종착점으로 끌고 간다. 승자는 remain 에서, 패자는 0 에서 멈춘다.
+   */
+  arenaStep(s) {
+    const a = this.ar;
+    if (!a || a.ended) return;
+    a.t = Math.min(a.dur, a.t + s);
+    const k = a.t / a.dur;                       // 0 → 1
+
+    const loserHp = Math.max(0, 1 - k);          // 패자는 선형으로 0 까지
+    const winnerHp = 1 - (1 - a.remain) * k;     // 승자는 remain 까지만
+    a.myHp = a.win ? winnerHp : loserHp;
+    a.foeHp = a.win ? loserHp : winnerHp;
+    this.partyHp = a.myHp;
+    // 상대 5명의 체력은 **총량을 5등분해 앞에서부터 깎는다** — 그래야 순서대로
+    // 쓰러진다. 다섯이 동시에 얇아지면 누가 죽는지가 안 읽힌다
+    const share = 1 / Math.max(1, this.foes.length);
+    this.foes.forEach((f, i) => {
+      const used = Math.max(0, (1 - a.foeHp) - i * share);
+      f.hp = Math.max(0, share - used);
+      f.maxHp = share;
+      if (f.hp <= 0 && !f.dead) { f.dead = true; f.rig.view.alpha = 0.25; }
+      this.drawHpBar(f);
+    });
+
+    // 타격 연출. 결과와 무관하므로 아무나 때린다 — 화면이 비면 "정지 화면에서
+    // 숫자만 준다" 가 되어 hp_drain 의 취지가 사라진다
+    a.atkCd -= s;
+    if (a.atkCd <= 0) {
+      a.atkCd = 0.28 + Math.random() * 0.22;
+      const alive = this.foes.filter(f => !f.dead);
+      const u = this.units[(Math.random() * this.units.length) | 0];
+      if (u && alive.length) this.launchAttack(u, alive[(Math.random() * alive.length) | 0], false);
+      // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다
+      const f = alive[(Math.random() * alive.length) | 0];
+      if (f && this.units.length) f.rig.attack?.();
+    }
+
+    this.onEvent({ type: 'arenaHp', my: a.myHp, foe: a.foeHp });
+    if (a.t >= a.dur) {
+      a.ended = true;
+      this.phase = 'done';
+      this.arenaFinish(a.win);
+      this.onEvent({ type: 'arenaEnd', win: a.win });
+    }
+  }
+
+  /**
+   * 끝나는 그림. 이긴 쪽이 서 있고 진 쪽이 무너져야 승패가 화면에 남는다 —
+   * 배너 글자만 뜨면 방금 본 전투와 결과가 따로 논다 (연출 기획서 3-1).
+   */
+  arenaFinish(win) {
+    if (win) {
+      // 상대가 뒤로 날아가 사라진다
+      for (const f of this.foes) {
+        if (!f.rig?.view || f.rig.view.destroyed) continue;
+        f.rig.view.x += 26;
+        f.rig.view.alpha = 0.12;
+        f.bar?.clear();
+      }
+    } else {
+      // 내 쪽이 주저앉는다. 회색은 main 이 캔버스에 건다
+      for (const u of this.units) {
+        if (!u.rig?.view || u.rig.view.destroyed) continue;
+        u.rig.view.alpha = 0.3;
+      }
+      if (this.captain?.view) this.captain.view.alpha = 0.3;
+    }
+  }
+
+  /**
+   * 지금 판을 즉시 끝낸다 (던전 포기). 이벤트는 **안 쏜다** — 부른 쪽이
+   * 뒤처리를 이미 하고 있으므로, 여기서 lose 를 또 쏘면 main 이 두 번 정리한다.
+   * runId 를 올려 예약된 지연 콜백(다음 웨이브 등)도 같이 무효로 만든다.
+   */
+  abortRun() {
+    this.runId = (this.runId || 0) + 1;
+    this.phase = 'done';
+    this.bossFight = false;
+    this.bossPending = false;
+    this.timeLeft = null;
+    this.ar = null;
+    this.clearFoes();
+    this.onEvent({ type: 'tick', timeLeft: null });   // 남은 시간 표시를 지운다
   }
 
   /** 진행도 UI 의 [보스 도전]. 잡몹을 치우고 보스를 부른다. */
