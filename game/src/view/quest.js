@@ -32,6 +32,16 @@ const CUR_NAME = {
 export const DUNGEON_BY_CYCLE = ['gold_mine', 'gold_mine', 'treasure_vault',
   'treasure_vault', 'furnace', 'crystal_cave', 'trial_tower'];
 
+/** 이 사이클이 그 던전을 몇 번째로 요구하는가 (1부터). 층수를 여기에 건다 */
+export function dungeonNth(k) {
+  const i = Math.min(k, DUNGEON_BY_CYCLE.length) - 1;
+  const id = DUNGEON_BY_CYCLE[i];
+  let n = 0;
+  for (let j = 0; j <= i; j++) if (DUNGEON_BY_CYCLE[j] === id) n++;
+  // 표를 넘어선 사이클은 마지막 던전을 계속 판다 — 그만큼 더 깊이
+  return n + Math.max(0, k - DUNGEON_BY_CYCLE.length);
+}
+
 export const QUEST_TYPE = {
   stage_clear: { label: '스테이지 돌파', goto: null, verb: '' },
   mercenary_summon: { label: '용병 소환', goto: 'shop', track: 'mercenary', verb: '용병 소환으로' },
@@ -59,8 +69,9 @@ export function questAt(D, n) {
     mercenary_summon: () => Math.round(10 * Math.pow(k, 1.6)),
     skill_summon: () => Math.round(8 * Math.pow(k, 1.6)),
     equip_summon_level: () => Math.min(2 * k, 60),
-    // 사이클마다 3층씩. 어느 던전인지는 아래 DUNGEON_BY_CYCLE 이 정한다
-    dungeon_floor: () => 3 * k,
+    // 열쇠가 던전마다 하루 3개(리필)다. 3*k 로 두면 사이클 7 에 21층을 요구해
+    // 며칠이 걸린다 — **새 던전이면 2층**, 같은 던전을 또 요구할 때만 2층씩 깊게
+    dungeon_floor: () => 2 * dungeonNth(k),
     power_reach: () => Math.round(3000 * Math.pow(1.9, k - 1)),
   }[slot.type]();
 

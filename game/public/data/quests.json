@@ -256,7 +256,7 @@
    "q": 11,
    "cycle": 2,
    "type": "dungeon_floor",
-   "target": 6,
+   "target": 2,
    "dungeon": "gold_mine",
    "rewards": {
     "diamond": 300,
@@ -323,7 +323,7 @@
    "q": 17,
    "cycle": 3,
    "type": "dungeon_floor",
-   "target": 9,
+   "target": 4,
    "dungeon": "gold_mine",
    "rewards": {
     "diamond": 400,
@@ -392,7 +392,7 @@
    "q": 23,
    "cycle": 4,
    "type": "dungeon_floor",
-   "target": 6,
+   "target": 2,
    "dungeon": "treasure_vault",
    "rewards": {
     "diamond": 500,
@@ -563,5 +563,6 @@
    }
   }
  },
- "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다."
+ "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다.",
+ "dungeonQuestNote": "던전 퀘스트 층수를 낮췄다 (2026-08-24). 열쇠는 **던전마다** 하루 3개이고 리필이라 모을 수도 없다 — 6층은 최소 6번 성공이라 이틀이 걸리고, 층마다 요구 CP 가 1.18배씩 오르니 실제로는 훨씬 길다. 새 던전은 2층, 같은 던전을 다시 요구할 때만 4층으로 올린다. 하루 안에 끝나는 분량이다."
 }
