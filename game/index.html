@@ -1617,6 +1617,13 @@
   /* 모래시계 사용 개수 선택 */
   /* 모래시계 개수 스테퍼 */
   .hg-row{display:flex;align-items:center;gap:5px;margin:8px 0 7px}
+  /* 시간 단축 증감 — ‹ ‹‹ 문자를 에셋으로. 오른쪽 방향은 좌우 반전이라
+     그림을 더 그릴 필요가 없다 */
+  .hg-step{font-size:0;background-image:url(/assets/ui/UI-ARROW-L.png);
+    background-size:15px 15px;background-position:center;background-repeat:no-repeat}
+  .hg-step[data-hgd="-10"]{background-image:url(/assets/ui/UI-ARROW-LL.png)}
+  .hg-step[data-hgd="1"],.hg-step[data-hgd="10"]{transform:scaleX(-1)}
+  .hg-step[data-hgd="10"]{background-image:url(/assets/ui/UI-ARROW-LL.png)}
   .hg-step{flex:0 0 auto;width:38px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:8px 0;font-size:13px;font-weight:900;
     cursor:pointer;font-family:inherit}
@@ -1700,8 +1707,12 @@
   #shop.show{display:flex;transform:none}
   .sh-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;
     background:linear-gradient(#342a22,#28201a);border-bottom:1px solid var(--line)}
-  .sh-back{background:none;border:none;color:var(--txt);font-size:26px;line-height:1;
-    cursor:pointer;padding:0 6px;font-family:inherit}
+  /* 뒤로가기 — 글꼴마다 굵기·중심이 달라지는 문자 대신 에셋. 글자는 숨기고
+     그림만 남긴다(스크린리더는 글자를 읽는다) */
+  .sh-back{background:none;border:none;font-size:0;line-height:0;cursor:pointer;
+    padding:0 6px;width:34px;height:34px;
+    background-image:url(/assets/ui/UI-ARROW-L.png);
+    background-size:22px 22px;background-position:center;background-repeat:no-repeat}
   .sh-back{font-size:0;width:34px;height:34px;
     background:url(/assets/ui/UI-ARROW-L.png) center/22px 22px no-repeat}
   .sh-title{flex:1;font-size:16px;font-weight:800}
