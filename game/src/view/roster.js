@@ -233,17 +233,23 @@ export class RosterSheet {
       ? ((this.track === 'skill' ? D.skills.levelCap : D.characters.levelCap)[grade] ?? 0)
       : 0;
     const lv = held?.level || 0;
-    // 이 유닛 앞으로 쌓인 중복 = 지금 [자동강화] 를 누르면 오를 레벨 수
-    const dupes = ((S.pend && S.pend[this.track]) || []).filter(e => e.id === id).length;
+    // 게이지는 **다음 레벨까지**다. 예전에는 만렙까지 남은 레벨을 분모로 써서
+    // "0/22" 가 "22개 모아야 한 칸 오른다" 로 읽혔다 (실제 보고).
+    //   have  이미 이 유닛에 쌓인 중복 + 대기열에 있는 이 유닛 중복
+    //   need  다음 레벨 한 칸 비용 (characters/skills.json > levelCost)
+    const pendN = ((S.pend && S.pend[this.track]) || []).filter(e => e.id === id).length;
     const maxed = has && cap && lv >= cap;
-    // 레벨은 좌상단 배지, 재료는 하단 게이지.
-    // 게이지 = 쌓인 중복 / 만렙까지 남은 레벨 (중복 1개 = 1레벨)
-    const room = Math.max(0, cap - lv);
-    const pct = room ? Math.min(100, dupes / room * 100) : 0;
+    const lc = (this.track === 'skill' ? D.skills : D.characters).levelCost
+      || { base: 5, stepEvery: 10, stepAdd: 2 };
+    const need = lc.base + Math.floor(lv / lc.stepEvery) * lc.stepAdd;
+    const have = (held?.exp || 0) + pendN;
+    const dupes = pendN;                 // 카드 강조(.up)는 새로 들어온 것 기준
+    const room = need;
+    const pct = need ? Math.min(100, have / need * 100) : 0;
     const lvTag = !has ? ''
       : `<i class="cx-lv${maxed ? ' max' : ''}">${maxed ? 'MAX' : `Lv ${lv}`}</i>`;
     const gauge = has && !maxed
-      ? `<span class="cx-g"><i style="width:${pct}%"></i><b>${dupes}/${room}</b></span>`
+      ? `<span class="cx-g"><i style="width:${pct}%"></i><b>${have}/${need}</b></span>`
       : '';
     const foot = has ? '' : '<span class="cx-f">???</span>';
     return `<div class="cx-cell${cls}${on ? ' on' : ''}${dupes ? ' up' : ''}" title="${nm}"${

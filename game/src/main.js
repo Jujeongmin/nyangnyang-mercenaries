@@ -1379,11 +1379,19 @@ function autoEnhance(track) {
     const own = e.id ? ownedOf(track).find(x => x.id === e.id) : null;
     const room = own ? (cap[own.grade] ?? 0) - (own.level || 0) : 0;
     if (own && room > 0) {
+      // 중복은 **그 유닛에게 쌓인다**. 다음 레벨 비용을 채울 때마다 한 칸 오른다 —
+      // 화면의 "3/5" 가 이 값이다 (예전엔 중복이 곧 레벨이라 셀 것이 없었다)
       const from = own.level || 0;
-      own.level = from + 1;
-      logs.push({ name: tn(own.id, own.nameKo), from, to: own.level });
+      own.exp = (own.exp || 0) + 1;
+      let up = 0;
+      while (up < room && own.exp >= lvCost(track, (own.level || 0))) {
+        own.exp -= lvCost(track, own.level || 0);
+        own.level = (own.level || 0) + 1;
+        up++;
+      }
+      if (up) logs.push({ name: tn(own.id, own.nameKo), from, to: own.level });
     } else {
-      // 만렙이거나 주인 없음 — 버리지 않고 가치로 환산해 넘긴다
+      // 만렙이거나 주인 없음 — 버리지 않고 편성된 대상의 레벨로 넘긴다
       logs.push(...cascade(track, e.grade));
     }
   }
