@@ -39,6 +39,8 @@ const S = {
   // 캐스케이드 이월. 레벨로 못 바꾼 중복 가치가 여기 남아 다음 중복 때 합산된다.
   // (혼을 폐기해서 적립할 재화가 없다 — economy.json > cascade.carryNote)
   carry: { mercenary: 0, skill: 0 },
+  // 레벨을 1부터 세도록 바꾼 뒤 옛 세이브를 한 번 올렸다는 표시 (load 참고)
+  lv1Base: 0,
   // 1:1 개편 때 옛 이월 포인트를 한 번 비웠다는 표시 (load 참고).
   // **기본값은 0 이어야 한다** — 1 로 두면 Object.assign 이 옛 세이브를 덮은 뒤에도
   // 기본값이 남아 "이미 비웠다" 로 읽혀 리셋이 안 돈다 (실제로 그랬다)
@@ -137,10 +139,12 @@ let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, al
 // --- CP ---
 // 전직 배수는 **그 용병의 직군**에서 온다 (goldsinks > training_camp.promotion).
 // class 가 없는 옛 세이브·스킬 객체는 배수 1 로 떨어진다
+// 레벨은 **1부터** 센다. 그래서 성장항은 (level - 1) 이다 — 레벨 1 이 기준값이고
+// 밸런스는 0부터 세던 때와 같다. 그냥 level 을 쓰면 전원 CP 가 6% 뛴다.
 const cpOf = m => D.characters.gradeCoef[m.grade]
-  * (1 + m.level * D.characters.levelGrowthPerLevel)
+  * (1 + ((m.level || 1) - 1) * D.characters.levelGrowthPerLevel)
   * (m.class ? promoMult(m.class) : 1);
-const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + s.level * 0.06);
+const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + ((s.level || 1) - 1) * 0.06);
 
 function equipBonus() {
   // equipment.json > totalBonusFormula. 장비 레벨이 없으므로 강화항은 쓰지 않는다.
@@ -604,6 +608,17 @@ function load() {
     for (const t of ['mercenary', 'skill']) {
       S.pend[t] = (S.pend[t] || []).map(e =>
         typeof e === 'string' ? { id: null, grade: e } : e);
+    }
+    // 레벨을 1부터 세게 바꿨다 (2026-08-24). 옛 세이브의 0레벨은 1레벨과 같은
+    // 것이므로 올려 준다 — 전투력 식이 (level - 1) 이라 값은 그대로다
+    if (!S.lv1Base) {
+      const bump = x => { if (x && (x.level || 0) < 1) x.level = 1; };
+      (S.party || []).forEach(bump);
+      (S.own?.mercenary || []).forEach(bump);
+      (S.own?.skill || []).forEach(bump);
+      (S.skills?.active || []).forEach(bump);
+      (S.skills?.passive || []).forEach(bump);
+      S.lv1Base = 1;
     }
     // 이월 포인트(carry)는 예전에 **등급 배수**로 쌓였다 (LR 중복 하나 = 300).
     // 지금은 1 포인트 = 1 레벨이라, 옛 값을 그대로 두면 스킬 150레벨을 공짜로
@@ -1249,8 +1264,9 @@ function pull(trackId, n) {
  */
 function lvCost(track, level) {
   const c = (track === 'skill' ? D.skills : D.characters).levelCost
-    || { base: 1, stepEvery: 1, stepAdd: 0 };
-  return c.base + Math.floor(level / c.stepEvery) * c.stepAdd;
+    || { base: 5, stepEvery: 10, stepAdd: 2 };
+  // 레벨이 1부터이므로 (level - 1) 로 구간을 센다 — Lv1~10 이 한 구간이다
+  return c.base + Math.floor(Math.max(0, (level || 1) - 1) / c.stepEvery) * c.stepAdd;
 }
 
 /** 편성된 용병/스킬을 CP 내림차순으로. 캡 미달인 것만. */
@@ -1260,7 +1276,7 @@ function cascadeTargets(track) {
     ? [...S.skills.active, ...S.skills.passive].filter(Boolean)
     : S.party.filter(Boolean);
   return list
-    .filter(x => (x.level || 0) < (cap?.[x.grade] ?? 0))
+    .filter(x => (x.level || 1) < (cap?.[x.grade] ?? 0))
     .sort((a, b) => (track === 'skill' ? skillCp(b) - skillCp(a) : cpOf(b) - cpOf(a)));
 }
 
@@ -1287,10 +1303,10 @@ function cascade(track, grade, level = 0) {
     // 이월만 쌓인다 — 실제로 그랬다.
     // 비용은 **지금 레벨**이 정한다 (등급 무관). 한 칸씩 사면서 남는 만큼 올린다
     const t = cascadeTargets(track).find(x =>
-      S.carry[track] >= lvCost(track, x.level || 0));
+      S.carry[track] >= lvCost(track, x.level || 1));
     if (!t) break;                                   // 전부 캡이거나 이월이 모자라다
-    const room = (cap[t.grade] ?? 0) - (t.level || 0);
-    const from = t.level || 0;
+    const room = (cap[t.grade] ?? 0) - (t.level || 1);
+    const from = t.level || 1;
     let up = 0;
     while (up < room && S.carry[track] >= lvCost(track, from + up)) {
       S.carry[track] -= lvCost(track, from + up);
@@ -1330,8 +1346,8 @@ function applyPulls(out) {
 
     if (!held) {
       S.own[track].push(g.kind === 'skill'
-        ? { id: g.id, nameKo: g.name, grade: g.grade, level: 0 }
-        : { id: g.id, nameKo: g.name, grade: g.grade, class: g.cls, level: 0 });
+        ? { id: g.id, nameKo: g.name, grade: g.grade, level: 1 }
+        : { id: g.id, nameKo: g.name, grade: g.grade, class: g.cls, level: 1 });
     } else if (track === 'skill' && gradeRank(g.grade) > gradeRank(held.grade)) {
       // 같은 스킬의 상위 등급이 나왔다. 등급을 올리고, 밀려난 옛 등급은 **주인이 없는**
       // 잉여라 id 없이 넣는다 (등급만 올려 주고 레벨까지 얹으면 이중 보상이 된다)
@@ -1377,16 +1393,16 @@ function autoEnhance(track) {
 
   for (const e of pend) {
     const own = e.id ? ownedOf(track).find(x => x.id === e.id) : null;
-    const room = own ? (cap[own.grade] ?? 0) - (own.level || 0) : 0;
+    const room = own ? (cap[own.grade] ?? 0) - (own.level || 1) : 0;
     if (own && room > 0) {
       // 중복은 **그 유닛에게 쌓인다**. 다음 레벨 비용을 채울 때마다 한 칸 오른다 —
       // 화면의 "3/5" 가 이 값이다 (예전엔 중복이 곧 레벨이라 셀 것이 없었다)
-      const from = own.level || 0;
+      const from = own.level || 1;
       own.exp = (own.exp || 0) + 1;
       let up = 0;
-      while (up < room && own.exp >= lvCost(track, (own.level || 0))) {
-        own.exp -= lvCost(track, own.level || 0);
-        own.level = (own.level || 0) + 1;
+      while (up < room && own.exp >= lvCost(track, (own.level || 1))) {
+        own.exp -= lvCost(track, own.level || 1);
+        own.level = (own.level || 1) + 1;
         up++;
       }
       if (up) logs.push({ name: tn(own.id, own.nameKo), from, to: own.level });
@@ -1734,7 +1750,7 @@ const SKILL_CAT_KO = { attack: '공격', buff: '버프', survival: '생존', sum
  */
 function skillDesc(sk, level) {
   const e = sk.effect || {};
-  const mult = D.skills.gradeCoef[sk.grade] * (1 + (level || 0) * 0.06)
+  const mult = D.skills.gradeCoef[sk.grade] * (1 + ((level || 1) - 1) * 0.06)
     / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
   // 피해 배율은 **퍼센트**로 쓴다 — "1.14배"는 계산을 시키고 "114%"는 그냥 읽힌다.
   // x() 는 배수 표기가 맞는 자리(쿨타임 가속처럼 속도를 곱하는 것)에만 남긴다.
@@ -1786,7 +1802,7 @@ function skillDesc(sk, level) {
 /** 스킬 효과를 사람이 읽는 줄들로. 수치는 effectScaling 이 등급·레벨로 곱한 실효값 */
 function skillEffectRows(sk, level) {
   const e = sk.effect || {};
-  const mult = D.skills.gradeCoef[sk.grade] * (1 + (level || 0) * 0.06)
+  const mult = D.skills.gradeCoef[sk.grade] * (1 + ((level || 1) - 1) * 0.06)
     / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
   const pct = v => (v * 100).toFixed(0) + '%';
   const rows = [];
@@ -1914,7 +1930,7 @@ function openUnitInfo(kind, id) {
     ? [...S.skills.active, ...S.skills.passive, ...(S.own?.skill || [])]
     : [...S.party, ...(S.own?.mercenary || [])];
   const held = pool.filter(Boolean).find(x => x.id === id);
-  const level = held?.level || 0;
+  const level = held?.level || 1;
   const cap = (isSkill ? D.skills.levelCap : D.characters.levelCap)[def.grade];
 
   const card = $('#unitCard');
@@ -3470,7 +3486,7 @@ function publicProfile() {
     stage: S.maxStage || 0,
     capCls: S.promoClass || 'warrior',
     party: S.party.filter(Boolean).slice(0, 5)
-      .map(x => ({ id: x.id, grade: x.grade, level: x.level || 0 })),
+      .map(x => ({ id: x.id, grade: x.grade, level: x.level || 1 })),
     title: S.profile?.title || '',
     frame: S.profile?.frame || '',
     wing: S.cosmetics?.wing || '',
@@ -4835,7 +4851,7 @@ function rollParty() {
   const pool = [...D.characters.characters];
   S.party = Array.from({ length: slotsOf('mercenary') }, () => {
     const c = pool.splice((Math.random() * pool.length) | 0, 1)[0];
-    return { id: c.id, nameKo: c.nameKo, grade: c.grade, class: c.class, level: 0 };
+    return { id: c.id, nameKo: c.nameKo, grade: c.grade, class: c.class, level: 1 };
   });
 }
 
@@ -4849,7 +4865,7 @@ function rollSkills() {
     const s = src[(Math.random() * src.length) | 0];
     // 등급은 스킬 종류에 고정이다 (skills.json > meta.gradeIsFixed).
     // 예전에는 여기서 'R' 을 박아 첫 스킬이 항상 R 이었다
-    return { id: s.id, nameKo: s.nameKo, grade: s.grade, level: 0 };
+    return { id: s.id, nameKo: s.nameKo, grade: s.grade, level: 1 };
   });
   S.skills.active = take(act, slotsOf('skillActive'));
   S.skills.passive = take(pas, slotsOf('skillPassive'));

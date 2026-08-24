@@ -232,7 +232,7 @@ export class RosterSheet {
     const cap = grade
       ? ((this.track === 'skill' ? D.skills.levelCap : D.characters.levelCap)[grade] ?? 0)
       : 0;
-    const lv = held?.level || 0;
+    const lv = held?.level || 1;
     // 게이지는 **다음 레벨까지**다. 예전에는 만렙까지 남은 레벨을 분모로 써서
     // "0/22" 가 "22개 모아야 한 칸 오른다" 로 읽혔다 (실제 보고).
     //   have  이미 이 유닛에 쌓인 중복 + 대기열에 있는 이 유닛 중복
@@ -241,7 +241,8 @@ export class RosterSheet {
     const maxed = has && cap && lv >= cap;
     const lc = (this.track === 'skill' ? D.skills : D.characters).levelCost
       || { base: 5, stepEvery: 10, stepAdd: 2 };
-    const need = lc.base + Math.floor(lv / lc.stepEvery) * lc.stepAdd;
+    // 레벨이 1부터라 구간은 (lv - 1) 로 센다 (main.js > lvCost 와 같은 식)
+    const need = lc.base + Math.floor(Math.max(0, lv - 1) / lc.stepEvery) * lc.stepAdd;
     const have = (held?.exp || 0) + pendN;
     const dupes = pendN;                 // 카드 강조(.up)는 새로 들어온 것 기준
     const room = need;
