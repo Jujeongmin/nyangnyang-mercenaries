@@ -323,8 +323,8 @@
    "q": 17,
    "cycle": 3,
    "type": "dungeon_floor",
-   "target": 4,
-   "dungeon": "gold_mine",
+   "target": 2,
+   "dungeon": "treasure_vault",
    "rewards": {
     "diamond": 400,
     "merc_ticket": 12,
@@ -392,8 +392,8 @@
    "q": 23,
    "cycle": 4,
    "type": "dungeon_floor",
-   "target": 2,
-   "dungeon": "treasure_vault",
+   "target": 3,
+   "dungeon": "gold_mine",
    "rewards": {
     "diamond": 500,
     "merc_ticket": 20,
@@ -564,5 +564,5 @@
   }
  },
  "equipTicketNote": "장비 소환권은 chainInvariant 대상이 아니다(용병·스킬 소환권만 사슬을 만든다). v3 에서 자동 소환 배치 곡선을 던전 배출에 맞추면서, 던전이 아직 얕은 초반을 퀘스트가 메우도록 Q3·Q5·Q7 에 장비 소환권을 넣고 뒤 구간을 약 1.8배로 올렸다.",
- "dungeonQuestNote": "던전 퀘스트 층수를 낮췄다 (2026-08-24). 열쇠는 **던전마다** 하루 3개이고 리필이라 모을 수도 없다 — 6층은 최소 6번 성공이라 이틀이 걸리고, 층마다 요구 CP 가 1.18배씩 오르니 실제로는 훨씬 길다. 새 던전은 2층, 같은 던전을 다시 요구할 때만 4층으로 올린다. 하루 안에 끝나는 분량이다."
+ "dungeonQuestNote": "던전 퀘스트 층수 (2026-08-24). 열쇠는 **던전마다** 하루 3개이고 리필이라 모을 수도 없다 — 한 퀘스트가 하루 안에 끝나는 분량이어야 한다. Q11 황금 광산 2층 / Q17 보물 창고 2층(새 던전이라 낮게) / Q23 황금 광산 3층. 새 던전을 만나면 2층부터, 이미 판 던전은 한 층씩 더 깊이 요구한다."
 }

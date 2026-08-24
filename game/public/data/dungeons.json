@@ -1,147 +1,148 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "던전 6종. 재화 배출의 60%를 담당하는 주 수도꼭지.",
-    "designPrinciple": "던전은 '일일 배출량 잠금 해제 장치'다. 최고 돌파층이 일일 자동 수령량을 결정하고, 입장은 층 돌파용으로만 쓴다. 방치형에서 매일 수동으로 도는 건 피로다."
+ "meta": {
+  "version": "1.0",
+  "description": "던전 6종. 재화 배출의 60%를 담당하는 주 수도꼭지.",
+  "designPrinciple": "던전은 '일일 배출량 잠금 해제 장치'다. 최고 돌파층이 일일 자동 수령량을 결정하고, 입장은 층 돌파용으로만 쓴다. 방치형에서 매일 수동으로 도는 건 피로다."
+ },
+ "formulas": {
+  "dailyYield": "baseYield * 1.15^(floor - 1)",
+  "requiredCp": "unlockCp * 1.18^(floor - 1)",
+  "balanceNote": "수령 증가율 15% < 요구 CP 증가율 18%. 이래야 던전이 무한히 뚫리지 않고 CP 검문소로 기능한다.",
+  "unlockCpNote": "unlockCp는 해금 시점(estimatedUnlockDay)의 무과금 CP x 0.85로 산출됐다. stages.json > f2pCpModel 기준."
+ },
+ "entry": {
+  "adBonus": {
+   "entries": 2,
+   "dailyLimit": 1
   },
-  "formulas": {
-    "dailyYield": "baseYield * 1.15^(floor - 1)",
-    "requiredCp": "unlockCp * 1.18^(floor - 1)",
-    "balanceNote": "수령 증가율 15% < 요구 CP 증가율 18%. 이래야 던전이 무한히 뚫리지 않고 CP 검문소로 기능한다.",
-    "unlockCpNote": "unlockCp는 해금 시점(estimatedUnlockDay)의 무과금 CP x 0.85로 산출됐다. stages.json > f2pCpModel 기준."
+  "premiumBonus": 2,
+  "failureCost": "돌파 실패해도 횟수 소모. 재도전 시 자동전투 재실행.",
+  "maxFloor": null,
+  "maxFloorNote": "층 상한 없음. 요구 CP가 지수로 오르므로 자연히 막힌다.",
+  "model": "per_dungeon_key",
+  "modelNote": "던전마다 전용 열쇠가 있고 매일 그 개수만큼 지급된다. 횟수 카운터 대신 열쇠를 세는 이유는 \"오늘 뭘 더 돌 수 있는가\" 가 인벤토리에 그대로 보이기 때문이다.",
+  "dailyKeyGrant": 3,
+  "keyGrantNote": "05:00 KST 에 던전별로 3개가 되도록 **채운다**(누적이 아니라 리필). 누적을 허용하면 며칠 모았다가 한 번에 털 수 있어 일일 배출 상한이 무너진다. 누적형으로 바꾸려면 이 값을 상한으로 두고 grantMode 를 accumulate 로 바꾼다.",
+  "grantMode": "refill",
+  "adBonusNote": "광고 1회당 해당 던전 열쇠 +2. dailyLimit 1."
+ },
+ "unlockOrder": {
+  "note": "해금 순서가 곧 성장 순서다. 골드(강화) -> 열쇠(장비뽑기) -> 제련석(장비레벨) -> 다이아(용병·스킬) 순으로 시스템이 하나씩 열려 신규 유저가 7개 재화를 한꺼번에 마주치지 않는다."
+ },
+ "dungeons": [
+  {
+   "id": "gold_mine",
+   "nameKo": "황금 광산",
+   "reward": "gold",
+   "baseYield": 237370,
+   "baseYieldHistory": {
+    "original": 50000,
+    "v2": 340000,
+    "current": 237370,
+    "reason": "v2 스테이지 곡선(벽 포함) 재산출. 광산이 생애 골드의 15%를 담당하도록 맞춘 값."
+   },
+   "unlockCp": 610000,
+   "unlockQuest": 7,
+   "estimatedUnlockDay": 1,
+   "purpose": "장비 강화 자금",
+   "unlockCpHistory": {
+    "v1": 2000,
+    "v2": 610
+   },
+   "keyId": "DK-01"
   },
-  "entry": {
-    "adBonus": {
-      "entries": 2,
-      "dailyLimit": 1
-    },
-    "premiumBonus": 2,
-    "failureCost": "돌파 실패해도 횟수 소모. 재도전 시 자동전투 재실행.",
-    "maxFloor": null,
-    "maxFloorNote": "층 상한 없음. 요구 CP가 지수로 오르므로 자연히 막힌다.",
-    "model": "per_dungeon_key",
-    "modelNote": "던전마다 전용 열쇠가 있고 매일 그 개수만큼 지급된다. 횟수 카운터 대신 열쇠를 세는 이유는 \"오늘 뭘 더 돌 수 있는가\" 가 인벤토리에 그대로 보이기 때문이다.",
-    "dailyKeyGrant": 3,
-    "keyGrantNote": "05:00 KST 에 던전별로 3개가 되도록 **채운다**(누적이 아니라 리필). 누적을 허용하면 며칠 모았다가 한 번에 털 수 있어 일일 배출 상한이 무너진다. 누적형으로 바꾸려면 이 값을 상한으로 두고 grantMode 를 accumulate 로 바꾼다.",
-    "grantMode": "refill",
-    "adBonusNote": "광고 1회당 해당 던전 열쇠 +2. dailyLimit 1."
+  {
+   "id": "treasure_vault",
+   "nameKo": "보물 창고",
+   "reward": "equip_ticket",
+   "baseYield": 22,
+   "unlockCp": 2390000,
+   "unlockQuest": 16,
+   "estimatedUnlockDay": 3,
+   "purpose": "장비 소환 횟수",
+   "unlockCpHistory": {
+    "v1": 7000,
+    "v2": 2390
+   },
+   "keyId": "DK-02",
+   "rewardNote": "구 황금 열쇠. 장비 소환 주재화로 바뀌었다.",
+   "yieldNote": "15 -> 22 (v3). 장비 자동 소환의 배치 크기를 이 곡선에 맞추기로 하면서 수급이 곡선의 바닥을 정하게 됐다. 15 로는 D3 하루 39장이라 배치 2개도 과했다. 층당 x1.15 는 그대로다 — 바닥만 올리고 기울기는 안 건드린다.",
+   "unlockQuestNote": "18 -> 16 (2026-08-24). Q17 이 보물 창고 2층을 요구하므로 **Q17 을 시작할 때** 열려 있어야 한다. 해금 판정은 questDone(n) = \"n 번째 퀘스트를 끝냈나\" 라서, Q17 진행 중에 열리려면 값이 16 이어야 한다 (17 로 두면 Q18 에서 열려 Q17 을 깰 수 없다 — 실제로 그렇게 막혔다)."
   },
-  "unlockOrder": {
-    "note": "해금 순서가 곧 성장 순서다. 골드(강화) -> 열쇠(장비뽑기) -> 제련석(장비레벨) -> 다이아(용병·스킬) 순으로 시스템이 하나씩 열려 신규 유저가 7개 재화를 한꺼번에 마주치지 않는다."
+  {
+   "id": "furnace",
+   "nameKo": "용광로",
+   "reward": "gold",
+   "baseYield": 3000,
+   "unlockCp": 10300000,
+   "unlockQuest": 40,
+   "estimatedUnlockDay": 12,
+   "purpose": "장비 소환 레벨업",
+   "unlockCpHistory": {
+    "v1": 20000,
+    "v2": 10300
+   },
+   "keyId": "DK-03",
+   "rewardNote": "모래시계는 과금 재화라 던전으로 정기 공급하지 않는다 (economy.json > equipmentSummonLevel.speedup.monetizationNote). 용광로는 골드를 준다 — 제작대 레벨업이 골드를 먹으므로 이름과 역할은 그대로 이어진다."
   },
-  "dungeons": [
-    {
-      "id": "gold_mine",
-      "nameKo": "황금 광산",
-      "reward": "gold",
-      "baseYield": 237370,
-      "baseYieldHistory": {
-        "original": 50000,
-        "v2": 340000,
-        "current": 237370,
-        "reason": "v2 스테이지 곡선(벽 포함) 재산출. 광산이 생애 골드의 15%를 담당하도록 맞춘 값."
-      },
-      "unlockCp": 610000,
-      "unlockQuest": 7,
-      "estimatedUnlockDay": 1,
-      "purpose": "장비 강화 자금",
-      "unlockCpHistory": {
-        "v1": 2000,
-        "v2": 610
-      },
-      "keyId": "DK-01"
-    },
-    {
-      "id": "treasure_vault",
-      "nameKo": "보물 창고",
-      "reward": "equip_ticket",
-      "baseYield": 22,
-      "unlockCp": 2390000,
-      "unlockQuest": 18,
-      "estimatedUnlockDay": 3,
-      "purpose": "장비 소환 횟수",
-      "unlockCpHistory": {
-        "v1": 7000,
-        "v2": 2390
-      },
-      "keyId": "DK-02",
-      "rewardNote": "구 황금 열쇠. 장비 소환 주재화로 바뀌었다.",
-      "yieldNote": "15 -> 22 (v3). 장비 자동 소환의 배치 크기를 이 곡선에 맞추기로 하면서 수급이 곡선의 바닥을 정하게 됐다. 15 로는 D3 하루 39장이라 배치 2개도 과했다. 층당 x1.15 는 그대로다 — 바닥만 올리고 기울기는 안 건드린다."
-    },
-    {
-      "id": "furnace",
-      "nameKo": "용광로",
-      "reward": "gold",
-      "baseYield": 3000,
-      "unlockCp": 10300000,
-      "unlockQuest": 40,
-      "estimatedUnlockDay": 12,
-      "purpose": "장비 소환 레벨업",
-      "unlockCpHistory": {
-        "v1": 20000,
-        "v2": 10300
-      },
-      "keyId": "DK-03",
-      "rewardNote": "모래시계는 과금 재화라 던전으로 정기 공급하지 않는다 (economy.json > equipmentSummonLevel.speedup.monetizationNote). 용광로는 골드를 준다 — 제작대 레벨업이 골드를 먹으므로 이름과 역할은 그대로 이어진다."
-    },
-    {
-      "id": "crystal_cave",
-      "nameKo": "수정 동굴",
-      "reward": "diamond",
-      "baseYield": 190,
-      "baseYieldHistory": {
-        "original": 250,
-        "current": 190,
-        "reason": "무료 1000뽑 도입 보정. 보정 없이는 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다. free1000.json > economyImpact 참조."
-      },
-      "unlockCp": 22400000,
-      "unlockQuest": 60,
-      "estimatedUnlockDay": 25,
-      "purpose": "용병·스킬 소환 (핵심)",
-      "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
-      "unlockCpHistory": {
-        "v1": 45000,
-        "v2": 22400
-      },
-      "keyId": "DK-04"
-    },
-    {
-      "id": "trial_tower",
-      "nameKo": "시련의 탑",
-      "reward": "ticket_mixed",
-      "baseYield": 3,
-      "unlockCp": 327000000,
-      "unlockQuest": 150,
-      "estimatedUnlockDay": 110,
-      "purpose": "종합 보상",
-      "yieldSplit": {
-        "merc_ticket": 0.34,
-        "skill_ticket": 0.33,
-        "equip_ticket": 0.33
-      },
-      "unlockCpHistory": {
-        "v1": 200000,
-        "v2": 327000
-      },
-      "keyId": "DK-06"
-    }
-  ],
-  "collection": {
-    "mode": "mailbox_or_auto_accrue",
-    "note": "매일 접속 시 우편함에서 일괄 수령. 층 돌파 시 해당 층 수령량이 영구 적용."
+  {
+   "id": "crystal_cave",
+   "nameKo": "수정 동굴",
+   "reward": "diamond",
+   "baseYield": 190,
+   "baseYieldHistory": {
+    "original": 250,
+    "current": 190,
+    "reason": "무료 1000뽑 도입 보정. 보정 없이는 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다. free1000.json > economyImpact 참조."
+   },
+   "unlockCp": 22400000,
+   "unlockQuest": 60,
+   "estimatedUnlockDay": 25,
+   "purpose": "용병·스킬 소환 (핵심)",
+   "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
+   "unlockCpHistory": {
+    "v1": 45000,
+    "v2": 22400
+   },
+   "keyId": "DK-04"
   },
-  "ranking": {
-    "perDungeonTopFloor": true,
-    "priority": "low",
-    "note": "전투력 랭킹과 거의 같은 순위가 나오므로 우선순위 낮음."
-  },
-  "removed": {
-    "soul_tower": {
-      "reason": "혼 폐기와 함께 삭제. 배출처(영혼의 탑)와 소모처(혼 상점)가 서로만 바라보는 닫힌 고리였어서, 혼이 사라지자 던전 하나가 통째로 목적을 잃었다.",
-      "keyRetired": "DK-05",
-      "keyNote": "남은 열쇠는 DK-01~04 + DK-06 이다. 번호를 당기지 않는다 — 열쇠 그림이 던전 테마에 맞춰 그려져 있어 DK-06(십자검·검붉은 보석)을 DK-05 로 옮기면 시련의 탑 열쇠가 영혼의 탑 그림이 된다.",
-      "wasUnlockCp": 102600000,
-      "gap": "D60 구간(CP 1.03억)에 해금할 게 하나 줄었다. 수정 동굴(D25) 다음이 시련의 탑(D110)이라 사이가 비는데, 그 구간은 무한의 탑이 메운다 — 입장 제한이 없어 전투력이 오르는 만큼 계속 층이 열린다."
-    }
+  {
+   "id": "trial_tower",
+   "nameKo": "시련의 탑",
+   "reward": "ticket_mixed",
+   "baseYield": 3,
+   "unlockCp": 327000000,
+   "unlockQuest": 150,
+   "estimatedUnlockDay": 110,
+   "purpose": "종합 보상",
+   "yieldSplit": {
+    "merc_ticket": 0.34,
+    "skill_ticket": 0.33,
+    "equip_ticket": 0.33
+   },
+   "unlockCpHistory": {
+    "v1": 200000,
+    "v2": 327000
+   },
+   "keyId": "DK-06"
   }
+ ],
+ "collection": {
+  "mode": "mailbox_or_auto_accrue",
+  "note": "매일 접속 시 우편함에서 일괄 수령. 층 돌파 시 해당 층 수령량이 영구 적용."
+ },
+ "ranking": {
+  "perDungeonTopFloor": true,
+  "priority": "low",
+  "note": "전투력 랭킹과 거의 같은 순위가 나오므로 우선순위 낮음."
+ },
+ "removed": {
+  "soul_tower": {
+   "reason": "혼 폐기와 함께 삭제. 배출처(영혼의 탑)와 소모처(혼 상점)가 서로만 바라보는 닫힌 고리였어서, 혼이 사라지자 던전 하나가 통째로 목적을 잃었다.",
+   "keyRetired": "DK-05",
+   "keyNote": "남은 열쇠는 DK-01~04 + DK-06 이다. 번호를 당기지 않는다 — 열쇠 그림이 던전 테마에 맞춰 그려져 있어 DK-06(십자검·검붉은 보석)을 DK-05 로 옮기면 시련의 탑 열쇠가 영혼의 탑 그림이 된다.",
+   "wasUnlockCp": 102600000,
+   "gap": "D60 구간(CP 1.03억)에 해금할 게 하나 줄었다. 수정 동굴(D25) 다음이 시련의 탑(D110)이라 사이가 비는데, 그 구간은 무한의 탑이 메운다 — 입장 제한이 없어 전투력이 오르는 만큼 계속 층이 열린다."
+  }
+ }
 }
