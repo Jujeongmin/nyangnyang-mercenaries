@@ -2351,6 +2351,17 @@ function renderDiceBoard() {
   const btn = $('#dcRoll'); if (btn) btn.disabled = diceBusy || d.rolls < 1;
 }
 
+/**
+ * 게이지 칸 수. **목표치 그대로**가 기본이다 — 1/1 은 한 칸, 0/10 은 열 칸이라
+ * 몇 번 남았는지가 눈으로 세어진다. 다만 50회짜리를 50칸으로 그리면 칸이
+ * 실오라기가 되므로, 20칸을 넘으면 5의 배수로 묶어 20칸 아래로 내린다.
+ */
+function mqSeg(target) {
+  let n = Math.max(1, target | 0);
+  while (n > 20) n = Math.ceil(n / 5);
+  return n;
+}
+
 /** 미션 목록 — 진행도는 일일 임무 카운터에서 온다 */
 function renderDiceMissions() {
   const el = $('#dcMissions');
@@ -2364,7 +2375,7 @@ function renderDiceMissions() {
     <div class="mq-h"><b>${t('매일 출석')}${fd
       ? ` <u class="dc-fest">${t('{0}일차 축제 보상', fd.day)}</u>` : ''}</b>
       <span>${attended ? '1/1' : '0/1'}</span></div>
-    <div class="mq-bar"><i style="width:${attended ? 100 : 0}%"></i></div>
+    <div class="mq-bar" style="--seg:1"><i style="width:${attended ? 100 : 0}%"></i></div>
     <button class="dc-mbtn rt-b${attended ? '' : ' go'}" id="dcAttend"
       ${attended ? 'disabled' : ''}>${attended ? '✓' : `${diceIco()}+${E.attendMission.rolls}`}</button>
   </div>`;
@@ -2374,7 +2385,8 @@ function renderDiceMissions() {
     const can = !done && cur >= m.target;
     return `<div class="mq-row${done ? ' done' : ''}">
       <div class="mq-h"><b>${t(m.nameKo)}</b><span>${cur}/${m.target}</span></div>
-      <div class="mq-bar"><i style="width:${cur / m.target * 100}%"></i></div>
+      <div class="mq-bar" style="--seg:${mqSeg(m.target)}"><i
+        style="width:${cur / m.target * 100}%"></i></div>
       <button class="dc-mbtn rt-b${can ? ' go' : ''}" data-dcm="${i}" ${can ? '' : 'disabled'}>
         ${done ? '✓' : `${diceIco()}+${m.rolls}`}</button>
     </div>`;
@@ -2573,6 +2585,8 @@ function openEventDetail(id) {
   // 상세는 **배너 없이** 뜬다 — 목록에서 이미 본 그림을 또 깔면 같은 화면이
   // 두 번 나오고, "목록 위에 다른 창이 열렸다" 는 느낌이 안 산다
   $('#ovcard').classList.add('no-banner');
+  $('#ovinfo').innerHTML = '';        // 설명이 없다 — ⓘ 버튼도 같이 사라진다
+  $('#ovinfo').classList.remove('show');
   $('#ovb').innerHTML = h.join('');
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   $('#evBack').addEventListener('click', openEvents);

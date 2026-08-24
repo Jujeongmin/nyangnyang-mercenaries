@@ -191,29 +191,29 @@
     {
      "n": 1,
      "diamond": 180,
-     "asset": "SHOP-D1"
+     "asset": "DICE-P1"
     },
     {
      "n": 5,
      "diamond": 850,
-     "asset": "SHOP-D2"
+     "asset": "DICE-P2"
     },
     {
      "n": 15,
      "diamond": 2400,
-     "asset": "SHOP-D3",
+     "asset": "DICE-P3",
      "tagKo": "인기"
     },
     {
      "n": 40,
      "diamond": 6000,
-     "asset": "SHOP-D4",
+     "asset": "DICE-P4",
      "tagKo": "이득"
     },
     {
      "n": 100,
      "diamond": 13500,
-     "asset": "SHOP-D5",
+     "asset": "DICE-P5",
      "tagKo": "날개 확정"
     }
    ],

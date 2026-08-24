@@ -628,6 +628,9 @@
   /* 장비 */
   /* 반드시 골라야 하는 화면 — 닫기·ⓘ 를 숨긴다 */
   #ov.forced #ovx, #ov.forced #ovi{display:none}
+  /* 설명이 없는 화면에서도 ⓘ 가 떠 있어 눌러도 아무 일이 없었다.
+     #ovinfo 가 비면 버튼째 숨긴다 — 화면마다 손으로 끄지 않아도 된다 */
+  #ovcard:has(#ovinfo:empty) #ovi{display:none}
   /* 등급 오라 — 밴드 안에서는 그림이 같으므로 발광 세기로 가른다.
      --au 는 등급 색, --aw 는 티어에 비례한 세기(렌더에서 넣는다). */
   .slot{--au:#0000;--aw:0}
@@ -1038,12 +1041,21 @@
      좌우 끝 장식이 잘리지 않게 border-image 로 늘린다 */
   /* 홈(MQ-BAR) 안쪽에 채움이 들어간다. 채움이 홈을 꽉 덮으면 그림이 안 보여
      한 덩어리 막대로 읽힌다 — 위아래 2px 을 남긴다 */
-  .mq-bar{position:relative;height:12px;border-radius:0;
-    border-style:solid;border-width:0 12px;
-    border-image:url(/assets/ui/MQ-BAR.png) 0 24 fill stretch}
-  .mq-bar i{position:absolute;left:2px;top:3px;height:6px;border-radius:3px;
+  /* 미션 진행도는 **칸 게이지**다. 매끈한 막대는 "얼마나 남았나" 가 눈대중이
+     되는데, 칸이면 남은 칸을 셀 수 있다 (제작대 골드 투입과 같은 문법).
+     칸은 배경 그라데이션으로 그린다 — 요소를 10개 만들면 DOM 만 늘어난다 */
+  .mq-bar{position:relative;height:9px;border-radius:5px;overflow:hidden;
+    background:var(--ink);border:1px solid #ffffff14;
+    box-shadow:inset 0 1px 3px #0009}
+  /* 칸 나눔은 **홈 전체**에 그린다 — 채움 위에만 그리면 남은 칸이 안 보여
+     "몇 번 더 하면 되나" 를 셀 수 없다. --seg 는 렌더가 목표치로 넣는다 */
+  .mq-bar::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:repeating-linear-gradient(90deg,
+      #0000 0 calc(100% / var(--seg,10) - 2px),
+      #00000066 calc(100% / var(--seg,10) - 2px) calc(100% / var(--seg,10)))}
+  .mq-bar i{display:block;height:100%;border-radius:4px;
     background:linear-gradient(90deg,#e8a72c,var(--gold));
-    box-shadow:0 0 5px #ffc94a55}
+    box-shadow:0 0 6px #ffc94a55}
   /* 완료 행은 초록으로 물들이지 않는다 — 화면 톤이 황동인데 초록 막대가
      여섯 줄 깔리면 그 색만 보인다. 흐린 금색 + 체크로 충분하다 */
   .mq-row.done .mq-bar i{background:linear-gradient(90deg,#8a7a52,#b09a6a);
@@ -1201,9 +1213,18 @@
   .evb-dday{position:absolute;right:10px;bottom:9px;font-size:13px;font-weight:400;
     color:var(--gold);font-family:"Black Han Sans","Jua",system-ui,sans-serif;
     text-shadow:0 1px 3px #000c}
-  .evb-bar{display:block;height:6px;margin-top:6px;border-radius:4px;
-    background:var(--ink);overflow:hidden}
-  .evb-bar i{display:block;height:100%;background:linear-gradient(90deg,#e8a72c,var(--gold))}
+  /* 무료 1000뽑은 **마일스톤**이 있는 진행도다 — 홈에 마디(MQ-NODE)를 박아
+     "다음 지급까지 얼마" 가 눈에 보이게 한다 */
+  /* 무료 1000뽑은 **마일스톤**이 있는 진행도다 — 홈에 마디를 박아 "다음 지급까지
+     얼마" 가 눈에 보이게 한다. 한 규칙에 모은다: background 축약을 뒤에 또 쓰면
+     앞의 background-image 가 지워진다 (실제로 그랬다) */
+  .evb-bar{position:relative;display:block;height:10px;margin-top:6px;
+    border-radius:5px;overflow:hidden;
+    background:url(/assets/ui/MQ-NODE.png) left center/10px 10px repeat-x, var(--ink);
+    box-shadow:inset 0 1px 3px #000a}
+  .evb-bar i{position:relative;z-index:1;display:block;height:100%;
+    background:linear-gradient(90deg,#e8a72c,var(--gold));
+    box-shadow:0 0 7px #ffc94a55;opacity:.94}
   .evb.end{opacity:.55;filter:grayscale(.45)}
   .evb-dot{position:absolute;right:10px;top:10px;width:10px;height:10px;border-radius:50%;
     background:var(--warn);box-shadow:0 0 7px var(--warn)}
@@ -1507,6 +1528,10 @@
   .fr-a{flex:0 0 38px;height:38px;font-family:inherit;font-size:20px;line-height:1;
     color:var(--gold);background:var(--panel);border:1px solid var(--line);
     border-radius:10px;cursor:pointer}
+  .fr-a{font-size:0;display:flex;align-items:center;justify-content:center}
+  .fr-a::after{content:"";width:22px;height:22px;
+    background:url(/assets/ui/UI-ARROW-L.png) center/contain no-repeat}
+  .fr-a[data-d="1"]::after{transform:scaleX(-1)}
   .fr-a:disabled{opacity:.3;cursor:default}
   .fr-a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .fr-lv{flex:1;text-align:center;display:flex;align-items:baseline;justify-content:center;gap:6px}
@@ -1595,6 +1620,12 @@
   .hg-step{flex:0 0 auto;width:38px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:8px 0;font-size:13px;font-weight:900;
     cursor:pointer;font-family:inherit}
+  .hg-step{font-size:0;display:flex;align-items:center;justify-content:center}
+  .hg-step::after{content:"";width:18px;height:18px;
+    background:url(/assets/ui/UI-ARROW-L.png) center/contain no-repeat}
+  .hg-step[data-hgd="-10"]::after,.hg-step[data-hgd="10"]::after{
+    background-image:url(/assets/ui/UI-ARROW-LL.png);width:22px}
+  .hg-step[data-hgd="1"]::after,.hg-step[data-hgd="10"]::after{transform:scaleX(-1)}
   .hg-step:active{background:var(--panel2)}
   .hg-val{flex:1 1 auto;text-align:center;font-size:16px;font-weight:900;color:var(--gold);
     font-family:"Black Han Sans",system-ui,sans-serif}
@@ -1671,6 +1702,8 @@
     background:linear-gradient(#342a22,#28201a);border-bottom:1px solid var(--line)}
   .sh-back{background:none;border:none;color:var(--txt);font-size:26px;line-height:1;
     cursor:pointer;padding:0 6px;font-family:inherit}
+  .sh-back{font-size:0;width:34px;height:34px;
+    background:url(/assets/ui/UI-ARROW-L.png) center/22px 22px no-repeat}
   .sh-title{flex:1;font-size:16px;font-weight:800}
   .sh-cur{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:800;
     background:var(--ink);border:1px solid var(--line);border-radius:20px;padding:4px 12px}
