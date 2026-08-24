@@ -65,6 +65,14 @@ export const QUEST_TYPE = {
   mercenary_summon: { label: '용병 소환', goto: 'shop', track: 'mercenary', verb: '용병 소환으로' },
   skill_summon: { label: '스킬 소환', goto: 'shop', track: 'skill', verb: '스킬 소환으로' },
   equip_summon_level: { label: '제작대 레벨', goto: 'forge', verb: '제작대로' },
+  // 제작대 **소환 횟수**. 레벨과 다른 축이다 — 첫 퀘스트가 "제작대를 한 번
+  // 돌려 봐라" 여야 해서, 레벨(강화로도 오른다)이 아니라 뽑은 횟수를 센다
+  // goto 가 'forgeDock' 인 이유 — 강화 패널(openForge)이 아니라 **하단 도크의
+  // 모루** 를 눌러야 제작이 된다. 패널을 열면 정작 눌러야 할 모루를 덮는다
+  equip_summon_count: { label: '무기 제작', goto: 'forgeDock', verb: '제작대로' },
+  // 훈련소 — 골드를 태워 전 용병을 올리는 곳이고 전직의 게이트다
+  // (goldsinks > training_camp.promotion). 온보딩에서 한 번은 열어 보게 한다
+  training_level: { label: '훈련소 레벨', goto: 'training', verb: '훈련소로' },
   dungeon_floor: { label: '던전 도달', goto: 'dungeon', verb: '던전으로' },
   // 무한의 탑 — 입장권이 없어 전투력만 되면 바로 오른다. 던전이 열쇠를
   // 기다리는 동안 진행이 멈추지 않게 사이사이에 넣는다
@@ -120,6 +128,8 @@ export function questProgress(S, def) {
     case 'mercenary_summon': return S.summonExp.mercenary;
     case 'skill_summon': return S.summonExp.skill;
     case 'equip_summon_level': return S.forgeLv;
+    case 'equip_summon_count': return S.eqSummons || 0;
+    case 'training_level': return S.trainLv || 0;
     case 'dungeon_floor': {
       // **지정된 던전만** 본다. 지정이 없는 옛 저장본은 최고층으로 넘어간다
       const dg = S.dg || {};

@@ -31,10 +31,14 @@ const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF
 
 const S = {
   stage: 1, maxStage: 1,
-  dia: 300, gold: 1000,
+  // **빈손으로 시작한다** (2026-08-24). 다이아·골드를 쥐여 주고 시작하면 첫
+  // 소환의 무게가 사라진다 — 재화는 Q1 부터 퀘스트 보상으로 들어온다
+  dia: 0, gold: 0,
   // 장비 소환 주재화(구 황금 열쇠). 제련석은 폐기됐다.
-  eqTicket: 40,
+  // 10개만 준다 — 제작대가 무엇인지 한 바퀴 돌려 볼 만큼이고, 그 뒤로는 벌어야 한다
+  eqTicket: 10,
   forgeLv: 1, forgeStart: null, forgeTarget: null, forgeCut: 0,
+  eqSummons: 0,                            // 장비 소환 누적 횟수 (Q1 이 이걸 센다)
   party: [], equip: {}, inv: [],
   // 캐스케이드 이월. 레벨로 못 바꾼 중복 가치가 여기 남아 다음 중복 때 합산된다.
   // (혼을 폐기해서 적립할 재화가 없다 — economy.json > cascade.carryNote)
@@ -186,8 +190,45 @@ function cosmeticBonus() {
   return b;
 }
 
+/**
+ * 단장이 들고 있는 기본 전투력.
+ *
+ * 예전에는 0 이었다 (characters.json > captain.statEffect: "none"). 그런데
+ * **시작 편성이 비어 있게 바뀌면서** 신규 계정의 전투력이 그대로 0 으로 떴다 —
+ * 화면 한가운데 서서 실제로 때리는 단장이 있는데 전투력은 0 이라는 모순이다.
+ *
+ * 스테이지 1 요구치의 **4%(=50)** 다. 처음엔 12%(151)로 뒀는데, 바탕이 그만큼
+ * 크면 장비 한 칸·용병 한 명이 붙어도 표시가 별로 안 움직인다 — 초반 바탕은
+ * 낮을수록 성장이 보인다. 요구치가 지수로 오르는 뒤쪽에서는 어차피 사라진다.
+ */
+const captainCp = () => Math.round(D.stages.curve.baseCp * 0.04);
+
+/**
+ * 장비의 **고정 전투력**. 등급 보너스(equipBonus)는 총합에 곱해지는 퍼센트라
+ * 초반처럼 바탕이 작을 때는 한 칸 끼워도 1~2 밖에 안 올랐다 — 장비를 맞추는
+ * 재미가 숫자로 안 보였다.
+ *
+ * 그래서 **바탕에 더하는 몫**을 따로 둔다. 스테이지 1 요구치의 3% × 등급이라
+ * 일반(1등급) 한 칸이 38, 여섯 칸을 다 채우면 225 다 — 단장(50)·첫 용병(N 250)과
+ * 나란히 놓았을 때 "장비를 맞추는 것"이 용병 한 명에 버금가게 보인다.
+ * 뒤로 갈수록 요구치가 지수로 오르므로 저절로 퍼센트 쪽이 주도권을 가져간다.
+ *
+ * 퍼센트 상한(equipment.json > maxBonusVerification)은 안 건드렸다 —
+ * 그 표가 CP 천장 계산의 근거라 손대면 곡선 전체를 다시 재야 한다.
+ */
+function equipFlatCp() {
+  let flat = 0;
+  for (const s of D.equipment.slots) {
+    const it = S.equip[s.id];
+    if (it) flat += D.stages.curve.baseCp * 0.03 * it.tier;
+  }
+  return flat;
+}
+
 function totalCp() {
-  let base = S.party.reduce((a, m) => a + cpOf(m), 0);
+  let base = captainCp();
+  base += equipFlatCp();
+  base += S.party.reduce((a, m) => a + cpOf(m), 0);
   base += [...S.skills.active, ...S.skills.passive].reduce((a, s) => a + (s ? skillCp(s) : 0), 0);
   return base
     * (1 + equipBonus())
@@ -817,6 +858,9 @@ const unlockLv = kind =>
   D.equipment.summon.progression.find(p => p.unlock === kind)?.summonLv ?? '?';
 
 // --- 렌더 ---
+/** 스킬 칸은 액티브·패시브 각각 최종 4칸이다 (skills.json > 장착 상한) */
+const SLOT_ROW = [0, 1, 2, 3];
+
 function renderSkills() {
   const box = $('#skills');
   box.innerHTML = '';
@@ -842,7 +886,10 @@ function renderSkills() {
     }
     return d;
   };
-  S.skills.active.forEach((s, i) => {
+  // 칸은 **항상 4개를 그린다.** 배열 길이에 맡기면 신규 계정(빈 배열)에서
+  // 스킬바가 통째로 사라져 "아직 안 열림" 표시조차 안 나온다
+  SLOT_ROW.forEach((_, i) => {
+    const s = S.skills.active[i] || null;
     const d = mk(s, i, '액티브', openA);
     if (!s && i >= openA) d.addEventListener('click', () => tellSlotLock('skillActive', i));
     // 수동 모드에서는 탭이 곧 발동이다. 준비 표시는 scene 이 ready 클래스로 준다.
@@ -855,7 +902,8 @@ function renderSkills() {
     box.appendChild(d);
   });
   const gap = document.createElement('div'); gap.className = 'skgap'; box.appendChild(gap);
-  S.skills.passive.forEach((s, i) => {
+  SLOT_ROW.forEach((_, i) => {
+    const s = S.skills.passive[i] || null;
     const d = mk(s, i, '패시브', openP);
     if (s) d.addEventListener('click', () => openUnitInfo('skill', s.id));
     else if (i >= openP) d.addEventListener('click', () => tellSlotLock('skillPassive', i));
@@ -1785,7 +1833,7 @@ const SKILL_CAT_KO = { attack: '공격', buff: '버프', survival: '생존', sum
 function skillDesc(sk, level) {
   const e = sk.effect || {};
   const mult = D.skills.gradeCoef[sk.grade] * (1 + ((level || 1) - 1) * 0.06)
-    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
+    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 1500);
   // 피해 배율은 **퍼센트**로 쓴다 — "1.14배"는 계산을 시키고 "114%"는 그냥 읽힌다.
   // x() 는 배수 표기가 맞는 자리(쿨타임 가속처럼 속도를 곱하는 것)에만 남긴다.
   const x = v => (v * mult).toFixed(2).replace(/\.?0+$/, '');
@@ -1837,7 +1885,7 @@ function skillDesc(sk, level) {
 function skillEffectRows(sk, level) {
   const e = sk.effect || {};
   const mult = D.skills.gradeCoef[sk.grade] * (1 + ((level || 1) - 1) * 0.06)
-    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 600000);
+    / (D.skills.gradeCoef[D.skills.effectScaling.baselineGrade] || 1500);
   const pct = v => (v * 100).toFixed(0) + '%';
   const rows = [];
   if (e.atkRatio) rows.push(['위력', `공격력의 ${(e.atkRatio * mult * 100).toFixed(0)}%`]);
@@ -4270,16 +4318,21 @@ async function runDungeon(dg) {
  * 포기. 20초를 다 보고 있을 이유가 없을 때 — 이미 못 이길 판이 보이거나,
  * 그냥 나가고 싶을 때 누른다. **한 번 누르면 바로 나간다.**
  *
- * **열쇠는 안 돌려준다.** 입장에서 이미 소모됐고(dungeons.json > entry.failureCost),
- * 돌려주면 "질 것 같으면 포기해서 열쇠를 아낀다" 가 최적 플레이가 된다 —
- * 그러면 하루 3번이라는 제한 자체가 무의미해진다.
+ * 열쇠는 **돌려준다** — 아래 본문 참조.
  */
 function dgGiveUp() {
   const r = dgRun;
   if (!r) return;
   scene.abortRun();
+  // **열쇠를 돌려준다** (2026-08-24 결정). 포기는 전투를 중단하는 것이지 도전을
+  // 쓴 것이 아니다 — 잘못 들어갔거나 화면을 그만 보고 싶을 때 누르는 버튼인데
+  // 열쇠까지 날리면 아무도 안 누르고 20초를 그냥 흘려보낸다.
+  // 실패(시간 초과·전멸)는 다르다 — 도전을 했으므로 열쇠가 소모된다
+  // (dungeons.json > entry.failureCost)
+  S.dgKeys[r.dg.id] = (S.dgKeys[r.dg.id] || 0) + 1;
+  save(); renderTop();
   showResult('포기', '#ff5a6a');
-  toast(`${r.dg.nameKo} ${r.floor}층 포기 — 열쇠는 돌아오지 않습니다`);
+  toast(`${r.dg.nameKo} ${r.floor}층 포기 — 열쇠를 돌려받았습니다`);
   dgReturn(1100);
 }
 
@@ -4352,6 +4405,7 @@ function renderQuest() {
       <img src="/assets/ui/${CUR_ICON[k]}.png" alt="" onerror="this.remove()">
       <b>${num(v)}</b></span>`).join('');
   $('#quest').classList.toggle('done', done);
+  maybeOnboardHint();
 }
 
 let lastCp = 0;
@@ -4379,7 +4433,6 @@ function renderTop() {
   $('.side [data-s="attend"]')?.classList.toggle('hasnew', attendReady());
   renderRosterDots();
   renderMailDot();
-  $('#dpsInfo').textContent = `초당 피해 ${num(partyDps())}`;
   floatCurrency();
   renderForgeDock();
   const cap = D.stages.enemyDerivation.encountersPerStage;
@@ -4391,13 +4444,18 @@ function renderTop() {
 
 /**
  * 조우 진행 표시. 지나온 것은 채우고(on), **지금 하는 것 위에 화살표**를 둔다.
- * 점만 있으면 "몇 번째를 하는 중"이 안 읽혔다 — 채워진 마지막 점과 다음 점의
- * 경계가 곧 현재 위치다.
+ *
+ * @param i 지금 싸우는 조우의 번호 (0부터). -1 은 아직 시작 전이다.
+ *
+ * 씬이 주는 값(onEvent 의 e.encounter)은 **막 스폰한 웨이브**의 번호다 —
+ * 즉 "끝낸 것"이 아니라 "지금 하는 것"이다. 예전에는 이걸 끝낸 번호로 읽어서
+ * `k <= i` 를 채우고 화살표를 `i + 1` 에 뒀다: 싸우는 중인 조우가 이미 깬 것으로
+ * 칠해지고 화살표는 아직 시작도 안 한 다음 점 위에 서 있었다.
  */
 const markEncounter = i =>
   document.querySelectorAll('#enc .dotw').forEach((e, k) => {
-    e.classList.toggle('on', k <= i);
-    e.classList.toggle('now', k === i + 1);
+    e.classList.toggle('on', k < i);        // 지나온 것
+    e.classList.toggle('now', k === i);     // 지금 하는 것
   });
 
 function toast(msg) {
@@ -4778,8 +4836,11 @@ function pullOne(sel = '#fgObj') {
   if (!obj || obj.classList.contains('hit')) return;   // 연타로 겹치지 않게
   obj.classList.add('hit');
   S.eqTicket--;
+  // 제작 횟수. **수동 1회 제작은 이 경로다** — summonEquip() 은 자동·다연차 전용이라
+  // 거기에만 카운터를 두면 모루를 아무리 두드려도 퀘스트가 안 오른다 (실제로 그랬다)
+  S.eqSummons = (S.eqSummons || 0) + 1;
   const it = equipRoll();
-  save(); renderTop(); renderForgeDock();
+  save(); renderTop(); renderForgeDock(); renderQuest();
   setTimeout(() => {
     obj.classList.remove('hit');
     openEquipResult(it);
@@ -4876,6 +4937,9 @@ function openEquipResult(it) {
 function summonEquip(n, isAuto) {
   if (S.eqTicket < n) return toast('장비 소환권 부족');
   S.eqTicket -= n;
+  // 소환 **횟수** 누적. 제작대 레벨(forgeLv)과 다른 축이다 — 레벨은 강화로도
+  // 오르지만 이건 "몇 번 뽑았나" 라서 첫 퀘스트가 제작대를 한 바퀴 돌게 만든다
+  S.eqSummons = (S.eqSummons || 0) + n;
   const cap = D.equipment.filter?.inventoryCap || 12;
   const minTier = isAuto ? (S.filterMinTier || 1) : 1;
   let stopHit = null;                    // 멈춤 등급에 걸린 첫 장비
@@ -5006,6 +5070,54 @@ async function challengeBoss() {
 }
 
 /** 퀘스트가 가리키는 화면으로 이동한다. track 이 있으면 그 트랙까지 연다. */
+/**
+ * 탭 유도. 목표 버튼 위에서 고양이 발이 톡톡 두드린다.
+ *
+ * 퀘스트 배너는 **화면까지만** 데려다준다. 거기서 뭘 눌러야 하는지는 따로
+ * 말해 주지 않으면, 첫 퀘스트(무기 제작 5회)에서 제작대를 열어 놓고도
+ * 모루를 못 찾아 막힌다.
+ *
+ * 목표를 실제 좌표로 따라가게 fixed 로 띄운다 — 시트 안이든 도크든 상관없다.
+ * 한 번 누르면 사라지고, 안 눌러도 6초 뒤에 걷힌다 (계속 떠 있으면 잔소리다).
+ */
+let tapHintT = null;
+let tapHintSel = null;
+// 이번 퀘스트에서 **이미 눌러 본** 목표. 한 번 누르면 그 퀘스트 동안은 다시 안
+// 뜬다 — renderQuest 가 자주 도는데 그때마다 손이 되살아나면 잔소리가 된다
+let tapHintUsed = null;
+function showTapHint(sel, ms = 6000) {
+  const hint = $('#tapHint');
+  const el = typeof sel === 'string' ? $(sel) : sel;
+  clearTimeout(tapHintT);
+  if (!el || !hint) return;
+  // 같은 목표로 이미 떠 있으면 그냥 둔다 — renderQuest 가 자주 도는데 그때마다
+  // 다시 걸면 click 리스너가 계속 쌓이고 애니메이션도 매번 처음으로 튄다
+  if (tapHintSel === sel && hint.classList.contains('show')) return;
+  tapHintSel = sel;
+  const place = () => {
+    const r = el.getBoundingClientRect();
+    if (!r.width) return hideTapHint();
+    // 버튼의 오른쪽 아래에 걸친다 — 가운데에 두면 정작 눌러야 할 그림을 가린다
+    hint.style.left = Math.round(r.left + r.width * 0.62) + 'px';
+    hint.style.top = Math.round(r.top + r.height * 0.58) + 'px';
+  };
+  place();
+  hint.classList.add('show');
+  // 목표를 누르면 역할이 끝났다
+  el.addEventListener('click', () => {
+    if (typeof sel === 'string') tapHintUsed = `${S.quest}:${sel}`;
+    hideTapHint();
+  }, { once: true });
+  // ms 가 0 이면 **안 사라진다** — 온보딩 구간은 누를 때까지 손이 남아 있는다
+  if (ms > 0) tapHintT = setTimeout(hideTapHint, ms);
+}
+
+function hideTapHint() {
+  clearTimeout(tapHintT);
+  tapHintSel = null;
+  $('#tapHint')?.classList.remove('show');
+}
+
 function questGoto(t) {
   // 목적지가 없으면 아무것도 안 한다. 전투 화면에서 '전투하세요' 는 소음이다.
   if (!t || !t.goto) return;
@@ -5013,9 +5125,64 @@ function questGoto(t) {
   else if (t.goto === 'forge') openForge();
   else if (t.goto === 'dungeon') openDungeons();
   else if (t.goto === 'tower') tower.open();
+  // 도크의 모루는 이미 화면에 있다 — 열 것이 없고, 덮고 있는 패널만 걷는다
+  else if (t.goto === 'forgeDock') { $('#ov').classList.remove('show', 'forced'); roster.close(); }
+  else if (t.goto === 'training') openTraining();
+  // 화면이 뜬 **다음** 프레임에 좌표를 잡는다. 열기 전에 재면 아직 0 이다
+  const target = TAP_TARGET[t.goto];
+  if (target) requestAnimationFrame(() => setTimeout(() => showTapHint(target), 120));
+}
+
+/** 퀘스트 목적지 → 실제로 눌러야 하는 버튼 */
+const TAP_TARGET = {
+  forgeDock: '#fgObj',
+  shop: '.sh-summon .sh-pull',
+  dungeon: '.dg:not(.lock)',
+  training: '#tcUp',   // 훈련소 [강화] 버튼
+};
+
+/**
+ * 온보딩 구간(Q1~Q8)에서는 **누르지 않아도** 손이 뜬다.
+ *
+ * 퀘스트 배너를 눌러야 유도가 나오면, 배너가 눌리는 것인지 모르는 사람에게는
+ * 아무 도움이 안 된다. 기능을 하나씩 소개하는 구간이라 손이 먼저 말을 건다.
+ * Q9 부터는 안 뜬다 — 그때는 이미 어디에 뭐가 있는지 안다.
+ */
+const ONBOARDING_UNTIL = 8;
+function maybeOnboardHint() {
+  if ((S.quest || 1) > ONBOARDING_UNTIL) return hideTapHint();
+  const def = questAt(D, S.quest);
+  // **다 채웠으면 목표가 아니라 퀘스트 배너를 가리킨다.** 예전에는 목표만 봐서,
+  // Q1 을 다 깨고 나서도 손이 모루 위에서 계속 두드렸다 — 그 시점에 눌러야 할
+  // 것은 제작이 아니라 [보상 받기] 다
+  if (qProgress(def) >= def.target) return showTapHint('#quest', 0);
+  const t = QUEST_TYPE[def.type];
+  const sel = TAP_TARGET[t?.goto];
+  // 목적지 화면이 이미 열려 있을 때만. 안 열려 있으면 가리킬 것이 화면에 없다
+  if (!sel || !document.querySelector(sel)?.getBoundingClientRect().width) return hideTapHint();
+  // 이 퀘스트에서 이미 한 번 눌렀으면 그만 — 어디를 눌러야 하는지는 배웠다
+  if (tapHintUsed === `${S.quest}:${sel}`) return hideTapHint();
+  showTapHint(sel, 0);   // 누를 때까지 남는다
 }
 
 /** 이 스테이지 1회 클리어의 골드 총액 (stages.json > rewards.repeatClear.gold) */
+/**
+ * 처치 하나당 골드. **하한 100** 이다 (2026-08-24 결정).
+ *
+ * 곡선(requiredCp^1.35)만 쓰면 1스테이지에서 킬당 2골드가 나온다 — 숫자가 안
+ * 읽히고 "잡아도 아무것도 안 들어온다" 로 느껴진다. 하한은 초반에만 걸리고,
+ * 스테이지 49 쯤에서 곡선이 100 을 넘어서면 그때부터 곡선이 주도한다.
+ */
+const KILL_GOLD_MIN = 100;
+/** 처치마다 ±흔들림. 같은 숫자가 반복되면 "고정 지급" 으로 읽혀 잡는 맛이 없다 */
+const KILL_GOLD_SPREAD = [0.8, 1.3];
+function killGold() {
+  const g = D.stages.rewards.repeatClear.gold;
+  const base = Math.max(KILL_GOLD_MIN, stageGold() * g.split.mobs / g.mobsPerStage);
+  const [lo, hi] = KILL_GOLD_SPREAD;
+  return Math.round(base * (lo + Math.random() * (hi - lo)));
+}
+
 function stageGold(n = S.stage) {
   const g = D.stages.rewards.repeatClear.gold;
   return Math.pow(requiredCp(n), g.exponent) * g.coefficient;
@@ -5030,8 +5197,7 @@ function onEvent(e) {
     S.kills = (S.kills || 0) + 1;
     // 잡몹도 골드를 준다. 보스만 주면 벽에 막힌 유저의 수입이 0 이 되고,
     // 절전으로 밤새 돌려도 획득 골드가 0 이다 (gold.splitNote)
-    const g = D.stages.rewards.repeatClear.gold;
-    S.gold += Math.round(stageGold() * g.split.mobs / g.mobsPerStage);
+    S.gold += killGold();
     renderTop();
     renderQuest();
     return;
@@ -5130,8 +5296,11 @@ function onEvent(e) {
     $('#bossGo').classList.remove('show');
     // 클리어 표시는 띄우지 않는다 — 매 스테이지 뜨면 진행이 끊긴다
     S.maxStage = Math.max(S.maxStage, S.stage);
-    // 보스 몫만. 잡몹 몫은 처치할 때마다 이미 들어갔다
-    S.gold += Math.round(stageGold() * D.stages.rewards.repeatClear.gold.split.boss);
+    // 보스 몫만. 잡몹 몫은 처치할 때마다 이미 들어갔다.
+    // 하한과 흔들림은 잡몹과 같은 규칙을 쓴다 — 보스가 잡몹 한 마리보다 적게
+    // 주면 이상하고, 매번 같은 숫자가 뜨는 것도 이상하다
+    S.gold += Math.max(killGold(),
+      Math.round(stageGold() * D.stages.rewards.repeatClear.gold.split.boss));
     mq('stage');
     S.eqTicket += 12; S.hourglass += 3;
     renderQuest();
@@ -5156,31 +5325,6 @@ function onEvent(e) {
 }
 
 // --- 부트 ---
-// 시작 편성은 **열린 칸 수만큼만** 만든다 (quests.json > slotUnlockQuests).
-// 시작 3칸이며 Q8 에 4칸, Q20 에 5칸으로 늘어난다.
-function rollParty() {
-  const pool = [...D.characters.characters];
-  S.party = Array.from({ length: slotsOf('mercenary') }, () => {
-    const c = pool.splice((Math.random() * pool.length) | 0, 1)[0];
-    return { id: c.id, nameKo: c.nameKo, grade: c.grade, class: c.class, level: 1 };
-  });
-}
-
-function rollSkills() {
-  const act = D.skills.skills.filter(s => s.id.startsWith('SK-A'));
-  const pas = D.skills.skills.filter(s => s.id.startsWith('SK-P'));
-  // 배열은 최종 4칸, 채우는 건 열린 칸까지. 스킬 소환 자체가 Q2·Q3 해금이라
-  // 시작 시점(Q0)에는 액티브·패시브 둘 다 0칸인 것이 정상이다
-  const take = (src, owned) => Array.from({ length: 4 }, (_, i) => {
-    if (i >= owned) return null;
-    const s = src[(Math.random() * src.length) | 0];
-    // 등급은 스킬 종류에 고정이다 (skills.json > meta.gradeIsFixed).
-    // 예전에는 여기서 'R' 을 박아 첫 스킬이 항상 R 이었다
-    return { id: s.id, nameKo: s.nameKo, grade: s.grade, level: 1 };
-  });
-  S.skills.active = take(act, slotsOf('skillActive'));
-  S.skills.passive = take(pas, slotsOf('skillPassive'));
-}
 
 /**
  * 부트 진행 표시. 문구는 단계 설명이 아니라 **게임 세계의 소리**다 —
@@ -5313,11 +5457,12 @@ function bootTapToStart() {
   if (!S.attend) S.attend = { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] };
   // 세이브를 읽은 직후에 한 번 — 잠긴 칸에 남아 있는 유닛을 보유함으로 되돌린다
   trimToSlots();
-  if (!S.party.length) {
-    rollParty(); rollSkills();
-    for (const p of S.party) if (!S.codex.mercenary.includes(p.id)) S.codex.mercenary.push(p.id);
-    for (const s of [...S.skills.active, ...S.skills.passive]) if (s) S.codex.skill[s.id] = s.grade;
-  }
+  // **시작 편성은 비어 있다** (2026-08-24). 예전에는 무작위 용병 3명과 스킬을
+  // 쥐여 주고 시작했는데, 뽑기 게임에서 첫 화면부터 SSR 이 서 있으면 첫 소환의
+  // 무게가 사라진다. Q1 보상이 용병 소환권 10장이고, 그때까지는 단장이 혼자
+  // 싸운다 (scene.capFlatDps).
+  //
+  // 옛 세이브는 그대로 둔다 — 이미 받은 용병을 빼앗지 않는다.
 
   bootStep(38);
   reveal = new SummonReveal($('#app'));
@@ -5401,6 +5546,15 @@ function bootTapToStart() {
   });
   bootStep(55);
   scene = new BattleScene($('#cv'), { data: D, onEvent });
+  // 단장의 고정 피해. **1스테이지 보스를 제한시간 안에 겨우 잡는 크기**로 잡는다.
+  // 절대값으로 박으면 밸런스를 고칠 때마다 이 숫자를 따로 기억해야 하므로
+  // 요구 전투력에 묶는다 — 요구치가 지수로 오르니 뒤로 갈수록 저절로 사라진다.
+  //
+  // 기준은 **1스테이지 보스를 평타 3대에 눕히는 것**이다 (사용자 결정).
+  //   보스 체력 = 요구 CP × 1.79 · 평타 간격 평균 2.1초
+  //   3대 = 3 × (DPS × 2.1) = 요구 × 1.79  →  DPS = 요구 × 0.284
+  // 잡몹(요구 × 0.047)은 한 방에 죽는다.
+  scene.capFlatDps = requiredCp(1) * 0.284;
   window.__scene = scene;   // 디버그용
   window.__S = S;
   window.__wall = showWallHint;   // 디버그용 — 벽 안내를 손으로 띄워 본다

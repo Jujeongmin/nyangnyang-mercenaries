@@ -31,6 +31,19 @@ const ALLY_LANE = [
 // 적 공격 유형 -> 모션. 컷아웃을 안 하므로 몸 전체로 표현한다.
 const MOB_MOTION = { charge: 'pounce', thrust: 'thrust', projectile: 'cast' };
 
+/**
+ * 단장이 가져가는 파티 DPS 몫 (2026-08-24).
+ *
+ * **얹는 것이 아니라 떼어 오는 것이다.** 용병들의 평타가 (1 - 이 값) 으로 줄고
+ * 그만큼을 단장이 때린다 — 파티 총 화력은 그대로다. 그래서 스테이지 벽·보스
+ * 20초·던전 권장 전투력을 다시 잴 필요가 없고, characters.json 의
+ * `captain.statEffect: "none"`(CP 에 안 들어간다) 도 그대로 유지된다.
+ *
+ * 0.15 인 이유: 화면 한가운데 서 있는 주인공이 아무것도 안 하는 것은 이상하지만,
+ * 이 값이 커지면 "누구를 뽑았는가" 보다 "단장" 이 세지는 게임이 된다.
+ */
+const CAPTAIN_SHARE = 0.15;
+
 const FOE_LANE = [
   { dx: -0.10, dy: 0.20, sc: 1.05, z: 16 },
   { dx: 0.62, dy: -0.12, sc: 0.97, z: 15 },
@@ -431,7 +444,7 @@ export class BattleScene {
       // [보스 도전] 을 눌렀을 때만 들어온다
       this.bossPending = false;
       const hp = (this.requiredCp * 2.4 / div(S.bossStatRatio)) * bossHpRatio * scale;
-      const b = `B-${String(1 + (this.stage % 6)).padStart(2, '0')}`;
+      const b = this.bossAssetId();
       await this.spawnWave('boss', [b], hp);
       this.onEvent({ type: 'wave', encounter: this.encounter, boss: true });
       // 보스 전용 타이머. 잡몹 웨이브를 오래 끌어도 보스에게는 항상 같은 시간을 준다 —
@@ -601,30 +614,28 @@ export class BattleScene {
     const alive = this.foes.filter(f => f.hp > 0);
     if (!alive.length) return;
 
-    // 단장 — 전투 판정에는 안 들어가고 연출만 한다.
-    // 3.5~6.5초는 화면 한가운데 주인공이 대부분 가만히 서 있는 간격이었다.
-    // 피해에 영향이 없으므로 밸런스는 그대로고 체감만 바뀐다
+    // 단장도 **실제로 때린다** (2026-08-24). 예전에는 모션만 있고 피해가 0이었다.
+    //
+    // 다만 피해를 새로 얹지는 않는다 — 파티 총 DPS 를 그대로 두고 그 중
+    // CAPTAIN_SHARE 만큼을 단장 몫으로 떼어 온다 (아래 hitFoe 참조). 그래서
+    // 스테이지 벽·보스 시간제한·던전 권장 전투력이 하나도 안 바뀐다.
+    // characters.json 의 statEffect:none(= CP 에 안 들어간다)도 그대로다.
     if (this.captain) {
       this.capCd = (this.capCd ?? 1.2) - s;
       if (this.capCd <= 0 && !this.captain.act) {
-        this.capCd = rnd(1.5, 2.7);
-        // 직업별 연출 — 궁수·마법사는 무기 끝에서 투사체가 날아간다.
-        // 판정은 없다(연출 전용). 전사는 근접 휘두르기 그대로
+        // 이번 휘두르기의 간격이 곧 이 한 방의 몫이다 (피해 = 초당피해 × 간격)
+        const cd = rnd(1.5, 2.7);
+        this.capCd = cd;
         const cls = this.captain.capCls || 'warrior';
-        const A = this.D.combat.allyAttack;
-        const kind = (A?.byClass || {})[cls] || 'melee';
-        const target = alive[0];
-        if (kind === 'projectile' && target?.rig?.view) {
-          this.captain.attack(() => {
-            if (!target.rig?.view || target.rig.view.destroyed) return;
-            const tip = this.captain.weaponTip();
-            let id = (A.projectileFx || {})[cls] || A.projectileFx.fallback;
-            if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
-            this.fx.projectile(id, tip.x, tip.y,
-              target.rig.view.x, target.rig.view.y - target.rig.h * 0.5,
-              { size: this.fxSize(this.captain.h * 0.34, 0.12), dur: 260, arc: -0.1 });
-          });
-        } else this.captain.attack(null);
+        // 유닛과 **같은 경로**로 보낸다 — 직업별 근접·투사체 분기와 타격 판정이
+        // launchAttack 안에 이미 있다. 여기서 따로 그리면 둘이 갈라진다
+        this.capUnit = this.capUnit || {};
+        this.capUnit.rig = this.captain;
+        this.capUnit.class = cls;
+        this.capUnit.cdMax = cd;
+        this.capUnit.captain = true;
+        this.capUnit.usingSkill = null;
+        this.launchAttack(this.capUnit, alive[0], false);
       }
     }
 
@@ -1090,7 +1101,20 @@ export class BattleScene {
     if (!foe || foe.hp <= 0 || !foe.rig?.view || foe.rig.view.destroyed) return;
     const crit = Math.random() < 0.15;
     // 파티 총 DPS 를 공격 1회분으로 환산 — 실제 판정은 서버가 한다
-    const per = this.partyDps / Math.max(1, this.units.length) * from.cdMax;
+    const perFull = this.partyDps / Math.max(1, this.units.length) * from.cdMax;
+    // 단장 몫. **총량은 그대로다** — 단장이 가져가는 만큼 용병들의 평타가 줄고,
+    // 단장이 없으면(연합 마을 등) 몫이 0 이라 예전과 완전히 같다.
+    // 이 값을 올리면 화면 한가운데 주인공이 세지지만, 그만큼 용병 편성의 비중이
+    // 줄어든다 — 뽑기 게임의 축을 흐리지 않도록 낮게 잡는다
+    const share = this.captain ? CAPTAIN_SHARE : 0;
+    // 단장은 **몫과 고정치 중 큰 쪽**으로 때린다.
+    // 몫만 두면 용병이 하나도 없는 신규 계정(파티 DPS 0)에서 단장도 0 이 되어
+    // 첫 전투가 영영 안 끝난다 — 시작 편성이 비어 있는 것이 정상인 게임이라
+    // (용병은 Q1 보상으로 뽑는다) 단장 혼자서도 초반 스테이지는 넘겨야 한다.
+    // capFlatDps 는 1스테이지 요구 전투력에 묶여 있어 후반에는 저절로 무의미해진다
+    const per = from.captain
+      ? Math.max(this.partyDps * share, this.capFlatDps || 0) * from.cdMax
+      : perFull * (1 - share);
     // 스킬 배율은 **데이터에서** 온다 (skills.json > effect.atkRatio x 등급·레벨 배율).
     // 예전엔 등급·레벨과 무관하게 무조건 x6 이라, 툴팁의 "공격력의 240%"와
     // 실제 타격이 아무 관계가 없었다. sim/engine.js 와 같은 식이다.
@@ -1111,7 +1135,10 @@ export class BattleScene {
       pasMul += P.vigorAtk;
     }
     if (P.lifeAtk) pasMul += P.lifeAtk;
-    const dmg = per * (sd ? 1 + sd.mult : 1) * (crit ? 2 : 1) * rnd(0.9, 1.1)
+    // 스킬 몫은 **단장 배분 전 값(perFull)** 으로 잰다. 스킬은 용병이 쓰는
+    // 것이고 단장 몫과 무관한데, per 에 얹으면 단장이 가져간 만큼 스킬까지
+    // 같이 줄어든다 — 툴팁의 "공격력의 240%" 와 실제가 또 어긋난다
+    const dmg = (per + (sd ? perFull * sd.mult : 0)) * (crit ? 2 : 1) * rnd(0.9, 1.1)
       * bossMul * pasMul;
     // 아레나는 **체력을 여기서 안 깎는다.** 승패와 HP 곡선은 arenaStep 이 쥐고
     // 있고 여기 타격은 그림일 뿐이다. 깎게 두면 arenaStep 이 매 프레임 되돌려
@@ -1516,8 +1543,24 @@ export class BattleScene {
     return b ? b.nameKo : null;
   }
 
+  /**
+   * 이번 스테이지 보스의 그림.
+   *
+   * 예전에는 `1 + stage % 6` 이었다 — 스테이지 5 에서 **마룡**(B-06, 데이터상
+   * 150 스테이지 보스)이 나왔다. 여섯 얼굴이 6스테이지마다 도는 셈이라
+   * 진도와 아무 관계가 없었다.
+   *
+   * stages.json > bosses 의 마일스톤 표를 따른다:
+   *   10 왕 슬라임 · 25 고블린 족장 · 50 리치 · 75 화염 거인 · 100 크라켄 · 150 마룡
+   * 10 스테이지 전에는 첫 얼굴(왕 슬라임)이다 — 아직 마일스톤이 없다.
+   */
   bossAssetId() {
-    return `B-${String(1 + (this.stage % 6)).padStart(2, '0')}`;
+    let id = 'B-01';
+    for (const b of this.D.stages.bosses || []) {
+      if (this.stage < b.stage) break;
+      id = `B-${b.asset.slice(-2)}`;   // asset 은 "boss_B03" 꼴이라 뒤 두 자가 번호다
+    }
+    return id;
   }
 
   /**

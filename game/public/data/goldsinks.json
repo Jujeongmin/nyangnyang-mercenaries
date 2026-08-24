@@ -1,316 +1,318 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "골드 소모처 5종. economy.json > risks > gold_inflation 대응.",
-    "problem": "무과금 D180 일일 골드 3억. 여기에 장비 자동 소환(Lv60 = 배치당 700개, 대부분 분해)의 분해 골드가 더해진다. 소모처가 장비 강화 하나뿐이면 골드가 의미 없는 숫자가 된다.",
-    "principle": "방치형 골드는 지수로 늘어난다. 상한 있는 소모처는 결국 전부 채워진다. 반드시 무한 소모처가 하나 있어야 한다."
+ "meta": {
+  "version": "1.0",
+  "description": "골드 소모처 5종. economy.json > risks > gold_inflation 대응.",
+  "problem": "무과금 D180 일일 골드 3억. 여기에 장비 자동 소환(Lv60 = 배치당 700개, 대부분 분해)의 분해 골드가 더해진다. 소모처가 장비 강화 하나뿐이면 골드가 의미 없는 숫자가 된다.",
+  "principle": "방치형 골드는 지수로 늘어난다. 상한 있는 소모처는 결국 전부 채워진다. 반드시 무한 소모처가 하나 있어야 한다."
+ },
+ "budget": {
+  "lifetimeGoldF2P_180day": 15000000000,
+  "lifetimeGoldNote": "v2 - 추정이 아니라 생성값이다. stages.json > rewards.repeatClear.gold 공식과 dungeons.json > gold_mine 을 180일에 걸쳐 적분해 정확히 150억이 나오도록 계수를 역산했다. 배분은 스테이지/방치 85% + 광산 15%. | v3: 장비 분해를 수급처로 명시하면서 incomeModel 을 분리했다. lifetimeGoldF2P_180day 는 옛 값(스테이지+광산)이고 실제 총량은 incomeModel 쪽이다.",
+  "lifetimeGoldDerivation": {
+   "stageFormula": "requiredCp(n)^1.35 * 7.68169e-7",
+   "mineBaseYield": 340000,
+   "dailyEquivalentClears": 696,
+   "verified": true,
+   "scaleNote": "CP ×1000 보정. 계수를 K^1.35 로 나눴다."
   },
-  "budget": {
-    "lifetimeGoldF2P_180day": 15000000000,
-    "lifetimeGoldNote": "v2 - 추정이 아니라 생성값이다. stages.json > rewards.repeatClear.gold 공식과 dungeons.json > gold_mine 을 180일에 걸쳐 적분해 정확히 150억이 나오도록 계수를 역산했다. 배분은 스테이지/방치 85% + 광산 15%. | v3: 장비 분해를 수급처로 명시하면서 incomeModel 을 분리했다. lifetimeGoldF2P_180day 는 옛 값(스테이지+광산)이고 실제 총량은 incomeModel 쪽이다.",
-    "lifetimeGoldDerivation": {
-      "stageFormula": "requiredCp(n)^1.35 * 7.68169e-7",
-      "mineBaseYield": 340000,
-      "dailyEquivalentClears": 696,
-      "verified": true,
-      "scaleNote": "CP ×1000 보정. 계수를 K^1.35 로 나눴다."
+  "allocation": [
+   {
+    "sink": "equipment_enhance",
+    "share": 0.46,
+    "amount": 6900000000
+   },
+   {
+    "sink": "training_camp",
+    "share": 0.25,
+    "amount": 3750000000
+   },
+   {
+    "sink": "exchange",
+    "share": 0.17,
+    "amount": 2550000000
+   },
+   {
+    "sink": "dungeon_retry",
+    "share": 0.04,
+    "amount": 600000000
+   },
+   {
+    "sink": "forge_level",
+    "share": 0.08,
+    "amount": 1200000000
+   }
+  ],
+  "note": "합계 100%. 재련(6%)이 계열·세트 삭제로 사라져 환전소(무한 소모처)가 흡수했다.",
+  "reallocationNote": "제작대 레벨업이 제련석에서 골드로 바뀌면서 소모처가 5종이 됐다. 기존 4종의 share 를 비례 축소해 총합 1.0 을 유지한다 (0.50/0.27/0.19/0.04 → 0.46/0.25/0.17/0.04 + 0.08).",
+  "incomeModel": {
+   "description": "골드 수급처 4종. 제작대 장비 분해가 최대 수급처다.",
+   "lifetimeGoldF2P_180day": 35714285714,
+   "sources": [
+    {
+     "id": "equipment_disassembly",
+     "share": 0.5,
+     "amount": 17857142857,
+     "note": "제작대 소환 물량 중 부위별 최고 CP 를 제외한 전부가 자동 분해된다. Lv60 배치당 700개 x 등급별 분해가(equipment.json > duplicateHandling.goldByTier) 라 자동 소환이 돌기 시작하면 다른 수급처를 전부 합친 것보다 크다."
     },
-    "allocation": [
-      {
-        "sink": "equipment_enhance",
-        "share": 0.46,
-        "amount": 6900000000
-      },
-      {
-        "sink": "training_camp",
-        "share": 0.25,
-        "amount": 3750000000
-      },
-      {
-        "sink": "exchange",
-        "share": 0.17,
-        "amount": 2550000000
-      },
-      {
-        "sink": "dungeon_retry",
-        "share": 0.04,
-        "amount": 600000000
-      },
-      {
-        "sink": "forge_level",
-        "share": 0.08,
-        "amount": 1200000000
-      }
+    {
+     "id": "stage_and_idle",
+     "share": 0.3,
+     "amount": 10714285714,
+     "note": "반복 클리어 + 방치 보상. stages.json > rewards.repeatClear.gold."
+    },
+    {
+     "id": "gold_dungeon",
+     "share": 0.12,
+     "amount": 4285714286,
+     "note": "황금 광산. dungeons.json > gold_mine."
+    },
+    {
+     "id": "shop_exchange",
+     "share": 0.08,
+     "amount": 2857142857,
+     "note": "상점에서 다이아를 골드로 환전. 과금 유저일수록 비중이 커진다."
+    }
+   ],
+   "calibrationTodo": "이전 예산은 스테이지+광산만 세어 15,000,000,000 이었다. 분해를 넣으면 생애 골드가 35,714,285,714 으로 늘어난다. allocation 의 소모처 합계는 아직 옛 총량 기준이므로 그만큼 골드가 남는다. 레버는 두 개다 — equipment.json 의 T10 강화 비용을 올리거나, shop.json 의 환전소 dailyTrades 를 줄인다. sim 으로 D30/D90/D180 수지를 실측한 뒤 정한다."
+  },
+  "classSkillsAddendum": "전직 스킬 강화(1차 24억 + 2차 48억 = 72억)가 v2 에 추가됐다. 전직 비용 21.6억 삭제분을 빼면 순증 +50.4억 — 생애 골드 총량 대비 약 1/3. 이 소모처는 D120+ 의 지수 수입 구간에 있어 초중반 곡선에는 영향이 없다."
+ },
+ "sinks": [
+  {
+   "id": "equipment_enhance",
+   "nameKo": "장비 강화",
+   "type": "capped",
+   "definedIn": "equipment.json > enhancement",
+   "formula": "baseCostByTier[tier] * 1.55^enhanceLevel",
+   "maxLevel": 15,
+   "totalCostT10PerPiece": 1298000000,
+   "totalCostT10SixPieces": 7788000000,
+   "note": "주 소모처. 상한이 있으므로 후반에는 다른 소모처로 무게가 넘어간다."
+  },
+  {
+   "id": "training_camp",
+   "nameKo": "용병단 훈련소",
+   "type": "capped_soft",
+   "description": "골드로 전 용병의 기본 스탯을 영구 강화한다. 파티 편성·등급과 무관하게 적용.",
+   "maxLevel": 200,
+   "bonusPerLevel": 0.002,
+   "maxBonus": 0.4,
+   "costFormula": "800 * 1.055^level",
+   "costAtLv200": 213000000,
+   "cumulativeCost": 4050000000,
+   "cpIntegration": {
+    "appliesTo": "CP_총합 곱연산 항",
+    "term": "(1 + trainingCampBonus)",
+    "maxMultiplier": 1.4,
+    "warning": "CP 천장이 1,310,000 -> 1,834,000 으로 상승한다. stages.json > cpCeiling 갱신 필요."
+   },
+   "designNote": "무한 레벨로 만들면 CP 천장이 사라져 스테이지 곡선 기준이 무너진다. Lv200 상한 + 최대 +40%로 천장을 계산 가능하게 유지했다.",
+   "promotion": {
+    "nameKo": "전직",
+    "gate": "trainingCampLevel",
+    "gateNote": "훈련소 레벨이 기준이다. 단장 레벨은 스테이지 클리어로 자동으로 오르는 순수 진도 표시라 여기에 걸면 전직이 \"기다리면 열리는 것\"이 된다. 훈련소는 골드 소모처(goldsinks 27%)라 전직을 걸면 후반 인플레의 두 번째 배수구가 되고, 이미 전 용병 스탯을 올리는 공용 강화라 \"용병단 전체가 승급한다\"는 서사도 맞는다.",
+    "appliesTo": "직군 단위. 개별 용병이 아니라 그 직군 전체가 같이 승급한다",
+    "appliesToNote": "개별 승급이면 32종을 하나씩 올려야 해서 자동편성 게임의 손맛과 어긋난다",
+    "tiers": [
+     {
+      "tier": 1,
+      "nameKo": "기본",
+      "trainLv": 0,
+      "cost": null,
+      "statMult": 1
+     },
+     {
+      "tier": 2,
+      "nameKo": "정예",
+      "trainLv": 40,
+      "cost": null,
+      "statMult": 1.25
+     },
+     {
+      "tier": 3,
+      "nameKo": "정예 지휘관",
+      "trainLv": 110,
+      "cost": null,
+      "statMult": 1.55
+     }
     ],
-    "note": "합계 100%. 재련(6%)이 계열·세트 삭제로 사라져 환전소(무한 소모처)가 흡수했다.",
-    "reallocationNote": "제작대 레벨업이 제련석에서 골드로 바뀌면서 소모처가 5종이 됐다. 기존 4종의 share 를 비례 축소해 총합 1.0 을 유지한다 (0.50/0.27/0.19/0.04 → 0.46/0.25/0.17/0.04 + 0.08).",
-    "incomeModel": {
-      "description": "골드 수급처 4종. 제작대 장비 분해가 최대 수급처다.",
-      "lifetimeGoldF2P_180day": 35714285714,
-      "sources": [
-        {
-          "id": "equipment_disassembly",
-          "share": 0.5,
-          "amount": 17857142857,
-          "note": "제작대 소환 물량 중 부위별 최고 CP 를 제외한 전부가 자동 분해된다. Lv60 배치당 700개 x 등급별 분해가(equipment.json > duplicateHandling.goldByTier) 라 자동 소환이 돌기 시작하면 다른 수급처를 전부 합친 것보다 크다."
-        },
-        {
-          "id": "stage_and_idle",
-          "share": 0.3,
-          "amount": 10714285714,
-          "note": "반복 클리어 + 방치 보상. stages.json > rewards.repeatClear.gold."
-        },
-        {
-          "id": "gold_dungeon",
-          "share": 0.12,
-          "amount": 4285714286,
-          "note": "황금 광산. dungeons.json > gold_mine."
-        },
-        {
-          "id": "shop_exchange",
-          "share": 0.08,
-          "amount": 2857142857,
-          "note": "상점에서 다이아를 골드로 환전. 과금 유저일수록 비중이 커진다."
-        }
-      ],
-      "calibrationTodo": "이전 예산은 스테이지+광산만 세어 15,000,000,000 이었다. 분해를 넣으면 생애 골드가 35,714,285,714 으로 늘어난다. allocation 의 소모처 합계는 아직 옛 총량 기준이므로 그만큼 골드가 남는다. 레버는 두 개다 — equipment.json 의 T10 강화 비용을 올리거나, shop.json 의 환전소 dailyTrades 를 줄인다. sim 으로 D30/D90/D180 수지를 실측한 뒤 정한다."
+    "names": {
+     "warrior": [
+      "전사",
+      "수호 기사",
+      "성역의 수호자"
+     ],
+     "archer": [
+      "궁수",
+      "정찰 사수",
+      "바람의 명사수"
+     ],
+     "mage": [
+      "마법사",
+      "원소 술사",
+      "대마도사"
+     ]
     },
-    "classSkillsAddendum": "전직 스킬 강화(1차 24억 + 2차 48억 = 72억)가 v2 에 추가됐다. 전직 비용 21.6억 삭제분을 빼면 순증 +50.4억 — 생애 골드 총량 대비 약 1/3. 이 소모처는 D120+ 의 지수 수입 구간에 있어 초중반 곡선에는 영향이 없다."
-  },
-  "sinks": [
-    {
-      "id": "equipment_enhance",
-      "nameKo": "장비 강화",
-      "type": "capped",
-      "definedIn": "equipment.json > enhancement",
-      "formula": "baseCostByTier[tier] * 1.55^enhanceLevel",
-      "maxLevel": 15,
-      "totalCostT10PerPiece": 1298000000,
-      "totalCostT10SixPieces": 7788000000,
-      "note": "주 소모처. 상한이 있으므로 후반에는 다른 소모처로 무게가 넘어간다."
+    "cpIntegration": {
+     "appliesTo": "해당 직군 용병의 CP 에 곱연산",
+     "term": "(1 + (statMult-1))",
+     "maxIfAllTier3": 1.28,
+     "ceilingNote": "3직군 전부 3차면 CP 천장이 1.28배가 된다 (1,834,000 → 2,347,520). stages.json > cpCeiling 갱신이 필요하다 — 갱신 전까지는 St200 요구가 천장의 68% 로 낮아져 최종 스테이지가 통과의례가 된다."
     },
-    {
-      "id": "training_camp",
-      "nameKo": "용병단 훈련소",
-      "type": "capped_soft",
-      "description": "골드로 전 용병의 기본 스탯을 영구 강화한다. 파티 편성·등급과 무관하게 적용.",
-      "maxLevel": 200,
-      "bonusPerLevel": 0.002,
-      "maxBonus": 0.4,
-      "costFormula": "5000 * 1.055^level",
-      "costAtLv200": 213000000,
-      "cumulativeCost": 4050000000,
-      "cpIntegration": {
-        "appliesTo": "CP_총합 곱연산 항",
-        "term": "(1 + trainingCampBonus)",
-        "maxMultiplier": 1.4,
-        "warning": "CP 천장이 1,310,000 -> 1,834,000 으로 상승한다. stages.json > cpCeiling 갱신 필요."
+    "budgetNote": "구 비용 21.6억(훈련소 누적 40.5억의 53%)은 goldsinks 예산에서 빠졌다. 훈련소가 골드 소모를 전담하고 전직은 무료 보상이 된다. budget 재계산 시 이 21.6억을 소모처에서 제외할 것.",
+    "costNote": "v2 에서 비용(1.2억/6억)을 없앴다. 훈련소 40/110 레벨 자체가 이미 누적 수억 골드의 소모라, 게이트에 닿은 유저에게 또 청구하면 이중 과금이다 — \"전직하려고 40 찍었는데 골드가 없어 못 한다\"는 좌절만 만든다. 전직은 훈련소 투자의 **보상**이다.",
+    "statMultNote": "v3 상향: 2차 1.12 -> 1.25, 3차 1.28 -> 1.55. 한 길만 갈 수 있게 되면서 배수가 세 직군에 동시에 걸리는 일이 없어졌다 — 파티를 그 직군으로 몰수록 이득이 커지는 빌드 축이 된다. cpCeiling 은 모노 직군 파티 기준 1.55 배로 갱신 대상.",
+    "classSkills": {
+     "nameKo": "전직 스킬",
+     "unlockTier": 2,
+     "maxLevel": 50,
+     "goldCost": {
+      "base": 1000000,
+      "growth": 1.12,
+      "formula": "cost(lv) = base * growth^lv (lv 0부터)",
+      "cumulativeAtMax": 2400000000
+     },
+     "budgetNote": "1차 누적 24억 + 2차 누적 48억 = 72억. 훈련소 누적(40.5억)을 넘는 최대 골드 소모처가 된다 — 2차 스킬이 열리는 시점(훈련소 110 = 무과금 D120+)의 골드 수입이 지수라 흡수처가 이만큼 커야 한다. goldsinks > budget 재계산 대상.",
+     "skills": {
+      "warrior": {
+       "id": "CS-W",
+       "nameKo": "수호 기사의 결의",
+       "effect": "party_atk",
+       "perLevel": 0.012,
+       "max": 0.6,
+       "fx": "CS-W1",
+       "descKo": "아군 전체 공격력 +{v}"
       },
-      "designNote": "무한 레벨로 만들면 CP 천장이 사라져 스테이지 곡선 기준이 무너진다. Lv200 상한 + 최대 +40%로 천장을 계산 가능하게 유지했다.",
-      "promotion": {
-        "nameKo": "전직",
-        "gate": "trainingCampLevel",
-        "gateNote": "훈련소 레벨이 기준이다. 단장 레벨은 스테이지 클리어로 자동으로 오르는 순수 진도 표시라 여기에 걸면 전직이 \"기다리면 열리는 것\"이 된다. 훈련소는 골드 소모처(goldsinks 27%)라 전직을 걸면 후반 인플레의 두 번째 배수구가 되고, 이미 전 용병 스탯을 올리는 공용 강화라 \"용병단 전체가 승급한다\"는 서사도 맞는다.",
-        "appliesTo": "직군 단위. 개별 용병이 아니라 그 직군 전체가 같이 승급한다",
-        "appliesToNote": "개별 승급이면 32종을 하나씩 올려야 해서 자동편성 게임의 손맛과 어긋난다",
-        "tiers": [
-          {
-            "tier": 1,
-            "nameKo": "기본",
-            "trainLv": 0,
-            "cost": null,
-            "statMult": 1.0
-          },
-          {
-            "tier": 2,
-            "nameKo": "정예",
-            "trainLv": 40,
-            "cost": null,
-            "statMult": 1.25
-          },
-          {
-            "tier": 3,
-            "nameKo": "정예 지휘관",
-            "trainLv": 110,
-            "cost": null,
-            "statMult": 1.55
-          }
-        ],
-        "names": {
-          "warrior": [
-            "전사",
-            "수호 기사",
-            "성역의 수호자"
-          ],
-          "archer": [
-            "궁수",
-            "정찰 사수",
-            "바람의 명사수"
-          ],
-          "mage": [
-            "마법사",
-            "원소 술사",
-            "대마도사"
-          ]
-        },
-        "cpIntegration": {
-          "appliesTo": "해당 직군 용병의 CP 에 곱연산",
-          "term": "(1 + (statMult-1))",
-          "maxIfAllTier3": 1.28,
-          "ceilingNote": "3직군 전부 3차면 CP 천장이 1.28배가 된다 (1,834,000 → 2,347,520). stages.json > cpCeiling 갱신이 필요하다 — 갱신 전까지는 St200 요구가 천장의 68% 로 낮아져 최종 스테이지가 통과의례가 된다."
-        },
-        "budgetNote": "구 비용 21.6억(훈련소 누적 40.5억의 53%)은 goldsinks 예산에서 빠졌다. 훈련소가 골드 소모를 전담하고 전직은 무료 보상이 된다. budget 재계산 시 이 21.6억을 소모처에서 제외할 것.",
-        "costNote": "v2 에서 비용(1.2억/6억)을 없앴다. 훈련소 40/110 레벨 자체가 이미 누적 수억 골드의 소모라, 게이트에 닿은 유저에게 또 청구하면 이중 과금이다 — \"전직하려고 40 찍었는데 골드가 없어 못 한다\"는 좌절만 만든다. 전직은 훈련소 투자의 **보상**이다.",
-        "statMultNote": "v3 상향: 2차 1.12 -> 1.25, 3차 1.28 -> 1.55. 한 길만 갈 수 있게 되면서 배수가 세 직군에 동시에 걸리는 일이 없어졌다 — 파티를 그 직군으로 몰수록 이득이 커지는 빌드 축이 된다. cpCeiling 은 모노 직군 파티 기준 1.55 배로 갱신 대상.",
-        "classSkills": {
-          "nameKo": "전직 스킬",
-          "unlockTier": 2,
-          "maxLevel": 50,
-          "goldCost": {
-            "base": 1000000,
-            "growth": 1.12,
-            "formula": "cost(lv) = base * growth^lv (lv 0부터)",
-            "cumulativeAtMax": 2400000000
-          },
-          "budgetNote": "1차 누적 24억 + 2차 누적 48억 = 72억. 훈련소 누적(40.5억)을 넘는 최대 골드 소모처가 된다 — 2차 스킬이 열리는 시점(훈련소 110 = 무과금 D120+)의 골드 수입이 지수라 흡수처가 이만큼 커야 한다. goldsinks > budget 재계산 대상.",
-          "skills": {
-            "warrior": {
-              "id": "CS-W",
-              "nameKo": "수호 기사의 결의",
-              "effect": "party_atk",
-              "perLevel": 0.012,
-              "max": 0.6,
-              "fx": "CS-W1",
-              "descKo": "아군 전체 공격력 +{v}"
-            },
-            "archer": {
-              "id": "CS-A",
-              "nameKo": "바람의 가속",
-              "effect": "party_atkspeed",
-              "perLevel": 0.012,
-              "max": 0.6,
-              "fx": "CS-A1",
-              "descKo": "아군 전체 공격 속도 +{v}"
-            },
-            "mage": {
-              "id": "CS-M",
-              "nameKo": "원소 증폭",
-              "effect": "skill_damage",
-              "perLevel": 0.024,
-              "max": 1.2,
-              "fx": "CS-M1",
-              "descKo": "스킬 피해 +{v}"
-            }
-          },
-          "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산. v2 에서 레벨당 수치를 2배로 올렸다 — 3차 배수(1.55)와 만렙 스킬(x1.6)을 곱하면 DPS 약 2.5배로, 스테이지 벽 배율(1.2~1.45)을 실제로 넘는 점프가 된다. 전직이 벽을 부수는 열쇠라는 게 설계 의도다.",
-          "skills2": {
-            "warrior": {
-              "id": "CS-W2",
-              "nameKo": "수호자의 진군",
-              "effect": "boss_damage",
-              "perLevel": 0.01,
-              "max": 0.5,
-              "fx": "CS-W2",
-              "descKo": "보스에게 주는 피해 +{v}"
-            },
-            "archer": {
-              "id": "CS-A2",
-              "nameKo": "폭풍 연사",
-              "effect": "double_hit",
-              "perLevel": 0.005,
-              "max": 0.25,
-              "fx": "CS-A2",
-              "descKo": "평타가 {v} 확률로 2회 타격"
-            },
-            "mage": {
-              "id": "CS-M2",
-              "nameKo": "마나 해일",
-              "effect": "skill_cooldown",
-              "perLevel": 0.006,
-              "max": 0.3,
-              "fx": "CS-M2",
-              "descKo": "스킬 쿨타임 -{v}"
-            }
-          },
-          "skills2Note": "3차 전직에 열리는 두 번째 스킬. 1차 스킬(순수 %)과 달리 **다른 축**이다 — 전사는 보스전(벽) 특화, 궁수는 눈에 보이는 추가 타격, 마법사는 스킬 빈도. 숫자가 아니라 전투의 리듬이 바뀌어야 3차 전직이 사건으로 읽힌다. fx 는 임시로 기존 스킬 이펙트를 빌려 쓴다 — 전용 아이콘 CS-* 는 에셋 문서 12-5 절.",
-          "goldCost2": {
-            "base": 2000000,
-            "growth": 1.12,
-            "formula": "cost(lv) = base * growth^lv",
-            "cumulativeAtMax": 4800000000
-          }
-        }
+      "archer": {
+       "id": "CS-A",
+       "nameKo": "바람의 가속",
+       "effect": "party_atkspeed",
+       "perLevel": 0.012,
+       "max": 0.6,
+       "fx": "CS-A1",
+       "descKo": "아군 전체 공격 속도 +{v}"
+      },
+      "mage": {
+       "id": "CS-M",
+       "nameKo": "원소 증폭",
+       "effect": "skill_damage",
+       "perLevel": 0.024,
+       "max": 1.2,
+       "fx": "CS-M1",
+       "descKo": "스킬 피해 +{v}"
       }
-    },
-    {
-      "id": "exchange",
-      "nameKo": "환전소",
-      "type": "infinite",
-      "description": "골드를 다른 재화로 환전한다. 일일 한도가 있고 회차마다 환율이 나빠진다.",
-      "infiniteNote": "이것이 유일한 무한 소모처다. 골드가 지수로 늘어나도 환율 악화가 흡수한다. 장비 소환권 트랙은 제작 타이머가 실제 게이트라 상한이 따로 필요 없고, 던전 열쇠는 일일 2회로 묶어 게이트를 지킨다.",
-      "rates": [
-        {
-          "id": "gold_to_equip_ticket",
-          "nameKo": "골드 → 장비 소환권",
-          "baseGoldPerUnit": 120000,
-          "unitsPerTrade": 10,
-          "dailyTrades": 20,
-          "priceScalingPerTrade": 1.15,
-          "resetDaily": true,
-          "note": "주력 배출구. 장비 트랙의 실제 게이트는 제작 타이머라 소환권이 늘어도 곡선이 안 무너진다."
-        },
-        {
-          "id": "gold_to_dungeon_key",
-          "nameKo": "골드 → 던전 열쇠",
-          "baseGoldPerUnit": 900000,
-          "unitsPerTrade": 1,
-          "dailyTrades": 2,
-          "priceScalingPerTrade": 1.8,
-          "resetDaily": true,
-          "note": "일일 2회로 묶고 환율 악화를 1.8 로 세게 준다. 일일 지급 3개가 던전의 게이트라, 여기서 열쇠가 헐값에 나오면 게이트가 사라진다. 골드를 태우는 창구이지 열쇠 공급처가 아니다."
-        }
-      ],
-      "excluded": [
-        "diamond"
-      ],
-      "excludedReason": "골드로 다이아를 살 수 있게 하면 BM이 통째로 무너진다. 다이아는 과금·던전·퀘스트로만 얻는다.",
-      "historyNote": "v1 은 제련석·황금 열쇠를 팔았다. 둘 다 폐기된 재화라 살아 있는 재화로 갈았다. 골드 소모량은 같은 규모로 맞췄다 (회당 약 120만 / 90만)."
-    },
-    {
-      "id": "dungeon_retry",
-      "nameKo": "던전 재도전",
-      "type": "capped_daily",
-      "description": "골드로 던전 입장 횟수를 추가 구매한다.",
-      "dailyLimit": 3,
-      "costFormula": "dungeonUnlockCp * 400 * 2.5^(purchaseIndex)",
-      "costNote": "던전마다 가격이 다르다. 상위 던전일수록 비싸다. 당일 구매 회차마다 2.5배씩 오른다.",
-      "resetDaily": true,
-      "note": "던전이 배출의 60%이므로 골드로 던전을 더 도는 것은 강력하다. 일 3회 상한이 필수."
+     },
+     "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산. v2 에서 레벨당 수치를 2배로 올렸다 — 3차 배수(1.55)와 만렙 스킬(x1.6)을 곱하면 DPS 약 2.5배로, 스테이지 벽 배율(1.2~1.45)을 실제로 넘는 점프가 된다. 전직이 벽을 부수는 열쇠라는 게 설계 의도다.",
+     "skills2": {
+      "warrior": {
+       "id": "CS-W2",
+       "nameKo": "수호자의 진군",
+       "effect": "boss_damage",
+       "perLevel": 0.01,
+       "max": 0.5,
+       "fx": "CS-W2",
+       "descKo": "보스에게 주는 피해 +{v}"
+      },
+      "archer": {
+       "id": "CS-A2",
+       "nameKo": "폭풍 연사",
+       "effect": "double_hit",
+       "perLevel": 0.005,
+       "max": 0.25,
+       "fx": "CS-A2",
+       "descKo": "평타가 {v} 확률로 2회 타격"
+      },
+      "mage": {
+       "id": "CS-M2",
+       "nameKo": "마나 해일",
+       "effect": "skill_cooldown",
+       "perLevel": 0.006,
+       "max": 0.3,
+       "fx": "CS-M2",
+       "descKo": "스킬 쿨타임 -{v}"
+      }
+     },
+     "skills2Note": "3차 전직에 열리는 두 번째 스킬. 1차 스킬(순수 %)과 달리 **다른 축**이다 — 전사는 보스전(벽) 특화, 궁수는 눈에 보이는 추가 타격, 마법사는 스킬 빈도. 숫자가 아니라 전투의 리듬이 바뀌어야 3차 전직이 사건으로 읽힌다. fx 는 임시로 기존 스킬 이펙트를 빌려 쓴다 — 전용 아이콘 CS-* 는 에셋 문서 12-5 절.",
+     "goldCost2": {
+      "base": 2000000,
+      "growth": 1.12,
+      "formula": "cost(lv) = base * growth^lv",
+      "cumulativeAtMax": 4800000000
+     }
     }
-  ],
-  "unlocks": [
+   },
+   "costBase": 800,
+   "costNote": "2026-08-24: 5000 * 1.055^level → 800 * 1.055^level. Lv2 까지 10,275 였는데 온보딩 마지막 퀘스트(Q8 훈련소 Lv2)가 그걸 요구해서 퀘스트가 골드를 통째로 대신 줘야 했다. 이제 1,644 다. **생애 골드 예산이 그만큼 줄어든다** — 후반 소모처를 다시 볼 때 이 항목부터 본다."
+  },
+  {
+   "id": "exchange",
+   "nameKo": "환전소",
+   "type": "infinite",
+   "description": "골드를 다른 재화로 환전한다. 일일 한도가 있고 회차마다 환율이 나빠진다.",
+   "infiniteNote": "이것이 유일한 무한 소모처다. 골드가 지수로 늘어나도 환율 악화가 흡수한다. 장비 소환권 트랙은 제작 타이머가 실제 게이트라 상한이 따로 필요 없고, 던전 열쇠는 일일 2회로 묶어 게이트를 지킨다.",
+   "rates": [
     {
-      "sink": "equipment_enhance",
-      "unlockQuest": 4
+     "id": "gold_to_equip_ticket",
+     "nameKo": "골드 → 장비 소환권",
+     "baseGoldPerUnit": 120000,
+     "unitsPerTrade": 10,
+     "dailyTrades": 20,
+     "priceScalingPerTrade": 1.15,
+     "resetDaily": true,
+     "note": "주력 배출구. 장비 트랙의 실제 게이트는 제작 타이머라 소환권이 늘어도 곡선이 안 무너진다."
     },
     {
-      "sink": "dungeon_retry",
-      "unlockQuest": 11
-    },
-    {
-      "sink": "training_camp",
-      "unlockQuest": 45
-    },
-    {
-      "sink": "exchange",
-      "unlockQuest": 70
+     "id": "gold_to_dungeon_key",
+     "nameKo": "골드 → 던전 열쇠",
+     "baseGoldPerUnit": 900000,
+     "unitsPerTrade": 1,
+     "dailyTrades": 2,
+     "priceScalingPerTrade": 1.8,
+     "resetDaily": true,
+     "note": "일일 2회로 묶고 환율 악화를 1.8 로 세게 준다. 일일 지급 3개가 던전의 게이트라, 여기서 열쇠가 헐값에 나오면 게이트가 사라진다. 골드를 태우는 창구이지 열쇠 공급처가 아니다."
     }
-  ],
-  "unlockNote": "골드가 남기 시작하는 시점에 맞춰 순차 해금한다. 초반에 환전소를 열면 골드가 제련석으로 흘러 장비 소환 레벨 곡선(시간 게이트)이 무너진다.",
-  "verification": {
-    "checkAtDay": 180,
-    "expected": "일일 골드 3억 대비, 훈련소 후반 1레벨이 약 2.1억 + 환전소 일일 소진 약 1.5억 => 배출을 소모가 따라잡는다.",
-    "failureMode": "골드가 계속 남으면 환전소 dailyTrades 를 올리거나 priceScaling 을 낮춘다. 반대로 골드가 모자라면 장비 분해 골드(equipment.json > duplicateHandling.goldByTier)를 상향한다.",
-    "todo": "프로토타입에서 D30/D90/D180 골드 수지를 실측할 것. 지금 수치는 추정이다."
+   ],
+   "excluded": [
+    "diamond"
+   ],
+   "excludedReason": "골드로 다이아를 살 수 있게 하면 BM이 통째로 무너진다. 다이아는 과금·던전·퀘스트로만 얻는다.",
+   "historyNote": "v1 은 제련석·황금 열쇠를 팔았다. 둘 다 폐기된 재화라 살아 있는 재화로 갈았다. 골드 소모량은 같은 규모로 맞췄다 (회당 약 120만 / 90만)."
+  },
+  {
+   "id": "dungeon_retry",
+   "nameKo": "던전 재도전",
+   "type": "capped_daily",
+   "description": "골드로 던전 입장 횟수를 추가 구매한다.",
+   "dailyLimit": 3,
+   "costFormula": "dungeonUnlockCp * 400 * 2.5^(purchaseIndex)",
+   "costNote": "던전마다 가격이 다르다. 상위 던전일수록 비싸다. 당일 구매 회차마다 2.5배씩 오른다.",
+   "resetDaily": true,
+   "note": "던전이 배출의 60%이므로 골드로 던전을 더 도는 것은 강력하다. 일 3회 상한이 필수."
   }
+ ],
+ "unlocks": [
+  {
+   "sink": "equipment_enhance",
+   "unlockQuest": 4
+  },
+  {
+   "sink": "dungeon_retry",
+   "unlockQuest": 11
+  },
+  {
+   "sink": "training_camp",
+   "unlockQuest": 45
+  },
+  {
+   "sink": "exchange",
+   "unlockQuest": 70
+  }
+ ],
+ "unlockNote": "골드가 남기 시작하는 시점에 맞춰 순차 해금한다. 초반에 환전소를 열면 골드가 제련석으로 흘러 장비 소환 레벨 곡선(시간 게이트)이 무너진다.",
+ "verification": {
+  "checkAtDay": 180,
+  "expected": "일일 골드 3억 대비, 훈련소 후반 1레벨이 약 2.1억 + 환전소 일일 소진 약 1.5억 => 배출을 소모가 따라잡는다.",
+  "failureMode": "골드가 계속 남으면 환전소 dailyTrades 를 올리거나 priceScaling 을 낮춘다. 반대로 골드가 모자라면 장비 분해 골드(equipment.json > duplicateHandling.goldByTier)를 상향한다.",
+  "todo": "프로토타입에서 D30/D90/D180 골드 수지를 실측할 것. 지금 수치는 추정이다."
+ }
 }

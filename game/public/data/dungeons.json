@@ -42,8 +42,8 @@
     "current": 237370,
     "reason": "v2 스테이지 곡선(벽 포함) 재산출. 광산이 생애 골드의 15%를 담당하도록 맞춘 값."
    },
-   "unlockCp": 610000,
-   "unlockQuest": 4,
+   "unlockCp": 1525,
+   "unlockQuest": 6,
    "estimatedUnlockDay": 1,
    "purpose": "장비 강화 자금",
    "unlockCpHistory": {
@@ -57,8 +57,8 @@
    "nameKo": "보물 창고",
    "reward": "equip_ticket",
    "baseYield": 22,
-   "unlockCp": 2390000,
-   "unlockQuest": 16,
+   "unlockCp": 5975,
+   "unlockQuest": 18,
    "estimatedUnlockDay": 3,
    "purpose": "장비 소환 횟수",
    "unlockCpHistory": {
@@ -75,8 +75,8 @@
    "nameKo": "용광로",
    "reward": "gold",
    "baseYield": 3000,
-   "unlockCp": 10300000,
-   "unlockQuest": 34,
+   "unlockCp": 25750,
+   "unlockQuest": 40,
    "estimatedUnlockDay": 12,
    "purpose": "장비 소환 레벨업",
    "unlockCpHistory": {
@@ -96,8 +96,8 @@
     "current": 190,
     "reason": "무료 1000뽑 도입 보정. 보정 없이는 무과금 D180 소환Lv이 33 -> 42로 뛰고 과금 격차가 3.0배속 -> 2.2배속으로 붕괴한다. free1000.json > economyImpact 참조."
    },
-   "unlockCp": 22400000,
-   "unlockQuest": 46,
+   "unlockCp": 56000,
+   "unlockQuest": 60,
    "estimatedUnlockDay": 25,
    "purpose": "용병·스킬 소환 (핵심)",
    "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
@@ -112,8 +112,8 @@
    "nameKo": "시련의 탑",
    "reward": "ticket_mixed",
    "baseYield": 3,
-   "unlockCp": 327000000,
-   "unlockQuest": 58,
+   "unlockCp": 817500,
+   "unlockQuest": 150,
    "estimatedUnlockDay": 110,
    "purpose": "종합 보상",
    "yieldSplit": {
@@ -145,5 +145,6 @@
    "wasUnlockCp": 102600000,
    "gap": "D60 구간(CP 1.03억)에 해금할 게 하나 줄었다. 수정 동굴(D25) 다음이 시련의 탑(D110)이라 사이가 비는데, 그 구간은 무한의 탑이 메운다 — 입장 제한이 없어 전투력이 오르는 만큼 계속 층이 열린다."
   }
- }
+ },
+ "unlockOrderNote": " | 2026-08-24: 해금 퀘스트를 quests.json > dungeonUnlockQuests 와 일치시켰다. 두 파일이 각자 다른 번호(4·16·34·46·58 vs 7·18·40·60·150)를 들고 있었고, 코드는 이 파일을 읽으므로 문서 쪽만 맞다고 되는 것이 아니었다."
 }

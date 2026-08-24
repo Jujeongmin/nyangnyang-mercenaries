@@ -89,16 +89,21 @@ export class RosterSheet {
     const isSkill = this.track === 'skill';
 
     // ── 프리셋 바 ────────────────────────────────────────────
-    // 던전 모드가 아닐 때만. 탭 = 불러오기, [저장] = 현재 편성을 선택 칸에 기록
+    // 번호를 누르면 그 칸이 **선택되고, 저장된 것이 있으면 바로 불러온다.**
+    // 비어 있는 칸은 선택만 된다 — 불러올 것이 없으니 편성을 건드릴 이유도 없다.
+    // 지금 편성을 그 칸에 넣으려면 [저장] 을 누른다.
     const pre = $('#shPre');
     const cur = S.presetSel ?? 0;
     pre.innerHTML = [0, 1, 2].map(i =>
       `<button class="pr${S.presets?.[i] ? ' has' : ''}${i === cur ? ' on' : ''}"
-         data-pre="${i}">${i + 1}</button>`).join('')
-      + '<button class="pr-save" data-presave>현재 편성 저장</button>';
+         data-pre="${i}" title="프리셋 ${i + 1}${S.presets?.[i] ? ' 불러오기' : ' (비어 있음)'}"
+         >${i + 1}</button>`).join('')
+      + `<button class="pr-save" data-presave title="지금 편성을 ${cur + 1}번에 저장">저장</button>`;
     pre.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => {
-      S.presetSel = +b.dataset.pre;
-      this.api.loadPreset(+b.dataset.pre);
+      const i = +b.dataset.pre;
+      S.presetSel = i;
+      if (S.presets?.[i]) this.api.loadPreset(i);   // 있으면 적용
+      else this.render();                           // 비었으면 선택만
     }));
     pre.querySelector('[data-presave]').addEventListener('click', () =>
       this.api.savePreset(S.presetSel ?? 0));

@@ -93,7 +93,8 @@ export class CodexScreen {
           // 안 뽑아도 무엇인지 알고, 액자가 곧 "이걸 뽑으면 이 등급"이라는 예고다
           return `<div class="cx-cell g-${g}${has ? '' : ' lock'}"
               ${has ? `data-info="${c.id}" data-kind="merc"` : ''} title="${tn(c.id, c.nameKo)}">
-            <img src="/assets/char/${c.id}.png" alt="">
+            <img src="/assets/art/${c.id}-ART.png" alt=""
+              onerror="this.onerror=null;this.src='/assets/char/${c.id}.png'">
             <span>${has ? tn(c.id, c.nameKo) : '???'}</span>
           </div>`;
         }).join('') + `</div>`;
