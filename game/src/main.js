@@ -4595,7 +4595,7 @@ function openArena(view) {
         onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         ${f.title ? `<i style="display:block;font-size:9px;color:var(--gold);font-style:normal">${t(f.title)}</i>` : ''}
-        <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${t('승리 시')} <b style="color:${col}">+${gain}</b></span></span>
+        <span class="k" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t('전투력')} ${num(f.cp)} · ${t('승리 시')} <b style="color:${col}">+${gain}</b></span></span>
       <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
         style="--wc:${col}">${t('도전')}</button></div>`;
   }).join('');
@@ -4630,14 +4630,17 @@ function openArena(view) {
           <button class="ar-shopb ic" id="aShop" title="${t('훈장 상점')}">
             <img src="/assets/ui/IC-SHOP.png" alt="${t('상점')}"
               onerror="this.replaceWith(document.createTextNode('${t('상점')}'))"></button></span>
-        <span><i>${t('남은 입장')}</i><b>${left} / ${
+        <span><i>${t('남은 입장')}</i><b><img src="/assets/ui/CU-13.png" alt=""
+          style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${left} / ${
           a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}</b>
           ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">+${
             a.entries.adBonus.entries} ${t('광고')}</button>`}</span>
       </div>`
     + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
         ${claimed ? t('오늘 보상 수령 완료')
-          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', t(bracket.nameKo), bracket.dailyMedals, bracket.dailyDiamond)}</button>`;
+          // 괄호부터 둘째 줄 — 한 줄이면 좁은 화면에서 아무 데서나 접힌다
+          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', t(bracket.nameKo), bracket.dailyMedals, bracket.dailyDiamond)
+              .replace(' (', '<br>(')}</button>`;
   $('#ovinfo').innerHTML = '';
   // 프리셋을 누르면 그 편성으로 갈아입고 화면을 다시 그린다 — 승률 표시가
   // 내 전투력 기준이라 편성이 바뀌면 숫자도 같이 바뀌어야 한다
