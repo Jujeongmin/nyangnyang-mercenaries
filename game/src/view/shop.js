@@ -65,9 +65,13 @@ export class ShopScreen {
       <div class="sh-head">
         <button class="sh-back">‹</button>
         <span class="sh-title">상점</span>
+      </div>
+      <!-- 지갑(보유 다이아)은 탭 줄 오른쪽 끝이다. 헤더 배너 위에 띄우면
+           그림을 가리고, 무엇을 살지 고르는 줄과 눈높이가 안 맞는다 -->
+      <div class="sh-tabrow">
+        <div class="sh-tabs"></div>
         <span class="sh-cur"></span>
       </div>
-      <div class="sh-tabs"></div>
       <div class="sh-body"></div>`;
     root.appendChild(this.el);
     this.el.querySelector('.sh-back').addEventListener('click', () => this.close());

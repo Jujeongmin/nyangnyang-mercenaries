@@ -2970,10 +2970,15 @@
      16px 제목이 34px 버튼의 위쪽에 붙어 둘이 어긋나 보였다 (단장 지적) */
   #shop .sh-title,#rank .sh-title,#mail .sh-title{
     display:flex;align-items:center;height:34px;flex:0 0 auto}
-  /* 보유 다이아는 헤더 **상단 가운데**. 오른쪽 끝에 두면 제목과 멀어 한 줄이
-     좌·우로 갈라지고, 배너 그림의 초점(가운데)과도 어긋난다 */
-  #shop .sh-head .sh-cur{position:absolute;left:50%;top:12px;
-    transform:translateX(-50%);margin:0}
+  /* 보유 다이아는 **탭 줄(소환·다이아·교환)의 오른쪽 끝**이다 — 헤더 배너 위에
+     띄우면 그림을 가리고, 무엇을 살지 고르는 줄과 지갑이 같은 눈높이여야 한다.
+     탭 줄은 가로 스크롤이라 다이아는 그 위에 고정으로 얹는다 */
+  #shop .sh-head .sh-cur{display:none}
+  /* 탭 줄은 가로 스크롤이라 지갑을 그 안에 넣으면 밀려 사라진다 — 줄을
+     [스크롤되는 탭][고정 지갑] 두 칸으로 나눈다 */
+  .sh-tabrow{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-right:10px}
+  .sh-tabrow .sh-tabs{flex:1 1 auto;min-width:0}
+  .sh-tabrow .sh-cur{flex:0 0 auto}
   /* 시상대 위 고양이 셋이 그림의 아래쪽 절반에 있다 */
   #rank .sh-head{background-image:url(/assets/ui/PN-RANK.webp);--pn-y:40%}
   #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.webp);--pn-y:34%}
