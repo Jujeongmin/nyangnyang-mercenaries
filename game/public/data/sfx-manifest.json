@@ -4,30 +4,101 @@
   "whyMs": "ElevenLabs 파일은 요청한 길이보다 길게 나오고 뒤가 무음이다 — 25종 합계 6.9초가 무음이었다(예: sfx_sk_buff 1.95초 중 1.72초). 파일을 자르려면 ffmpeg 이 필요한데 없으므로, 재생기가 이 시각에 멈춘다. 값은 진폭 0.005 를 넘는 마지막 표본 + 80ms 여유다.",
   "howMeasured": "브라우저에서 decodeAudioData 로 전 파일을 훑어 잰 값이다 (2026-08-26). 파일을 갈면 다시 재야 한다.",
   "cues": {
-    "sfx_tap":           { "f": "sfx_tap.mp3",           "ms": 781 },
-    "sfx_popup_open":    { "f": "sfx_popup_open.ogg",    "ms": 213 },
-    "sfx_popup_close":   { "f": "sfx_popup_close.ogg",   "ms": 312 },
-    "sfx_denied":        { "f": "sfx_denied.mp3",        "ms": 917 },
-    "sfx_hit_melee":     { "f": "sfx_hit_melee.mp3",     "ms": 297 },
-    "sfx_hit_range":     { "f": "sfx_hit_range.mp3",     "ms": 1415 },
-    "sfx_hit_magic":     { "f": "sfx_hit_magic.ogg",     "ms": 240 },
-    "sfx_crit":          { "f": "sfx_crit.ogg",          "ms": 250 },
-    "sfx_sk_lightning":  { "f": "sfx_sk_lightning.ogg",  "ms": 260 },
-    "sfx_sk_fire":       { "f": "sfx_sk_fire.ogg",       "ms": 435 },
-    "sfx_sk_pierce":     { "f": "sfx_sk_pierce.ogg",     "ms": 181 },
-    "sfx_sk_ice":        { "f": "sfx_sk_ice.ogg",        "ms": 454 },
-    "sfx_sk_slash":      { "f": "sfx_sk_slash.ogg",      "ms": 320 },
-    "sfx_sk_buff":       { "f": "sfx_sk_buff.ogg",       "ms": 306 },
-    "sfx_sk_summon":     { "f": "sfx_sk_summon.ogg",     "ms": 219 },
-    "sfx_summon_cast":   { "f": "sfx_summon_cast.mp3",   "ms": 602 },
-    "sfx_drumroll":      { "f": "sfx_drumroll.ogg",      "ms": 663 },
-    "sfx_summon_result": { "f": "sfx_summon_result.ogg", "ms": 312 },
-    "sfx_codex_new":     { "f": "sfx_codex_new.ogg",     "ms": 780 },
-    "sfx_gold":          { "f": "sfx_gold.ogg",          "ms": 834 },
-    "sfx_claim":         { "f": "sfx_claim.mp3",         "ms": 703 },
-    "sfx_purchase":      { "f": "sfx_purchase.ogg",      "ms": 834 },
-    "sfx_quest_done":    { "f": "sfx_quest_done.ogg",    "ms": 204 },
-    "sfx_arena_win":     { "f": "sfx_arena_win.ogg",     "ms": 393 },
-    "sfx_arena_lose":    { "f": "sfx_arena_lose.ogg",    "ms": 357 }
+    "sfx_tap": {
+      "f": "sfx_tap.mp3",
+      "ms": 781
+    },
+    "sfx_popup_open": {
+      "f": "sfx_popup_open.ogg",
+      "ms": 213
+    },
+    "sfx_popup_close": {
+      "f": "sfx_popup_close.ogg",
+      "ms": 312
+    },
+    "sfx_denied": {
+      "f": "sfx_denied.mp3",
+      "ms": 917
+    },
+    "sfx_hit_melee": {
+      "f": "sfx_hit_melee.mp3",
+      "ms": 297
+    },
+    "sfx_hit_range": {
+      "f": "sfx_hit_range.mp3",
+      "ms": 1415
+    },
+    "sfx_hit_magic": {
+      "f": "sfx_hit_magic.ogg",
+      "ms": 240
+    },
+    "sfx_sk_lightning": {
+      "f": "sfx_sk_lightning.ogg",
+      "ms": 260
+    },
+    "sfx_sk_fire": {
+      "f": "sfx_sk_fire.ogg",
+      "ms": 435
+    },
+    "sfx_sk_pierce": {
+      "f": "sfx_sk_pierce.ogg",
+      "ms": 181
+    },
+    "sfx_sk_ice": {
+      "f": "sfx_sk_ice.ogg",
+      "ms": 454
+    },
+    "sfx_sk_slash": {
+      "f": "sfx_sk_slash.ogg",
+      "ms": 320
+    },
+    "sfx_sk_buff": {
+      "f": "sfx_sk_buff.ogg",
+      "ms": 306
+    },
+    "sfx_sk_summon": {
+      "f": "sfx_sk_summon.ogg",
+      "ms": 219
+    },
+    "sfx_summon_cast": {
+      "f": "sfx_summon_cast.mp3",
+      "ms": 602
+    },
+    "sfx_drumroll": {
+      "f": "sfx_drumroll.ogg",
+      "ms": 663
+    },
+    "sfx_summon_result": {
+      "f": "sfx_summon_result.ogg",
+      "ms": 312
+    },
+    "sfx_codex_new": {
+      "f": "sfx_codex_new.ogg",
+      "ms": 780
+    },
+    "sfx_gold": {
+      "f": "sfx_gold.ogg",
+      "ms": 834
+    },
+    "sfx_claim": {
+      "f": "sfx_claim.mp3",
+      "ms": 703
+    },
+    "sfx_purchase": {
+      "f": "sfx_purchase.ogg",
+      "ms": 834
+    },
+    "sfx_quest_done": {
+      "f": "sfx_quest_done.ogg",
+      "ms": 204
+    },
+    "sfx_arena_win": {
+      "f": "sfx_arena_win.ogg",
+      "ms": 393
+    },
+    "sfx_arena_lose": {
+      "f": "sfx_arena_lose.ogg",
+      "ms": 357
+    }
   }
 }

@@ -13,7 +13,11 @@ import { Impact } from './impact.js';
 import { DamageNumbers } from './numbers.js';
 import { motionForClass } from './motions.js';
 import { loadCutout } from './cutout.js';
-import { sfx } from '../../core/sfx.js';
+// **playSfx 로 받는다.** 이 파일에는 이미 `const sfx` 가 있다 — 스킬 이펙트
+// 그림 이름을 담는 지역 변수다(taunt 아래). 같은 이름으로 import 하면 그 블록
+// 안에서 가려져서 문자열을 함수로 부르게 되고 `sfx is not a function` 이 난다
+// (단장 보고 2026-08-26, 에디터에서 터졌다)
+import { sfx as playSfx } from '../../core/sfx.js';
 import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX, PASSIVE_FX } from './fx.js';
 import { passiveAgg, EMPTY_PASSIVES, passiveTakenMult } from '../../core/passives.js';
 
@@ -1288,8 +1292,10 @@ export class BattleScene {
 
     // 타격음. 직군에 따라 다른 큐를 쓴다 — 재생기가 60ms 간격과 동시 8개
     // 상한을 지키므로 여기서 따로 아낄 필요가 없다 (core/sfx.js)
-    if (crit) sfx('sfx_crit');
-    else sfx({ warrior: 'sfx_hit_melee', archer: 'sfx_hit_range', mage: 'sfx_hit_magic' }[from.class] || 'sfx_hit_melee');
+    // 크리티컬은 **소리를 따로 안 낸다** (단장 확정 2026-08-26). 화면이 이미
+    // 크게 말하고 있다 — 전용 이펙트(HIT-06)·화면 흔들림·빨간 큰 숫자 셋이
+    // 동시에 터진다. 거기에 다른 소리까지 얹으면 평타와 섞여 소음이 된다
+    playSfx({ warrior: 'sfx_hit_melee', archer: 'sfx_hit_range', mage: 'sfx_hit_magic' }[from.class] || 'sfx_hit_melee');
 
     foe.rig.hit(-1);
     this.impact.hitStop(skill ? 110 : 70);
