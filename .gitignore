@@ -26,3 +26,7 @@ assets_legacy/
 # WebP 로 구운 그림의 PNG 원본 — 배포에 안 들어가므로 로컬 보관
 # (game/public/ 은 통째로 dist 에 복사된다)
 art-src/
+
+# 사운드 후보 검토용 임시 스테이징 — 고른 것만 assets/sfx 로 간다 (커밋 금지)
+game/public/_pick/
+game/public/sfx-pick.html
