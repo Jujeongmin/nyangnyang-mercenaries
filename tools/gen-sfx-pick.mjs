@@ -24,7 +24,16 @@ const P = { rpg: 'rpg-audio', ui: 'ui-audio', ifc: 'interface-sounds', imp: 'imp
 const f = (pack, name) => `_pick/${P[pack]}/${name}.ogg`;
 
 // ── 2차 후보 — 1차 반려분만 ──────────────────────────────────
+// **재검토 목록** — 파일이 이미 있어도 다시 내민다. "확보한 큐는 건너뛴다" 규칙의
+// 명시적 예외다: 승인했다가 마음이 바뀐 큐가 여기 온다. 고르면 기존 파일을 덮는다.
+const RETRY = new Set(['sfx_hit_melee']);
+
 const PICK = {
+  // 근접 타격 2차 — ElevenLabs 산(가죽 백 퍽)이 **너무 둔탁하다** (단장 지적
+  // 2026-08-26). 반대 방향(마르고 또렷한 쪽)으로 셋을 튼다. 나무·금속 가벼운
+  // 타격 계열 — 1차 Kenney 후보(주먹·부드러운 충격·도끼)와도 겹치지 않는다
+  sfx_hit_melee: [f('imp','impactPlank_medium_001'), f('imp','impactMetal_light_001'), f('imp','impactWood_light_002')],
+
   // 2차 후보 — 1차가 전부 반려된 7종만 남았다. **반려된 파일은 다시 안 내민다.**
   // 성격을 아예 다른 쪽으로 튼다: 1차가 유리·금속 계열이었으면 2차는 나무·천·
   // 종이·물 쪽으로. 같은 계열에서 번호만 바꿔 내밀면 또 반려될 뿐이다.
@@ -49,7 +58,7 @@ const cues = [];
 const skipped = [], aliased = [], noCand = [], missing = [];
 for (const [group, arr] of Object.entries(SOUND.sfx)) {
   for (const c of arr) {
-    if (have.has(c.id)) { skipped.push(c.id); continue; }        // 이미 승인·확보
+    if (have.has(c.id) && !RETRY.has(c.id)) { skipped.push(c.id); continue; }   // 이미 승인·확보
     if (c.aliasOf) { aliased.push(`${c.id} → ${c.aliasOf}`); continue; }
     const picks = PICK[c.id];
     if (!picks) { noCand.push(c.id); continue; }
