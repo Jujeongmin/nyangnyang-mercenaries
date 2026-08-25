@@ -270,6 +270,9 @@ export class BattleScene {
         trim: TR[capId] || TR.captain_warrior,
       });
       this.captain.capCls = capCls;
+      // 자리를 잡기 전에는 숨긴다 — 아래 편성 루프가 그림을 기다리는 동안
+      // 단장이 기본 좌표(0,0)에 그려져 화면 왼쪽 위에서 번쩍인다
+      this.captain.view.visible = false;
       this.field.addChild(this.captain.view);
       // 이벤트 한정 날개 — 단장 뒤에 붙는 코스메틱. 에셋이 없으면 조용히 넘어간다
       if (this.captainWing) {
@@ -316,6 +319,7 @@ export class BattleScene {
     }
     this.layout();
     for (const u of this.units) u.rig.view.visible = true;
+    if (this.captain) this.captain.view.visible = true;
   }
 
   /** combat.json > enemyAttack.byId. 없으면 몸통박치기로 본다. */
@@ -1459,6 +1463,8 @@ export class BattleScene {
         orbs: m.grade === 'UR' || m.grade === 'LR',
         aura: ['SSR', 'UR', 'LR'].includes(m.grade),
       });
+      // 배치 전에는 숨긴다 (spawnWave 의 주석 참고)
+      rig.view.visible = false;
       this.field.addChild(rig.view);
       const bar = new P.Graphics();
       this.ui.addChild(bar);
@@ -1467,6 +1473,7 @@ export class BattleScene {
         cd: rnd(0.3, 1.2), cdMax: rnd(1.0, 1.6) });
     }
     this.layout();
+    for (const f of this.foes) f.rig.view.visible = true;
   }
 
   /**

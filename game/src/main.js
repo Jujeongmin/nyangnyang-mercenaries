@@ -5533,18 +5533,26 @@ function openHourglass() {
 const closeHourglass = () => $('#hgPop').classList.remove('show');
 
 // --- 장비 소환 ---
+/**
+ * 장비 한 장 뽑기. **화면에 공시하는 그 표(gacha.json > equipmentRateBands)로
+ * 굴린다** — 확률 공시는 게임산업법 의무라 표와 실제가 같아야 한다.
+ *
+ * 예전에는 여기서 `3 + forgeLv/4` 라는 **자체 공식**을 따로 굴렸다. 그래서
+ * Lv30 에서 표는 영웅·전설·신화만 나온다고 적어 놓고 실제로는 tier 6~10
+ * (신화~무한)을 굴려 천상 장비가 떨어졌다 (단장 제보 2026-08-25).
+ * 표를 고치면 뽑기가 따라오도록 **단일 소스**로 묶는다.
+ */
 function equipRoll() {
-  // 소환 레벨이 오를수록 상위 등급이 해금되는 슬라이딩 윈도우 (gacha.json > equipmentRateBands)
-  const maxTier = Math.min(10, 3 + Math.floor(S.forgeLv / 4));
-  const minTier = Math.max(1, maxTier - 4);
   const slots = D.equipment.slots;
-  const w = [];
-  for (let t = minTier; t <= maxTier; t++) w.push([t, Math.pow(0.45, t - minTier)]);
+  const slot = slots[(Math.random() * slots.length) | 0].id;
+  const rates = eqBandNow().rates || {};
+  const w = Object.entries(rates).filter(([, v]) => v > 0);
+  if (!w.length) return { slot, tier: 1 };
   const sum = w.reduce((a, x) => a + x[1], 0);
   let r = Math.random() * sum;
-  let tier = minTier;
-  for (const [t, v] of w) { r -= v; if (r <= 0) { tier = t; break; } }
-  return { slot: slots[(Math.random() * slots.length) | 0].id, tier };
+  let tier = +w[0][0];
+  for (const [t, v] of w) { r -= v; if (r <= 0) { tier = +t; break; } }
+  return { slot, tier };
 }
 
 /** 장비 한 장의 전투력 기여율. equipment.json > grades[].slotBonus */

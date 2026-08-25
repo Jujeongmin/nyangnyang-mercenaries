@@ -1186,7 +1186,8 @@
     line-height:1.25;word-break:keep-all;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   /* 보상 아이콘과 진행 숫자가 한 줄을 나눠 쓴다 — 아이콘은 왼쪽, 숫자는 오른쪽 끝 */
-  #qfoot{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  #qfoot{display:flex;align-items:center;justify-content:space-between;gap:6px;
+    min-width:0;overflow:hidden}
   #qprog{color:var(--gold);flex:0 0 auto;font-size:11px;font-weight:800;
     font-family:"Black Han Sans","Jua",system-ui,sans-serif}
   #qbar{height:5px;background:#0007;border-radius:3px;overflow:hidden;width:100%;margin:0}
@@ -1207,7 +1208,11 @@
   #qfill{height:100%;width:0;background:linear-gradient(90deg,#c09c7e,#5ad8ff)}
   /* 보상 칩 — 아이콘 위에 개수를 얹는다. 가로가 좁아 글자를 옆에 못 둔다 */
   /* 보상 — 카드 안에서 줄바꿈된다. 넘치면 감추지 말고 접어서 다 보여준다 */
-  #qrw{display:flex;gap:5px;flex:0 0 auto;align-items:center;flex-wrap:wrap}
+  /* 보상 아이콘 줄은 **줄어들 수 있어야 한다.** flex:0 0 auto 로 두면 보상이
+     셋일 때 제 폭을 고집해서, 옆의 진행 숫자(20/90)를 배너 밖으로 밀어냈다
+     (단장 지적 2026-08-25). 좁으면 아이콘이 먼저 양보한다 */
+  #qrw{display:flex;gap:5px;flex:0 1 auto;min-width:0;align-items:center;
+    flex-wrap:nowrap;overflow:hidden}
   #qrw span{position:relative;width:21px;height:21px;flex:0 0 auto}
   #qrw img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 1px 2px #000a)}
