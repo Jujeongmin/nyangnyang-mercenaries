@@ -3226,12 +3226,24 @@ function openTraining() {
 
 /** 던전 6종 — 네비 탭에서 카드로 연다. dungeons.json > formulas 로 계산. */
 /** 던전 열쇠 일일 리필. 누적이 아니라 3개로 채운다 (dungeons.json > entry.grantMode) */
+/**
+ * 던전 열쇠 일일 지급 — **우편이 아니라 그냥 채운다** (단장 확정 2026-08-25).
+ * 매일 받으러 가는 절차를 만들 이유가 없다. 우편함에 있던 "던전 일일 수령"
+ * 시드도 같이 뺐다 (deliverOperatorMail 참고).
+ *
+ * 가득 차 있으면 더 주지 않는다 — 넘치게 쌓아 두고 하루에 몰아 쓰는 것을 막는
+ * 것이 하루 3개 제한의 뜻이다. 다만 **가진 것보다 적게 깎지도 않는다** —
+ * 예전엔 그냥 덮어써서, 퀘스트 보상 등으로 더 받아 둔 열쇠가 날짜가 바뀌는
+ * 순간 3개로 잘려 나갔다.
+ */
 function dgKeyRefill() {
   const day = dayIdx(Date.now());
   if (S.dgKeyDay === day) return;
   S.dgKeyDay = day;
   const n = D.dungeons.entry.dailyKeyGrant;
-  for (const dg of D.dungeons.dungeons) S.dgKeys[dg.id] = n;
+  for (const dg of D.dungeons.dungeons) {
+    S.dgKeys[dg.id] = Math.max(S.dgKeys[dg.id] ?? 0, n);
+  }
 }
 const dgKeysOf = id => (S.dgKeys[id] ?? 0);
 
@@ -4504,8 +4516,19 @@ function openArena(view) {
   setSkin('arena');
   // 상대가 맨 위다 — 이 화면에 온 이유가 그것이고, 나머지(점수·훈장·입장)는
   // 확인만 하는 줄이라 아래로 내린다. 한 화면에 다 들어온다
+  // 편성 프리셋 — **아레나 전용 편성을 따로 두지 않는다.** 두 벌로 갈리면
+  // 어느 쪽으로 싸우는지가 안 읽힌다. 여기서는 용병 화면에서 저장해 둔 그
+  // 프리셋을 그대로 불러온다 (단장 확정 2026-08-25)
+  const book = presetBook('mercenary');
+  const selP = (S.presetSel && S.presetSel.mercenary) ?? 0;
   $('#ovb').innerHTML =
     `<div class="ar-sec">
+      <span class="lbl">${t('편성')}</span>
+      <span id="arPre" class="ar-pre">${[0, 1, 2].map(i =>
+        `<button class="pr${book[i] ? ' has' : ''}${i === selP ? ' on' : ''}"
+           data-arpre="${i}" title="${t('프리셋')} ${i + 1}">${i + 1}</button>`).join('')}</span>
+    </div>`
+    + `<div class="ar-sec">
       <span class="lbl">${t('상대')}</span>
       <button class="rt-b" id="aRe">⟳ ${t('새로 고침')}</button>
     </div>`
@@ -4526,6 +4549,13 @@ function openArena(view) {
         ${claimed ? t('오늘 티어 보상 수령 완료')
           : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', tier.nameKo, tier.dailyMedals, tier.dailyDiamond)}</button>`;
   $('#ovinfo').innerHTML = '';
+  // 프리셋을 누르면 그 편성으로 갈아입고 화면을 다시 그린다 — 승률 표시가
+  // 내 전투력 기준이라 편성이 바뀌면 숫자도 같이 바뀌어야 한다
+  $('#ovb').querySelectorAll('[data-arpre]').forEach(b =>
+    b.addEventListener('click', () => {
+      loadPreset('mercenary', +b.dataset.arpre);
+      openArena();
+    }));
   $('#aShop').addEventListener('click', () => openArena('shop'));
   $('#aRe').addEventListener('click', () => {
     S.arena.foeSeed = (S.arena.foeSeed || 0) + 1;
@@ -6446,7 +6476,9 @@ function bootTapToStart() {
     // 건물 → 패널. 마을(fullscr z70)이 열려 있으므로 패널을 그 위로 띄운다
     openPanel: b => { $('#ov').classList.add('over-alli'); openAlliance(b); },
   });
-  rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp });
+  rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp,
+    // 스테이지 번호를 화면에서 쓰는 표기(일반 2-6)로 바꿔 준다
+    stageText: n => stageLabel(n).text });
   mail = new MailScreen($('#app'), {
     state: S, data: D,
     claim: i => claimMail(i),

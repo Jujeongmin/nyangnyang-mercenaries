@@ -1,5 +1,10 @@
 {
  "ui": {
+    "편성": "Party",
+    "프리셋": "Preset",
+    "비움": "cleared",
+    "적용": "applied",
+    "비어 있음": "empty",
     "플레이어 코드": "Player code",
     "플레이어 코드를 복사했습니다": "Player code copied",
     "{0}층 돌파": "clear {0} floors",

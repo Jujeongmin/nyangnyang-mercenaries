@@ -390,6 +390,11 @@ export class BattleScene {
     }
     this.layout();
     for (const f of this.foes) f.rig.view.visible = true;
+    // **걷기 시계를 여기서 다시 잰다.** phase 는 이 함수를 부르기 전에 'walk'
+    // 로 바뀌는데, 그림을 기다리는 동안(await) 시계가 이미 흘러 버린다.
+    // 로딩이 걸리면 적이 나타나는 순간 걷기가 끝나 있어, 도착도 하기 전에
+    // 제자리에서 두들겨 맞고 죽어 있었다 (단장 지적 2026-08-25)
+    if (this.phase === 'walk') this.phaseT = 0;
   }
 
   /** 아군 5 + 적 4 = 9유닛이 좁은 모바일 화면에 들어가야 한다. 전투 영역 높이 기준. */
@@ -1493,6 +1498,11 @@ export class BattleScene {
     }
     this.layout();
     for (const f of this.foes) f.rig.view.visible = true;
+    // **걷기 시계를 여기서 다시 잰다.** phase 는 이 함수를 부르기 전에 'walk'
+    // 로 바뀌는데, 그림을 기다리는 동안(await) 시계가 이미 흘러 버린다.
+    // 로딩이 걸리면 적이 나타나는 순간 걷기가 끝나 있어, 도착도 하기 전에
+    // 제자리에서 두들겨 맞고 죽어 있었다 (단장 지적 2026-08-25)
+    if (this.phase === 'walk') this.phaseT = 0;
   }
 
   /**

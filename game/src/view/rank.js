@@ -119,7 +119,9 @@ export class RankScreen {
 
     // 전투력 보드만 k/m 표기 — 자릿수가 커서 만/억 보다 한눈에 읽힌다
     // 오른쪽 숫자가 무엇인지 값 옆에 붙인다 — "St 12" 는 무슨 단위인지 안 읽힌다
-    const fmt = v => this.tab === 'stage' ? `${num(v)}<i>${t('스테이지')}</i>`
+    // 스테이지는 **화면에서 쓰는 표기(일반 2-6)** 로 보여 준다 — "70" 만 적으면
+    // 지금 어디쯤인지가 안 읽힌다 (단장 지적 2026-08-25)
+    const fmt = v => this.tab === 'stage' ? (this.api.stageText ? this.api.stageText(v) : num(v))
       : this.tab === 'power' ? cpNum(v)
       : `${num(v)}<i>${t('점')}</i>`;
     const rows = this.rows(this.tab);
