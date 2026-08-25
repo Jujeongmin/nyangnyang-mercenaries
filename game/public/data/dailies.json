@@ -1,415 +1,416 @@
 {
-  "meta": {
-    "version": "1.0",
-    "description": "출석 / 일일 퀘스트 / 광고 보상 / 무료 소환. 리텐션 담당.",
-    "faucetShare": 0.1,
-    "faucetNote": "economy.json > faucetDistribution.dailyAndAds 와 대응. 총 배출의 10%."
-  },
-  "attendance": {
-    "cycle": {
-      "lengthDays": 7,
-      "repeating": true,
-      "resetRule": "7일 완료 시 즉시 재시작. 결석해도 진행도는 유지(누적 출석일 기준).",
-      "resetNote": "결석 시 리셋하는 방식은 이탈 유저를 영구 이탈시킨다. 누적 방식으로 복귀 장벽을 없앤다.",
-      "rewards": [
-        {
-          "day": 1,
-          "grant": {
-            "diamond": 150
-          }
-        },
-        {
-          "day": 2,
-          "grant": {
-            "merc_ticket": 5
-          }
-        },
-        {
-          "day": 3,
-          "grant": {
-            "gold": 60000
-          },
-          "note": "골드 단독. 뽑기 재화가 아니라 배출 상쇄 없이 넣을 수 있다. 액수는 f2pDailyYield day1 골드(120k)의 절반"
-        },
-        {
-          "day": 4,
-          "grant": {
-            "skill_ticket": 5
-          }
-        },
-        {
-          "day": 5,
-          "grant": {
-            "equip_ticket": 20
-          }
-        },
-        {
-          "day": 6,
-          "grant": {
-            "diamond": 300
-          }
-        },
-        {
-          "day": 7,
-          "grant": {
-            "merc_ticket": 10,
-            "skill_ticket": 10,
-            "diamond": 500
-          },
-          "highlight": true
-        }
-      ]
-    },
-    "monthlyCumulative": [
-      {
-        "days": 5,
-        "grant": {
-          "diamond": 500
-        }
-      },
-      {
-        "days": 10,
-        "grant": {
-          "speedup_5m": 20
-        }
-      },
-      {
-        "days": 15,
-        "grant": {
-          "merc_ticket": 20
-        }
-      },
-      {
-        "days": 20,
-        "grant": {
-          "skill_ticket": 20
-        }
-      },
-      {
-        "days": 25,
-        "grant": {
-          "diamond": 1500
-        }
-      },
-      {
-        "days": 28,
-        "grant": {
-          "diamond": 2800
-        },
-        "highlight": true
-      }
-    ]
-  },
-  "dailyQuests": {
-    "count": 6,
-    "resetTime": "05:00 KST",
-    "resetTimeNote": "서버 시간 기준. 클라 시간이면 기기 시계 조작으로 무한 수령.",
-    "pointsPerQuest": 20,
-    "maxPoints": 120,
-    "quests": [
-      {
-        "id": "dq_enhance",
-        "nameKo": "자동강화 1회",
-        "target": 1,
-        "points": 20
-      },
-      {
-        "id": "dq_summon",
-        "nameKo": "소환 10회",
-        "target": 10,
-        "points": 20,
-        "anyTrack": true
-      },
-      {
-        "id": "dq_dungeon",
-        "nameKo": "던전 입장 3회",
-        "target": 3,
-        "points": 20
-      },
-      {
-        "id": "dq_stage",
-        "nameKo": "스테이지 5회 클리어",
-        "target": 5,
-        "points": 20
-      },
-      {
-        "id": "dq_arena",
-        "nameKo": "아레나 도전 3회",
-        "target": 3,
-        "points": 20,
-        "unlockQuest": 26
-      },
-      {
-        "id": "dq_ad",
-        "nameKo": "광고 1회 시청",
-        "target": 1,
-        "points": 20
-      }
-    ],
-    "pointRewards": [
-      {
-        "points": 40,
-        "grant": {
-          "diamond": 100,
-          "gold": 200000
-        }
-      },
-      {
-        "points": 80,
-        "grant": {
-          "merc_ticket": 3
-        }
-      },
-      {
-        "points": 120,
-        "grant": {
-          "diamond": 300,
-          "skill_ticket": 3,
-          "equip_ticket": 40
-        },
-        "highlight": true
-      }
-    ],
-    "designNote": "6개 전부가 게임의 핵심 행동이다. 다 하면 자연히 자동강화·소환·던전·스테이지·아레나·광고를 한 바퀴 돈다. 별도 유도가 불필요해진다.",
-    "lockedQuestRule": "미해금 콘텐츠(아레나 Q26)의 퀘스트는 목록에 뜨지 않고, 그만큼 만점이 낮아진다. 해금 전에는 100점 만점.",
-    "equipTicketNote": "만점(120점) 보상의 장비 소환권 15 -> 40. 일일에서 나오는 유일한 상시 장비 소환권이라 여기가 얇으면 던전 하나에 전부 의존하게 된다."
-  },
-  "adRewards": {
-    "note": "Verse8 Ads 서버 검증 필수. 클라 콜백만 믿으면 조작된다.",
-    "verse8Api": "https://docs.verse8.io/ko/docs/ads/server-verification",
-    "slots": [
-      {
-        "id": "ad_idle_x2",
-        "nameKo": "방치 보상 2배",
-        "dailyLimit": 2,
-        "effect": "직전 방치 보상 x2"
-      },
-      {
-        "id": "ad_idle_instant",
-        "nameKo": "2시간 보상 즉시 수령",
-        "dailyLimit": 2,
-        "effect": "방치 2시간분을 즉시 지급",
-        "note": "무료 2회를 모두 쓴 뒤에만 열린다. 무료 2 + 광고 2 = 하루 최대 4회, 8시간분."
-      },
-      {
-        "id": "ad_free_summon",
-        "nameKo": "무료 소환",
-        "dailyLimit": 3,
-        "effect": "용병 또는 스킬 소환 1회 (유저 선택)"
-      },
-      {
-        "id": "ad_dungeon_entry",
-        "nameKo": "던전 입장 +2",
-        "dailyLimit": 1,
-        "effect": "전 던전 입장 횟수 +2"
-      },
-      {
-        "id": "ad_forge_speedup",
-        "nameKo": "제련 시간 단축",
-        "dailyLimit": 5,
-        "effect": "장비 소환 레벨업 -30분 (Lv40+ 부터는 -3%)"
-      },
-      {
-        "id": "ad_arena_entry",
-        "nameKo": "아레나 도전 +3",
-        "dailyLimit": 1,
-        "effect": "아레나 도전 횟수 +3"
-      },
-      {
-        "id": "ad_shop_refresh",
-        "nameKo": "상점 갱신",
-        "dailyLimit": 3,
-        "effect": "아레나 매칭 목록 갱신"
-      }
-    ],
-    "premiumBonus": {
-      "ad_forge_speedup": 5,
-      "note": "프리미엄 패스는 광고 횟수 상한을 늘린다. 광고를 없애지 않는다 - 광고 수익을 유지하면서 편의를 판다."
-    },
-    "totalDailyAds": 15,
-    "totalDailyAdsNote": "일 15회는 상한이지 목표가 아니다. 실제 소화율은 30~50% 예상."
-  },
-  "freeSummon": {
-    "id": "daily_free_summon",
-    "nameKo": "일일 무료 소환",
-    "dailyLimit": 1,
-    "adRequired": false,
-    "track": "user_choice",
-    "note": "광고 없는 순수 무료 1회. 매일 소환 화면에 들어올 이유를 만든다. ad_free_summon(광고 3회)과 별개."
-  },
-  "idleReward": {
-    "maxAccumulationHours": 9,
-    "adDoubleMultiplier": 2,
-    "offlineCalculation": "server_side",
-    "note": "12시간 캡. 하루 3회 접속 패턴이면 자연히 다 회수한다. 캡을 늘리면 접속 빈도가 떨어진다.",
-    "instantClaim": {
-      "hoursPerClaim": 2,
-      "freeDaily": 2,
-      "adDaily": 2,
-      "unlockRule": "무료 2회를 전부 소진해야 광고 버튼이 열린다",
-      "maxDailyHours": 8,
-      "note": "12시간 누적 캡과 별개다. 누적분은 시간이 지나야 쌓이지만 이것은 즉시 당겨받는다. 하루 8시간분이 상한이라 방치 총량(12시간 x 접속 3회)을 넘지 않는다."
-    },
-    "uiNote": "접속 팝업이 아니라 메인 화면의 보물상자 아이콘으로 노출한다. 팝업은 첫 화면을 가려 이탈을 만든다.",
-    "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다."
-  },
-  "mailbox": {
-    "retentionDays": 14,
-    "autoDeliver": [
-      "던전 일일 수령",
-      "아레나 티어 보상",
-      "시즌 보상",
-      "운영 지급"
-    ],
-    "bulkClaim": true
-  },
-  "newbie7Day": {
-    "description": "신규 7일 이벤트. 천장 없는 구조의 온보딩 방어선.",
-    "days": [
-      {
-        "day": 1,
-        "grant": {
-          "merc_ticket": 10,
-          "diamond": 300
-        }
-      },
-      {
-        "day": 2,
-        "grant": {
-          "gold": 100000,
-          "equip_ticket": 30
-        }
-      },
-      {
-        "day": 3,
-        "grant": {
-          "diamond": 2800
-        },
-        "highlight": true,
-        "note": "gacha.json > onboardingGuarantees.day3_selector"
-      },
-      {
-        "day": 4,
-        "grant": {
-          "skill_ticket": 15
-        }
-      },
-      {
-        "day": 5,
-        "grant": {
-          "speedup_5m": 15
-        }
-      },
-      {
-        "day": 6,
-        "grant": {
-          "diamond": 800
-        }
-      },
-      {
-        "day": 7,
-        "grant": {
-          "merc_ticket": 30,
-          "skill_ticket": 20,
-          "diamond": 1000
-        },
-        "highlight": true
-      }
-    ]
-  },
-  "serverAuthority": {
-    "resetTime": "서버 시간 기준 05:00 KST. 클라 시간으로 판정하면 기기 시계 조작으로 무한 수령 가능.",
-    "claimLedger": "$global.updateMyState 에 수령 이력 기록. 중복 수령 차단."
-  },
-  "weeklyQuests": {
-    "count": 8,
-    "resetTime": "월요일 05:00 KST",
-    "pointsPerQuest": 25,
-    "maxPoints": 200,
-    "purpose": "일일이 하루 루틴이라면 주간은 일주일 목표다. 일일만 있으면 하루 15분 뒤 할 게 없어진다. 주간은 그 위에 더 큰 궤도를 얹는다.",
-    "quests": [
-      {
-        "id": "wq_summon",
-        "nameKo": "소환 200회",
-        "target": 200,
-        "points": 25,
-        "anyTrack": true
-      },
-      {
-        "id": "wq_enhance",
-        "nameKo": "자동강화 15회",
-        "target": 15,
-        "points": 25
-      },
-      {
-        "id": "wq_stage",
-        "nameKo": "스테이지 40회 클리어",
-        "target": 40,
-        "points": 25
-      },
-      {
-        "id": "wq_dungeon",
-        "nameKo": "던전 층 8회 돌파",
-        "target": 8,
-        "points": 25,
-        "note": "입장이 아니라 신규 층 돌파"
-      },
-      {
-        "id": "wq_arena",
-        "nameKo": "아레나 15승",
-        "target": 15,
-        "points": 25,
-        "unlockQuest": 26
-      },
-      {
-        "id": "wq_equip_lv",
-        "nameKo": "장비 소환 레벨 3 상승",
-        "target": 3,
-        "points": 25
-      },
-      {
-        "id": "wq_ad",
-        "nameKo": "광고 20회 시청",
-        "target": 20,
-        "points": 25
-      },
-      {
-        "id": "wq_daily",
-        "nameKo": "일일 퀘스트 5일 만점",
-        "target": 5,
-        "points": 25,
-        "note": "일일을 챙기면 자동으로 달성된다"
-      }
-    ],
-    "pointRewards": [
-      {
-        "points": 75,
-        "grant": {
-          "diamond": 800,
-          "gold": 3000000,
-          "equip_ticket": 120
-        }
-      },
-      {
-        "points": 140,
-        "grant": {
-          "merc_ticket": 25,
-          "skill_ticket": 20
-        }
-      },
-      {
-        "points": 200,
-        "grant": {
-          "diamond": 5300,
-          "speedup_5m": 30
-        },
-        "highlight": true
-      }
-    ],
-    "rewardScaleNote": "주간 만점 보상(다이아 2,500 + SSR 선택권)은 일일 만점 7일치(다이아 2,100)보다 커야 한다. 그래야 주간을 채울 이유가 생긴다.",
-    "designNote": "wq_daily 가 일일과 주간을 묶는다. 일일을 꾸준히 하면 주간 25점이 자동으로 따라오므로 두 체계가 따로 놀지 않는다.",
-    "lockedQuestRule": "일일과 동일. 미해금 콘텐츠 퀘스트는 목록에서 빠지고 만점이 낮아진다."
-  },
+ "meta": {
+  "version": "1.0",
+  "description": "출석 / 일일 퀘스트 / 광고 보상 / 무료 소환. 리텐션 담당.",
   "faucetShare": 0.1,
-  "faucetNote": "economy.json > faucetDistribution 의 dailyAndAds 항목. 일일 + 주간 + 출석 + 광고를 합친 값."
+  "faucetNote": "economy.json > faucetDistribution.dailyAndAds 와 대응. 총 배출의 10%."
+ },
+ "attendance": {
+  "cycle": {
+   "lengthDays": 7,
+   "repeating": true,
+   "resetRule": "7일 완료 시 즉시 재시작. 결석해도 진행도는 유지(누적 출석일 기준).",
+   "resetNote": "결석 시 리셋하는 방식은 이탈 유저를 영구 이탈시킨다. 누적 방식으로 복귀 장벽을 없앤다.",
+   "rewards": [
+    {
+     "day": 1,
+     "grant": {
+      "diamond": 150
+     }
+    },
+    {
+     "day": 2,
+     "grant": {
+      "merc_ticket": 5
+     }
+    },
+    {
+     "day": 3,
+     "grant": {
+      "gold": 60000
+     },
+     "note": "골드 단독. 뽑기 재화가 아니라 배출 상쇄 없이 넣을 수 있다. 액수는 f2pDailyYield day1 골드(120k)의 절반"
+    },
+    {
+     "day": 4,
+     "grant": {
+      "skill_ticket": 5
+     }
+    },
+    {
+     "day": 5,
+     "grant": {
+      "equip_ticket": 20
+     }
+    },
+    {
+     "day": 6,
+     "grant": {
+      "diamond": 300
+     }
+    },
+    {
+     "day": 7,
+     "grant": {
+      "merc_ticket": 10,
+      "skill_ticket": 10,
+      "diamond": 500
+     },
+     "highlight": true
+    }
+   ]
+  },
+  "monthlyCumulative": [
+   {
+    "days": 5,
+    "grant": {
+     "diamond": 500
+    }
+   },
+   {
+    "days": 10,
+    "grant": {
+     "speedup_5m": 10
+    }
+   },
+   {
+    "days": 15,
+    "grant": {
+     "merc_ticket": 20
+    }
+   },
+   {
+    "days": 20,
+    "grant": {
+     "skill_ticket": 20
+    }
+   },
+   {
+    "days": 25,
+    "grant": {
+     "diamond": 1500
+    }
+   },
+   {
+    "days": 28,
+    "grant": {
+     "diamond": 2800
+    },
+    "highlight": true
+   }
+  ]
+ },
+ "dailyQuests": {
+  "count": 6,
+  "resetTime": "05:00 KST",
+  "resetTimeNote": "서버 시간 기준. 클라 시간이면 기기 시계 조작으로 무한 수령.",
+  "pointsPerQuest": 20,
+  "maxPoints": 120,
+  "quests": [
+   {
+    "id": "dq_enhance",
+    "nameKo": "자동강화 1회",
+    "target": 1,
+    "points": 20
+   },
+   {
+    "id": "dq_summon",
+    "nameKo": "소환 10회",
+    "target": 10,
+    "points": 20,
+    "anyTrack": true
+   },
+   {
+    "id": "dq_dungeon",
+    "nameKo": "던전 입장 3회",
+    "target": 3,
+    "points": 20
+   },
+   {
+    "id": "dq_stage",
+    "nameKo": "스테이지 5회 클리어",
+    "target": 5,
+    "points": 20
+   },
+   {
+    "id": "dq_arena",
+    "nameKo": "아레나 도전 3회",
+    "target": 3,
+    "points": 20,
+    "unlockQuest": 26
+   },
+   {
+    "id": "dq_ad",
+    "nameKo": "광고 1회 시청",
+    "target": 1,
+    "points": 20
+   }
+  ],
+  "pointRewards": [
+   {
+    "points": 40,
+    "grant": {
+     "diamond": 100,
+     "gold": 200000
+    }
+   },
+   {
+    "points": 80,
+    "grant": {
+     "merc_ticket": 3
+    }
+   },
+   {
+    "points": 120,
+    "grant": {
+     "diamond": 300,
+     "skill_ticket": 3,
+     "equip_ticket": 40
+    },
+    "highlight": true
+   }
+  ],
+  "designNote": "6개 전부가 게임의 핵심 행동이다. 다 하면 자연히 자동강화·소환·던전·스테이지·아레나·광고를 한 바퀴 돈다. 별도 유도가 불필요해진다.",
+  "lockedQuestRule": "미해금 콘텐츠(아레나 Q26)의 퀘스트는 목록에 뜨지 않고, 그만큼 만점이 낮아진다. 해금 전에는 100점 만점.",
+  "equipTicketNote": "만점(120점) 보상의 장비 소환권 15 -> 40. 일일에서 나오는 유일한 상시 장비 소환권이라 여기가 얇으면 던전 하나에 전부 의존하게 된다."
+ },
+ "adRewards": {
+  "note": "Verse8 Ads 서버 검증 필수. 클라 콜백만 믿으면 조작된다.",
+  "verse8Api": "https://docs.verse8.io/ko/docs/ads/server-verification",
+  "slots": [
+   {
+    "id": "ad_idle_x2",
+    "nameKo": "방치 보상 2배",
+    "dailyLimit": 2,
+    "effect": "직전 방치 보상 x2"
+   },
+   {
+    "id": "ad_idle_instant",
+    "nameKo": "2시간 보상 즉시 수령",
+    "dailyLimit": 2,
+    "effect": "방치 2시간분을 즉시 지급",
+    "note": "무료 2회를 모두 쓴 뒤에만 열린다. 무료 2 + 광고 2 = 하루 최대 4회, 8시간분."
+   },
+   {
+    "id": "ad_free_summon",
+    "nameKo": "무료 소환",
+    "dailyLimit": 3,
+    "effect": "용병 또는 스킬 소환 1회 (유저 선택)"
+   },
+   {
+    "id": "ad_dungeon_entry",
+    "nameKo": "던전 입장 +2",
+    "dailyLimit": 1,
+    "effect": "전 던전 입장 횟수 +2"
+   },
+   {
+    "id": "ad_forge_speedup",
+    "nameKo": "제련 시간 단축",
+    "dailyLimit": 5,
+    "effect": "장비 소환 레벨업 -30분 (Lv40+ 부터는 -3%)"
+   },
+   {
+    "id": "ad_arena_entry",
+    "nameKo": "아레나 도전 +3",
+    "dailyLimit": 1,
+    "effect": "아레나 도전 횟수 +3"
+   },
+   {
+    "id": "ad_shop_refresh",
+    "nameKo": "상점 갱신",
+    "dailyLimit": 3,
+    "effect": "아레나 매칭 목록 갱신"
+   }
+  ],
+  "premiumBonus": {
+   "ad_forge_speedup": 5,
+   "note": "프리미엄 패스는 광고 횟수 상한을 늘린다. 광고를 없애지 않는다 - 광고 수익을 유지하면서 편의를 판다."
+  },
+  "totalDailyAds": 15,
+  "totalDailyAdsNote": "일 15회는 상한이지 목표가 아니다. 실제 소화율은 30~50% 예상."
+ },
+ "freeSummon": {
+  "id": "daily_free_summon",
+  "nameKo": "일일 무료 소환",
+  "dailyLimit": 1,
+  "adRequired": false,
+  "track": "user_choice",
+  "note": "광고 없는 순수 무료 1회. 매일 소환 화면에 들어올 이유를 만든다. ad_free_summon(광고 3회)과 별개."
+ },
+ "idleReward": {
+  "maxAccumulationHours": 9,
+  "adDoubleMultiplier": 2,
+  "offlineCalculation": "server_side",
+  "note": "12시간 캡. 하루 3회 접속 패턴이면 자연히 다 회수한다. 캡을 늘리면 접속 빈도가 떨어진다.",
+  "instantClaim": {
+   "hoursPerClaim": 2,
+   "freeDaily": 2,
+   "adDaily": 2,
+   "unlockRule": "무료 2회를 전부 소진해야 광고 버튼이 열린다",
+   "maxDailyHours": 8,
+   "note": "12시간 누적 캡과 별개다. 누적분은 시간이 지나야 쌓이지만 이것은 즉시 당겨받는다. 하루 8시간분이 상한이라 방치 총량(12시간 x 접속 3회)을 넘지 않는다."
+  },
+  "uiNote": "접속 팝업이 아니라 메인 화면의 보물상자 아이콘으로 노출한다. 팝업은 첫 화면을 가려 이탈을 만든다.",
+  "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다."
+ },
+ "mailbox": {
+  "retentionDays": 14,
+  "autoDeliver": [
+   "던전 일일 수령",
+   "아레나 티어 보상",
+   "시즌 보상",
+   "운영 지급"
+  ],
+  "bulkClaim": true
+ },
+ "newbie7Day": {
+  "description": "신규 7일 이벤트. 천장 없는 구조의 온보딩 방어선.",
+  "days": [
+   {
+    "day": 1,
+    "grant": {
+     "merc_ticket": 10,
+     "diamond": 300
+    }
+   },
+   {
+    "day": 2,
+    "grant": {
+     "gold": 100000,
+     "equip_ticket": 30
+    }
+   },
+   {
+    "day": 3,
+    "grant": {
+     "diamond": 2800
+    },
+    "highlight": true,
+    "note": "gacha.json > onboardingGuarantees.day3_selector"
+   },
+   {
+    "day": 4,
+    "grant": {
+     "skill_ticket": 15
+    }
+   },
+   {
+    "day": 5,
+    "grant": {
+     "speedup_5m": 5
+    }
+   },
+   {
+    "day": 6,
+    "grant": {
+     "diamond": 800
+    }
+   },
+   {
+    "day": 7,
+    "grant": {
+     "merc_ticket": 30,
+     "skill_ticket": 20,
+     "diamond": 1000
+    },
+    "highlight": true
+   }
+  ]
+ },
+ "serverAuthority": {
+  "resetTime": "서버 시간 기준 05:00 KST. 클라 시간으로 판정하면 기기 시계 조작으로 무한 수령 가능.",
+  "claimLedger": "$global.updateMyState 에 수령 이력 기록. 중복 수령 차단."
+ },
+ "weeklyQuests": {
+  "count": 8,
+  "resetTime": "월요일 05:00 KST",
+  "pointsPerQuest": 25,
+  "maxPoints": 200,
+  "purpose": "일일이 하루 루틴이라면 주간은 일주일 목표다. 일일만 있으면 하루 15분 뒤 할 게 없어진다. 주간은 그 위에 더 큰 궤도를 얹는다.",
+  "quests": [
+   {
+    "id": "wq_summon",
+    "nameKo": "소환 200회",
+    "target": 200,
+    "points": 25,
+    "anyTrack": true
+   },
+   {
+    "id": "wq_enhance",
+    "nameKo": "자동강화 15회",
+    "target": 15,
+    "points": 25
+   },
+   {
+    "id": "wq_stage",
+    "nameKo": "스테이지 40회 클리어",
+    "target": 40,
+    "points": 25
+   },
+   {
+    "id": "wq_dungeon",
+    "nameKo": "던전 층 8회 돌파",
+    "target": 8,
+    "points": 25,
+    "note": "입장이 아니라 신규 층 돌파"
+   },
+   {
+    "id": "wq_arena",
+    "nameKo": "아레나 15승",
+    "target": 15,
+    "points": 25,
+    "unlockQuest": 26
+   },
+   {
+    "id": "wq_equip_lv",
+    "nameKo": "장비 소환 레벨 3 상승",
+    "target": 3,
+    "points": 25
+   },
+   {
+    "id": "wq_ad",
+    "nameKo": "광고 20회 시청",
+    "target": 20,
+    "points": 25
+   },
+   {
+    "id": "wq_daily",
+    "nameKo": "일일 퀘스트 5일 만점",
+    "target": 5,
+    "points": 25,
+    "note": "일일을 챙기면 자동으로 달성된다"
+   }
+  ],
+  "pointRewards": [
+   {
+    "points": 75,
+    "grant": {
+     "diamond": 800,
+     "gold": 3000000,
+     "equip_ticket": 120
+    }
+   },
+   {
+    "points": 140,
+    "grant": {
+     "merc_ticket": 25,
+     "skill_ticket": 20
+    }
+   },
+   {
+    "points": 200,
+    "grant": {
+     "diamond": 5300,
+     "speedup_5m": 10
+    },
+    "highlight": true
+   }
+  ],
+  "rewardScaleNote": "주간 만점 보상(다이아 2,500 + SSR 선택권)은 일일 만점 7일치(다이아 2,100)보다 커야 한다. 그래야 주간을 채울 이유가 생긴다.",
+  "designNote": "wq_daily 가 일일과 주간을 묶는다. 일일을 꾸준히 하면 주간 25점이 자동으로 따라오므로 두 체계가 따로 놀지 않는다.",
+  "lockedQuestRule": "일일과 동일. 미해금 콘텐츠 퀘스트는 목록에서 빠지고 만점이 낮아진다."
+ },
+ "faucetShare": 0.1,
+ "faucetNote": "economy.json > faucetDistribution 의 dailyAndAds 항목. 일일 + 주간 + 출석 + 광고를 합친 값.",
+ "hourglassCutNote": "2026-08-26 단장 확정: 모래시계 무료 지급 축소 (출석 20→10 · 신규7일 15→5 · 주간 30→10). 다이아 구매(개당 10)가 주 공급이 되도록 — economy.json > speedup.monetizationNote 와 같은 원칙."
 }

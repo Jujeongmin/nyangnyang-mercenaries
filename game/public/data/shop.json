@@ -165,16 +165,16 @@
  "quickHourglass": [
   {
    "count": 12,
-   "diamond": 100
+   "diamond": 120
   },
   {
    "count": 40,
-   "diamond": 300
+   "diamond": 400
   },
   {
    "count": 150,
-   "diamond": 1000
+   "diamond": 1500
   }
  ],
- "quickHourglassNote": "모래시계 1개 = 5분 단축 (economy.json > speedup.minutesPerItem). 기준가 개당 다이아 ~8.3, 묶음이 클수록 할인 (7.5 → 6.7). quickGold 2시간=150 과 나란한 소액 라인이다. 주 수급처는 여전히 던전·연합 상점이고 이건 \"제작이 오래 남았을 때 지갑을 여는\" 편의 창구다. 2026-08-25 추가 — 제작대 모래시계 +버튼이 여기로 온다."
+ "quickHourglassNote": "개당 10 다이아 균일 (단장 확정 2026-08-26). 구 100/300/1000 은 개당 8.3~6.7 로 묶음이 쌌는데, 단가를 올리며 할인도 없앴다 — 모래시계가 주 과금처라 할인이 곧 매출 할인이다."
 }
