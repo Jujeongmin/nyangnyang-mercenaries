@@ -5100,7 +5100,10 @@ function questLabel(def) {
   const base = t(QUEST_TYPE[def.type]?.label || '');
   if (def.type === 'dungeon_floor' && def.dungeon) {
     const dg = D.dungeons.dungeons.find(x => x.id === def.dungeon);
-    if (dg) return `${tn(dg.id, dg.nameKo)} ${def.target}${t('층')}`;
+    // 목표는 **깬 층 수**다 (진행도도 floor-1 로 센다). "황금 광산 2층" 이라고
+    // 적으면 2층에 가라는 말로 읽혀서, 1층에 서 있는데 2층이라고 뜬다는 오해가
+    // 난다 (단장 지적 2026-08-25). 세는 대상을 글자로 못박는다
+    if (dg) return `${tn(dg.id, dg.nameKo)} ${t('{0}층 돌파', def.target)}`;
   }
   return base;
 }
