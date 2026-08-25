@@ -257,7 +257,9 @@
   /* 간판이 아주 조금 떠 있다. 원래 `pvBob` 을 불렀는데 **그런 키프레임이
      이 파일 어디에도 없었다** — 이름만 있고 움직임은 없었다. 여기서 정의한다.
      이름을 tt- 로 바꾼 것은 pv- 가 절전 덮개(#pwrveil)의 접두사라서다 */
-  #bootSign{container:sign / inline-size;position:relative;width:min(280px,72vw);
+  /* 간판 폭 — 글자 크기는 여기에 매달려 있다(10cqi). 좁은 폰에서도 판이 커야
+     두 줄 제목이 읽힌다 (단장 확정 2026-08-25) */
+  #bootSign{container:sign / inline-size;position:relative;width:min(340px,82%);
     animation:ttBob 3.4s ease-in-out infinite}
   /* 3px 이면 충분하다. 더 흔들면 간판이 아니라 풍선이 된다 */
   @keyframes ttBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}

@@ -1386,6 +1386,9 @@ function pull(trackId, n) {
   // 닫으면 연출이 페이드되는 동안 뒤에 메인 화면이 비친다.
   reveal.play(trackId, out, () => { applyPulls(out); shop.render(); });
   renderTop();
+  // 소환은 퀘스트 진행도다 (Q2 용병 10회 등). 안 그리면 10연을 돌려도
+  // 배너가 0/10 그대로다 (실사용 보고 2026-08-25)
+  renderQuest();
 }
 
 // ─────────────────────────────────────────────
@@ -1820,23 +1823,23 @@ function openPass() {
 
   // 제목은 짧게. 시즌 이름까지 넣으면 좁은 화면에서 잘린다 —
   // 시즌 이름은 아래 본문(진행 카드)이 이미 보여 준다
-  $('#ovt').textContent = '시즌 패스';
+  $('#ovt').textContent = t('시즌 패스');
   setSkin('pass');
   $('#ovb').innerHTML =
     `<div class="ps-top">
-      <div class="ps-tinfo"><b>${cur}</b><span>/ ${P.progress.maxTier} 티어</span></div>
+      <div class="ps-tinfo"><b>${cur}</b><span>${t('/ {0} 티어', P.progress.maxTier)}</span></div>
       <div class="ps-tnext">${cur >= P.progress.maxTier
-        ? '최고 티어' : `다음 티어까지 스테이지 ${Math.max(0, nextAt - (S.maxStage || 1))}`}</div>
+        ? t('최고 티어') : t('다음 티어까지 스테이지 {0}', Math.max(0, nextAt - (S.maxStage || 1)))}</div>
     </div>`
     // 전부 받기가 왼쪽, 프리미엄이 오른쪽. 매번 누르는 버튼을 엄지 쪽에 두고
     // 결제 버튼은 반대편에 둬야 오조작 결제가 안 난다
     + `<div class="ps-buy">
-      <button class="mdBuy" id="psAll">전부 받기</button>
+      <button class="mdBuy" id="psAll">${t('전부 받기')}</button>
       ${S.pass.bought
-        ? '<span class="ps-own">프리미엄 보유 중</span>'
-        : `<button class="fgbtn" id="psBuy">프리미엄 ${numExact(P.tracks.paid.price.krw)}원</button>`}
+        ? `<span class="ps-own">${t('프리미엄 보유 중')}</span>`
+        : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0}원', numExact(P.tracks.paid.price.krw))}</button>`}
       </div>`
-    + `<div class="ps-head"><span></span><span>무료</span><span>프리미엄</span></div>`
+    + `<div class="ps-head"><span></span><span>${t('무료')}</span><span>${t('프리미엄')}</span></div>`
     + Array.from({ length: P.progress.maxTier }, (_, i) => row(i + 1)).join('');
 
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">규칙</div>'
@@ -2850,13 +2853,13 @@ function openAttend() {
         ${got ? '✓' : '받기'}</button></div>`;
   }).join('');
 
-  $('#ovt').textContent = '출석';
+  $('#ovt').textContent = t('출석');
   setSkin('attend');
   $('#ovb').innerHTML = `
     <div class="at-grid">${cells}</div>
     <button class="fgbtn" id="atClaim" ${attendReady() ? '' : 'disabled'}>
-      ${attendReady() ? `${(a.day % 7) + 1}일차 출석 받기` : '오늘 출석 완료'}</button>
-    <div class="lbl" style="margin:10px 0 5px">이번 달 누적 <b style="color:var(--gold)">${a.monthDays}일</b></div>
+      ${attendReady() ? t('{0}일차 출석 받기', (a.day % 7) + 1) : t('오늘 출석 완료')}</button>
+    <div class="lbl" style="margin:10px 0 5px">${t('이번 달 누적 {0}', `<b style="color:var(--gold)">${t('{0}일', a.monthDays)}</b>`)}</div>
     ${cums}`;
   $('#ovinfo').innerHTML = '';
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -3155,8 +3158,8 @@ function dungeonHtml() {
   return `<div id="twCard">
       <span class="tw-ico"><img src="/assets/ui/IC-TOWER.png" alt=""
         onerror="this.replaceWith(document.createTextNode('🗼'))"></span>
-      <span class="nm"><b>무한의 탑</b><span>최고 ${T.best}층 · 입장 제한 없음</span></span>
-      <i>${T.floor}층 ›</i>
+      <span class="nm"><b>${t('무한의 탑')}</b><span>${t('최고 {0}층 · 입장 제한 없음', T.best)}</span></span>
+      <i>${t('{0}층', T.floor)} ›</i>
     </div>`
     + '<div id="dungeons">'
     + D.dungeons.dungeons.map(dg => {
@@ -3171,23 +3174,23 @@ function dungeonHtml() {
       return `<div class="dg${open ? '' : ' lock'}" data-id="${dg.id}"
         style="--dg-art:url(/assets/dungeon/DG-${n}.png),url(/assets/bg/${DG_BG[dg.id] || 'BG-01'}.webp)">
         <span class="nm">
-          <b>${dg.nameKo}</b>
+          <b>${t(dg.nameKo)}</b>
           <span class="why">${open
-            ? `요구 ${num(need)} · 수령 ${num(yieldNow)}`
-            : dg.purpose}</span>
+            ? t('요구 {0} · 수령 {1}', num(need), num(yieldNow))
+            : t(dg.purpose)}</span>
         </span>
         ${open
           ? `${sweepBtnHtml(dg, st)}
-             <span class="ent">${st.floor}층</span>
+             <span class="ent">${t('{0}층', st.floor)}</span>
              <span class="keys"><img src="/assets/ui/${dg.keyId}.png" alt="열쇠"
                ><b>${dgKeysOf(dg.id)}<i>/${entries}</i></b></span>`
           : `<span class="ent lockv"><img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김"
-             ><i>퀘스트 ${dg.unlockQuest}</i></span>`}
+             ><i>${t('퀘스트 {0}', dg.unlockQuest)}</i></span>`}
       </div>`;
     }).join('')
     + '</div>'
-    + `<div class="sh-note">열쇠는 매일 ${entries}개로 채워진다 (광고 +${
-        D.dungeons.entry.adBonus.entries}). ${D.dungeons.entry.failureCost}</div>`;
+    + `<div class="sh-note">${t('열쇠는 매일 {0}개로 채워진다 (광고 +{1}).',
+        entries, D.dungeons.entry.adBonus.entries)} ${t(D.dungeons.entry.failureCost)}</div>`;
 }
 
 /**
@@ -5563,10 +5566,10 @@ function eqCard(it, isNew, base) {
   const tag = !d ? ''
     : `<div class="er-d" style="color:${col}">${d > 0 ? '▲ +' : '▼ '}${cpNum(Math.abs(d))}</div>`;
   return `<div class="er-card${isNew ? ' new' : ''}${d > 0 ? ' up' : d < 0 ? ' down' : ''}" data-pick="${isNew ? 'new' : 'cur'}" style="--au:${g.color}">
-    <i>${isNew ? '새로 나옴' : '착용 중'}</i>
+    <i>${isNew ? t('새로 나옴') : t('착용 중')}</i>
     ${eqImg(sl, it.tier)}>
-    <b style="color:${g.color}">${g.nameKo} T${it.tier}</b>
-    <div class="er-cp">${sl.nameKo} · 전투력 <em>${cpNum(cp)}</em></div>
+    <b style="color:${g.color}">${t(g.nameKo)} T${it.tier}</b>
+    <div class="er-cp">${t(sl.nameKo)} · ${t('전투력')} <em>${cpNum(cp)}</em></div>
     ${tag}
   </div>`;
 }
@@ -5602,15 +5605,15 @@ function pullOne(sel = '#fgObj') {
 function openEquipInfo(slotId) {
   const sl = D.equipment.slots.find(x => x.id === slotId);
   const it = S.equip[slotId];
-  $('#ovt').textContent = sl.nameKo;
+  $('#ovt').textContent = t(sl.nameKo);
   setSkin('equip');
   $('#ovh').classList.remove('has-cur');
   $('#ovinfo').innerHTML = '';
 
   if (!it) {
     $('#ovb').innerHTML = `<div class="ei-empty">
-      ${sl.nameKo} 부위가 비어 있습니다.<br>
-      제작대에서 장비를 소환하면 착용할 수 있습니다.</div>`;
+      ${t('{0} 부위가 비어 있습니다.', t(sl.nameKo))}<br>
+      ${t('제작대에서 장비를 소환하면 착용할 수 있습니다.')}</div>`;
     $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
     return;
   }
@@ -5624,9 +5627,9 @@ function openEquipInfo(slotId) {
   $('#ovb').innerHTML = `<div class="ei-top" style="--au:${g.color}">
       <span class="ei-ic fre-${Math.min(3, eqBand(it.tier))}"
         style="border-color:${g.color}">${eqImg(sl, it.tier)}></span>
-      <span class="ei-name"><b style="color:${g.color}">${g.nameKo} T${it.tier}</b></span>
+      <span class="ei-name"><b style="color:${g.color}">${t(g.nameKo)} T${it.tier}</b></span>
     </div>`
-    + `<div class="frow"><span class="k">전투력 상승량</span>
+    + `<div class="frow"><span class="k">${t('전투력 상승량')}</span>
       <span class="v" style="color:var(--up);font-size:15px">+${cpNum(gain)}</span></div>`
 ;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
@@ -5642,18 +5645,18 @@ function openEquipResult(it) {
 
   if (!now) {
     h.push(`<div class="er-wrap">${eqCard(it, true, Math.round(totalCp()))}</div>`);
-    h.push(`<button class="er-pick" id="erWear">착용하기</button>`);
-    h.push(`<button class="er-pick scrap" id="erScrap">분해</button>`);
-    h.push(`<div class="er-note">${sl.nameKo} 부위가 비어 있습니다.</div>`);
+    h.push(`<button class="er-pick" id="erWear">${t('착용하기')}</button>`);
+    h.push(`<button class="er-pick scrap" id="erScrap">${t('분해')}</button>`);
+    h.push(`<div class="er-note">${t('{0} 부위가 비어 있습니다.', t(sl.nameKo))}</div>`);
   } else {
     // 기준은 "지금 낀 것" 의 전투력. 양쪽 카드가 같은 잣대를 쓴다.
     const base = Math.round(cpWith(it.slot, now));
     h.push(`<div class="er-wrap">${eqCard(now, false, base)}
       <span class="er-vs">VS</span>${eqCard(it, true, base)}</div>`);
     const dCp = Math.round(cpWith(it.slot, it) - cpWith(it.slot, now));
-    h.push(`<div class="er-note">고른 쪽을 착용하고 <b>나머지는 분해</b>됩니다.<br>
-      새 장비로 바꾸면 전투력 <b style="color:${dCp >= 0 ? 'var(--up)' : 'var(--warn)'}">
-      ${dCp >= 0 ? '+' : ''}${cpNum(dCp)}</b></div>`);
+    h.push(`<div class="er-note">${t('고른 쪽을 착용하고 나머지는 분해됩니다.')}<br>
+      ${t('새 장비로 바꾸면 전투력 {0}',
+        `<b style="color:${dCp >= 0 ? 'var(--up)' : 'var(--warn)'}">${dCp >= 0 ? '+' : ''}${cpNum(dCp)}</b>`)}</div>`);
   }
 
   $('#ovt').textContent = '장비 소환';

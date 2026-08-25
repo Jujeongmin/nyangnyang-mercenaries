@@ -12,7 +12,7 @@
 // 하고, 여기서 눌러야 편성과 레벨에 반영된다.
 
 
-import { tn } from '../core/i18n.js';
+import { tn, t } from '../core/i18n.js';
 
 const $ = s => document.querySelector(s);
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
@@ -111,7 +111,7 @@ export class RosterSheet {
     // ── 장착 줄 ──────────────────────────────────────────────
     const eq = this.equipped();                       // null = 빈 칸, 'lock' = 미해금
     // 제목만 둔다. '장착 N · 보유 M' 은 바로 아래 장착 줄과 목록이 이미 보여 준다
-    $('#shT').textContent = isSkill ? '스킬' : '용병';
+    $('#shT').textContent = isSkill ? t('스킬') : t('용병');
     const dir = isSkill ? 'skill' : 'char';
     // 잠긴 칸도 누를 수 있어야 한다 — 자물쇠만 보이고 조건이 없으면
     // 그 칸이 언제 열리는지 알 길이 없다 (data-lock 이 인덱스를 나른다)
@@ -159,7 +159,7 @@ export class RosterSheet {
 
   /** 던전 — 목록 HTML 과 클릭 배선을 main.js 가 준다 (열쇠·CP·runDungeon 을 쥐고 있다) */
   renderDungeon() {
-    $('#shT').textContent = '던전';
+    $('#shT').textContent = t('던전');
     $('#shBody').innerHTML = this.api.dungeonHtml();
     this.api.bindDungeons($('#shBody'));
   }

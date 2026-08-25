@@ -9,12 +9,14 @@
 // 여기 목록은 화면 검증용 더미다. antiCheat 원칙상 점수는 전부 서버가 산출한다.
 
 import { cpNum, num } from '../core/fmt.js';
-import { LANGS } from '../core/i18n.js';
+import { LANGS, t } from '../core/i18n.js';
 import * as live from '../net/live.js';
 
 
-const NAMES = ['냥냥단장', '불꽃여우', '별빛기사', '해태단', '구미호', '판다현자', '백호',
-  '심연상어', '봉황', '흑기린', '초코냥', '방패병', '숲사슴', '펭귄대장', '수달'];
+// 더미 순위표의 이름. **닉네임은 고유명사라 번역하지 않는다** — 다만 한국어
+// 이름만 늘어놓으면 외국어 화면에서 이 표만 한글 덩어리가 된다. 로마자를 같이 둔다
+const NAMES = ['Nyang', 'Blaze Fox', 'Starlight', 'Haetae', 'Gumiho', 'Panda Sage', 'White Tiger',
+  'Abyss Shark', 'Phoenix', 'Kirin', 'Choco Cat', 'Shieldpaw', 'Forest Deer', 'Captain Pengu', 'Otter'];
 
 // display.showProfile: ["칭호","프로필 테두리","대표 용병 썸네일"]
 // 상위권일수록 상위 등급 용병을 대표로 걸고 있게 만든다 — 순위표가 곧 목표가 된다.
@@ -107,15 +109,15 @@ export class RankScreen {
     const D = this.api.data;
     const boards = D.ranking.boards.map(b => ({ id: b.id, nameKo: b.nameKo }));
     this.el.querySelector('#rkTabs').innerHTML = boards.map(b =>
-      `<button data-t="${b.id}" class="${b.id === this.tab ? 'on' : ''}">${b.nameKo}</button>`).join('');
+      `<button data-t="${b.id}" class="${b.id === this.tab ? 'on' : ''}">${t(b.nameKo)}</button>`).join('');
     this.el.querySelectorAll('#rkTabs button').forEach(x =>
       x.addEventListener('click', () => { this.tab = x.dataset.t; this.render(); }));
 
     // 전투력 보드만 k/m 표기 — 자릿수가 커서 만/억 보다 한눈에 읽힌다
     // 오른쪽 숫자가 무엇인지 값 옆에 붙인다 — "St 12" 는 무슨 단위인지 안 읽힌다
-    const fmt = v => this.tab === 'stage' ? `${num(v)}<i>스테이지</i>`
+    const fmt = v => this.tab === 'stage' ? `${num(v)}<i>${t('스테이지')}</i>`
       : this.tab === 'power' ? cpNum(v)
-      : `${num(v)}<i>점</i>`;
+      : `${num(v)}<i>${t('점')}</i>`;
     const rows = this.rows(this.tab);
     // 내 등수. 전투력 보드만 서버가 실제로 안다 (getMyBestRank).
     // 나머지는 아직 컬렉션이 없어 표시용 상수다 — 숫자가 진짜인 척하지 않도록
@@ -126,20 +128,19 @@ export class RankScreen {
     let head = '';
     if (this.tab === 'score') {
       // 시즌 타이머 + 내 순위의 예상 보상 — ui.seasonTimerReason
-      const t = D.ranking.rankRewards.tiers.find(x => inRank(x.rank, myRank))
+      const tier = D.ranking.rankRewards.tiers.find(x => inRank(x.rank, myRank))
         || D.ranking.rankRewards.tiers[D.ranking.rankRewards.tiers.length - 1];
       head = `<div class="rk-season">
-        <div class="rk-srow"><b>시즌 1</b><span>남은 시간 6일 04:12</span></div>
-        <div class="rk-pred">지금 <b>${myRank}위</b> · 이대로면
-          훈장 <b>${num(t.medals)}</b> · 다이아 <b>${num(t.diamond)}</b></div>
+        <div class="rk-srow"><b>${t('시즌 {0}', 1)}</b><span>${t('남은 시간')} ${t('6일 04:12')}</span></div>
+        <div class="rk-pred">${t('지금 {0} · 이대로면 훈장 {1} · 다이아 {2}',
+          `<b>${t('{0}위', myRank)}</b>`, `<b>${num(tier.medals)}</b>`, `<b>${num(tier.diamond)}</b>`)}</div>
       </div>`;
     } else if (this.tab === 'power') {
       head = `<div class="sh-note" style="margin:0 0 10px">
-        서버가 유저 state 로 CP 를 재계산한다. 클라 전송값은 신뢰하지 않는다.
-        제출은 debounce 60초 + 최소 변화율 0.5% + 일 30회로 제한된다.</div>`;
+        ${t('서버가 유저 state 로 CP 를 재계산한다. 클라 전송값은 신뢰하지 않는다. 제출은 debounce 60초 + 최소 변화율 0.5% + 일 30회로 제한된다.')}</div>`;
     } else {
       head = `<div class="sh-note" style="margin:0 0 10px">
-        ${D.ranking.boards[0].tiebreak} — CP 가 낮아도 빨리 민 유저가 위로 온다.</div>`;
+        ${t(D.ranking.boards[0].tiebreak)} — ${t('CP 가 낮아도 빨리 민 유저가 위로 온다.')}</div>`;
     }
 
     this.el.querySelector('#rkBody').innerHTML = head + rows.map(r => `
@@ -150,7 +151,7 @@ export class RankScreen {
         </span>
         <span class="rk-who">
           <b>${r.name}</b>
-          ${r.title ? `<i>${r.title}</i>` : ''}
+          ${r.title ? `<i>${t(r.title)}</i>` : ''}
         </span>
         <span class="rk-sc">${fmt(r.score)}</span>
       </div>`).join('');
@@ -169,8 +170,8 @@ export class RankScreen {
                              : '/assets/captain/captain_warrior.png'}" alt="">
         </span>
         <span class="rk-who">
-          <b>${S.nickname || '단장'}</b>
-          ${myTitle ? `<i>${myTitle.nameKo}</i>` : ''}
+          <b>${S.nickname || t('단장')}</b>
+          ${myTitle ? `<i>${t(myTitle.nameKo)}</i>` : ''}
         </span>
         <span class="rk-sc">${fmt(this.myScore(this.tab))}</span>
       </div>`;
@@ -215,36 +216,35 @@ export class SettingsScreen {
     // 죽은 토글이었다). 사운드 슬라이더는 엔진 연동 전이지만 값 저장용으로 남긴다
     // — 소리가 붙는 즉시 이 값이 적용된다 (사용자 결정).
     this.el.querySelector('#stBody').innerHTML = `
-      <div class="st-h">일반</div>
+      <div class="st-h">${t('일반')}</div>
       <!-- 언어. 첫 부팅 화면에서 한 번 고르고 나면 다시 물을 자리가 없어서
            여기에 둔다. 라벨을 "언어 / Language" 로 둔 것은, 잘못 고른 사람이
            한글을 못 읽는 상태로 이 줄을 찾아야 하기 때문이다 -->
       <div class="st-row"><span>언어 / Language</span>
         ${seg('lang', LANGS.map(l => ({ v: l.id, t: l.label })), S.lang || 'ko')}</div>
-      <div class="sh-note">언어를 바꾸면 게임이 다시 시작됩니다 — 진행은 저장됩니다.</div>
+      <div class="sh-note">${t('언어를 바꾸면 게임이 다시 시작됩니다 — 진행은 저장됩니다.')}</div>
 
-      <div class="st-h">연출</div>
-      <div class="st-row"><span>타격 이펙트</span>
+      <div class="st-h">${t('연출')}</div>
+      <div class="st-row"><span>${t('타격 이펙트')}</span>
         ${seg('fx', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.fxOn === false ? 0 : 1)}</div>
-      <div class="st-row"><span>화면 흔들림</span>
+      <div class="st-row"><span>${t('화면 흔들림')}</span>
         ${seg('shake', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.shakeOn === false ? 0 : 1)}</div>
-      <div class="st-row"><span>데미지 숫자</span>
+      <div class="st-row"><span>${t('데미지 숫자')}</span>
         ${seg('nums', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.numsOn === false ? 0 : 1)}</div>
 
-      <div class="st-h">사운드</div>
-      <div class="st-row"><span>배경음</span>
+      <div class="st-h">${t('사운드')}</div>
+      <div class="st-row"><span>${t('배경음')}</span>
         <input type="range" class="st-rng" data-k="bgm" min="0" max="100" value="${(S.bgm ?? 0.7) * 100}"></div>
-      <div class="st-row"><span>효과음</span>
+      <div class="st-row"><span>${t('효과음')}</span>
         <input type="range" class="st-rng" data-k="sfx" min="0" max="100" value="${(S.sfx ?? 0.9) * 100}"></div>
-      <div class="sh-note">값은 저장되며, 사운드가 연동되는 즉시 적용됩니다.</div>
+      <div class="sh-note">${t('값은 저장되며, 사운드가 연동되는 즉시 적용됩니다.')}</div>
 
-      <div class="st-h">정보</div>
-      <div class="st-row link" data-a="rates"><span>확률표 고지</span><b>›</b></div>
-      <div class="st-row link" data-a="account"><span>계정</span><b>${S.nickname || '단장'} ›</b></div>
-      <div class="st-row"><span>버전</span><b>proto ${D.ui.meta.version}</b></div>
-      <button class="st-danger" data-a="reset">저장 데이터 초기화</button>
-      <div class="sh-note" style="text-wrap:balance">확률 공시는 게임산업법(2024.3) 의무다.
-        gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.</div>`;
+      <div class="st-h">${t('정보')}</div>
+      <div class="st-row link" data-a="rates"><span>${t('확률표 고지')}</span><b>›</b></div>
+      <div class="st-row link" data-a="account"><span>${t('계정')}</span><b>${S.nickname || t('단장')} ›</b></div>
+      <div class="st-row"><span>${t('버전')}</span><b>proto ${D.ui.meta.version}</b></div>
+      <button class="st-danger" data-a="reset">${t('저장 데이터 초기화')}</button>
+      <div class="sh-note" style="text-wrap:balance">${t('확률 공시는 게임산업법(2024.3) 의무다. gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.')}</div>`;
 
     this.el.querySelectorAll('.st-seg button').forEach(b => b.addEventListener('click', () => {
       // 같은 세그먼트를 ON/OFF(숫자)와 언어(문자열 'ko'·'en')가 같이 쓴다.

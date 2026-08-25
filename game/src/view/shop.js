@@ -9,6 +9,7 @@
 // 장비 소환은 여기 없다 — 제작대(메인 화면)에서만 한다. 자동 소환이 거기 물려 있다.
 
 import { num, mdb } from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 /** 소환 레벨 진행 — gacha.json > tracks[].levelRequirement */
@@ -92,8 +93,8 @@ export class ShopScreen {
   render() {
     const D = this.api.data;
     const tabs = [{ id: 'summon', nameKo: '소환' }, ...D.shop.tabs];
-    this.el.querySelector('.sh-tabs').innerHTML = tabs.map(t =>
-      `<button data-t="${t.id}" class="${t.id === this.tab ? 'on' : ''}">${t.nameKo}</button>`).join('');
+    this.el.querySelector('.sh-tabs').innerHTML = tabs.map(x =>
+      `<button data-t="${x.id}" class="${x.id === this.tab ? 'on' : ''}">${t(x.nameKo)}</button>`).join('');
     this.el.querySelectorAll('.sh-tabs button').forEach(b =>
       b.addEventListener('click', () => { this.tab = b.dataset.t; this.render(); }));
 
@@ -106,7 +107,7 @@ export class ShopScreen {
       summon: () => this.summonTab(),
       diamond: () => this.diamondTab(),
       exchange: () => this.exchangeTab(),
-    }[this.tab] || (() => '<div class="sh-empty">준비 중</div>'))();
+    }[this.tab] || (() => `<div class="sh-empty">${t('준비 중')}</div>`))();
     body.scrollTop = 0;
 
     body.querySelectorAll('[data-track]').forEach(b => b.addEventListener('click', () => {
@@ -149,8 +150,8 @@ export class ShopScreen {
   summonTab() {
     const D = this.api.data, S = this.api.state;
     const DEF = {
-      mercenary: { alt: 'ALT-01', tint: '#ffb648', desc: '용병 32종', icon: 'CU-05' },
-      skill: { alt: 'ALT-02', tint: '#5ad8ff', desc: '액티브 12 · 패시브 10', icon: 'CU-06' },
+      mercenary: { alt: 'ALT-01', tint: '#ffb648', desc: t('용병 {0}종', 32), icon: 'CU-05' },
+      skill: { alt: 'ALT-02', tint: '#5ad8ff', desc: t('액티브 {0} · 패시브 {1}', 12, 10), icon: 'CU-06' },
     };
     const d = DEF[this.track], id = this.track;
     const tr = D.gacha.tracks[id];
@@ -182,7 +183,7 @@ export class ShopScreen {
       const p = levelRewardPending(D.gacha.tracks[k],
         summonProgress(D.gacha.tracks[k], S.summonExp?.[k] ?? 0).level, S.summonLvClaimed?.[k]);
       return `<button class="sm-t${k === id ? ' on' : ''}" data-track="${k}">
-        ${D.gacha.tracks[k].nameKo}${p ? '<i class="dot"></i>' : ''}</button>`;
+        ${t(D.gacha.tracks[k].nameKo)}${p ? '<i class="dot"></i>' : ''}</button>`;
     };
 
     return `<div class="sm-toggle">${tab('mercenary')}${tab('skill')}</div>
@@ -194,31 +195,29 @@ export class ShopScreen {
         <div class="sh-sgrad"></div>
         <div class="sh-sbody">
           <div class="sh-srow">
-            <b>${tr.nameKo}</b>
-            <span class="sh-lv" data-smlv="${id}" title="확률표 · 레벨 보상"
-              >소환 Lv ${pg.level}<i>/${pg.max}</i> ⓘ${pend ? '<i class="dot"></i>' : ''}</span>
+            <b>${t(tr.nameKo)}</b>
+            <span class="sh-lv" data-smlv="${id}" title="${t('확률표 · 레벨 보상')}"
+              >${t('소환 Lv {0}', pg.level)}<i>/${pg.max}</i> ⓘ${pend ? '<i class="dot"></i>' : ''}</span>
           </div>
           <div class="sh-desc">${d.desc}</div>
           <div class="sh-bar"><i style="width:${pg.need ? pg.cur / pg.need * 100 : 100}%"></i></div>
           <div class="sh-barTx">
-            <span>다음 레벨까지 ${pg.need ? pg.need - pg.cur : 0}회</span>
+            <span>${t('다음 레벨까지 {0}회', pg.need ? pg.need - pg.cur : 0)}</span>
             <span>${top}</span>
           </div>
           ${pend ? `<button class="sm-claim" data-claim="${id}">
-              레벨 보상 <img src="/assets/ui/${d.icon}.png" alt="">${pend} 받기<i class="dot"></i>
+              ${t('레벨 보상')} <img src="/assets/ui/${d.icon}.png" alt="">${pend} ${t('받기')}<i class="dot"></i>
             </button>` : ''}
           <div class="sh-btns">
             <button class="sh-b" data-pull="${id}" data-n="1">
-              1회<em>${price(1)}</em></button>
+              ${t('1회')}<em>${price(1)}</em></button>
             <button class="sh-b hot" data-pull="${id}" data-n="${multiN}">
-              ${multiN}연<em>${price(multiN)}</em>
+              ${t('{0}연', multiN)}<em>${price(multiN)}</em>
               ${disc > 0 && !noDia ? `<span class="sh-tag">-${disc}%</span>` : ''}</button>
           </div>
         </div></div>
-      <div class="sh-note">소환 레벨이 오르면 최하위 등급이 풀에서 <b>영구 제거</b>되고
-        최고 등급 확률이 오른다. 레벨 자체도 전투력에 곱연산으로 기여한다
-        (트랙당 레벨×0.5%).<br>
-        장비 소환은 <b>제작대</b>에서 한다.</div>`;
+      <div class="sh-note">${t('소환 레벨이 오르면 최하위 등급이 풀에서 영구 제거되고 최고 등급 확률이 오른다. 레벨 자체도 전투력에 곱연산으로 기여한다 (트랙당 레벨×0.5%).')}<br>
+        ${t('장비 소환은 제작대에서 한다.')}</div>`;
   }
 
   /**
@@ -251,7 +250,7 @@ export class ShopScreen {
       .map(([g, v]) => `<div class="sm-g"><i style="background:${GC[g]}"></i>
         <b style="color:${GC[g]}">${g}</b>
         <span class="sm-p">${pct(v)}%</span>
-        <span class="sm-e">1종당 ${pct(v / count(g))}%</span></div>`).join('');
+        <span class="sm-e">${t('1종당 {0}%', pct(v / count(g)))}</span></div>`).join('');
 
     // 다음 해금 — gradeUnlock 에서 현재 레벨보다 위인 것 중 가장 가까운 것
     const ul = D.gacha.gradeUnlock || {};
@@ -261,29 +260,29 @@ export class ShopScreen {
 
     // 같은 창을 제작대 확률도 쓴다 — 제목을 되돌려 놓는다
     const ttl = document.querySelector('#smTitle');
-    if (ttl) ttl.textContent = '소환 레벨';
+    if (ttl) ttl.textContent = t('소환 레벨');
     document.querySelector('#smBody').innerHTML = `
       <div class="sm-now">
-        <div class="sm-nh">현재 <b>Lv ${pg.level}</b>
-          <span>${pg.need ? `다음 레벨까지 ${pg.need - pg.cur}회` : '만렙'}</span></div>
+        <div class="sm-nh">${t('현재')} <b>Lv ${pg.level}</b>
+          <span>${pg.need ? t('다음 레벨까지 {0}회', pg.need - pg.cur) : t('만렙')}</span></div>
         ${gradeRows(bandAt(pg.level))}
       </div>
       ${next ? `<div class="sm-next">
-          <b style="color:${GC[next[0]]}">${next[0]}</b> 등급이 <b>Lv ${next[1]}</b> 에 열린다
-          <span>${left}회 남음</span></div>`
-        : '<div class="sm-next">모든 등급이 열렸다</div>'}
+          ${t('{0} 등급이 Lv {1} 에 열린다', `<b style="color:${GC[next[0]]}">${next[0]}</b>`, `<b>${next[1]}</b>`)}
+          <span>${t('{0}회 남음', left)}</span></div>`
+        : `<div class="sm-next">${t('모든 등급이 열렸다')}</div>`}
       ${pend ? `<button class="rt-b go" id="smClaim" style="width:100%;margin:10px 0 0">
-          레벨 보상 받기 <img src="/assets/ui/${icon}.png" alt=""
+          ${t('레벨 보상 받기')} <img src="/assets/ui/${icon}.png" alt=""
             style="width:15px;height:15px;vertical-align:-3px">${pend}</button>`
-        : '<div class="sh-note" style="margin:10px 0 0">받을 레벨 보상이 없습니다</div>'}
-      <button class="sm-all" id="smAll" aria-expanded="false">레벨별 전체 확률 보기</button>
+        : `<div class="sh-note" style="margin:10px 0 0">${t('받을 레벨 보상이 없습니다')}</div>`}
+      <button class="sm-all" id="smAll" aria-expanded="false">${t('레벨별 전체 확률 보기')}</button>
       <div id="smTable" hidden>
         ${D.gacha.rateBands.map(b => {
           const now = pg.level >= b.minLevel && pg.level <= b.maxLevel;
           // N·R 은 처음부터 있는 풀이다 — Lv1 에 "해금" 딱지를 붙이면 계단이 안 읽힌다
           const opened = Object.entries(ul)
             .filter(([g, lv]) => lv === b.minLevel && lv > 1 && g !== 'N' && g !== 'R')
-            .map(([g]) => `<em style="color:${GC[g]}">${g} 해금</em>`).join('');
+            .map(([g]) => `<em style="color:${GC[g]}">${t('{0} 해금', g)}</em>`).join('');
           const rates = Object.entries(b.rates).filter(([, v]) => v > 0)
             .map(([g, v]) => `<span style="color:${GC[g]}">${g} ${pct(v)}</span>`).join('');
           return `<div class="sm-band${now ? ' now' : ''}">
@@ -291,8 +290,8 @@ export class ShopScreen {
             <span class="rates">${rates}</span></div>`;
         }).join('')}
       </div>
-      <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
-        개별 확률 = 등급 확률 ÷ 그 등급의 종수</div>`;
+      <div class="sh-note">${t(D.gacha.perItemRateFormula.legalRequirement)}<br>
+        ${t('개별 확률 = 등급 확률 ÷ 그 등급의 종수')}</div>`;
     document.querySelector('#smClaim')?.addEventListener('click', () => {
       this.api.claimSummonLevel(id);
       this.openLevelInfo(id);
@@ -323,12 +322,12 @@ export class ShopScreen {
     const got = S.speed3DailyAt === today;
     const daily = pk.dailyGrant?.diamond ?? 0;
     return `<div class="sh-card speed3${owned ? ' owned' : ''}">
-      <b>${pk.nameKo}</b>
-      <span class="sh-desc">전투·방치 수익이 3배속 기준이 된다 · 매일 다이아 ${daily}</span>
+      <b>${t(pk.nameKo)}</b>
+      <span class="sh-desc">${t('전투·방치 수익이 3배속 기준이 된다 · 매일 다이아 {0}', daily)}</span>
       ${owned
         ? `<button class="sh-price" data-claim="speed3" ${got ? 'disabled' : ''}>
-             ${got ? '오늘 수령 완료' : `오늘 다이아 ${daily} 받기`}</button>`
-        : `<button class="sh-price" data-buy="speed3_unlock">해금</button>`}
+             ${got ? t('오늘 수령 완료') : t('오늘 다이아 {0} 받기', daily)}</button>`
+        : `<button class="sh-price" data-buy="speed3_unlock">${t('해금')}</button>`}
     </div>`;
   }
 
@@ -338,14 +337,14 @@ export class ShopScreen {
     return this.speedCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       return `<div class="sh-pack${x.oncePerAccount ? ' first' : ''}">
-        ${x.oncePerAccount ? '<span class="sh-ribbon">첫 결제 2배</span>' : ''}
+        ${x.oncePerAccount ? `<span class="sh-ribbon">${t('첫 결제 2배')}</span>` : ''}
         <img src="/assets/ui/SHOP-D${i + 1}.png" alt="">
         <b>${num(x.diamond)}</b>
         ${bonus ? `<span class="sh-bonus">${bonus}</span>` : ''}
-        <button class="sh-price" data-buy="${x.id}">구매</button>
+        <button class="sh-price" data-buy="${x.id}">${t('구매')}</button>
       </div>`;
     }).join('') + `</div>
-      <div class="sh-note">${mdb(p.exchangeRate)}<br>실결제는 VXShop 등록 후 연동된다.</div>`;
+      <div class="sh-note">${mdb(t(p.exchangeRate))}<br>${t('실결제는 VXShop 등록 후 연동된다.')}</div>`;
   }
 
   // ── 교환 ──
@@ -358,29 +357,29 @@ export class ShopScreen {
     const qg = (this.api.data.shop.quickGold || []).map((o, i) => `<div class="sh-card">
         <b><img src="/assets/ui/CU-04.png" alt=""
           style="width:14px;height:14px;vertical-align:-3px"> ${num(this.api.quickGold(o.hours))}</b>
-        <span class="sh-desc">방치 ${o.hours}시간 분량</span>
+        <span class="sh-desc">${t('방치 {0}시간 분량', o.hours)}</span>
         <button class="sh-price" data-goldbuy="${i}">
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
     const qe = (this.api.data.shop.quickEquip || []).map((o, i) => `<div class="sh-card">
-        <b>장비 소환권 ${o.count}장</b>
+        <b>${t('장비 소환권 {0}장', o.count)}</b>
         <span class="sh-desc"><img src="/assets/ui/CU-07.png" alt=""
-          style="width:12px;height:12px;vertical-align:-2px"> ${num(o.count)} · 개당 ${(o.diamond / o.count).toFixed(0)}</span>
+          style="width:12px;height:12px;vertical-align:-2px"> ${t('{0} · 개당 {1}', num(o.count), (o.diamond / o.count).toFixed(0))}</span>
         <button class="sh-price" data-eqbuy="${i}">
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
     const qh = (this.api.data.shop.quickHourglass || []).map((o, i) => `<div class="sh-card">
         <b><img src="/assets/ui/CU-10.png" alt=""
-          style="width:14px;height:14px;vertical-align:-3px"> ${o.count}개</b>
-        <span class="sh-desc">제작 ${o.count * 5}분 단축 · 개당 ${(o.diamond / o.count).toFixed(1)}</span>
+          style="width:14px;height:14px;vertical-align:-3px"> ${t('{0}개', o.count)}</b>
+        <span class="sh-desc">${t('제작 {0}분 단축 · 개당 {1}', o.count * 5, (o.diamond / o.count).toFixed(1))}</span>
         <button class="sh-price" data-hgbuy="${i}">
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
-    return `<div class="sh-h2">골드 구매</div>${qg}
-      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}
-      <div class="sh-h2" style="margin-top:12px" id="shHg">모래시계</div>${qh}`;
+    return `<div class="sh-h2">${t('골드 구매')}</div>${qg}
+      <div class="sh-h2" style="margin-top:12px">${t('장비 소환권')}</div>${qe}
+      <div class="sh-h2" style="margin-top:12px" id="shHg">${t('모래시계')}</div>${qh}`;
   }
 }
