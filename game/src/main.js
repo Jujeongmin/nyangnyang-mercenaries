@@ -6246,6 +6246,10 @@ function bootTapToStart() {
 }
 
 (async function boot() {
+  // **어느 빌드가 도는지 맨 먼저 찍는다.** 배포본이 갱신됐는지 확인할 길이
+  // 없어서 옛 코드를 보며 원인을 되짚는 일이 반복됐다 (2026-08-25).
+  // 콘솔 첫 줄만 보면 갈린다 — 설정 > 버전에도 같은 값이 뜬다
+  console.log('[냥냥] build', typeof __BUILD__ === 'string' ? __BUILD__ : 'dev');
   // 광고 SDK 는 데이터 로드보다 먼저 건다 — 호스트 메시지 리스너를 일찍 걸수록
   // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
   initAds();

@@ -56,5 +56,11 @@ export default defineConfig({
     // `Error: spawn xdg-open ENOENT` 가 찍힌다 (서버는 정상이지만 실패로 읽힌다).
     // 로컬에서는 주소를 직접 열면 된다
     open: false,
+    // **개발 서버 응답을 캐시하지 않는다.** Verse8 프리뷰는 컨테이너의 이
+    // 서버를 프록시로 내보내는데, 그 사이 어딘가가 모듈을 붙들면 화면이
+    // 옛 코드로 남는다 — index.html(인라인 CSS)만 새로 오고 main.js 는
+    // 옛것이 오면 "CSS 는 반영, 동작은 옛것" 같은 반쪽 상태가 된다
+    // (실제로 그 증상을 봤다 — 2026-08-25).
+    headers: { 'Cache-Control': 'no-store' },
   },
 });
