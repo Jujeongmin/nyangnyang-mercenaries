@@ -468,6 +468,12 @@
     background:#3a2c20;border:1px solid #6b543a;display:flex;align-items:center;
     justify-content:center;font-size:16px;cursor:grab;z-index:2;
     transition:left .18s ease;touch-action:none}
+  /* 손잡이 그림 — 사이드 열의 절전 버튼과 **같은 아이콘**이다 (IC-POWERSAVE).
+     예전에는 💤 이모지였는데, 이모지는 기기마다 글꼴이 달라 안드로이드·iOS·PC
+     에서 서로 다른 그림이 나오고 판타지 킷과도 안 맞았다.
+     그림이 없으면 onerror 가 지우고 이모지로 돌아간다 (마크업 참고) */
+  #pvHandle img{width:22px;height:22px;object-fit:contain;pointer-events:none;
+    filter:drop-shadow(0 1px 2px #0009)}
   #pvHandle.drag{transition:none;cursor:grabbing}
 
 
@@ -4108,7 +4114,11 @@
   <b>절전 중</b>
   <span>전투·보상은 계속 진행됩니다</span>
   <div class="pv-stats"><span id="pvStage"></span><span id="pvGold"></span></div>
-  <div id="pvTrack"><div id="pvHandle">💤</div><i>밀어서 해제</i></div>
+  <!-- 손잡이는 절전 아이콘 그림이다. 없으면 onerror 가 지우고 예전 이모지가
+       남는다 — 손잡이가 통째로 비면 무엇을 미는지가 안 보인다 -->
+  <div id="pvTrack">
+    <div id="pvHandle"><img src="/assets/ui/IC-POWERSAVE.png" alt=""
+      onerror="this.replaceWith('\u{1F4A4}')"></div><i>밀어서 해제</i></div>
 </div>
 <div id="toast"></div>
 <div id="gains"></div>
