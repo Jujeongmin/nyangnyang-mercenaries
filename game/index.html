@@ -111,23 +111,25 @@
   #cp{font-weight:800;font-size:clamp(14px, 2.22vh, 18px);color:var(--gold);line-height:1}
   .sub{font-size:11px;color:var(--dim)}
   /* 재화 캡슐 — 아이콘이 왼쪽에 겹쳐 올라탄 어두운 pill. 숫자가 판 위에 앉는다 */
-  .cur{display:flex;align-items:center;gap:0;font-size:15px;color:var(--dim);
-    background:#17120fc8;border:1px solid #ffffff1c;border-radius:14px;
-    padding:3px 12px 3px 3px;box-shadow:inset 0 1px 3px #0008}
-  .cur b{color:var(--txt);font-weight:800;margin-left:5px;
+  /* 0.7 배로 줄였다 (단장 확정 2026-08-25) — 글자 15→11, 여백·아이콘·[+] 도 같은 비율.
+     배속이 같은 줄에 들어오면서 셋이 폭을 나눠 쓰게 됐다 */
+  .cur{display:flex;align-items:center;gap:0;font-size:11px;color:var(--dim);
+    background:#17120fc8;border:1px solid #ffffff1c;border-radius:10px;
+    padding:2px 8px 2px 2px;box-shadow:inset 0 1px 3px #0008}
+  .cur b{color:var(--txt);font-weight:800;margin-left:4px;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
   /* [+] — 재화에서 상점으로 가는 지름길. 키우기 장르 공통 문법 */
   /* [+] — 재화에서 상점으로 가는 지름길. 재화마다 색을 달리하면(초록·금)
      "무엇을 뜻하는 색인가" 가 생겨 버린다. 같은 황동 단추 하나로 통일한다 */
   /* line-height 로 세로 중앙을 맞추면 글꼴마다 1~2px 씩 어긋난다 — flex 로 잡는다 */
-  #diaPlus,#goldPlus{width:20px;height:20px;margin-left:7px;padding:0;border-radius:50%;
+  #diaPlus,#goldPlus{width:14px;height:14px;margin-left:5px;padding:0;border-radius:50%;
     display:inline-flex;align-items:center;justify-content:center;line-height:1;
     border:0;background:url(/assets/ui/UI-PLUS.png) center/contain no-repeat;
     color:transparent;font-size:0;cursor:pointer;font-family:inherit;
     box-shadow:none}
   #diaPlus:active,#goldPlus:active{transform:scale(.9);filter:brightness(.92)}
   .dot{width:9px;height:9px;border-radius:50%}
-  .cui{width:clamp(16px, 2.71vh, 22px);height:clamp(16px, 2.71vh, 22px);object-fit:contain}
+  .cui{width:clamp(11px, 1.9vh, 15px);height:clamp(11px, 1.9vh, 15px);object-fit:contain}
 
   /* 전투 40% */
   /* 전투 화면은 위·아래 패널 **뒤로 파고든다.** 배경이 패널 경계에서 딱 시작하고
@@ -196,21 +198,37 @@
   .dotw.on{background:var(--gold)}
   .dotw.boss{width:12px;height:12px;background:#6a3040}
   .dotw.boss.on{background:var(--warn)}
-  /* 배속은 전투 패널 우상단, 상단 UI 에 붙인다 (사용자 요청) */
-  #speed{position:absolute;top:4px;right:6px;z-index:21;pointer-events:auto}
+  /* 배속은 **상단 재화 줄(다이아·금화)의 맨 오른쪽**이다 (단장 확정 2026-08-25).
+     예전에는 전투 패널 우상단에 절대배치로 떠 있었는데, 그 자리가 타이머·
+     사이드 열·보물상자와 계속 자리를 다퉜다 — 좁은 화면마다 left/right/top 을
+     따로 잡아 주는 규칙이 셋이나 붙어 있었다. 재화 줄에 흐름으로 넣으면
+     그 다툼이 통째로 사라지고, 상시 노출이라는 성격도 재화와 같다 */
   #timer{margin-top:34px;font-size:22px;font-weight:900;letter-spacing:1px}
   #timer.low{color:var(--warn)}
   #hudBot{display:flex;justify-content:space-between;align-items:flex-end}
-  /* 5px 은 원래 여백이고 --bleed 는 상단 패널 뒤로 파고든 몫이다 —
-     둘을 더해야 배속 바가 패널 아래에 선다 (안 더하면 9px 겹친다) */
+  /* 재화 줄의 남은 자리를 전부 밀어 오른쪽 끝에 붙는다 */
   #speed{display:flex;gap:4px;pointer-events:auto;justify-content:flex-end;
-    margin-top:calc(5px + var(--bleed))}
+    margin-left:auto;flex:0 1 auto;min-width:0}
   /* 배속 — 세 칸이 하나의 **황동 토글 바**다. 전에는 낱개 회색 버튼이라
      화면의 나머지(황동 프레임 · 금색 강조)와 따로 놀았다 */
   #speed{background:#17120fd8;border:1px solid #c9a22755;border-radius:11px;
     padding:2px;gap:0;box-shadow:inset 0 1px 3px #0009, 0 1px 3px #0007}
+  /* 전투 HUD 우상단에 끼어 있던 시절에는 타이머·사이드 열을 피하느라 작았다.
+     재화 줄로 나오면서 자리가 생겼으니 키운다 (단장 확정 2026-08-25).
+     화면 높이에 매단다 — 재화 알약(.cur)과 같은 줄에 서므로 같이 줄어야 한다 */
+  /* 키우되 **가로보다 세로·글자를 먼저 키운다.** 재화 줄의 남은 폭은 금화
+     자릿수가 늘면 같이 줄어드는데, 가로 여백을 키우면 그 줄이 제일 먼저 터진다
+     (실측: 좌우 15px 이면 배속이 앱 밖으로 27px 나갔다).
+     flex:0 1 auto + min-width:0 은 마지막 안전장치다 — 자릿수가 더 늘면
+     넘치는 대신 배속이 먼저 좁아진다 */
+  /* 0.5 배로 줄였다 (단장 확정 2026-08-25). 여백은 그대로 절반이고,
+     **글자만 예외로 10px 이다** — 14px 의 절반인 7px 은 "1x·2x" 가 안 읽힌다.
+     flex:0 1 auto + min-width:0 은 안전장치다: 금화 자릿수가 늘어 줄이 빠듯해지면
+     넘치는 대신 배속이 먼저 좁아진다 */
   .sbtn{background:none;border:0;color:var(--dim);border-radius:9px;
-    padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;
+    flex:0 1 auto;min-width:0;
+    padding:clamp(3px,.55vh,5px) clamp(4px,.65vh,6px);
+    font-size:clamp(9px,1.23vh,10px);font-weight:800;cursor:pointer;
     font-family:inherit;letter-spacing:.3px;transition:color .12s}
   .sbtn.on{background:linear-gradient(180deg,#ffd76a,#e8a72c);color:#2a1c05;
     box-shadow:0 1px 4px #0008, inset 0 1px 0 #fff6}
@@ -344,8 +362,6 @@
   #bootSign.nologo #bootTitle{position:static;height:auto;font-size:34px;
     letter-spacing:1px;color:var(--gold);-webkit-text-stroke:0;
     text-shadow:0 3px 0 #7a4a00, 0 6px 14px #000c, 0 0 30px #ffc94a66}
-  #bootSub{font-size:10px;letter-spacing:5px;color:#f2e5dbaa;
-    text-shadow:0 1px 3px #000}
   #bootBottom{position:relative;flex:0 0 auto;width:100%;display:flex;
     flex-direction:column;align-items:center;gap:7px;padding:0 26px 34px}
   /* 전경 풀(TT-FORE)이 화면 아래 약 13% 를 먹는다. 진행바와 시작 문구가
@@ -2566,7 +2582,11 @@
   /* 붉은 쪽(나)과 푸른 쪽(상대)을 **반반**으로 나눈다. 예전에는 경계가 38% 라
      붉은 쪽이 좁았고, 아래 ::after 의 빛나는 경계선은 50% 에 그려져 있어서
      색 경계와 선이 12% 어긋나 있었다 */
-  #vs{position:absolute;inset:0;z-index:30;display:none;overflow:hidden;
+  /* **전투 상자가 아니라 보이는 띠에 맞춘다.** #battle 은 위아래 패널 뒤로
+     --bleed(18px) 씩 파고들어 있는데, VS 층이 그 상자를 그대로 덮으면 원화의
+     위·아래가 패널 뒤로 들어간다 — 보스 머리 3px, 단장 발 10px 이 가려졌다
+     (단장 지적 2026-08-25, 실측 375x812). 위아래로 그만큼 물린다 */
+  #vs{position:absolute;inset:var(--bleed) 0;z-index:30;display:none;overflow:hidden;
     background:
       linear-gradient(202deg,#3a0f12 0%,#25090f 49.7%,#0a0c18 50.3%,#0d1830 100%)}
   #vs.show{display:block}
@@ -3406,12 +3426,32 @@
   /* --sb 는 좁은 앱(@container app max-width:400)에서 화면 높이에 맞춰 다시
      정해진다. 여기 44px 은 넓은 화면의 기본값이고, 점 크기가 이 값을 읽는다 */
   .side{--sb:44px}
+  /* 아이콘 **위**, 글자 **그 아래**, 둘 다 가운데다 (단장 확정 2026-08-25).
+     예전에는 글자를 absolute 로 버튼 바닥(bottom:-2px)에 얹어 아이콘 하단
+     7px 을 덮었다. 흐름에 넣으면 겹칠 일이 구조적으로 없다.
+     --sb 는 이제 **버튼 한 칸 전체**(아이콘 + 글자)의 높이다 — 아이콘은 남는
+     만큼 차지한다(flex:1, min-height:0). 세로 예산은 이 값으로 계산돼 있다 */
   .side button{background:none;border:0;border-image:none;border-radius:0;
     box-shadow:none;padding:0;width:var(--sb);height:var(--sb);position:relative;
-    display:block;overflow:visible}
-  .side button img{width:100%;height:100%;margin:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    gap:1px;overflow:visible}
+  /* 위 UI 킷의 `.side button:has(img){padding:4px 0 3px}` 는 여기서 걷는다 —
+     네모 판이 있던 시절 그림을 판 안쪽으로 들이려던 여백이고, 판을 걷어낸
+     지금은 아이콘만 7px 깎아 먹는다 */
+  .side button:has(img){padding:0}
+  .side button img{width:auto;height:auto;margin:0;
+    flex:1 1 auto;min-height:0;max-width:100%;object-fit:contain;
     filter:drop-shadow(0 2px 4px #000c) drop-shadow(0 0 2px #000a)}
-  .side button span{position:absolute;left:-4px;right:-4px;bottom:-2px;
+  /* 글자는 버튼보다 넓어도 된다 — 좌우로 4px 씩 번지되 자리는 안 차지한다.
+     그래서 폭은 margin 음수로 벌리고 흐름 높이는 글자 한 줄 그대로 둔다 */
+  /* 글자는 아이콘 **아래**에 서되 하단을 5px 쯤 올라탄다 (단장 확정 2026-08-25).
+     완전히 아래로 내리면 한 칸 안에서 글자가 바닥에 몰려 다음 버튼과 붙고,
+     아이콘도 그만큼 깎인다. 살짝 겹치면 글자는 아이콘의 어두운 부분 위에
+     앉아 (두꺼운 외곽선 덕에) 읽히고, 아이콘은 5px 을 돌려받는다 */
+  /* 아이콘 **위**에 그린다. 겹치는 쪽이 글자라야 읽힌다 — 그림이 위로 오면
+     겹친 5px 만큼 글자 윗변이 잘려 보인다 (단장 지적 2026-08-25) */
+  .side button span{position:relative;z-index:1;
+    flex:0 0 auto;margin:-5px -4px 0;align-self:stretch;text-align:center;
     font-size:9px;font-weight:800;line-height:1.1;letter-spacing:-.3px;
     color:#fff;text-shadow:0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,
       0 2px 5px #000;pointer-events:none}
@@ -3581,7 +3621,7 @@
        라벨 폭은 38px 로 고정(left/right:-4px)이라 320x568 까지 재도 넘치지
        않았고(scrollWidth == clientWidth), 버튼 간격 안에 들어가 서로 겹치지도
        않는다 (단장 확정 2026-08-25) */
-    #speed .sbtn{padding:2px 7px;font-size:10px}
+    /* 배속 크기는 .sbtn 의 vh clamp 가 정한다 — 여기서 px 로 박으면 안 준다 */
     /* 오른쪽 6칸(미구현 시스템)을 여기서 지우던 규칙을 뺐다 (2026-08-25).
        **세로를 아끼려던 규칙인데 세로가 1px 도 안 줄었다** — 장비는 어차피
        2행이고, eqR 을 지우면 그 2행이 가로로 넓어질 뿐이다. 1024x600 에서
@@ -3678,7 +3718,12 @@
        열에 매달아야 버튼이 물려받는다 */
     .side{--sb:clamp(21px, calc(13.2vh - 57px), 44px)}
     .side button{width:var(--sb);height:var(--sb)}
-    .side button img{width:calc(var(--sb) * .73);height:calc(var(--sb) * .73)}
+    /* 아이콘 크기를 여기서 다시 정하지 않는다. 73% 로 줄이면 그림이 버튼
+       **왼쪽에 붙어** 서고(블록 요소라 가운데 정렬이 없다), 글자와 알림 점은
+       버튼 기준으로 가운데·오른쪽 모서리에 앉는다 — 셋이 6px 씩 어긋난다
+       (단장 지적 2026-08-25, 실측 아이콘 중심 22 · 글자와 점 중심 28).
+       위 UI 킷 규칙의 `width:100%`(파일 3412행) 가 그대로 이기게 두면
+       아이콘이 버튼을 꽉 채우고, 그러면 셋의 기준이 하나가 된다 */
     /* 글자는 여기서도 안 접는다 — 위 max-height 블록과 같은 이유다.
        라벨은 버튼보다 넓은 38px 이지만 사이드 열은 화면 가장자리에
        붙어 있어 안쪽으로만 번지고, 전투 중앙까지는 닿지 않는다 */
@@ -3703,17 +3748,11 @@
     #hudTop{align-items:flex-start}
     #stg{font-size:10px;max-width:40cqw}
     #enc{font-size:9px}
-    /* 배속은 절대배치 그대로 둔다 — static 으로 풀면 HUD 흐름에 들어가
-       사이드열·보물상자와 새로 겹친다 (실측). 자리만 왼쪽·위로 당긴다 */
-    /* 배속·타이머를 사이드 열 **왼쪽**으로 완전히 뺀다. 우측 사이드가 44px 이라
-       right:40px 은 여전히 그 밑이었다 */
-    /* 폭을 안 묶으면 #hudTop 의 flex 늘어남 때문에 133px 까지 벌어져
-       중앙 스테이지 글자를 침범한다 (실측) */
-    #speed{right:auto;left:44px;top:2px;width:auto;max-width:84px;gap:2px}
-    /* 보스 도전 버튼이 배속 줄과 2px 스쳤다 — 절전을 사이드로 옮겨 줄이 짧아졌지만
-       412px 에서는 그래도 붙는다. 아래로 6px 더 내린다 */
-    #bossGo{top:calc(100% + 14px)}
-    #speed .sbtn{padding:1px 5px;font-size:9px;flex:0 0 auto}
+    /* 배속 자리를 잡아 주던 규칙들(left/top/max-width)은 전부 지웠다 —
+       배속이 상단 재화 줄로 나가면서 전투 HUD 와 다툴 일이 없어졌다 */
+    #speed{gap:2px}
+    /* 배속이 빠져 보스 도전 버튼 위가 비었다 — 원래 자리로 되돌린다 */
+    #speed .sbtn{flex:0 0 auto}
     #timer{position:absolute;top:2px;right:44px;font-size:15px;
       margin:var(--bleed) 0 0}   /* 상단 패널 뒤로 파고든 몫만큼 내린다 */
     /* 중앙 HUD 는 배속 줄(≈96px)과 사이드(40px)를 뺀 폭 안에서만 산다.
@@ -3812,11 +3851,19 @@
       <button id="topSet" class="topIc" title="설정"><img src="/assets/ui/IC-SETTINGS.png" alt=""
         onerror="this.replaceWith(document.createTextNode('⚙'))"></button>
     </div>
-    <div class="row" style="gap:13px">
+    <!-- 배속이 이 줄에 들어오면서 폭이 빠듯해졌다 — 간격 13 → 8 -->
+    <div class="row" style="gap:8px">
       <span class="cur"><img class="cui" src="/assets/ui/CU-01.png" alt=""><b id="c_dia">0</b><button
         id="diaPlus" title="다이아 충전" aria-label="다이아 충전"></button></span>
       <span class="cur"><img class="cui" src="/assets/ui/CU-04.png" alt=""><b id="c_gold">0</b><button
         id="goldPlus" title="골드 획득" aria-label="골드 획득"></button></span>
+      <!-- 배속 — 이 줄의 맨 오른쪽 (단장 확정 2026-08-25). 전투 HUD 우상단에서
+           옮겨 왔다: 거기서는 타이머·사이드 열·보물상자와 자리를 다퉜다 -->
+      <div id="speed">
+        <button class="sbtn on" data-sp="1">1x</button>
+        <button class="sbtn" data-sp="2">2x</button>
+        <button class="sbtn" data-sp="3">3x</button>
+      </div>
     </div>
   </div>
 
@@ -3827,13 +3874,9 @@
         <div class="hudSide"></div>
         <div id="hudC"><div id="stg">스테이지 1</div><div id="enc"></div>
           <button id="bossGo">보스 도전</button></div>
+        <!-- 배속은 여기 있었는데 상단 재화 줄로 옮겼다 (2026-08-25) -->
         <div class="hudSide" style="text-align:right">
           <div id="timer">60</div>
-          <div id="speed">
-            <button class="sbtn on" data-sp="1">1x</button>
-            <button class="sbtn" data-sp="2">2x</button>
-            <button class="sbtn" data-sp="3">3x</button>
-          </div>
         </div>
       </div>
       <div id="hudBot"></div>
@@ -4086,7 +4129,8 @@
         onerror="this.parentElement.classList.add('nologo');this.remove()">
       <b id="bootTitle">냥냥 용병단</b>
     </div>
-    <span id="bootSub">NYANG NYANG MERCENARIES</span>
+    <!-- 영문 부제(NYANG NYANG MERCENARIES)는 뺐다 (2026-08-25). 간판이 이미
+         이름을 크게 말하고 있어서 같은 말을 두 번 하는 줄이었다 -->
   </div>
   <div id="bootBottom">
     <div id="bootBar"><i id="bootFill"></i></div>
