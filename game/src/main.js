@@ -5109,7 +5109,7 @@ function renderQuest() {
   // ⚠ 이 함수 안에 `t` 라는 지역 변수를 만들지 말 것 — i18n 의 t() 를 가려서
   //   퀘스트가 완료되는 순간 TypeError 로 게임이 통째로 멈췄다 (2026-08-25 실사고)
   $('#qname').textContent = done ? `Q${def.q} ${t('완료')}` : `Q${def.q} ${questLabel(def)}`;
-  $('#qprog').textContent = done ? '보상 받기' : `${num(cur)}/${num(def.target)}`;
+  $('#qprog').textContent = done ? t('보상 받기') : `${num(cur)}/${num(def.target)}`;
   $('#qfill').style.width = Math.min(100, cur / def.target * 100) + '%';
   // 보상 미리보기 — 담을 자리가 있는 재화만 (QUEST_CUR). 없는 키를 그리면
   // 화면에는 보이는데 눌러도 안 들어오는 유령 보상이 된다

@@ -77,6 +77,10 @@ export function watchDom(root = document.body) {
   /** 넘치면 글자를 줄인다. 9px 아래로는 안 간다 — 그건 읽기를 포기한 크기다 */
   const fit = el => {
     if (!el.isConnected || el.children.length > 3) return;   // 컨테이너 통째는 건드리지 않는다
+    // **매번 스타일시트 크기에서 다시 잰다.** 인라인 값을 그대로 두면 한 번
+    // 줄어든 칸이 영영 못 커진다 — 짧은 문구로 바뀌거나 칸이 넓어져도 9px 로
+    // 굳어 있었다 (퀘스트 이름이 그랬다)
+    el.style.fontSize = '';
     let size = parseFloat(getComputedStyle(el).fontSize);
     if (!size) return;
     let guard = 6;
