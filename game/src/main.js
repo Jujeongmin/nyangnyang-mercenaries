@@ -99,6 +99,8 @@ const S = {
   speed3: false,                           // 3배속 해금. 서버 권한 (save-schema)
   adFree: false,                           // 광고 없이 즉시 보상. 서버 권한
   adFreeMailAt: null,                      // 프리미엄 일일 다이아 우편 마지막 배달일
+  accountAt: null,                         // 계정 생성 시각 — 스타터 팩 7일 창의 기준점
+  starterBought: false,                    // 스타터 팩 구매 여부. 서버 권한 (premium 과 동일)
   lang: null,                              // 언어. 첫 부팅 로딩 화면에서 고른다
   // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
   // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
@@ -318,6 +320,34 @@ function premiumDailyMail() {
     grants: { diamond: n }, createdAt: Date.now(), claimed: false,
   });
   save();
+}
+
+/**
+ * 스타터 팩 — 계정 생성 후 7일 한정 (shop.json > starter_pack.availableDays).
+ * 창 판정은 클라가 한다: VXShop 의 Time-Limited 는 고정 날짜라 계정 상대 기한을
+ * 못 건다 (대시보드에는 Lifetime Limit 1 만 건다). 구매 판정은 premium 과 같은
+ * 임시 구현 — 개발 빌드 즉시 지급, 실결제는 VXShop 등록 후.
+ */
+function starterLeft() {
+  const pk = (D.shop.packages || []).find(x => x.id === 'starter_pack');
+  if (!pk || S.starterBought) return 0;
+  const end = (S.accountAt || Date.now()) + (pk.availableDays || 7) * 86400e3;
+  return Math.max(0, end - Date.now());
+}
+
+function buyStarter() {
+  if (S.starterBought) return toast(t('이미 구매했습니다'));
+  if (starterLeft() <= 0) return toast(t('판매 기간이 지났습니다'));
+  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  const pk = (D.shop.packages || []).find(x => x.id === 'starter_pack');
+  const bag = { diamond: 'dia', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket', equip_ticket: 'eqTicket' };
+  const got = [];
+  for (const [k, v] of Object.entries(pk.grant || {})) {
+    if (bag[k]) { S[bag[k]] += v; got.push([k, v]); }
+  }
+  S.starterBought = true;
+  save(); renderTop(); shop.render();
+  gainToast(got);
 }
 
 /** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
@@ -6866,7 +6896,7 @@ function bootTapToStart() {
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
-    buyPremium,
+    buyPremium, buyStarter, starterLeft,
   });
   watchTapHintCover();
   // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십
@@ -6957,6 +6987,9 @@ function bootTapToStart() {
   // 닉네임이 없으면 아무거나 붙여 준다. 유저는 나중에 한 번 공짜로 바꾼다.
   if (!S.nickname) { S.nickname = autoNickname(); save(); }
   seedMail();
+  // 계정 생성 시각 — 스타터 팩의 "생성 후 7일" 창이 여기서 시작한다. 기존
+  // 세이브(필드 없음)는 지금부터 7일을 준다 — 과거로 소급하면 살 기회 없이 닫힌다
+  if (!S.accountAt) { S.accountAt = Date.now(); save(); }
   renderChest();
 
   // ⚠️ runStage() 는 **여기서 await 하지 않는다.**

@@ -140,6 +140,7 @@ export class ShopScreen {
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       // 프리미엄만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
       if (b.dataset.buy === 'premium_pack' && this.api.buyPremium) return this.api.buyPremium();
+      if (b.dataset.buy === 'starter_pack' && this.api.buyStarter) return this.api.buyStarter();
       this.api.toast('결제 연동 전 — VXShop 등록 후 붙는다');
     }));
 
@@ -332,10 +333,31 @@ export class ShopScreen {
     </div>`;
   }
 
+  /**
+   * 스타터 팩 카드 — 프리미엄 카드 아래 (단장 확정 2026-08-26). 계정 생성 후
+   * 7일 창이 열려 있는 동안만 보인다. 남은 시간을 카드에 박아 한정임이 읽히게
+   * 한다. 구매하면 카드가 사라진다 (premium 과 같은 문법).
+   */
+  starterCard() {
+    const D = this.api.data;
+    const pk = (D.shop.packages || []).find(x => x.id === 'starter_pack');
+    const left = this.api.starterLeft ? this.api.starterLeft() : 0;
+    if (!pk || left <= 0) return '';
+    const d = Math.floor(left / 86400e3), h = Math.floor(left % 86400e3 / 3600e3);
+    const g = pk.grant || {};
+    return `<div class="sh-card speed3">
+      <b>${t(pk.nameKo)}</b>
+      <span class="sh-desc">${t('다이아 {0} · 용병권 {1} · 스킬권 {2} · 장비권 {3}',
+        num(g.diamond || 0), g.merc_ticket || 0, g.skill_ticket || 0, g.equip_ticket || 0)}
+        · ${d > 0 ? t('{0}일 {1}시간 남음', d, h) : t('{0}시간 남음', h)}</span>
+      <button class="sh-price" data-buy="starter_pack">${t('구매')}</button>
+    </div>`;
+  }
+
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.premiumCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
+    return this.premiumCard() + this.starterCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
       // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)

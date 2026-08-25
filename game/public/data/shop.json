@@ -34,7 +34,8 @@
     "equip_ticket": 100
    },
    "priceTier": "소액",
-   "note": "천장이 없는 구조라 초반 이탈 위험이 크다. SSR 선택권을 저가에 붙여 첫 7일을 넘기게 하는 것이 목적. gacha.json > onboardingGuarantees 와 같은 방어선."
+   "note": "천장이 없는 구조라 초반 이탈 위험이 크다. SSR 선택권을 저가에 붙여 첫 7일을 넘기게 하는 것이 목적. gacha.json > onboardingGuarantees 와 같은 방어선.",
+   "vx": 500
   },
   {
    "id": "growth_pack",
@@ -83,7 +84,9 @@
    "behavior": "3배속 영구 해금 + 광고 제거를 한 상품으로 (단장 확정 2026-08-26). 광고 버튼은 남고, 누르면 재생 없이 즉시 보상. 일일 횟수 상한 동일.",
    "priceTier": "중액",
    "history": "구 speed3_unlock(3배속+일일 다이아 상점 수령) 과 adfree_pack 을 합쳤다. 일일 다이아는 우편 쪽으로 통일 — 카드가 사라진 뒤 받을 자리가 우편뿐이다.",
-   "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 의 2.3% — 구 speed3 budgetNote 논리 유지."
+   "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 의 2.3% — 구 speed3 budgetNote 논리 유지.",
+   "vx": 1000,
+   "vxNote": "100 VX = $1. VX대시보드 등록값과 같게 유지 (단장 확정 2026-08-26)"
   }
  ],
  "subscription": {

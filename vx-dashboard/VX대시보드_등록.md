@@ -28,8 +28,8 @@
 |---|---|---|---|---|
 | `starter_pack` | 신규 성장 패키지 | 다이아 4,800 + 용병권 30 + 스킬권 20 + 장비권 100 · 계정 생성 후 7일 한정 | 500 VX ($5) | starter_pack.png |
 | `growth_pack` | 성장 지원 패키지 | 스테이지 50/100/150 도달 시 등장, 3일 한정. **도달 단계별 구성이 달라서 SKU 를 `growth_pack_50` / `_100` / `_150` 3개로 쪼개 등록 권장** | 500 / 1,000 / 2,000 VX | growth_pack.png |
-| `premium_pack` | 프리미엄 | 3배속 영구 해금 + 광고 없이 즉시 보상 + 매일 다이아 100 우편 지급 (구 speed3_unlock·adfree_pack 통합) | 3,000 VX ($30) | premium_pack.png |
-| `pass_premium` | 시즌 패스 프리미엄 | 유료 트랙 해금 (42일 시즌 · 소급 지급) — 가격은 `pass.json > tracks.paid.price.vx` 가 단일 소스, 대시보드와 같은 값 유지 | 1,500 VX ($15) | pass_premium.png |
+| `premium_pack` | 프리미엄 | 3배속 영구 해금 + 광고 없이 즉시 보상 + 매일 다이아 100 우편 지급 (구 speed3_unlock·adfree_pack 통합) | **1,000 VX ($10) — 확정** | premium_pack.png |
+| `pass_premium` | 시즌 패스 프리미엄 | 유료 트랙 해금 (42일 시즌 · 소급 지급) — 가격은 `pass.json > tracks.paid.price.vx` 가 단일 소스, 대시보드와 같은 값 유지 | **500 VX ($5) — 확정** | pass_premium.png |
 
 상품 설명(대시보드 설명란용):
 

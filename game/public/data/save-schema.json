@@ -293,6 +293,8 @@
   "note": "아래는 저장하지 않는다. 서버가 요청마다 다시 계산한다. 저장하면 조작 대상이 된다.",
   "adFree": "광고 없이 즉시 보상 (bool). premium_pack 이 speed3 과 같이 켠다. 서버 권한",
   "adFreeMailAt": "프리미엄 일일 다이아 우편을 마지막으로 배달한 날짜 (YYYY-MM-DD)",
+  "accountAt": "계정 생성 시각 (epoch ms). 스타터 팩 7일 창의 기준점",
+  "starterBought": "스타터 팩 구매 여부 (bool). 서버 권한",
   "fields": [
    "CP 총합",
    "용병·스킬 개별 CP",
