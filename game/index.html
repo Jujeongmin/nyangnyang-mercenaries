@@ -2172,7 +2172,7 @@
   .sh-empty{color:var(--dim);text-align:center;padding:40px 0;font-size:13px}
   /* 안내문은 낱말이 쪼개지지 않게. 마지막 줄에 한 글자만 남는 꼴을 막는다 */
   .sh-note,.sh-desc{word-break:keep-all;overflow-wrap:break-word;text-wrap:pretty}
-  .sh-note{font-size:10px;color:var(--dim);line-height:1.6;margin-top:12px;
+  .sh-note{font-size:10px;color:var(--dim);line-height:1.6;margin-top:8px;
     background:var(--ink2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .sh-note b{color:var(--gold)}
   .sh-h2{font-size:11px;color:var(--dim);letter-spacing:.5px;margin:14px 0 7px}
@@ -2424,8 +2424,14 @@
   .rk-pred b{color:var(--gold);font-weight:900}
 
   /* 설정 */
-  .st-h{font-size:10px;color:var(--dim);letter-spacing:.5px;margin:16px 0 7px}
-  .st-row{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;
+  /* 설정은 **한 화면에 다 들어가는 것이 목표다** (단장 확정 2026-08-25).
+     스크롤이 생기면 아래쪽 항목(버전·초기화)이 있는 줄도 모르게 된다.
+     구역 제목 위 여백 16 → 9, 줄 사이 6 → 3 으로 조인다 — 실측으로 이 둘이
+     932px 중 91px 이었다 */
+  /* 설정 본문만 여백을 줄인다 — 다른 시트(도감·랭킹)는 12px 그대로다 */
+  #settings .sh-body{padding:4px 12px}
+  .st-h{font-size:10px;color:var(--dim);letter-spacing:.5px;margin:9px 0 5px}
+  .st-row{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:2px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
   .st-row > span:first-child{flex:1}
   /* 줄 앞의 아이콘. 그림 파일이 아니라 **인라인 SVG** 다 — 20px 짜리 로고
@@ -2439,16 +2445,16 @@
   .st-seg{display:flex;gap:4px}
   /* 언어는 칸이 5개라 라벨과 한 줄에 두면 서로 밀려 글자가 찌그러진다.
      라벨을 위로 올리고 **버튼이 한 줄을 통째로** 쓴다 (단장 확정 2026-08-25) */
-  .st-row.stack{flex-direction:column;align-items:stretch;gap:7px}
+  .st-row.stack{flex-direction:column;align-items:stretch;gap:5px}
   .st-row.stack .st-seg{width:100%}
   .st-row.stack .st-seg button{flex:1 1 0;min-width:0;padding-left:0;padding-right:0;
     text-align:center;white-space:nowrap}
   .st-seg button{background:#362b23;border:1px solid var(--line);color:var(--dim);
-    border-radius:7px;padding:5px 12px;font-size:11px;font-weight:800;cursor:pointer;
+    border-radius:7px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;
     font-family:inherit}
   .st-seg button.on{background:var(--gold);color:#000;border-color:var(--gold)}
   .st-rng{width:130px;accent-color:var(--gold)}
-  .st-danger{width:100%;margin-top:14px;background:#2a1418;border:1px solid #7a3b46;
+  .st-danger{width:100%;margin-top:8px;background:#2a1418;border:1px solid #7a3b46;
     color:#ffb3bd;border-radius:10px;padding:11px;font-size:12px;font-weight:800;
     cursor:pointer;font-family:inherit}
 
@@ -2902,7 +2908,10 @@
   /* 목록 한 줄 — .frow 와 같은 역할이므로 같은 카드 프레임 */
   .st-row,.tw-row,.pf-stats div,.pf-t{background:none;border-style:solid;border-width:10px;
     border-radius:0;border-image:var(--f-card) 122 fill stretch;margin-bottom:5px}
-  .st-row{padding:2px 3px}
+  /* 설정 줄만 간격을 더 조인다 — 한 화면에 다 들어가야 한다 (단장 확정
+     2026-08-25). **바로 위 규칙이 .st-row 를 5px 로 덮고 있어서**, 앞쪽
+     기본 규칙에서 margin 을 줄여 봐야 여기서 다시 5px 이 된다 */
+  .st-row{padding:2px 3px;margin-bottom:2px}
   .tw-row{padding:1px 3px}
   .pf-stats div{padding:2px 4px;margin-bottom:0}
   .pf-t{padding:1px 2px}

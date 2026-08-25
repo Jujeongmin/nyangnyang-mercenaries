@@ -12,10 +12,6 @@ import { cpNum, num } from '../core/fmt.js';
 import { LANGS, t } from '../core/i18n.js';
 import * as live from '../net/live.js';
 
-// vite 가 빌드 때 커밋 해시로 치환한다. 정의가 없는 환경(직접 연 html 등)에서도
-// 화면이 죽지 않게 기본값을 둔다
-const BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
-
 
 // 더미 순위표의 이름. **닉네임은 고유명사라 번역하지 않는다** — 다만 한국어
 // 이름만 늘어놓으면 외국어 화면에서 이 표만 한글 덩어리가 된다. 로마자를 같이 둔다
@@ -260,7 +256,6 @@ export class SettingsScreen {
         <input type="range" class="st-rng" data-k="bgm" min="0" max="100" value="${(S.bgm ?? 0.7) * 100}"></div>
       <div class="st-row"><span>${t('효과음')}</span>
         <input type="range" class="st-rng" data-k="sfx" min="0" max="100" value="${(S.sfx ?? 0.9) * 100}"></div>
-      <div class="sh-note">${t('값은 저장되며, 사운드가 연동되는 즉시 적용됩니다.')}</div>
 
       <div class="st-h">${t('정보')}</div>
       <!-- 확률표 고지 줄은 뺐다 — 확률은 소환·제작대 화면에서 1탭 이내로
@@ -278,12 +273,17 @@ export class SettingsScreen {
            에셋을 늘리지 않았고, 벡터라 어느 화면에서도 안 뭉갠다 -->
       ${D.ui.links?.discord ? `<div class="st-row link" data-a="discord">
         ${DISCORD_ICON}<span>${t('디스코드')}</span><b>${t('열기')} ›</b></div>` : ''}
-      <!-- 빌드 표식(커밋 해시)을 같이 찍는다 — 배포본이 갱신됐는지 확인할
-           길이 없어서 옛 빌드를 보며 헤맸다 (vite.config.js > buildStamp) -->
+      <!-- 커밋 해시는 뗐다 (단장 지시 2026-08-25) — 배포판 화면에 개발 표식이
+           서 있을 자리가 아니다. 값 자체는 살아 있다: 부팅 때 콘솔에
+           "[냥냥] build 해시" 로 찍히므로 배포본 갱신 확인은 그걸로 한다
+           (main.js 부트, vite.config.js > buildStamp).
+           **이 블록은 템플릿 문자열 안이다 — 백틱을 쓰면 문자열이 끊긴다** -->
       <div class="st-row"><span>${t('버전')}</span>
-        <b>v${D.ui.meta.version} · ${BUILD}</b></div>
-      <button class="st-danger" data-a="reset">${t('저장 데이터 초기화')}</button>
-      <div class="sh-note" style="text-wrap:balance">${t('확률 공시는 게임산업법(2024.3) 의무다. gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.')}</div>`;
+        <b>v${D.ui.meta.version}</b></div>
+      <!-- 확률 공시 안내문은 뺐다 (단장 지시 2026-08-25). 확률은 이미 소환·제작대
+           화면에 실제 표로 공시되고 있어서, 여기 문장은 그 사실을 말로 한 번 더
+           적은 개발 메모였다. 의무 자체는 그 표가 지킨다 (gacha.json 단일 소스) -->
+      <button class="st-danger" data-a="reset">${t('저장 데이터 초기화')}</button>`;
 
     this.el.querySelectorAll('.st-seg button').forEach(b => b.addEventListener('click', () => {
       // 같은 세그먼트를 ON/OFF(숫자)와 언어(문자열 'ko'·'en')가 같이 쓴다.

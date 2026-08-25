@@ -6671,6 +6671,25 @@ function bootTapToStart() {
     buySpeed3, claimSpeed3Daily,
   });
   watchTapHintCover();
+  // PC 마우스 휠 — **앱 기둥 밖에서도 먹게 한다.**
+  // 앱은 화면 가운데 좁은 칸(세로 9:16)이라 PC 에서는 좌우가 전부 빈 배경이다.
+  // 커서가 거기 있으면 휠이 body(overflow:hidden)로 가서 아무 일도 안 난다 —
+  // "설정이 스크롤이 안 된다" 의 정체다 (단장 지적 2026-08-25).
+  // 지금 열려 있는 스크롤 칸을 찾아 그쪽으로 굴려 준다. 커서가 이미 그 안이면
+  // 브라우저가 알아서 처리하므로 건드리지 않는다.
+  addEventListener('wheel', e => {
+    if (e.defaultPrevented) return;
+    // 커서 밑에 이미 스크롤되는 칸이 있으면 브라우저에 맡긴다
+    for (let n = e.target; n && n !== document.body; n = n.parentElement) {
+      const c = getComputedStyle(n);
+      if (/auto|scroll/.test(c.overflowY) && n.scrollHeight > n.clientHeight) return;
+    }
+    // 열려 있는 화면의 본문 칸. 여러 개가 겹쳐 있으면 **맨 위(마지막)** 것이다
+    const panes = [...document.querySelectorAll('.fullscr.show .sh-body, #sheet.show .sh-body, #ov.show .ovb')]
+      .filter(x => x.scrollHeight > x.clientHeight);
+    const pane = panes[panes.length - 1];
+    if (pane) pane.scrollTop += e.deltaY;
+  }, { passive: true });
   bootStep(55);
   scene = new BattleScene($('#cv'), { data: D, onEvent });
   // 단장의 고정 피해. **1스테이지 보스를 제한시간 안에 겨우 잡는 크기**로 잡는다.
