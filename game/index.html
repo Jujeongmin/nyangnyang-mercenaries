@@ -264,8 +264,11 @@
   #bootLogo{display:block;width:100%;filter:drop-shadow(0 12px 30px #000c)}
   /* 나무판 안쪽 — GT-LOGO.png(512²) 실측 좌 92 우 420 상 222 하 332 을
      비율로 옮긴 값이다. 그림을 갈면 이 네 숫자를 다시 잰다 */
+  /* 긴 번역(영어)은 한 줄로 안 들어간다 — 줄바꿈을 허용하고 balance 로
+     두 줄을 비슷한 길이로 가른다. 한국어는 원래 한 줄에 들어가 그대로다 */
   #bootTitle{position:absolute;left:19%;right:19%;top:43.5%;height:21.5%;
-    display:flex;align-items:center;justify-content:center;white-space:nowrap;
+    display:flex;align-items:center;justify-content:center;
+    text-align:center;line-height:1.05;text-wrap:balance;
     font-size:10cqi;letter-spacing:.5px;
     /* 색·굵기 주의:
        · Black Han Sans 는 **굵기가 400 하나뿐**이다. 900 을 주면 브라우저가
@@ -3798,7 +3801,6 @@
     <b>언어 / Language</b>
     <!-- 버튼은 i18n.js > LANGS 가 만든다 -->
     <div id="bootLangBtns"></div>
-    <span>부분 번역입니다 — 없는 문구는 한국어로 표시됩니다</span>
   </div>
 </div>
 

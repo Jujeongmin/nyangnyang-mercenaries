@@ -6092,6 +6092,28 @@ function bootLangPick() {
 }
 
 /**
+ * 간판 글자를 판 안에 맞춘다. 크기는 10cqi(간판 폭 기준)로 시작하는데,
+ * 이는 한국어 5자 기준이라 영어처럼 긴 번역은 판을 좌우로 넘는다.
+ * 폰트가 나중에 도착하면 폭이 다시 변하므로 fonts.ready 뒤에 한 번 더 잰다.
+ */
+function fitBootTitle() {
+  const el = $('#bootTitle');
+  if (!el) return;
+  const fit = () => {
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    let guard = 30;
+    while (guard-- > 0 && size > 9
+        && (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight)) {
+      size -= 1;
+      el.style.fontSize = size + 'px';
+    }
+  };
+  fit();
+  document.fonts?.ready.then(fit);
+}
+
+/**
  * 타이틀 반짝이. 그림(TT-SPARK)은 **한 장**이고 개수·위치·점멸 시점은 여기서
  * 만든다 (에셋 규칙 1-4 — 프레임 그림을 여러 장 뽑지 않는다).
  *
@@ -6167,6 +6189,7 @@ function bootTapToStart() {
   load();
   await bootLangPick();
   watchDom();     // 외국어면 이후 붙는 모든 화면 글자를 사전으로 치환한다 (ko 는 no-op)
+  fitBootTitle(); // watchDom 이 방금 간판 글자를 번역했다 — 넘치면 여기서 줄인다
   await loadData('/data');
   $('#cap').src = '/assets/captain/captain_warrior.png';
 
@@ -6352,28 +6375,28 @@ function bootTapToStart() {
     questGoto(QUEST_TYPE[def.type]);
   });
   document.querySelectorAll('#nav .nv').forEach(n => n.addEventListener('click', () => {
-    const t = n.dataset.tab;
-    if (!navOpen(t)) {
-      const need = D.quests.navUnlockQuests.tabs[t].afterQuest;
-      return toast(`퀘스트 ${need} 를 끝내면 열립니다`);
+    const tab = n.dataset.tab;
+    if (!navOpen(tab)) {
+      const need = D.quests.navUnlockQuests.tabs[tab].afterQuest;
+      return toast(t('퀘스트 {0} 를 끝내면 열립니다', need));
     }
     // **켜진 탭을 다시 누르면 닫는다.** 시트 탭에서 닫는 경로가 X 버튼뿐이면
     // 열었던 손가락이 그대로 한 번 더 눌러 닫는 자연스러운 왕복이 안 된다
-    if (navTab === t && ['merc', 'skill', 'dungeon'].includes(t) && roster.isOpen) {
+    if (navTab === tab && ['merc', 'skill', 'dungeon'].includes(tab) && roster.isOpen) {
       roster.close();
       navTab = null;
       syncNav();
       return;
     }
-    navTab = t;
+    navTab = tab;
     // 시트는 네비 위에 떠 있다. 시트를 안 쓰는 탭으로 가면 닫아 준다
-    if (!['merc', 'skill', 'dungeon'].includes(t)) roster.close();
+    if (!['merc', 'skill', 'dungeon'].includes(tab)) roster.close();
     // ui.json > mainScreen.navBar.items 기준. 장비는 하단 패널에 있으므로 뺐다.
-    if (t === 'shop') shop.open();
-    else if (t === 'dungeon') openDungeons();
-    else if (t === 'alliance') { if (S.ally) alli.open(); else openAllianceGate(); }
-    else if (t === 'merc') roster.open('mercenary');
-    else if (t === 'skill') roster.open('skill');
+    if (tab === 'shop') shop.open();
+    else if (tab === 'dungeon') openDungeons();
+    else if (tab === 'alliance') { if (S.ally) alli.open(); else openAllianceGate(); }
+    else if (tab === 'merc') roster.open('mercenary');
+    else if (tab === 'skill') roster.open('skill');
     else toast(`${n.textContent} 탭 — 미구현`);
     // **연 뒤에** 맞춘다. 열기 전에 부르면 아직 아무것도 안 떠 있어 바로 지워진다
     syncNav();
