@@ -6578,7 +6578,7 @@ function bootTapToStart() {
   bootStep(38);
   // 효과음. **부팅을 막지 않는다** — 파일이 없어도 조용히 넘어간다 (core/sfx.js)
   initSfx(D, { volume: S.sfx ?? 0.9 });
-  initBgm({ volume: S.bgm ?? 0.7 });
+  initBgm({ volume: S.bgm ?? 0.7, tracks: D.sound.bgm });
   // **어느 곡을 틀지는 1초마다 화면 상태로 계산한다.** 상점·아레나가 닫히는
   // 경로가 여럿이라(뒤로가기·배경 탭·다른 화면 이동…) 이벤트마다 걸면 반드시
   // 하나를 빠뜨린다 — 팝업 소리에서 이미 배운 것과 같은 이유다.

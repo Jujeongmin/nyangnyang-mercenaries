@@ -9,11 +9,13 @@
 
 const BASE = '/assets/bgm/';
 const FADE_MS = 450;           // 전환 페이드. 뚝 끊기면 화면 전환마다 귀에 걸린다
+const gainOf = id => gains[id] ?? 1;
 
 let volume = 0.7;              // 설정의 배경음 슬라이더 (0~1)
 let enabled = true;            // 백그라운드면 false
 let unlocked = false;
 
+let gains = {};                // 곡별 음량 배수 (sound.json > bgm[].gain). 슬라이더와 곱해진다
 let cur = null;                // { id, audio }
 let wantId = null;             // 마지막으로 요청된 곡
 let fading = 0;                // 페이드 타이머 id
@@ -22,6 +24,9 @@ const cache = new Map();       // id → Audio (lazy — 곡은 무거워서 미
 
 export function initBgm(opt = {}) {
   if (typeof opt.volume === 'number') volume = opt.volume;
+  // 곡별 밸런스는 데이터가 정한다 — 소스 음량이 제각각이라 코드에 박으면
+  // 곡을 갈 때마다 코드를 열게 된다
+  for (const b of opt.tracks || []) if (typeof b.gain === 'number') gains[b.id] = b.gain;
   // 첫 입력에서 언락 + 그 시점에 원하는 곡을 시작한다. 브라우저 자동재생
   // 정책상 그전의 play() 는 어차피 거부된다
   const unlock = () => {
@@ -44,7 +49,7 @@ export function initBgm(opt = {}) {
 export function setBgmVolume(v) {
   volume = Math.max(0, Math.min(1, v || 0));
   if (cur) {
-    cur.audio.volume = volume;
+    cur.audio.volume = volume * gainOf(cur.id);
     // 0 에서 다시 올렸을 때 이어 나오게
     if (volume > 0 && enabled && unlocked) cur.audio.play().catch(() => { /* noop */ });
     if (volume <= 0) cur.audio.pause();
@@ -79,8 +84,8 @@ export function want(id) {
   const t0 = performance.now();
   fading = setInterval(() => {
     const k = Math.min(1, (performance.now() - t0) / FADE_MS);
-    next.audio.volume = volume * k;
-    if (prev) prev.audio.volume = volume * (1 - k);
+    next.audio.volume = volume * gainOf(next.id) * k;
+    if (prev) prev.audio.volume = volume * gainOf(prev.id) * (1 - k);
     if (k >= 1) {
       clearInterval(fading);
       if (prev) { prev.audio.pause(); prev.audio.currentTime = 0; }
