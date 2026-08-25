@@ -281,7 +281,7 @@
   "sourcing": {
     "primary": "Kenney Audio (CC0) — UI·재화·기본 타격음 대부분 커버",
     "secondary": "Freesound (CC0 필터) — 특수 타격·스킬음",
-    "bgm": "FreePD (퍼블릭 도메인) / Incompetech (CC BY, 출처 표기) / Pixabay Music",
+    "bgm": "Pixabay Music (표기 불필요, 게임 삽입 허용). **FreePD 는 2025년에 폐쇄됐다** — 옛 문서가 가리키던 곳이라 지운다 (2026-08-26 확인). Incompetech 는 CC BY 라 크레딧 화면이 필요해 안 쓴다.",
     "note": "에셋_생성_프롬프트.md 7절 생성 금지 목록과 동일. 사운드는 전부 외부 조달한다.",
     "licenseWarning": "다운로드 시점에 라이선스를 반드시 재확인할 것. 특히 CC BY는 게임 내 크레딧 표기가 필요하다."
   },

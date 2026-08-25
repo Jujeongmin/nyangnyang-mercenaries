@@ -235,6 +235,11 @@ export class BattleScene {
   async cutoutFor(id, src) {
     if (!this._cut) this._cut = new Map();
     if (this._cut.has(id)) return this._cut.get(id);
+    // 적(E-)·보스(B-·DGB-)는 컷아웃을 안 만든다 — 무기 팔 분리는 용병·단장
+    // 전용이다. 그런데도 fetch 를 던지면 스폰마다 404 가 콘솔에 쌓여서, 배포
+    // 콘솔이 진짜 오류를 덮는 소음으로 가득했다 (단장 보고 2026-08-26).
+    // 없는 걸 아는 부류는 묻지 않는다
+    if (/^(E|B|DGB)-/.test(id)) { this._cut.set(id, null); return null; }
     let out = null;
     try {
       const r = await fetch(`/assets/cutout/${id}.json`);

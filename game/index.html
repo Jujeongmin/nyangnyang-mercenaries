@@ -623,7 +623,11 @@
   #alli .sh-head #alCoin{margin-left:auto;font-size:12px;font-weight:800;color:var(--gold);
     display:flex;align-items:center;gap:4px}
   #alli .sh-head #alCoin img{width:16px;height:16px}
-  #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;background:#1a2a1a}
+  /* touch-action:none — 조이스틱을 포인터 이벤트로 끄는 판이다. 없으면 모바일
+     브라우저가 드래그를 스크롤로 가져가서 pointermove 가 중간에 끊긴다
+     (pwrveil 손잡이와 같은 이유. 2026-08-26 터치 점검에서 발견) */
+  #alField{position:relative;flex:1;overflow:hidden;cursor:pointer;background:#1a2a1a;
+    touch-action:none}
   /* 월드 — 뷰포트보다 크다. 카메라(updateCamera)가 transform 으로 민다.
      배경은 월드에 깐다 — 카메라와 같이 움직여야 마을이 "넓다"로 읽힌다 */
   /* AL-BG 가 세로형(1024x1536)이라 월드도 세로로 길다. cover 로 꽉 채운다 */
