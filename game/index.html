@@ -2323,6 +2323,12 @@
   .st-row.link{cursor:pointer}
   .st-row.link b{color:var(--dim);font-weight:700}
   .st-seg{display:flex;gap:4px}
+  /* 언어는 칸이 5개라 라벨과 한 줄에 두면 서로 밀려 글자가 찌그러진다.
+     라벨을 위로 올리고 **버튼이 한 줄을 통째로** 쓴다 (단장 확정 2026-08-25) */
+  .st-row.stack{flex-direction:column;align-items:stretch;gap:7px}
+  .st-row.stack .st-seg{width:100%}
+  .st-row.stack .st-seg button{flex:1 1 0;min-width:0;padding-left:0;padding-right:0;
+    text-align:center;white-space:nowrap}
   .st-seg button{background:#362b23;border:1px solid var(--line);color:var(--dim);
     border-radius:7px;padding:5px 12px;font-size:11px;font-weight:800;cursor:pointer;
     font-family:inherit}

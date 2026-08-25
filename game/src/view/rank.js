@@ -224,7 +224,7 @@ export class SettingsScreen {
       <!-- 언어. 첫 부팅 화면에서 한 번 고르고 나면 다시 물을 자리가 없어서
            여기에 둔다. 라벨을 "언어 / Language" 로 둔 것은, 잘못 고른 사람이
            한글을 못 읽는 상태로 이 줄을 찾아야 하기 때문이다 -->
-      <div class="st-row"><span>언어 / Language</span>
+      <div class="st-row stack"><span>언어 / Language</span>
         ${seg('lang', LANGS.map(l => ({ v: l.id, t: l.label })), S.lang || 'ko')}</div>
       <div class="sh-note">${t('언어를 바꾸면 게임이 다시 시작됩니다 — 진행은 저장됩니다.')}</div>
 
