@@ -36,6 +36,10 @@ export default defineConfig({
   },
   server: {
     port: 5180,
-    open: '/',
+    // **브라우저를 자동으로 열지 않는다.** Verse8 프리뷰는 리눅스 컨테이너에서
+    // `vite --host` 로 도는데 거기엔 열 브라우저가 없어서 매번 로그에
+    // `Error: spawn xdg-open ENOENT` 가 찍힌다 (서버는 정상이지만 실패로 읽힌다).
+    // 로컬에서는 주소를 직접 열면 된다
+    open: false,
   },
 });
