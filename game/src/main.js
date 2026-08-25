@@ -3429,11 +3429,10 @@ function sweepDungeon(dg) {
   mq('dungeon_enter');          // 열쇠를 쓰는 입장이므로 입장 퀘스트는 센다.
                                 // 층 퀘스트(dungeon_floor)는 층이 안 오르니 안 센다
   const gain = Math.round(dgYield(dg, cleared));
-  const bag = DG_BAG[dg.reward];
-  if (bag) S[bag] += gain;
+  const got = dgGrant(dg, gain);
   save(); renderTop(); renderQuest();
   openDungeons();               // 열쇠 숫자·소탕 단추 상태를 다시 그린다
-  if (bag) gainToast([[dg.reward, gain]]);
+  if (got.length) gainToast(got);
   else toast(`${dg.nameKo} ${cleared}층 소탕`);
 }
 
@@ -5306,8 +5305,40 @@ const DG_BG = {
   trial_tower: 'BG-06',      // 마왕성 — 탑
 };
 
-/** 던전 보상 종류 → 세이브 필드. `ticket_mixed`(시련의 탑)는 아직 자리가 없다 */
+/** 던전 보상 종류 → 세이브 필드 */
 const DG_BAG = { gold: 'gold', equip_ticket: 'eqTicket', diamond: 'dia', speedup_5m: 'hourglass' };
+
+/**
+ * 던전 보상 지급 — 세이브에 넣고 gainToast 용 [종류, 수량] 목록을 돌려준다.
+ *
+ * `ticket_mixed`(시련의 탑)는 dg.yieldSplit 비율로 용병권/스킬권/장비권에
+ * 쪼갠다. 수량이 3처럼 작아서 비율×총량을 그냥 반올림하면 합이 안 맞는다 —
+ * 최대잉여법으로 **합계를 총량과 정확히 맞춘다** (하루 3장이 2장이 되면
+ * 유일한 종합 보상 던전이 거짓말이 된다).
+ */
+function dgGrant(dg, gain) {
+  if (dg.reward !== 'ticket_mixed') {
+    const bag = DG_BAG[dg.reward];
+    if (!bag) return [];
+    S[bag] += gain;
+    return [[dg.reward, gain]];
+  }
+  const CUR = { merc_ticket: 'mercTicket', skill_ticket: 'skillTicket', equip_ticket: 'eqTicket' };
+  const split = Object.entries(dg.yieldSplit || {}).filter(([k]) => CUR[k]);
+  if (!split.length) return [];
+  const rows = split.map(([k, r]) => {
+    const exact = gain * r;
+    return { k, n: Math.floor(exact), rem: exact - Math.floor(exact) };
+  });
+  let left = gain - rows.reduce((a, x) => a + x.n, 0);
+  for (const x of [...rows].sort((a, b) => b.rem - a.rem)) {
+    if (left <= 0) break;
+    x.n++; left--;
+  }
+  const out = [];
+  for (const x of rows) if (x.n > 0) { S[CUR[x.k]] += x.n; out.push([x.k, x.n]); }
+  return out;
+}
 
 const dgNeedCp = (dg, floor) => dg.unlockCp * Math.pow(1.18, floor - 1);
 const dgYield = (dg, floor) => dg.baseYield * Math.pow(1.15, floor - 1);
@@ -6492,13 +6523,12 @@ function onEvent(e) {
     st.floor++;
     mq('dungeon_floor');
     const gain = Math.round(dgYield(r.dg, r.floor));
-    const bag = DG_BAG[r.dg.reward];
-    if (bag) S[bag] += gain;
+    const got = dgGrant(r.dg, gain);
     save(); renderTop(); renderQuest();
     // 간판이 먼저 뒤집히고, 보상은 그 뒤에 따라온다 — 순서가 반대면
     // 숫자가 시선을 가져가서 "한 층 올라갔다" 가 안 남는다
     flipDgSign(st.floor);
-    if (bag) setTimeout(() => gainToast([[r.dg.reward, gain]]), 420);
+    if (got.length) setTimeout(() => gainToast(got), 420);
     dgReturn();
   } else if (e.type === 'dungeonLose') {
     const r = dgRun;
