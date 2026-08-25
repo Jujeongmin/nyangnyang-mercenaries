@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>냥냥 용병단 — 효과음 청취 랩</title>
+<style>
+  :root{--bg:#15100c;--card:#241a12;--line:#3a2c20;--txt:#f2e5db;--dim:#a8907d;--gold:#ffc94a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Malgun Gothic",system-ui,sans-serif;font-size:14px}
+  header{position:sticky;top:0;z-index:2;background:#1d150fee;backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);padding:14px 18px}
+  h1{margin:0 0 4px;font-size:17px;color:var(--gold)}
+  .sub{font-size:12px;color:var(--dim);line-height:1.6}
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  button{font-family:inherit;font-size:13px;cursor:pointer;border-radius:8px;
+    border:1px solid var(--line);background:var(--card);color:var(--txt);padding:7px 12px}
+  button:hover{border-color:var(--gold)}
+  button.on{background:var(--gold);color:#2a1c05;border-color:var(--gold);font-weight:700}
+  main{padding:14px 18px 80px;max-width:1100px;margin:0 auto}
+  .grp{margin:22px 0 8px;font-size:13px;color:var(--gold);letter-spacing:1px}
+  .cue{display:grid;grid-template-columns:230px 1fr;gap:12px;align-items:start;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:7px}
+  .cue.hide{display:none}
+  .meta b{display:block;font-size:14px}
+  .meta code{font-size:11px;color:var(--dim)}
+  .meta .p{display:inline-block;font-size:10px;font-weight:800;border-radius:5px;
+    padding:1px 6px;margin-top:4px}
+  .p0{background:#7a2b2b;color:#ffd9d9}.p1{background:#3a4a7a;color:#dce6ff}
+  .p2{background:#3a3a3a;color:#ccc}
+  .note{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5}
+  .gen{font-size:10px;color:#8a7563;margin-top:4px}
+  .cands{display:flex;gap:7px;flex-wrap:wrap}
+  .cands button{min-width:92px}
+  .cands button.sel{background:#2f4a2f;border-color:#5ad86a;color:#d8ffd8}
+  footer{position:fixed;left:0;right:0;bottom:0;background:#1d150ff2;
+    border-top:1px solid var(--line);padding:10px 18px;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap}
+  #out{flex:1;min-width:200px;font-size:11px;color:var(--dim)}
+  textarea{width:100%;height:200px;background:#0f0b08;color:var(--txt);
+    border:1px solid var(--line);border-radius:8px;padding:10px;font-family:monospace;
+    font-size:11px;margin-top:10px}
+</style></head><body>
+<header>
+  <h1>효과음 청취 랩 — 냥냥 용병단</h1>
+  <div class="sub">
+    큐 55종 × 후보 3안. 버튼을 눌러 듣고, 마음에 드는 것을 고르면 아래 [내보내기]로
+    <code>sfx-params.json</code> 을 만든다. 게임은 그 파일을 읽으므로 <b>소리 교체에 코드 수정이 없다</b>.<br>
+    동시 8개 · 같은 큐 60ms 간격 규칙은 게임 재생기(core/sfx.js)가 지킨다 — 여기서는 누를 때마다 그냥 난다.
+  </div>
+  <div class="bar">
+    <span class="sub">보기:</span>
+    <button data-f="all" class="on">전체</button>
+    <button data-f="P0">P0만</button>
+    <button data-f="P1">P1만</button>
+    <button data-f="P2">P2만</button>
+    <button data-f="untuned">그룹 기본값만</button>
+    <span class="sub" style="margin-left:auto">볼륨</span>
+    <input id="vol" type="range" min="0" max="100" value="60">
+  </div>
+</header>
+<main id="list"></main>
+<footer>
+  <button id="exp">내보내기 (sfx-params.json)</button>
+  <button id="pickAll">고른 것 없으면 1안으로 채우기</button>
+  <span id="out">고른 큐 0 / 55</span>
+</footer>
+<script>
+// ── ZzFX (MIT, Frank Force) — 파라미터가 곧 소리인 초소형 합성기 ──
+let zzfxV=.3, ZC;
+function zzfx(...t){return zzfxP(zzfxG(...t))}
+function zzfxP(...t){if(!ZC)ZC=new(window.AudioContext||window.webkitAudioContext);
+  let e=ZC.createBufferSource(),f=ZC.createBuffer(t.length,t[0].length,44100);
+  t.map((d,i)=>f.getChannelData(i).set(d)),e.buffer=f,e.connect(ZC.destination),e.start();return e}
+function zzfxG(q=1,k=.05,c=220,e=0,t=0,u=.1,r=0,F=1,v=0,z=0,w=0,A=0,l=0,B=0,x=0,G=0,d=0,y=1,m=0,C=0){
+  let b=2*Math.PI,H=v*=500*b/44100**2,I=(0<F?1:-1)*b/4,D=c*=(1+2*k*Math.random()-k)*b/44100,
+  Z=[],g=0,E=0,a=0,n=1,J=0,K=0,f=0,p,h;
+  e=99+44100*e;m*=44100;t*=44100;u*=44100;d*=44100;z*=500*b/44100**3;G*=b/44100;w*=b/44100;
+  A*=44100;l=44100*l|0;
+  for(h=e+m+t+u+d|0;a<h;Z[a++]=f)
+    ++K%(100*G|0)||(f=r?1<r?2<r?3<r?Math.sin((g%b)**3):Math.max(Math.min(Math.tan(g),1),-1):
+      1-(2*g/b%2+2)%2:1-4*Math.abs(Math.round(g/b)-g/b):Math.sin(g),
+    f=(l?1-C+C*Math.sin(2*Math.PI*a/l):1)*(0<f?1:-1)*Math.abs(f)**F*q*zzfxV*
+      (a<e?a/e:a<e+m?1-((a-e)/m)*(1-y):a<e+m+t?y:a<h-d?(h-a-d)/u*y:0),
+    f=d?f/2+(d>a?0:(a<h-d?1:(h-a)/d)*Z[a-d|0]/2):f),
+    p=(c+=v+=z)*Math.cos(I*E++),g+=p+p*B*Math.sin(a**5),
+    n&&++n>A&&(c+=w,D+=w,n=0),
+    !l||++J%l||(c=D,v=H,n=n||1);
+  return Z}
+// ── 랩 ──
+const CUES=[{"group":"ui","id":"sfx_tap","nameKo":"버튼 탭","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.5,0.05,900,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,700,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.35,0.4,1200,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02]]},{"group":"ui","id":"sfx_tab","nameKo":"탭 전환","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.05,620,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.35,0.4,900,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02],[0.4,0.05,520,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02]]},{"group":"ui","id":"sfx_popup_open","nameKo":"팝업 열기","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,380,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.35,0.4,700,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02],[0.45,0.05,800,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"ui","id":"sfx_popup_close","nameKo":"팝업 닫기","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,420,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05],[0.35,0.4,520,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02],[0.5,0.05,380,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"ui","id":"sfx_denied","nameKo":"불가/오류","priority":"P0","note":"재화 부족·조건 미달. 없으면 유저가 버튼이 먹었는지 모른다","variations":1,"tuned":true,"cands":[[0.45,0.02,150,0.01,0.06,0.1,3,1.2,0,0,0,0,0.02,0.3,0,0.2,0,0.6,0.03],[0.5,0.04,220,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05],[0.6,0.1,110,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03]]},{"group":"ui","id":"sfx_toggle","nameKo":"토글 ON/OFF","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.5,0.05,1100,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,880,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.08,760,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"combat","id":"sfx_hit_melee","nameKo":"근접 타격","priority":"P0","note":"","variations":2,"tuned":true,"cands":[[0.6,0.1,180,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03],[0.5,0.08,420,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.05,300,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"combat","id":"sfx_hit_range","nameKo":"원거리 타격","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.45,0.3,500,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.5,0.05,760,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.5,0.08,640,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"combat","id":"sfx_hit_magic","nameKo":"마법 타격","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,640,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,420,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.45,0.3,380,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06]]},{"group":"combat","id":"sfx_crit","nameKo":"크리티컬","priority":"P0","note":"일반 타격과 확실히 구분돼야 한다. 전사 패시브의 체감이 여기서 나온다","variations":1,"tuned":true,"cands":[[0.5,0.04,520,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.5,0.08,880,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.65,0.12,200,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12]]},{"group":"combat","id":"sfx_evade","nameKo":"회피","priority":"P1","note":"궁수 패시브 체감","variations":1,"tuned":true,"cands":[[0.45,0.3,700,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.4,0.05,900,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.05,1000,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"combat","id":"sfx_counter","nameKo":"반격","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.08,560,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.04,440,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.6,0.1,260,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03]]},{"group":"combat","id":"sfx_damaged","nameKo":"피격","priority":"P1","note":"공격음보다 작게. 같은 크기면 화면이 뭉개진다","variations":1,"tuned":true,"cands":[[0.35,0.1,130,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03],[0.3,0.02,180,0.01,0.06,0.1,3,1.2,0,0,0,0,0.02,0.3,0,0.2,0,0.6,0.03],[0.3,0.3,260,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06]]},{"group":"combat","id":"sfx_unit_death","nameKo":"유닛 사망","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,300,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05],[0.6,0.1,90,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03],[0.45,0.3,200,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06]]},{"group":"combat","id":"sfx_boss_appear","nameKo":"보스 등장","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.65,0.12,90,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.4,0.2,120,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3],[0.5,0.04,160,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05]]},{"group":"combat","id":"sfx_stage_win","nameKo":"스테이지 승리","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,520,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,780,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,620,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"combat","id":"sfx_stage_lose","nameKo":"스테이지 패배","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,260,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05],[0.45,0.02,130,0.01,0.06,0.1,3,1.2,0,0,0,0,0.02,0.3,0,0.2,0,0.6,0.03],[0.6,0.1,100,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03]]},{"group":"skill","id":"sfx_sk_lightning","nameKo":"번개","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.08,1200,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.04,900,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.45,0.05,1400,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"skill","id":"sfx_sk_fire","nameKo":"화염","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.3,300,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.65,0.12,150,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.6,0.1,220,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03]]},{"group":"skill","id":"sfx_sk_pierce","nameKo":"관통","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.3,820,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.5,0.05,1000,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.5,0.04,700,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"skill","id":"sfx_sk_ice","nameKo":"얼음","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,1100,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.4,0.05,900,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.08,1300,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"skill","id":"sfx_sk_slash","nameKo":"참격","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.3,600,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.5,0.08,700,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.05,540,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"skill","id":"sfx_sk_buff","nameKo":"버프","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,340,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.55,0.03,420,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,560,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"skill","id":"sfx_sk_heal","nameKo":"회복","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,700,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.4,0.05,600,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.04,480,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"skill","id":"sfx_sk_shield","nameKo":"보호막","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.4,0.05,320,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.04,260,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.5,0.08,380,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"skill","id":"sfx_sk_summon","nameKo":"소환수","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,300,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.3,240,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.45,0.05,480,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"gacha","id":"sfx_summon_cast","nameKo":"소환 발동","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.45,0.3,260,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.5,0.04,200,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.4,0.2,180,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3]]},{"group":"gacha","id":"sfx_drumroll","nameKo":"드럼롤","priority":"P0","note":"등급 판정 직전 긴장 구간. 가챠 체감의 핵심","variations":1,"tuned":true,"cands":[[0.4,0.2,100,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3],[0.4,0.2,160,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3],[0.45,0.02,80,0.01,0.06,0.1,3,1.2,0,0,0,0,0.02,0.3,0,0.2,0,0.6,0.03]]},{"group":"gacha","id":"sfx_grade_n","nameKo":"N 결과","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.05,500,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,460,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.35,0.4,600,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02]]},{"group":"gacha","id":"sfx_grade_r","nameKo":"R 결과","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,600,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,520,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.5,0.05,700,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"gacha","id":"sfx_grade_sr","nameKo":"SR 결과","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,480,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,820,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,660,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"gacha","id":"sfx_grade_ssr","nameKo":"SSR 결과","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,620,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.5,0.08,900,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.45,0.05,1000,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"gacha","id":"sfx_grade_ur","nameKo":"UR 결과","priority":"P0","note":"여기에 가장 공들여라. 스크린샷과 함께 자랑되는 순간","variations":1,"tuned":true,"cands":[[0.55,0.03,760,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.65,0.12,180,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.5,0.08,1100,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"gacha","id":"sfx_grade_lr","nameKo":"LR 결과","priority":"P0","note":"무과금 기대값 1.5체. 일생에 몇 번 안 듣는 소리라 압도적이어야 한다","variations":1,"tuned":true,"cands":[[0.65,0.12,140,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.55,0.03,880,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.4,0.2,200,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3]]},{"group":"growth","id":"sfx_levelup","nameKo":"레벨업","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,560,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.5,0.04,640,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.45,0.05,900,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"growth","id":"sfx_auto_enhance","nameKo":"자동강화 일괄","priority":"P0","note":"수백 개를 한 번에 처리한다. 개별음이 아니라 상승 스윕 1회","variations":1,"tuned":true,"cands":[[0.45,0.05,760,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.45,0.04,680,0,0.04,0.12,1,1.6,0,0,9,0.04,0.05,0,0,0,0,0.8,0.03],[0.5,0.04,580,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"growth","id":"sfx_equip_swap","nameKo":"장착 교체","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.5,0.08,480,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.05,620,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,540,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02]]},{"group":"growth","id":"sfx_enhance","nameKo":"장비 강화","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.08,520,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.5,0.04,600,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.45,0.05,840,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"growth","id":"sfx_summon_levelup","nameKo":"소환 레벨업","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,500,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,720,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,560,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"growth","id":"sfx_grade_unlock","nameKo":"등급 해금","priority":"P0","note":"장비 소환 레벨업의 최대 동기. 짧은 팡파레","variations":1,"tuned":true,"cands":[[0.55,0.03,700,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.65,0.12,200,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.45,0.05,1000,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"growth","id":"sfx_codex_new","nameKo":"도감 신규 등록","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,880,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.05,760,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,640,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02]]},{"group":"currency","id":"sfx_gold","nameKo":"골드 획득","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.04,720,0,0.04,0.12,1,1.6,0,0,9,0.04,0.05,0,0,0,0,0.8,0.03],[0.45,0.05,840,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.05,900,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01]]},{"group":"currency","id":"sfx_diamond","nameKo":"다이아 획득","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.05,1200,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.45,0.04,980,0,0.04,0.12,1,1.6,0,0,9,0.04,0.05,0,0,0,0,0.8,0.03],[0.4,0.05,1100,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02]]},{"group":"currency","id":"sfx_dismantle","nameKo":"장비 분해","priority":"P0","note":"자동 소환에서 초당 수백 회 발생. 반드시 묶어서 1회","variations":1,"tuned":true,"cands":[[0.6,0.1,240,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03],[0.5,0.08,360,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02],[0.45,0.3,300,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06]]},{"group":"currency","id":"sfx_claim","nameKo":"보상 수령","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.45,0.04,640,0,0.04,0.12,1,1.6,0,0,9,0.04,0.05,0,0,0,0,0.8,0.03],[0.55,0.03,520,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,780,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"currency","id":"sfx_purchase","nameKo":"구매 완료","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.45,0.04,560,0,0.04,0.12,1,1.6,0,0,9,0.04,0.05,0,0,0,0,0.8,0.03],[0.55,0.03,440,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.5,0.08,620,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"notify","id":"sfx_badge","nameKo":"뱃지 등장","priority":"P1","note":"교체 가능 장비·자동강화 대기 알림","variations":1,"tuned":true,"cands":[[0.5,0.05,1000,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,860,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.45,0.05,1100,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02]]},{"group":"notify","id":"sfx_quest_done","nameKo":"퀘스트 완료","priority":"P0","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,600,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,820,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,700,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"notify","id":"sfx_timer_done","nameKo":"타이머 완료","priority":"P1","note":"장비 소환 레벨업 완료","variations":1,"tuned":true,"cands":[[0.45,0.05,940,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.05,820,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.4,0.05,700,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02]]},{"group":"notify","id":"sfx_mail","nameKo":"우편 도착","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.4,0.05,760,0,0.02,0.12,1,2.6,5,0,0,0,0,0,0,0,0,0.5,0.02],[0.5,0.05,640,0,0,0.04,1,1.5,0,0,0,0,0,0,0,0,0,0.6,0.01],[0.35,0.4,820,0.01,0.02,0.06,4,0.6,0,0,0,0,0,1,0,0,0,0.4,0.02]]},{"group":"dungeonArena","id":"sfx_dungeon_enter","nameKo":"던전 입장","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.65,0.12,110,0.02,0.1,0.3,4,1.1,-4,-0.05,0,0,0,0.8,0,0,0.08,0.6,0.12],[0.45,0.3,200,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.4,0.2,140,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3]]},{"group":"dungeonArena","id":"sfx_floor_clear","nameKo":"층 돌파","priority":"P1","note":"일일 수령량 영구 상승. 성취 체감 필요","variations":1,"tuned":true,"cands":[[0.5,0.04,580,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04],[0.45,0.05,760,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.55,0.03,500,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1]]},{"group":"dungeonArena","id":"sfx_arena_match","nameKo":"아레나 매칭","priority":"P2","note":"","variations":1,"tuned":true,"cands":[[0.4,0.2,150,0.1,0.5,0.2,4,0.5,2,0.02,0,0,0.02,0.7,0,0,0,0.8,0.3],[0.45,0.3,280,0.05,0.08,0.12,4,0.8,-3,0,0,0,0,1,0,0,0.04,0.5,0.06],[0.5,0.08,420,0,0.02,0.12,2,2.4,0,0,0,0,0.04,0.2,0,0.1,0,0.7,0.02]]},{"group":"dungeonArena","id":"sfx_arena_win","nameKo":"아레나 승리","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.55,0.03,640,0.02,0.12,0.24,1,1.4,0,0,7,0.08,0.1,0,0,0,0.05,0.9,0.1],[0.45,0.05,880,0,0.03,0.1,1,2,0,0,6,0.02,0.03,0,0,0,0,0.7,0.02],[0.5,0.04,720,0.01,0.05,0.13,1,1.8,9,0,0,0,0,0,0,0,0,0.8,0.04]]},{"group":"dungeonArena","id":"sfx_arena_lose","nameKo":"아레나 패배","priority":"P1","note":"","variations":1,"tuned":true,"cands":[[0.5,0.04,240,0.01,0.04,0.16,3,1.6,-6,-0.1,0,0,0,0.1,0,0,0,0.8,0.05],[0.45,0.02,140,0.01,0.06,0.1,3,1.2,0,0,0,0,0.02,0.3,0,0.2,0,0.6,0.03],[0.6,0.1,120,0.01,0.03,0.09,4,1.2,-8,0,0,0,0,0.6,0,0,0.02,0.5,0.03]]}];
+const RULES={"criticalNote":"자동 소환은 배치당 최대 700개를 굴린다. 개당 소리를 재생하면 오디오가 즉시 붕괴한다.","maxConcurrentSfx":8,"minIntervalPerCueMs":60,"minIntervalNote":"같은 큐를 60ms 내에 다시 재생하지 않는다. 안 하면 타격음이 뭉개져 노이즈가 된다.","batchCollapse":{"targets":["소환 결과음","장비 분해음","골드 획득음"],"rule":"N개가 동시 발생하면 1회만 재생하고 볼륨을 살짝 올린다","example":"700개 자동 소환 → 결과음 1회 + 최고 등급 획득 시에만 별도 팡파레"},"webAudioUnlock":{"required":true,"note":"브라우저 자동재생 정책상 최초 사용자 터치 전에는 오디오가 재생되지 않는다. 첫 탭에서 AudioContext 를 언락하고, 그전까지는 무음으로 진행한다."},"volumeLayers":["bgm","sfx"],"volumeStorage":"save-schema.json > settings.sound","muteOnBackground":true,"muteOnBackgroundNote":"탭이 백그라운드로 가면 즉시 음소거. 방치형은 다른 탭을 켜둔 채 돌리는 경우가 많다."};
+// ── 후보 음량 맞추기 ────────────────────────────────────────────
+// 원형마다 진폭이 크게 달랐다. 저역·하강 계열(둔탁한 퍽·낮은 붕·묵직한 쾅)은
+// 피크가 0.003 까지 떨어지는데 고역 계열은 0.15 에 붙는다 — **50배 차이라
+// 나란히 놓고 들으면 조용한 쪽은 "안 난다" 로 읽힌다.** 성격이 아니라 음량 때문에
+// 후보가 탈락하면 비교의 의미가 없으므로, 파형을 미리 재서 첫 인자(volume)로
+// 피크를 맞춘다. **고른 값이 그대로 내보내진다** — 게임에서도 같은 크기로 난다.
+const TARGET_PEAK=.14;
+for(const c of CUES) c.cands=c.cands.map(p=>{
+  const pk=Math.max(...zzfxG(...p).map(Math.abs));
+  if(!(pk>0)) return p;                       // 무음이면 건드리지 않는다(그대로 드러나야 한다)
+  const q=p.slice();
+  q[0]=+Math.min(12, q[0]*TARGET_PEAK/pk).toFixed(3);  // 12배 상한. 게인일 뿐이라 클리핑은 안 난다(목표 피크가 0.14)
+  return q;
+});
+const GROUP_KO={ui:'UI',combat:'전투',skill:'스킬',gacha:'소환',growth:'성장',currency:'재화',notify:'알림',dungeonArena:'던전·아레나'};
+const sel={};
+const list=document.getElementById('list');
+let cur='';
+for(const c of CUES){
+  if(c.group!==cur){cur=c.group;const h=document.createElement('div');h.className='grp';
+    h.textContent=(GROUP_KO[c.group]||c.group)+' — '+CUES.filter(x=>x.group===c.group).length+'종';list.append(h)}
+  const row=document.createElement('div');row.className='cue';row.dataset.p=c.priority;row.dataset.tuned=c.tuned?'1':'0';
+  row.innerHTML='<div class="meta"><b>'+c.nameKo+'</b><code>'+c.id+'</code>'
+    +'<span class="p '+c.priority.toLowerCase()+'">'+c.priority+'</span>'
+    +(c.variations>1?' <span class="gen">변주 '+c.variations+'종</span>':'')
+    +(c.note?'<div class="note">'+c.note+'</div>':'')
+    +(c.tuned?'':'<div class="gen">그룹 기본값 — 성격을 따로 안 잡았다</div>')
+    +'</div><div class="cands"></div>';
+  const box=row.querySelector('.cands');
+  c.cands.forEach((p,i)=>{
+    const b=document.createElement('button');b.textContent=(i+1)+'안';
+    b.onclick=()=>{zzfx(...p);sel[c.id]=i;
+      box.querySelectorAll('button').forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel');count()};
+    box.append(b);
+  });
+  list.append(row);
+}
+function count(){document.getElementById('out').textContent='고른 큐 '+Object.keys(sel).length+' / '+CUES.length}
+document.getElementById('vol').oninput=e=>zzfxV=e.target.value/100*.5;
+zzfxV=.3;
+document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-f]').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const f=b.dataset.f;
+  document.querySelectorAll('.cue').forEach(r=>{
+    const ok=f==='all'||(f==='untuned'?r.dataset.tuned==='0':r.dataset.p===f);
+    r.classList.toggle('hide',!ok);
+  });
+});
+document.getElementById('pickAll').onclick=()=>{
+  for(const c of CUES) if(sel[c.id]==null) sel[c.id]=0;
+  document.querySelectorAll('.cue').forEach(r=>{
+    const b=r.querySelector('.cands button');
+    if(!r.querySelector('.cands button.sel')) b.classList.add('sel');
+  });
+  count();
+};
+document.getElementById('exp').onclick=()=>{
+  const out={meta:{note:'tools/gen-sfx-lab.mjs 로 구운 랩에서 고른 결과. game/public/data/ 에 sfx-params.json 으로 저장한다.',
+    generated:'수동 저장'},params:{}};
+  for(const c of CUES){const i=sel[c.id];if(i==null)continue;out.params[c.id]=c.cands[i]}
+  const ta=document.createElement('textarea');ta.value=JSON.stringify(out,null,2);
+  document.querySelector('main').prepend(ta);ta.select();
+  alert('아래 상자의 내용을 game/public/data/sfx-params.json 으로 저장하세요.\n고른 큐: '+Object.keys(out.params).length+'개');
+};
+count();
+</script></body></html>
