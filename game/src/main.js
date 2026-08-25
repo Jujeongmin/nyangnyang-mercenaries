@@ -14,6 +14,7 @@ import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
 import { initCloud, cloudSave } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
+import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import * as live from './net/live.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
@@ -698,7 +699,8 @@ function markQuestBase() {
 
 function claimQuest() {
   const def = questAt(D, S.quest);
-  if (qProgress(def) < def.target) return toast(t('아직 조건 미달'));
+  if (qProgress(def) < def.target) { sfx('sfx_denied'); return toast(t('아직 조건 미달')); }
+  sfx('sfx_quest_done');
   for (const [k, v] of Object.entries(def.rewards)) {
     const bag = QUEST_CUR[k];
     if (bag) S[bag] += v;
@@ -1455,6 +1457,7 @@ function pull(trackId, n) {
   //   · 연출 안의 [장착하기 +N] 이 보유함을 읽어서 증가치를 계산한다
   //   · 연출이 중간에 끊겨도 뽑은 것이 사라지지 않는다 — 예전에는 play() 가
   //     busy 인 채로 다시 불리면 앞의 onDone 이 덮여 그 판이 통째로 증발했다
+  sfx('sfx_summon_cast');
   applyPulls(out);
   // 상점을 닫지 않는다. #reveal(z 80) 이 #shop(z 70) 을 이미 덮는데,
   // 닫으면 연출이 페이드되는 동안 뒤에 메인 화면이 비친다.
@@ -5877,6 +5880,7 @@ function openEquipResult(it) {
     scene.partyDps = partyDps();
     // 착용은 토스트를 안 띄운다 — CP 상승은 상단 CP 배지(+n ▲)가 이미 알린다.
     // 분해만 획득 배너
+    sfx(wear ? 'sfx_equip_swap' : 'sfx_dismantle');
     if (!wear) gainToast([['gold', scrapGold(it.tier)]]);
     if (S.eqPending === it) S.eqPending = null;   // 불빛을 끈다
     renderForgeDock();
@@ -6557,6 +6561,8 @@ function bootTapToStart() {
   // 옛 세이브는 그대로 둔다 — 이미 받은 용병을 빼앗지 않는다.
 
   bootStep(38);
+  // 효과음. **부팅을 막지 않는다** — 파일이 없어도 조용히 넘어간다 (core/sfx.js)
+  initSfx(D, { volume: S.sfx ?? 0.9 });
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
     state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
@@ -6594,7 +6600,9 @@ function bootTapToStart() {
       else if (k === 'shake') { S.shakeOn = !!v; scene.impact.opts.shake = !!v; }
       else if (k === 'nums') { S.numsOn = !!v; scene.numbers.enabled = !!v; }
       else if (k === 'bgm') S.bgm = v;
-      else if (k === 'sfx') S.sfx = v;
+      // 슬라이더를 움직이는 즉시 반영한다 — 저장만 하고 다음 부팅에 적용되면
+      // "슬라이더가 안 먹는다" 로 읽힌다
+      else if (k === 'sfx') { S.sfx = v; setSfxVolume(v); }
       // 언어는 **다시 시작**한다. 사전만 갈아끼우면 이미 그려진 화면과
       // index.html 에 박힌 한국어가 그대로 남아 반쯤 번역된 화면이 된다.
       // 세이브는 localStorage 라 reload 로 잃는 것이 없다
@@ -6671,6 +6679,17 @@ function bootTapToStart() {
     buySpeed3, claimSpeed3Daily,
   });
   watchTapHintCover();
+  // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십
+  // 곳이라 개별로 걸면 반드시 빠뜨리고, 새 버튼이 생길 때마다 또 잊는다.
+  // capture 로 받는 이유: 핸들러가 stopPropagation 하는 곳이 있어서 버블에서는 놓친다.
+  // 소리를 따로 내는 자리(제작·수령·분해)는 그 자리에서 내므로 여기서 뺀다
+  const NO_TAP = new Set(['fgObj', 'quest', 'erWear', 'erScrap']);
+  addEventListener('pointerdown', e => {
+    const b = e.target.closest?.('button, .nv, .st-row.link, .sh-b, .sbtn, .side button');
+    if (!b || b.disabled) return;
+    if (NO_TAP.has(b.id)) return;
+    sfx('sfx_tap');
+  }, { capture: true, passive: true });
   // PC 마우스 휠 — **앱 기둥 밖에서도 먹게 한다.**
   // 앱은 화면 가운데 좁은 칸(세로 9:16)이라 PC 에서는 좌우가 전부 빈 배경이다.
   // 커서가 거기 있으면 휠이 body(overflow:hidden)로 가서 아무 일도 안 난다 —

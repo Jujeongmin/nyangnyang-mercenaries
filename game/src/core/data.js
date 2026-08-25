@@ -10,6 +10,9 @@ const FILES = [
   'free1000', 'events', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
   // 운영자 우편 — 항목을 더하고 배포하면 모두의 우편함에 들어간다 (서버 불필요)
   'mail',
+  // 효과음 큐 → 실제 파일명·들리는 길이. sound.json 은 "무엇을 언제 내는가",
+  // 이 파일은 "어느 파일을 어디까지 재생하는가" 다 (core/sfx.js)
+  'sfx-manifest',
 ];
 
 export const D = Object.create(null);

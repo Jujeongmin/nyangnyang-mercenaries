@@ -13,6 +13,7 @@ import { Impact } from './impact.js';
 import { DamageNumbers } from './numbers.js';
 import { motionForClass } from './motions.js';
 import { loadCutout } from './cutout.js';
+import { sfx } from '../../core/sfx.js';
 import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX, PASSIVE_FX } from './fx.js';
 import { passiveAgg, EMPTY_PASSIVES, passiveTakenMult } from '../../core/passives.js';
 
@@ -1284,6 +1285,11 @@ export class BattleScene {
       if (px) this.fx.play(px, from.rig.view.x, from.rig.view.y - from.rig.h * 0.7,
         { size: this.fxSize(from.rig.h * 0.5, 0.16), dur: 340, to: 1.1 });
     }
+
+    // 타격음. 직군에 따라 다른 큐를 쓴다 — 재생기가 60ms 간격과 동시 8개
+    // 상한을 지키므로 여기서 따로 아낄 필요가 없다 (core/sfx.js)
+    if (crit) sfx('sfx_crit');
+    else sfx({ warrior: 'sfx_hit_melee', archer: 'sfx_hit_range', mage: 'sfx_hit_magic' }[from.class] || 'sfx_hit_melee');
 
     foe.rig.hit(-1);
     this.impact.hitStop(skill ? 110 : 70);
