@@ -247,6 +247,11 @@ export class SettingsScreen {
       <!-- 확률표 고지 줄은 뺐다 — 확률은 소환·제작대 화면에서 1탭 이내로
            보이고 있어 여기서 한 번 더 들어가는 통로는 중복이다 (단장 확정) -->
       <div class="st-row link" data-a="account"><span>${t('계정')}</span><b>${S.nickname || t('단장')} ›</b></div>
+      <!-- 플레이어 코드 — 특정 사람에게 우편을 보낼 때 쓰는 주소다.
+           문의할 때 이 값을 알려 주면 그 사람에게만 보상을 넣을 수 있다
+           (data/mail.json > entries[].to). 눌러서 복사한다 -->
+      <div class="st-row link" data-a="copycode"><span>${t('플레이어 코드')}</span>
+        <b id="stCode">${this.api.playerCode ? this.api.playerCode() : '—'}</b></div>
       <!-- 빌드 표식(커밋 해시)을 같이 찍는다 — 배포본이 갱신됐는지 확인할
            길이 없어서 옛 빌드를 보며 헤맸다 (vite.config.js > buildStamp) -->
       <div class="st-row"><span>${t('버전')}</span>

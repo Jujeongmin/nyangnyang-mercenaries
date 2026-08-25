@@ -142,6 +142,9 @@ const S = {
   mailbox: [],
   // 받은 운영자 우편의 id. 우편함은 오래된 것을 지우므로 여기서 따로 센다
   mailSeen: [],
+  // 플레이어 코드 — **특정 사람에게만 우편을 보낼 때 쓰는 주소다.**
+  // 서버가 붙기 전에는 계정을 알 길이 없어서 이걸 대신 쓴다 (설정 > 계정에 뜬다)
+  playerCode: null,
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
 
@@ -504,6 +507,27 @@ function seedMail() {
 }
 
 /**
+ * 플레이어 코드 — 특정 사람에게만 우편을 보낼 때 쓰는 주소.
+ *
+ * 서버가 붙기 전에는 계정을 알 길이 없다. 그래서 이 기기에서 한 번 만들어
+ * 세이브에 넣어 두고, 설정 > 계정에 보여 준다. 플레이어가 그 코드를 알려 주면
+ * `data/mail.json > entries[].to` 에 적어 그 사람에게만 보낼 수 있다.
+ *
+ * **한계**: 세이브에 딸린 값이라 저장 데이터를 지우면 바뀐다. 서버가 붙으면
+ * Verse8 계정이 더 나은 주소다 — 그쪽은 기기를 옮겨도 같다 (둘 다 받는다).
+ */
+function playerCode() {
+  if (!S.playerCode) {
+    // 헷갈리는 글자(0/O, 1/I)는 뺀다 — 사람이 읽어서 옮겨 적는 값이다
+    const A = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let s = '';
+    for (let i = 0; i < 8; i++) s += A[(Math.random() * A.length) | 0];
+    S.playerCode = s.slice(0, 4) + '-' + s.slice(4);
+  }
+  return S.playerCode;
+}
+
+/**
  * 운영자 우편 배달 — `data/mail.json > entries` 를 우편함에 넣는다.
  *
  * **서버 없이 제작자가 보상을 줄 수 있는 길이다.** 항목을 하나 더해 배포하면
@@ -517,9 +541,13 @@ function deliverOperatorMail() {
   S.mailbox = S.mailbox || [];
   S.mailSeen = S.mailSeen || [];
   const now = Date.now();
+  // 나를 가리키는 주소들 — 플레이어 코드와 (서버가 붙었으면) 계정
+  const me = [playerCode(), live.get('myAlliance')?.me?.account].filter(Boolean);
   for (const e of list) {
     if (!e || !e.id || S.mailSeen.includes(e.id)) continue;
     if (e.expiresAt && now > e.expiresAt) continue;
+    // to 가 있으면 **거기 적힌 사람만** 받는다. 없으면 전체 공지 우편이다
+    if (Array.isArray(e.to) && e.to.length && !e.to.some(x => me.includes(String(x)))) continue;
     S.mailSeen.push(e.id);
     S.mailbox.push({
       id: e.id, title: e.title || '선물', from: e.from || '운영팀',
@@ -6394,7 +6422,7 @@ function bootTapToStart() {
     set: (k, v) => { S.profile = S.profile || {}; S.profile[k] = v; save(); renderCaptain(); },
   });
   settings = new SettingsScreen($('#app'), {
-    state: S, data: D,
+    state: S, data: D, playerCode,
     set: (k, v) => {
       if (k === 'speed') { S.speed = v; scene.speed = v; syncSpeedBtns(); }
       else if (k === 'fx') { S.fxOn = !!v; scene.fx.enabled = !!v; }
@@ -6414,7 +6442,13 @@ function bootTapToStart() {
     action: a => {
       if (a === 'reset') { localStorage.removeItem(SAVE_KEY); location.reload(); }
       else if (a === 'rates') { settings.close(); shop.open(); }
-      else toast('미구현');
+      else if (a === 'copycode') {
+        // 문의할 때 옮겨 적기 쉽게 — 복사가 막힌 환경이면 그냥 보여 주기만 한다
+        const code = playerCode();
+        navigator.clipboard?.writeText(code)
+          .then(() => toast(t('플레이어 코드를 복사했습니다')))
+          .catch(() => toast(code));
+      } else toast('미구현');
     },
   });
   shop = new ShopScreen($('#app'), {
