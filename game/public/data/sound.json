@@ -88,11 +88,6 @@
         "priority": "P0"
       },
       {
-        "id": "sfx_tab",
-        "nameKo": "탭 전환",
-        "priority": "P1"
-      },
-      {
         "id": "sfx_popup_open",
         "nameKo": "팝업 열기",
         "priority": "P1"
@@ -107,11 +102,6 @@
         "nameKo": "불가/오류",
         "priority": "P0",
         "note": "재화 부족·조건 미달. 없으면 유저가 버튼이 먹었는지 모른다"
-      },
-      {
-        "id": "sfx_toggle",
-        "nameKo": "토글 ON/OFF",
-        "priority": "P2"
       }
     ],
     "combat": [
@@ -266,71 +256,13 @@
         "note": "등급 판정 직전 긴장 구간. 가챠 체감의 핵심"
       },
       {
-        "id": "sfx_grade_n",
-        "nameKo": "N 결과",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_grade_r",
-        "nameKo": "R 결과",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_grade_sr",
-        "nameKo": "SR 결과",
-        "priority": "P0"
-      },
-      {
-        "id": "sfx_grade_ssr",
-        "nameKo": "SSR 결과",
-        "priority": "P0"
-      },
-      {
-        "id": "sfx_grade_ur",
-        "nameKo": "UR 결과",
+        "id": "sfx_summon_result",
+        "nameKo": "소환 결과",
         "priority": "P0",
-        "note": "여기에 가장 공들여라. 스크린샷과 함께 자랑되는 순간"
-      },
-      {
-        "id": "sfx_grade_lr",
-        "nameKo": "LR 결과",
-        "priority": "P0",
-        "note": "무과금 기대값 1.5체. 일생에 몇 번 안 듣는 소리라 압도적이어야 한다"
+        "note": "등급별로 나누지 않는다 (단장 확정 2026-08-26). 등급은 연출(FX-등급 폭발·액자 색)이 이미 말하고 있어서, 소리까지 여섯 갈래로 나누면 만들 것만 늘고 구별은 화면이 한다."
       }
     ],
     "growth": [
-      {
-        "id": "sfx_levelup",
-        "nameKo": "레벨업",
-        "priority": "P0"
-      },
-      {
-        "id": "sfx_auto_enhance",
-        "nameKo": "자동강화 일괄",
-        "priority": "P0",
-        "note": "수백 개를 한 번에 처리한다. 개별음이 아니라 상승 스윕 1회"
-      },
-      {
-        "id": "sfx_equip_swap",
-        "nameKo": "장착 교체",
-        "priority": "P0"
-      },
-      {
-        "id": "sfx_enhance",
-        "nameKo": "장비 강화",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_summon_levelup",
-        "nameKo": "소환 레벨업",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_grade_unlock",
-        "nameKo": "등급 해금",
-        "priority": "P0",
-        "note": "장비 소환 레벨업의 최대 동기. 짧은 팡파레"
-      },
       {
         "id": "sfx_codex_new",
         "nameKo": "도감 신규 등록",
@@ -454,5 +386,19 @@
     "자동 소환 700개 배치에서 오디오가 실제로 안 뭉개지는지 실측",
     "스테이지 테마별 BGM 확장 여부 판단 (용량 +6MB)"
   ],
-  "skillNote": "이펙트 12종에 사운드는 9종만 대응한다. 버프 3종과 소환 2종은 소리를 공유해도 체감 차이가 없다."
+  "skillNote": "이펙트 12종에 사운드는 9종만 대응한다. 버프 3종과 소환 2종은 소리를 공유해도 체감 차이가 없다.",
+  "foldedIntoTap": {
+    "cues": [
+      "sfx_tab",
+      "sfx_toggle",
+      "sfx_equip_swap",
+      "sfx_levelup",
+      "sfx_enhance",
+      "sfx_auto_enhance",
+      "sfx_summon_levelup",
+      "sfx_grade_unlock"
+    ],
+    "note": "버튼을 누르는 순간일 뿐인 큐는 sfx_tap 하나로 통일했다 (단장 확정 2026-08-26). 소리를 따로 만들어도 유저는 \"버튼이 먹었다\" 로만 읽고, 큐가 늘수록 만들 것과 어긋날 곳만 는다.",
+    "impl": "재생기가 이 id 들을 받으면 sfx_tap 을 낸다 — 호출부를 안 고쳐도 되고, 나중에 따로 주고 싶어지면 여기서 다시 갈라내면 된다."
+  }
 }
