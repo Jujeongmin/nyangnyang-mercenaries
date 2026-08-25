@@ -1070,8 +1070,10 @@ export class BattleScene {
     const c = this.captain;
     const p = Math.max(0, this.partyHp / this.partyMaxHp);
     const hb = this.headTop(c);
-    const h = 8;
-    const w = hb.w * 1.05;
+    // 폭은 **머리 폭 기준**이다. 1.05 는 머리보다 넓다는 뜻이라 유닛이 커지면
+    // 막대가 몸보다 길어 보인다 — 0.8 로 머리 안쪽에 앉힌다 (단장 지적 2026-08-25)
+    const h = 7;
+    const w = hb.w * 0.8;
     const x = hb.cx - w / 2;
     // 머리 바로 위. 8px 은 바 자체 높이, 6px 은 머리와의 간격이다.
     const y = hb.top - h - 6;
@@ -1644,8 +1646,10 @@ export class BattleScene {
     const p = Math.max(0, f.hp / f.maxHp);
     const boss = f.boss;
     const hb = this.headTop(f.rig);
-    const w = Math.min(hb.w * (boss ? 1.35 : 0.78), this.app.screen.width - 16);
-    const h = boss ? 13 : 5;
+    // 폭은 머리 폭 기준. 유닛이 커지면서 막대가 몸보다 길어 보여 한 단계씩
+    // 줄였다 (보스 1.35→1.05, 잡몹 0.78→0.62 — 단장 지적 2026-08-25)
+    const w = Math.min(hb.w * (boss ? 1.05 : 0.62), this.app.screen.width - 16);
+    const h = boss ? 11 : 5;
     // 체력바는 머리 위에 붙어 따라간다. 화면 끝에서 잡아두면 몸에서 떨어져 보인다 —
     // 대신 화면보다 넓어지지 않게 폭만 제한한다.
     const x = hb.cx - w / 2;

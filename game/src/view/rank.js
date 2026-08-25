@@ -244,7 +244,8 @@ export class SettingsScreen {
       <div class="sh-note">${t('값은 저장되며, 사운드가 연동되는 즉시 적용됩니다.')}</div>
 
       <div class="st-h">${t('정보')}</div>
-      <div class="st-row link" data-a="rates"><span>${t('확률표 고지')}</span><b>›</b></div>
+      <!-- 확률표 고지 줄은 뺐다 — 확률은 소환·제작대 화면에서 1탭 이내로
+           보이고 있어 여기서 한 번 더 들어가는 통로는 중복이다 (단장 확정) -->
       <div class="st-row link" data-a="account"><span>${t('계정')}</span><b>${S.nickname || t('단장')} ›</b></div>
       <!-- 빌드 표식(커밋 해시)을 같이 찍는다 — 배포본이 갱신됐는지 확인할
            길이 없어서 옛 빌드를 보며 헤맸다 (vite.config.js > buildStamp) -->

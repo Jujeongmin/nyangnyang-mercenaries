@@ -140,6 +140,8 @@ const S = {
   // 이벤트 시계의 원점 — 첫 접속 시각. D-day 가 여기서 나온다
   evStart: null,
   mailbox: [],
+  // 받은 운영자 우편의 id. 우편함은 오래된 것을 지우므로 여기서 따로 센다
+  mailSeen: [],
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
 
@@ -489,21 +491,43 @@ function claimMail(i) {
   gainToast(Object.entries(m0.grants).filter(([k]) => MAIL_CUR[k]));
 }
 
-/** 던전 일일 수령·아레나 티어 보상이 우편으로 온다. 데모용 지급. */
+/**
+ * 첫 실행 우편 — **출시 기념 선물 한 통뿐이다.**
+ *
+ * 예전에는 아레나 티어 보상·던전 일일 수령도 같이 넣어 우편함이 어떻게 보이는지
+ * 보여 줬는데, 그 둘은 **실제로 아무도 안 보낸다** — 받은 적 없는 보상이
+ * 우편함에 있는 셈이라 처음 여는 사람에게 거짓말이 된다 (단장 확정 2026-08-25).
+ * 그 둘은 서버가 보내게 되면 그때 진짜로 들어온다.
+ */
 function seedMail() {
-  if (S.mailbox.length) return;
-  const tier = D.arena.tiers[0];
-  S.mailbox = [
-    { id: 'm1', title: '아레나 티어 보상', from: '아레나',
-      grants: { arena_medal: tier.dailyMedals, diamond: tier.dailyDiamond },
-      createdAt: Date.now() - 3600e3 * 5, claimed: false },
-    { id: 'm2', title: '황금 광산 일일 수령', from: '던전',
-      grants: { gold: Math.round(D.dungeons.dungeons[0].baseYield) },
-      createdAt: Date.now() - 3600e3 * 20, claimed: false },
-    { id: 'm3', title: '출시 기념 선물', from: '운영팀',
-      grants: { diamond: 1000, equip_ticket: 30 },
-      createdAt: Date.now() - 3600e3 * 40, claimed: false },
-  ];
+  deliverOperatorMail();
+}
+
+/**
+ * 운영자 우편 배달 — `data/mail.json > entries` 를 우편함에 넣는다.
+ *
+ * **서버 없이 제작자가 보상을 줄 수 있는 길이다.** 항목을 하나 더해 배포하면
+ * 모두가 받는다. 받았는지는 **id 로만** 판단한다 (`S.mailSeen`) — 우편함은
+ * 받은 것을 20통까지만 남기고 지우므로(pruneMail), 우편함만 보고 판단하면
+ * 오래된 선물이 되살아나 무한 지급이 된다.
+ */
+function deliverOperatorMail() {
+  const list = D.mail?.entries;
+  if (!Array.isArray(list)) return;
+  S.mailbox = S.mailbox || [];
+  S.mailSeen = S.mailSeen || [];
+  const now = Date.now();
+  for (const e of list) {
+    if (!e || !e.id || S.mailSeen.includes(e.id)) continue;
+    if (e.expiresAt && now > e.expiresAt) continue;
+    S.mailSeen.push(e.id);
+    S.mailbox.push({
+      id: e.id, title: e.title || '선물', from: e.from || '운영팀',
+      grants: e.grants || {}, createdAt: now, claimed: false,
+    });
+  }
+  // 목록이 길어져도 세이브가 부풀지 않게 — 안 쓰는 옛 id 는 앞에서 자른다
+  if (S.mailSeen.length > 200) S.mailSeen = S.mailSeen.slice(-200);
 }
 
 /** 퀘스트 진행도 — 상태에서 직접 읽는다. 별도 카운터를 두면 어긋난다. */
@@ -905,7 +929,8 @@ function finishForge() {
   mq('forge_lv', Math.max(1, S.forgeTarget - S.forgeLv));
   S.forgeLv = S.forgeTarget;
   S.forgeStart = null; S.forgeTarget = null; S.forgeCut = 0;
-  save(); renderTop(); renderEquip(); renderForgeDock();
+  // 제작대 레벨도 퀘스트 진행도다 (equip_summon_level)
+  save(); renderTop(); renderEquip(); renderForgeDock(); renderQuest();
   toast(`제작대 Lv ${S.forgeLv}`);
   if ($('#ov').classList.contains('show')) openForge();
 }
@@ -3125,7 +3150,9 @@ function openTraining() {
       S.gold -= c; S.trainLv++; n++;
     } while (many);
     if (!n) return toast('골드 부족');
-    save(); openTraining(); renderTop();
+    // 훈련소 레벨은 퀘스트 진행도다 (training_level) — 안 그리면 배너가
+    // 올린 직후에도 옛 숫자로 남는다 (단장 지적 2026-08-25)
+    save(); openTraining(); renderTop(); renderQuest();
     scene.partyDps = partyDps();
     toast(`훈련소 Lv${S.trainLv} · 전투력 +${cpNum(totalCp() - before)}`);
   };
@@ -5870,6 +5897,9 @@ function showTapHint(sel, ms = 6000) {
   const el = typeof sel === 'string' ? $(sel) : sel;
   clearTimeout(tapHintT);
   if (!el || !hint) return;
+  // **덮개가 열려 있으면 아예 안 띄운다.** 치우는 것만으로는 부족했다 —
+  // 상점을 열면 그 안에서 렌더가 돌고, 그때 이 함수가 다시 불려 손이 되살아났다
+  if (coverOpen()) return hideTapHint();
   // 같은 목표로 이미 떠 있으면 그냥 둔다 — renderQuest 가 자주 도는데 그때마다
   // 다시 걸면 click 리스너가 계속 쌓이고 애니메이션도 매번 처음으로 튄다
   if (tapHintSel === sel && hint.classList.contains('show')) return;
@@ -5906,14 +5936,31 @@ function hideTapHint() {
  * 손이 떠 있었다 (단장 지적 2026-08-25). 판이 닫히면 다시 안내가 필요한지는
  * maybeOnboardHint 가 판단하므로 여기서는 치우기만 한다.
  */
-function watchTapHintCover() {
-  const roots = [...document.querySelectorAll('#shop, #ov, #sheet, #smPop, #hgPop, .fullscr')];
-  if (!roots.length) return;
-  const obs = new MutationObserver(() => {
-    if (!tapHintSel) return;
-    if (roots.some(e => e.classList.contains('show'))) hideTapHint();
+/** 화면을 덮는 판들. watchTapHintCover 가 채운다 */
+let hintCovers = [];
+
+/** 지금 화면을 덮고 있는 판이 있나 — 손을 띄울지 말지의 기준 */
+function coverOpen() {
+  return hintCovers.some(e => {
+    const c = getComputedStyle(e);
+    return c.display !== 'none' && c.visibility !== 'hidden';
   });
-  for (const e of roots) obs.observe(e, { attributes: true, attributeFilter: ['class'] });
+}
+
+function watchTapHintCover() {
+  // **이름을 나열하지 않는다.** 덮개를 하나 새로 만들 때마다 여기 적어야 하면
+  // 반드시 빠뜨린다 — 실제로 방치 보상(#idle)·소환 연출(#reveal)·유닛 상세
+  // (#unit)가 빠져 그 화면들 위에 손이 떠 있었다 (단장 지적 2026-08-25).
+  // 손보다 위에 뜨는 것(z >= 50)을 전부 덮개로 본다.
+  hintCovers = [...document.querySelectorAll('#app > *, body > *')].filter(e => {
+    const z = parseInt(getComputedStyle(e).zIndex, 10);
+    return z >= 50 && e.id !== 'tapHint';
+  });
+  if (!hintCovers.length) return;
+  const obs = new MutationObserver(() => {
+    if (tapHintSel && coverOpen()) hideTapHint();
+  });
+  for (const e of hintCovers) obs.observe(e, { attributes: true, attributeFilter: ['class', 'style'] });
 }
 
 // 파라미터 이름을 t 로 두지 않는다 — i18n 의 t() 를 가리면 나중에 번역을
@@ -6040,7 +6087,8 @@ function onEvent(e) {
     t.classList.toggle('low', e.timeLeft < 6);
   } else if (e.type === 'towerWin') {
     towerClear(D, S, toast);
-    save(); renderTop();
+    // 탑 최고층도 퀘스트 진행도다 (tower_floor)
+    save(); renderTop(); renderQuest();
     setTimeout(() => { tower.open(); runStage(); }, 900);
   } else if (e.type === 'towerLose') {
     showResult(`${e.floor}층 실패`, '#ff5a6a');

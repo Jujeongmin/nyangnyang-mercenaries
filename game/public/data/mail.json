@@ -1,0 +1,18 @@
+{
+  "note": "운영자 우편 — 여기에 항목을 추가하고 배포하면 모든 플레이어의 우편함에 들어간다. 서버 없이 동작한다.",
+  "howTo": [
+    "1. entries 에 항목을 하나 더한다. id 는 **다시 쓰지 않는다** (한 번 받은 id 는 다시 안 들어간다).",
+    "2. grants 의 키는 main.js > MAIL_CUR 에 있는 것만 지급된다:",
+    "   diamond · gold · equip_ticket · speedup_5m · arena_medal · merc_ticket · skill_ticket · alliance_coin",
+    "3. 배포하면 끝. 이미 받은 사람에게 다시 가지 않고, 새로 시작한 사람도 받는다.",
+    "4. expiresAt(밀리초, 선택)이 지나면 아직 안 받은 사람에게도 더는 안 준다."
+  ],
+  "entries": [
+    {
+      "id": "launch-2026-08",
+      "title": "출시 기념 선물",
+      "from": "운영팀",
+      "grants": { "diamond": 1000, "equip_ticket": 30 }
+    }
+  ]
+}

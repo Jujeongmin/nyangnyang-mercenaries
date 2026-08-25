@@ -342,8 +342,10 @@ export class ShopScreen {
     const p = this.api.data.economy.diamondPackages;
     return this.speedCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
-      return `<div class="sh-pack${x.oncePerAccount ? ' first' : ''}">
-        ${x.oncePerAccount ? `<span class="sh-ribbon">${t('첫 결제 2배')}</span>` : ''}
+      // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
+      // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)
+      return `<div class="sh-pack">
+        ${''}
         <img src="/assets/ui/SHOP-D${i + 1}.png" alt="">
         <b>${num(x.diamond)}</b>
         ${bonus ? `<span class="sh-bonus">${bonus}</span>` : ''}

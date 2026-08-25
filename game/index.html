@@ -3457,17 +3457,24 @@
     #speed .sbtn{padding:2px 7px;font-size:10px}
     #eqR{display:none}
     #eq{grid-template-columns:1fr}
-    #skAuto{width:30px;height:30px;font-size:8px}
+    /* 폭은 .sk 와 같은 식(clamp)이 정한다 — 여기서 다시 못 박으면 AUTO 만
+       작아져 줄 끝이 어긋난다. 글자 크기만 줄인다 */
+    #skAuto{font-size:8px}
     /* 스킬 줄이 사이드 열(우측 26px 폭) 밑으로 들어가지 않게 더 줄인다.
-       30+6+8*26+7*6 = 286px → 좌우 여백 37px, 열(34px)과 안 만난다 */
-    .sk{width:30px}
+       30+6+8*26+7*6 = 286px → 좌우 여백 37px, 열(34px)과 안 만난다.
+       **AUTO 도 같이 적는다** — 한쪽만 고정하면 둘 크기가 갈린다 */
+    .sk,#skAuto{width:30px}
     #skRow{gap:5px}
   }
 
   /* ── 참고 배치 (버섯커 스크린샷) ──────────────────────────────────
      스킬바 왼쪽 AUTO · 인벤토리 2줄(아랫줄 = 추후 시스템 잠금 칸). */
   #skRow{display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:auto}
-  #skAuto{flex:0 0 auto;width:40px;height:40px;border-radius:50%;cursor:pointer;
+  /* **스킬 칸과 같은 식으로 큰다.** 40px 고정이면 PC 에서 칸만 64px 로 커지고
+     AUTO 는 그대로라 줄 끝이 어긋난다 (단장 지적 2026-08-25).
+     .sk 와 같은 clamp 를 쓰되 글자가 들어가야 해서 하한만 조금 높다 */
+  #skAuto{flex:0 0 auto;border-radius:50%;cursor:pointer;
+    width:clamp(30px,calc((100cqw - 110px)/8),64px);aspect-ratio:1;height:auto;
     font-family:inherit;font-size:9px;font-weight:900;line-height:1.1;color:var(--dim);
     background:var(--card)cc;border:2px solid var(--line);padding:0;
     display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -3586,7 +3593,8 @@
     #skRow{max-width:100%;flex-wrap:nowrap}
     #skills{gap:2px}
     /* 8칸이 #skills(max 100cqw-96px) 안에서 최대한 커지도록. 375 폭에서 32px */
-    .sk{width:clamp(26px,calc((100cqw - 80px)/8),40px)}
+    /* AUTO 도 같은 식을 쓴다 — 한쪽만 적으면 둘 크기가 갈린다 */
+    .sk,#skAuto{width:clamp(26px,calc((100cqw - 80px)/8),40px)}
     #skRow:has(#csChip:not([hidden])) :is(.sk,#csChip,#csChip2){
       width:clamp(24px,calc((100cqw - 80px)/9),36px)}
     #skRow:has(#csChip2:not([hidden])) :is(.sk,#csChip,#csChip2){
@@ -3600,7 +3608,7 @@
     #wallCard{padding:10px 11px}
     #wallCard>b{font-size:12px}
     .w-row{font-size:11px}
-    #skAuto{width:26px;height:26px;font-size:7px}
+    #skAuto{font-size:7px}   /* 폭은 .sk 와 같은 clamp 가 정한다 */
     #dpsInfo{font-size:9px}
   }
 </style>

@@ -8,6 +8,8 @@ const FILES = [
   'characters', 'skills', 'gacha', 'equipment', 'combat', 'stages', 'tower', 'dungeons',
   'quests', 'economy', 'goldsinks', 'arena', 'alliance', 'ranking', 'codex', 'dailies',
   'free1000', 'events', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
+  // 운영자 우편 — 항목을 더하고 배포하면 모두의 우편함에 들어간다 (서버 불필요)
+  'mail',
 ];
 
 export const D = Object.create(null);
