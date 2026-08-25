@@ -4,16 +4,23 @@ import { execSync } from 'node:child_process';
 import { bgeditPlugin } from './tools/bgedit-plugin.js';
 
 /**
- * 빌드 표식 — **지금 도는 화면이 어느 커밋인지** 설정 화면에 찍는다.
+ * 빌드 표식 — **지금 도는 화면이 어느 판인지** 설정 화면과 콘솔에 찍는다.
  * 배포본이 갱신됐는지 눈으로 확인할 길이 없어서, 옛 빌드를 보며 "왜 수정이
- * 안 됐나" 를 세 번 되풀이했다 (2026-08-25). git 이 없는 환경에서는 조용히
- * 'dev' 로 떨어진다 — 표식 때문에 빌드가 깨지면 안 된다.
+ * 안 됐나" 를 여러 번 되풀이했다 (2026-08-25).
+ *
+ * **Verse8 에디터 컨테이너는 턴 사이에 `.git` 을 지운다.** 그래서 커밋 해시를
+ * 못 읽는데, 그때 'dev' 한 마디만 찍으면 서버를 다시 띄워도 값이 안 변해
+ * "새로 뜬 판인지" 를 구분할 수 없다. 그 자리에는 **띄운 시각**을 넣는다.
  */
 function buildStamp() {
   try {
     return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString().trim();
-  } catch { return 'dev'; }
+  } catch {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `dev-${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
 }
 
 // Verse8 은 Vite 프로젝트를 전제로 한다 (docs.verse8.io — "Vite 기반").
