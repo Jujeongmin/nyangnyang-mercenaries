@@ -1964,6 +1964,10 @@
   .hg-step[data-hgd="-10"]::after,.hg-step[data-hgd="10"]::after{
     background-image:url(/assets/ui/UI-ARROW-LL.png);width:22px}
   .hg-step[data-hgd="1"]::after,.hg-step[data-hgd="10"]::after{transform:scaleX(-1)}
+  /* 제작대 확률 열람기(data-fgb)도 같은 단추를 쓴다. 뒤집기 규칙이 모래시계
+     전용 속성(data-hgd)에만 걸려 있어서 "다음" 단추까지 왼쪽 화살표로 떴다.
+     **뒤집을 쪽을 값의 부호가 아니라 방향 표시로 정한다** — data-dir="next" */
+  .hg-step[data-dir="next"]::after{transform:scaleX(-1)}
   .hg-step:active{background:var(--panel2)}
   .hg-val{flex:1 1 auto;text-align:center;font-size:16px;font-weight:900;color:var(--gold);
     font-family:"Black Han Sans",system-ui,sans-serif}

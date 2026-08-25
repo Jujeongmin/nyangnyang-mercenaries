@@ -32,8 +32,12 @@ import { readdirSync, existsSync, statSync, readFileSync } from 'node:fs';
 import { resolve, basename, dirname } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '../game/public/assets');
-// 좌표(trim.json · cutout/*.json)가 걸리지 않은 폴더만. char/boss/enemy/captain 은 제외
-const DIRS = ['fx', 'ui', 'bg', 'art', 'dungeon', 'alliance'];
+// 기본값은 **좌표가 안 걸린 폴더**다. char/boss/enemy 처럼 trim.json·cutout 이
+// 원화 픽셀 좌표를 들고 있는 폴더는 인자로 명시해서 돌리고, 끝나면 반드시
+// `node tools/rescale-coords.mjs 0.5 <폴더…>` 로 좌표도 같은 비율로 줄인다.
+//   예) node tools/shrink-sink.mjs char boss enemy
+const SAFE_DIRS = ['fx', 'ui', 'bg', 'art', 'dungeon', 'alliance'];
+const DIRS = process.argv.slice(2).length ? process.argv.slice(2) : SAFE_DIRS;
 // 이 픽셀 이상만 줄인다. 아이콘(64~256)은 이미 표시 크기에 가깝다
 const MIN_SIDE = 900;
 // 스프라이트 **시트**는 뺀다 — CSS steps() 애니메이션이 프레임 좌표에 걸려 있고,

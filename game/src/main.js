@@ -5321,13 +5321,16 @@ function renderForgeRateBrowser(idx) {
   const ttl = $('#smTitle');
   if (ttl) ttl.textContent = t('레벨별 확률');
   $('#smBody').innerHTML = `
-    <!-- 화살표는 &lt; &gt; 다. ‹ › 는 글꼴에 없으면 양쪽이 같은 모양으로 떨어져
-         어느 쪽이 다음인지 안 보인다 (단장 지적 2026-08-25) -->
+    <!-- .hg-step 은 글자를 숨기고 화살표 **그림**을 쓴다. 오른쪽 단추는
+         data-dir="next" 로 그림을 뒤집어야 한다 — 안 주면 양쪽이 똑같이
+         왼쪽 화살표로 뜬다 (단장 지적 2026-08-25) -->
     <div class="fr2-nav">
-      <button class="hg-step" data-fgb="${idx - 1}" ${idx === 0 ? 'disabled' : ''}>&lt;</button>
+      <button class="hg-step" data-dir="prev" data-fgb="${idx - 1}"
+        ${idx === 0 ? 'disabled' : ''} aria-label="${t('이전')}"></button>
       <span class="${mine ? 'fr2-now' : ''}" style="min-width:96px;text-align:center">
         ${lvLabel}${mine ? ` · ${t('현재')}` : ''}</span>
-      <button class="hg-step" data-fgb="${idx + 1}" ${idx === bands.length - 1 ? 'disabled' : ''}>&gt;</button>
+      <button class="hg-step" data-dir="next" data-fgb="${idx + 1}"
+        ${idx === bands.length - 1 ? 'disabled' : ''} aria-label="${t('다음')}"></button>
     </div>
     <div class="fr-rows">${forgeRateRows(b.rates, null)}</div>
     ${newG ? `<div class="fr-unlock" style="--c:${newG.color}">
