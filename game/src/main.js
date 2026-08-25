@@ -5761,10 +5761,6 @@ function eqCard(it, isNew, base) {
   const sl = D.equipment.slots.find(x => x.id === it.slot);
   const g = D.equipment.grades[it.tier - 1];
   const cp = Math.round(cpWith(it.slot, it));
-  // 카드의 큰 숫자는 **그 장비 자신의 전투력**이다. 예전에는 "끼웠을 때의 총
-  // 전투력" 을 적었는데, 그건 장비가 아니라 그 사람 전체를 말하는 값이라
-  // "이 무기 62,000" 처럼 읽히면서 실제 증가분과 어긋났다 (단장 지적)
-  const own = eqCpOf(it);
   const d = base == null ? null : cp - base;
   const col = d == null ? '' : d > 0 ? 'var(--up)' : d < 0 ? 'var(--warn)' : 'var(--dim)';
   // 변화가 없으면 뱃지를 안 띄운다 — '= 0' 은 읽을 값이 아니다
@@ -5774,7 +5770,9 @@ function eqCard(it, isNew, base) {
     <i>${isNew ? t('새로 나옴') : t('착용 중')}</i>
     ${eqImg(sl, it.tier)}>
     <b style="color:${g.color}">${t(g.nameKo)} T${it.tier}</b>
-    <div class="er-cp">${t(sl.nameKo)} · ${t('전투력')} <em>+${cpNum(own)}</em></div>
+    <!-- 부위 이름만 남긴다. 전투력 숫자는 바로 아래 증감 배지(er-d)가 이미
+         같은 말을 하고 있어서 회색 줄이 겹말이었다 (단장 지적 2026-08-25) -->
+    <div class="er-cp">${t(sl.nameKo)}</div>
     ${tag}
   </div>`;
 }
