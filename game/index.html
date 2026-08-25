@@ -170,7 +170,10 @@
   #timer{margin-top:34px;font-size:22px;font-weight:900;letter-spacing:1px}
   #timer.low{color:var(--warn)}
   #hudBot{display:flex;justify-content:space-between;align-items:flex-end}
-  #speed{display:flex;gap:4px;pointer-events:auto;margin-top:5px;justify-content:flex-end}
+  /* 5px 은 원래 여백이고 --bleed 는 상단 패널 뒤로 파고든 몫이다 —
+     둘을 더해야 배속 바가 패널 아래에 선다 (안 더하면 9px 겹친다) */
+  #speed{display:flex;gap:4px;pointer-events:auto;justify-content:flex-end;
+    margin-top:calc(5px + var(--bleed))}
   /* 배속 — 세 칸이 하나의 **황동 토글 바**다. 전에는 낱개 회색 버튼이라
      화면의 나머지(황동 프레임 · 금색 강조)와 따로 놀았다 */
   #speed{background:#17120fd8;border:1px solid #c9a22755;border-radius:11px;
@@ -3406,7 +3409,8 @@
     .side{top:3px;gap:2px}
     /* 우측은 배속(4)·타이머(34~56) 아래서 시작해야 한다 */
     #sideR{top:60px}
-    #timer{position:absolute;top:32px;right:8px;margin:0;font-size:17px}
+    #timer{position:absolute;top:32px;right:8px;font-size:17px;
+      margin:var(--bleed) 0 0}   /* 상단 패널 뒤로 파고든 몫만큼 내린다 */
     .side button{width:26px;height:26px}
     .side button span{display:none}
     #speed .sbtn{padding:2px 7px;font-size:10px}
@@ -3499,7 +3503,8 @@
        412px 에서는 그래도 붙는다. 아래로 6px 더 내린다 */
     #bossGo{top:calc(100% + 14px)}
     #speed .sbtn{padding:1px 5px;font-size:9px;flex:0 0 auto}
-    #timer{position:absolute;top:2px;right:44px;font-size:15px;margin:0}
+    #timer{position:absolute;top:2px;right:44px;font-size:15px;
+      margin:var(--bleed) 0 0}   /* 상단 패널 뒤로 파고든 몫만큼 내린다 */
     /* 중앙 HUD 는 배속 줄(≈96px)과 사이드(40px)를 뺀 폭 안에서만 산다.
        안 그러면 스테이지 글자가 배속 버튼 밑으로 파고든다 */
     /* 중앙 HUD 는 좌(배속 96px)·우(타이머+사이드 80px)를 뺀 폭 안에서만 산다 */
