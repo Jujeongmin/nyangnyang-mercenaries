@@ -1,511 +1,512 @@
 {
- "meta": {
-  "version": "2.0",
-  "description": "메인 스테이지 200단계 CP 곡선 + 적 스탯 산출 규칙",
-  "totalStages": 200
- },
- "cpCeiling": {
-  "value": 7277310000,
-  "derivation": {
-   "merc5xUR_Lv30": 56000000,
-   "skill8xUR_Lv30": 89600000,
-   "cpBase": 145600000,
-   "equipmentMult": 2.86,
-   "codexMult": 1.32,
-   "mercSummonLv50Mult": 1.25,
-   "skillSummonLv50Mult": 1.25,
-   "equipSummonLv60Mult": 1.48,
-   "trainingCampMult": 1.4,
-   "promotionMult_v2": 1.55,
-   "classSkillMult": 1.6,
-   "eventCosmeticMult": 1.6
+  "meta": {
+    "version": "2.0",
+    "description": "메인 스테이지 200단계 CP 곡선 + 적 스탯 산출 규칙",
+    "totalStages": 200
   },
-  "history": {
-   "v1": 1310000000,
-   "v2": 1834000000,
-   "reason": "goldsinks.json > training_camp 이 CP 곱연산 항으로 추가됨 (최대 +40%)",
-   "v3": 1834000000,
-   "v3Note": "v4 (2026-08-24): 전직 개편(한 길 1.55) + 전직 스킬 만렙(x1.6) + 이벤트 한정 상품(+60%) 반영. 모노 직군 풀강 기준 x3.97. St200 요구(16억)는 이제 천장의 22% 다 — 풀과금 기준 통과의례가 되지 않게 시즌 스테이지(201+)를 라이브에서 준비해야 한다."
-  },
-  "note": "St200 요구 CP 1,600,000은 천장의 87%. 사실상 전 시스템 만렙 근처라야 클리어된다.",
-  "st200RatioHistory": {
-   "v1": 0.22,
-   "v2": 0.87,
-   "reason": "22%면 후반에 벽이 성립하지 않는다. 무과금이 D180에 CP 133만에 도달하는데 요구가 40만이면 최종 스테이지가 통과의례가 된다."
-  }
- },
- "curve": {
-  "baseCp": 1250,
-  "model": "smooth_base_plus_walls",
-  "formula": "requiredCp(n) = requiredCp(n-1) * (1 + baseGrowth(n)) * (wallMultiplier(n) or 1)",
-  "segments": [
-   {
-    "from": 2,
-    "to": 40,
-    "growthPerStage": 0.0702,
-    "intent": "온보딩. 벽 없음. 유저 CP가 요구를 크게 앞질러 St49까지 7일 만에 돌파"
-   },
-   {
-    "from": 41,
-    "to": 100,
-    "growthPerStage": 0.012,
-    "intent": "평탄. 벽과 벽 사이는 쉽게 밀린다"
-   },
-   {
-    "from": 101,
-    "to": 160,
-    "growthPerStage": 0.006,
-    "intent": "평탄"
-   },
-   {
-    "from": 161,
-    "to": 200,
-    "growthPerStage": 0.002,
-    "intent": "거의 수평. 요구 증가가 전부 벽에 몰려 있다"
-   }
-  ],
-  "walls": {
-   "50": {
-    "multiplier": 1.2,
-    "gates": "장비 소환 Lv13 (신화 해금)",
-    "f2pStallDays": 8,
-    "reachDay": 9
-   },
-   "75": {
-    "multiplier": 1.3,
-    "gates": "장비 소환 Lv17 (초월) + 도감 확장",
-    "f2pStallDays": 8,
-    "reachDay": 17
-   },
-   "100": {
-    "multiplier": 1.45,
-    "gates": "장비 소환 Lv21 (태초) + 훈련소 해금",
-    "f2pStallDays": 13,
-    "reachDay": 30
-   },
-   "120": {
-    "multiplier": 1.6,
-    "gates": "장비 소환 Lv29 (무한 해금) + 수정 동굴",
-    "f2pStallDays": 12,
-    "reachDay": 42
-   },
-   "140": {
-    "multiplier": 1.8,
-    "gates": "무한 6부위 수집 + 강화 골드",
-    "f2pStallDays": 18,
-    "reachDay": 60
-   },
-   "160": {
-    "multiplier": 2,
-    "gates": "용병/스킬 소환 Lv30 (SSR 바닥 상승)",
-    "f2pStallDays": 33,
-    "reachDay": 93
-   },
-   "180": {
-    "multiplier": 2.2,
-    "gates": "장비 소환 Lv50+ / 훈련소 Lv150+",
-    "f2pStallDays": 41,
-    "reachDay": 134
-   },
-   "200": {
-    "multiplier": 2.5,
-    "gates": "전 시스템 만렙 근접",
-    "f2pStallDays": 92,
-    "reachDay": 226
-   }
-  },
-  "wallMultiplierProduct": 48.5,
-  "totalMultiplier": 3200,
-  "designIntent": "초반은 벽 없이 매끄럽게 밀리고, 후반으로 갈수록 정체 기간이 8일 -> 92일로 급증한다. 벽과 벽 사이는 평탄해서 '뚫으면 확 나간다'는 체감을 준다. 요구 증가의 대부분이 벽에 집중되어 있다.",
-  "wallEscapeValves": [
-   "골드 파밍 -> 훈련소 레벨업 / 장비 강화",
-   "던전 층 돌파 (재화 일일 수령량 영구 상승)",
-   "장비 소환 레벨 타이머 대기 (시간) 또는 즉시완료 (다이아)",
-   "다이아 -> 용병/스킬 소환 레벨",
-   "아레나 시즌 보상",
-   "광고 (제련 단축, 던전 입장, 방치 2배)"
-  ],
-  "wallEscapeValvesNote": "벽에서 할 일이 없으면 이탈한다. 최소 3가지 이상의 전진 수단이 항상 열려 있어야 한다."
- },
- "checkpoints": [
-  {
-   "stage": 1,
-   "requiredCp": 1250
-  },
-  {
-   "stage": 10,
-   "requiredCp": 2300
-  },
-  {
-   "stage": 25,
-   "requiredCp": 6362.5
-  },
-  {
-   "stage": 40,
-   "requiredCp": 17595
-  },
-  {
-   "stage": 50,
-   "requiredCp": 23787.5,
-   "wall": true
-  },
-  {
-   "stage": 75,
-   "requiredCp": 41667.5,
-   "wall": true
-  },
-  {
-   "stage": 100,
-   "requiredCp": 81412.5,
-   "wall": true
-  },
-  {
-   "stage": 120,
-   "requiredCp": 146812.5,
-   "wall": true
-  },
-  {
-   "stage": 140,
-   "requiredCp": 297850,
-   "wall": true
-  },
-  {
-   "stage": 160,
-   "requiredCp": 671410,
-   "wall": true
-  },
-  {
-   "stage": 180,
-   "requiredCp": 1537325,
-   "wall": true
-  },
-  {
-   "stage": 200,
-   "requiredCp": 4000000,
-   "wall": true
-  }
- ],
- "enemyDerivation": {
-  "waveEnemyCount": 4,
-  "waveEnemyTotalCp": "requiredCp * 0.85",
-  "waveEnemyCpEach": "requiredCp * 0.85 / 4",
-  "bossCp": "requiredCp * 2.4",
-  "bossCount": 1,
-  "encountersPerStage": 3,
-  "note": "적 스탯 배분은 ATK 40 / DEF 30 / HP 30 비율. CP 역산으로 절대값 산출.",
-  "syncNote": "combat.json > formation.enemyWaveSize 및 stagePresentation.structure 와 일치해야 한다.",
-  "bossStatRatio": {
-   "atk": 12,
-   "def": 28,
-   "hp": 60
-  },
-  "bossStatRatioNote": "보스는 잡몹과 다른 비율을 쓴다. 잡몹 비율(40/30/30)을 그대로 쓰면 CP 2.4배가 전부 ATK로도 반영돼 아군 ATK의 12배가 되고, DEF/(DEF+2.65*공격자ATK) 공식상 아군 감산율이 4%로 붕괴한다. 보스는 단단하고 오래 버티는 역할이어야 방어 스탯이 의미를 갖는다."
- },
- "backgrounds": [
-  {
-   "asset": "bg_BG01",
-   "nameKo": "초원",
-   "from": 1,
-   "to": 25
-  },
-  {
-   "asset": "bg_BG02",
-   "nameKo": "숲",
-   "from": 26,
-   "to": 50
-  },
-  {
-   "asset": "bg_BG03",
-   "nameKo": "동굴",
-   "from": 51,
-   "to": 75
-  },
-  {
-   "asset": "bg_BG04",
-   "nameKo": "화산",
-   "from": 76,
-   "to": 100
-  },
-  {
-   "asset": "bg_BG05",
-   "nameKo": "해저",
-   "from": 101,
-   "to": 150
-  },
-  {
-   "asset": "bg_BG06",
-   "nameKo": "마왕성",
-   "from": 151,
-   "to": 200
-  }
- ],
- "bosses": [
-  {
-   "stage": 10,
-   "asset": "boss_B01",
-   "nameKo": "왕 슬라임"
-  },
-  {
-   "stage": 25,
-   "asset": "boss_B02",
-   "nameKo": "고블린 족장"
-  },
-  {
-   "stage": 50,
-   "asset": "boss_B03",
-   "nameKo": "리치"
-  },
-  {
-   "stage": 75,
-   "asset": "boss_B04",
-   "nameKo": "화염 거인"
-  },
-  {
-   "stage": 100,
-   "asset": "boss_B05",
-   "nameKo": "심해 크라켄"
-  },
-  {
-   "stage": 150,
-   "asset": "boss_B06",
-   "nameKo": "마룡"
-  }
- ],
- "enemies": [
-  {
-   "asset": "enemy_E01",
-   "nameKo": "슬라임"
-  },
-  {
-   "asset": "enemy_E02",
-   "nameKo": "버섯 몬스터"
-  },
-  {
-   "asset": "enemy_E03",
-   "nameKo": "고블린"
-  },
-  {
-   "asset": "enemy_E04",
-   "nameKo": "박쥐 떼"
-  },
-  {
-   "asset": "enemy_E05",
-   "nameKo": "해골 병사"
-  },
-  {
-   "asset": "enemy_E06",
-   "nameKo": "늑대"
-  },
-  {
-   "asset": "enemy_E07",
-   "nameKo": "골렘"
-  },
-  {
-   "asset": "enemy_E08",
-   "nameKo": "도깨비불"
-  },
-  {
-   "asset": "enemy_E09",
-   "nameKo": "식인 꽃"
-  },
-  {
-   "asset": "enemy_E10",
-   "nameKo": "게"
-  },
-  {
-   "asset": "enemy_E11",
-   "nameKo": "정령"
-  },
-  {
-   "asset": "enemy_E12",
-   "nameKo": "임프"
-  }
- ],
- "enemyReuseNote": "12종을 CSS filter: hue-rotate()로 색조 변형해 36종처럼 사용. 이미지 재생성 불필요.",
- "systemUnlocks": {
-  "movedTo": "quests.json > trackUnlockQuests",
-  "note": "스테이지 기반 해금(St1/10/25)은 퀘스트 체인 순서와 충돌해 폐기됐다. 현재는 용병=튜토리얼 / 스킬=Q2 / 장비=Q3."
- },
- "f2pProgressEstimate": [
-  {
-   "day": 7,
-   "stage": 28,
-   "cp": 3242571
-  },
-  {
-   "day": 30,
-   "stage": 49,
-   "cp": 9307404
-  },
-  {
-   "day": 60,
-   "stage": 119,
-   "cp": 46091127
-  },
-  {
-   "day": 120,
-   "stage": 179,
-   "cp": 331847848
-  },
-  {
-   "day": 180,
-   "stage": 199,
-   "cp": 1334134342
-  }
- ],
- "f2pCpModel": {
-  "note": "v1의 진행 추정은 곡선에 맞춰 역으로 써넣은 순환 논리였다. v2는 각 시스템의 실제 타임라인을 곱해 산출한다.",
-  "components": {
-   "cpBase": {
-    "7": 2490,
-    "30": 4540,
-    "60": 12530,
-    "120": 50240,
-    "180": 126400,
-    "source": "용병5 + 스킬8 등급·레벨"
-   },
-   "equipmentMult": {
-    "7": 1.08,
-    "30": 1.34,
-    "60": 1.78,
-    "120": 2.32,
-    "180": 2.86
-   },
-   "codexMult": {
-    "7": 1.1,
-    "30": 1.18,
-    "60": 1.24,
-    "120": 1.29,
-    "180": 1.32
-   },
-   "mercSummonLv": {
-    "7": 3,
-    "30": 10,
-    "60": 17,
-    "120": 25,
-    "180": 34
-   },
-   "equipSummonLv": {
-    "7": 8,
-    "30": 22,
-    "60": 33,
-    "120": 48,
-    "180": 60
-   },
-   "trainingCampMult": {
-    "7": 1,
-    "30": 1,
-    "60": 1.12,
-    "120": 1.26,
-    "180": 1.38
-   },
-   "cpBaseNote": "gacha.json v3(등급 계단 해금) 반영. v2 대비 D7 0.40 / D30 0.28 / D60 0.38 / D120 0.72 / D180 1.00 배다. 뽑기 횟수와 소환 레벨 곡선은 그대로고 **등급 분포만** 바뀌었다 — 초반에 SR·SSR·UR 이 풀에 없으니 같은 횟수를 뽑아도 낮은 등급이 나온다. D180 이 1.00 인 것은 의도다: 늦춘 것은 초반 희귀도지 최종 전력이 아니다."
-  },
-  "formula": "cpBase * equipmentMult * codexMult * (1+mercLv*0.005)^2 * (1+equipLv*0.008) * trainingCampMult",
-  "f2pFinishesSt200": 226,
-  "f2pFinishesSt200Note": "게임 수명 180일을 넘는다. 의도된 결과 - 최종 스테이지는 과금 또는 장기 플레이의 목표로 남는다."
- },
- "rewards": {
-  "principle": "반복 클리어 보상은 골드 단독이다. 열쇠·제련석·다이아는 던전과 퀘스트가 전담한다 - 게이트 재화를 스테이지 파밍으로 풀면 던전의 존재 이유가 사라진다.",
-  "earlyGameNote": "보물 창고(Q18) / 용광로(Q40) 해금 전의 열쇠·제련석은 퀘스트 선행공급이 담당한다. quests.json > explicitQuests 참조.",
-  "repeatClear": {
-   "gold": {
-    "formula": "requiredCp(n)^1.35 * 0.00354228",
-    "exponent": 1.35,
-    "coefficient": 0.00354228,
-    "derivation": "생애 골드 총량이 goldsinks.json > budget (150억)과 일치하도록 역산. 스테이지 85% / 황금 광산 15%. v2 곡선(벽 포함)에 맞춰 재산출됨.",
-    "scaleNote": "CP ×1000 에 맞춰 계수를 K^1.35(11220.18)로 나눴다. 골드 배출량은 그대로다.",
-    "split": {
-     "mobs": 0.4,
-     "boss": 0.6
+  "cpCeiling": {
+    "value": 7277310000,
+    "derivation": {
+      "merc5xUR_Lv30": 56000000,
+      "skill8xUR_Lv30": 89600000,
+      "cpBase": 145600000,
+      "equipmentMult": 2.86,
+      "codexMult": 1.32,
+      "mercSummonLv50Mult": 1.25,
+      "skillSummonLv50Mult": 1.25,
+      "equipSummonLv60Mult": 1.48,
+      "trainingCampMult": 1.4,
+      "promotionMult_v2": 1.55,
+      "classSkillMult": 1.6,
+      "eventCosmeticMult": 1.6
     },
-    "mobsPerStage": 12,
-    "splitNote": "스테이지 골드를 **잡몹 12마리(40%)와 보스 처치(60%)로 쪼갠다.** 총량은 그대로다.\n전에는 보스를 잡아야만(win) 골드가 들어와서, 벽에 막혀 잡몹만 도는 유저의 수입이 0 이 됐다. 방치형에서 막힌 유저야말로 계속 벌어야 벽을 넘는다 — 안 그러면 막힌 순간 게임을 끌 이유만 생긴다. 절전으로 밤새 돌려도 획득 골드가 0 인 것도 같은 원인이었다.\n잡몹 몫을 40% 로 둔 것은, 막힌 상태의 수입이 뚫는 상태보다 확실히 낮아야 하기 때문이다.\n조우 3회 x 4마리 = 12 (combat.json > formation.enemyWaveSize, stagePresentation.structure).",
-    "rescaleNote": "2026-08-24: CP 를 400 으로 나누면서 계수를 400^1.35(=3256.7) 배로 올렸다. 골드는 requiredCp^1.35 에서 파생되므로 CP 만 줄이면 수입이 3,257 배로 쪼그라든다 — 실제로 잡몹·보스가 골드를 0 으로 주고 있었다. 계수를 같이 올려 **실질 수입은 축소 전과 동일**하다.",
-    "incomeNote": "2026-08-24: 계수를 3배 올렸다 (판당 18 → 54골드). 초반 비용을 크게 낮추면서 \"자기 손으로 번 골드로 산다\" 가 성립하도록 수입 쪽도 같이 올린 것이다."
-   },
-   "goldenKey": 0,
-   "forgeOre": 0,
-   "diamond": 0
-  },
-  "firstClear": {
-   "diamond": {
-    "formula": "30 * (1 + floor(n / 20))",
-    "examples": {
-     "1": 30,
-     "20": 60,
-     "100": 180,
-     "200": 330
+    "history": {
+      "v1": 1310000000,
+      "v2": 1834000000,
+      "reason": "goldsinks.json > training_camp 이 CP 곱연산 항으로 추가됨 (최대 +40%)",
+      "v3": 1834000000,
+      "v3Note": "v4 (2026-08-24): 전직 개편(한 길 1.55) + 전직 스킬 만렙(x1.6) + 이벤트 한정 상품(+60%) 반영. 모노 직군 풀강 기준 x3.97. St200 요구(16억)는 이제 천장의 22% 다 — 풀과금 기준 통과의례가 되지 않게 시즌 스테이지(201+)를 라이브에서 준비해야 한다."
     },
-    "totalOver200Stages": 39600,
-    "note": "약 264뽑 분량. 생애 4,050뽑의 6.5%로 다이아 경제를 흔들지 않는다."
-   },
-   "summonTickets": "free1000.json > distribution 이 단일 소스. 여기서 중복 정의하지 않는다.",
-   "milestoneBonus": "quests.json 의 퀘스트 보상과 별개. 스테이지 자체 마일스톤은 두지 않는다 - 퀘스트 체인이 이미 그 역할을 한다."
+    "note": "St200 요구 CP 1,600,000은 천장의 87%. 사실상 전 시스템 만렙 근처라야 클리어된다.",
+    "st200RatioHistory": {
+      "v1": 0.22,
+      "v2": 0.87,
+      "reason": "22%면 후반에 벽이 성립하지 않는다. 무과금이 D180에 CP 133만에 도달하는데 요구가 40만이면 최종 스테이지가 통과의례가 된다."
+    }
   },
-  "goldCheckpoints": [
-   {
-    "stage": 10,
-    "goldPerClear": 41
-   },
-   {
-    "stage": 25,
-    "goldPerClear": 161
-   },
-   {
-    "stage": 40,
-    "goldPerClear": 636
-   },
-   {
-    "stage": 50,
-    "goldPerClear": 955
-   },
-   {
-    "stage": 75,
-    "goldPerClear": 2036
-   },
-   {
-    "stage": 100,
-    "goldPerClear": 5030
-   },
-   {
-    "stage": 120,
-    "goldPerClear": 11150
-   },
-   {
-    "stage": 140,
-    "goldPerClear": 28975
-   },
-   {
-    "stage": 160,
-    "goldPerClear": 86807
-   },
-   {
-    "stage": 180,
-    "goldPerClear": 265617
-   },
-   {
-    "stage": 200,
-    "goldPerClear": 965836
-   }
-  ]
- },
- "idleReward": {
-  "maxAccumulationHours": 9,
-  "adDoubleMultiplier": 2,
-  "yieldBasis": "최고 돌파 스테이지의 반복 클리어 보상 기준",
-  "stagesPerHour": 156.5,
-  "stagesPerHourNote": "1스테이지 23초 => 시간당 156.5회 (combat.json > stagePresentation.timing)",
-  "offlineEfficiency": 0.35,
-  "offlineEfficiencyReason": "1.0이면 방치가 능동 플레이를 완전히 대체해 게임을 켤 이유가 사라진다. 0.35면 방치가 주력이되 능동 파밍에도 의미가 남는다.",
-  "hourlyFormula": "stageGold(최고돌파스테이지) * 156.5 * 해금최고배속 * 0.35",
-  "dailyEquivalentClears": 696,
-  "dailyEquivalentClearsNote": "2배속 해금 기준. 온라인 39회(15분) + 방치 9시간 × 156.5 × 2 × 0.35 = 약 1,025회. 3배속 구매자는 1,518회. 예산은 goldsinks.json > budget 을 이 값으로 다시 확인한다.",
-  "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다.",
-  "stagesPerHourAt1x": 156.5,
-  "speedBasis": "unlockedMax",
-  "speedBasisNote": "시간당 클리어 수 = 156.5 × **해금된 최고 배속**. 전에는 1배속으로 고정돼 있어서, 3배속으로 켜두고 파밍하면 방치보다 시간당 8.6배를 벌었다 (156.5×3 vs 156.5×0.35). 방치형인데 화면을 켜두는 쪽이 압도적으로 이득이었다. 배속을 곱하면 격차가 offlineEfficiency 가 의도한 2.9배로 돌아온다."
- },
- "f2pProgressEstimateNote": "curve.formula 로 St1~200 요구 CP 를 재구성해 f2pCpModel 의 CP 가 넘는 최대 스테이지를 찍은 값이다. **단위는 requiredCp 와 같은 v3 스케일**이다 — 구버전 표는 gradeCoef x1000 이전 값이 남아 있어 checkpoints 와 1000배 어긋나 있었다.\ngacha v3 로 D7 St49->28, D30 St104->49, D60 St141->119 로 내려갔다. D120 이후는 그대로다. 이 하락은 의도된 것이라 요구 CP 곡선으로 되돌리지 않는다 (gacha.json > rateBandsHistory.v3.f2pStance). 이 표는 목표가 아니라 **실측 추정**이다.",
- "risks": null
+  "curve": {
+    "baseCp": 1250,
+    "model": "smooth_base_plus_walls",
+    "formula": "requiredCp(n) = requiredCp(n-1) * (1 + baseGrowth(n)) * (wallMultiplier(n) or 1)",
+    "segments": [
+      {
+        "from": 2,
+        "to": 40,
+        "growthPerStage": 0.0948,
+        "intent": "온보딩. 벽 없음. 유저 CP가 요구를 크게 앞질러 St49까지 7일 만에 돌파"
+      },
+      {
+        "from": 41,
+        "to": 100,
+        "growthPerStage": 0.018,
+        "intent": "평탄. 벽과 벽 사이는 쉽게 밀린다"
+      },
+      {
+        "from": 101,
+        "to": 160,
+        "growthPerStage": 0.0096,
+        "intent": "평탄"
+      },
+      {
+        "from": 161,
+        "to": 200,
+        "growthPerStage": 0.004,
+        "intent": "거의 수평. 요구 증가가 전부 벽에 몰려 있다"
+      }
+    ],
+    "walls": {
+      "50": {
+        "multiplier": 1.2,
+        "gates": "장비 소환 Lv13 (신화 해금)",
+        "f2pStallDays": 8,
+        "reachDay": 9
+      },
+      "75": {
+        "multiplier": 1.3,
+        "gates": "장비 소환 Lv17 (초월) + 도감 확장",
+        "f2pStallDays": 8,
+        "reachDay": 17
+      },
+      "100": {
+        "multiplier": 1.45,
+        "gates": "장비 소환 Lv21 (태초) + 훈련소 해금",
+        "f2pStallDays": 13,
+        "reachDay": 30
+      },
+      "120": {
+        "multiplier": 1.6,
+        "gates": "장비 소환 Lv29 (무한 해금) + 수정 동굴",
+        "f2pStallDays": 12,
+        "reachDay": 42
+      },
+      "140": {
+        "multiplier": 1.8,
+        "gates": "무한 6부위 수집 + 강화 골드",
+        "f2pStallDays": 18,
+        "reachDay": 60
+      },
+      "160": {
+        "multiplier": 2,
+        "gates": "용병/스킬 소환 Lv30 (SSR 바닥 상승)",
+        "f2pStallDays": 33,
+        "reachDay": 93
+      },
+      "180": {
+        "multiplier": 2.2,
+        "gates": "장비 소환 Lv50+ / 훈련소 Lv150+",
+        "f2pStallDays": 41,
+        "reachDay": 134
+      },
+      "200": {
+        "multiplier": 2.5,
+        "gates": "전 시스템 만렙 근접",
+        "f2pStallDays": 92,
+        "reachDay": 226
+      }
+    },
+    "wallMultiplierProduct": 48.5,
+    "totalMultiplier": 3200,
+    "designIntent": "초반은 벽 없이 매끄럽게 밀리고, 후반으로 갈수록 정체 기간이 8일 -> 92일로 급증한다. 벽과 벽 사이는 평탄해서 '뚫으면 확 나간다'는 체감을 준다. 요구 증가의 대부분이 벽에 집중되어 있다.",
+    "wallEscapeValves": [
+      "골드 파밍 -> 훈련소 레벨업 / 장비 강화",
+      "던전 층 돌파 (재화 일일 수령량 영구 상승)",
+      "장비 소환 레벨 타이머 대기 (시간) 또는 즉시완료 (다이아)",
+      "다이아 -> 용병/스킬 소환 레벨",
+      "아레나 시즌 보상",
+      "광고 (제련 단축, 던전 입장, 방치 2배)"
+    ],
+    "wallEscapeValvesNote": "벽에서 할 일이 없으면 이탈한다. 최소 3가지 이상의 전진 수단이 항상 열려 있어야 한다.",
+    "rescaleNote": "2026-08-25: 장비 곱보너스를 +111% → +372% 로 올린 만큼 요구 CP 성장률도 올렸다 (구간별 x1.35~x2.0)."
+  },
+  "checkpoints": [
+    {
+      "stage": 1,
+      "requiredCp": 1250
+    },
+    {
+      "stage": 10,
+      "requiredCp": 2300
+    },
+    {
+      "stage": 25,
+      "requiredCp": 6362.5
+    },
+    {
+      "stage": 40,
+      "requiredCp": 17595
+    },
+    {
+      "stage": 50,
+      "requiredCp": 23787.5,
+      "wall": true
+    },
+    {
+      "stage": 75,
+      "requiredCp": 41667.5,
+      "wall": true
+    },
+    {
+      "stage": 100,
+      "requiredCp": 81412.5,
+      "wall": true
+    },
+    {
+      "stage": 120,
+      "requiredCp": 146812.5,
+      "wall": true
+    },
+    {
+      "stage": 140,
+      "requiredCp": 297850,
+      "wall": true
+    },
+    {
+      "stage": 160,
+      "requiredCp": 671410,
+      "wall": true
+    },
+    {
+      "stage": 180,
+      "requiredCp": 1537325,
+      "wall": true
+    },
+    {
+      "stage": 200,
+      "requiredCp": 4000000,
+      "wall": true
+    }
+  ],
+  "enemyDerivation": {
+    "waveEnemyCount": 4,
+    "waveEnemyTotalCp": "requiredCp * 0.85",
+    "waveEnemyCpEach": "requiredCp * 0.85 / 4",
+    "bossCp": "requiredCp * 2.4",
+    "bossCount": 1,
+    "encountersPerStage": 3,
+    "note": "적 스탯 배분은 ATK 40 / DEF 30 / HP 30 비율. CP 역산으로 절대값 산출.",
+    "syncNote": "combat.json > formation.enemyWaveSize 및 stagePresentation.structure 와 일치해야 한다.",
+    "bossStatRatio": {
+      "atk": 12,
+      "def": 28,
+      "hp": 60
+    },
+    "bossStatRatioNote": "보스는 잡몹과 다른 비율을 쓴다. 잡몹 비율(40/30/30)을 그대로 쓰면 CP 2.4배가 전부 ATK로도 반영돼 아군 ATK의 12배가 되고, DEF/(DEF+2.65*공격자ATK) 공식상 아군 감산율이 4%로 붕괴한다. 보스는 단단하고 오래 버티는 역할이어야 방어 스탯이 의미를 갖는다."
+  },
+  "backgrounds": [
+    {
+      "asset": "bg_BG01",
+      "nameKo": "초원",
+      "from": 1,
+      "to": 25
+    },
+    {
+      "asset": "bg_BG02",
+      "nameKo": "숲",
+      "from": 26,
+      "to": 50
+    },
+    {
+      "asset": "bg_BG03",
+      "nameKo": "동굴",
+      "from": 51,
+      "to": 75
+    },
+    {
+      "asset": "bg_BG04",
+      "nameKo": "화산",
+      "from": 76,
+      "to": 100
+    },
+    {
+      "asset": "bg_BG05",
+      "nameKo": "해저",
+      "from": 101,
+      "to": 150
+    },
+    {
+      "asset": "bg_BG06",
+      "nameKo": "마왕성",
+      "from": 151,
+      "to": 200
+    }
+  ],
+  "bosses": [
+    {
+      "stage": 10,
+      "asset": "boss_B01",
+      "nameKo": "왕 슬라임"
+    },
+    {
+      "stage": 25,
+      "asset": "boss_B02",
+      "nameKo": "고블린 족장"
+    },
+    {
+      "stage": 50,
+      "asset": "boss_B03",
+      "nameKo": "리치"
+    },
+    {
+      "stage": 75,
+      "asset": "boss_B04",
+      "nameKo": "화염 거인"
+    },
+    {
+      "stage": 100,
+      "asset": "boss_B05",
+      "nameKo": "심해 크라켄"
+    },
+    {
+      "stage": 150,
+      "asset": "boss_B06",
+      "nameKo": "마룡"
+    }
+  ],
+  "enemies": [
+    {
+      "asset": "enemy_E01",
+      "nameKo": "슬라임"
+    },
+    {
+      "asset": "enemy_E02",
+      "nameKo": "버섯 몬스터"
+    },
+    {
+      "asset": "enemy_E03",
+      "nameKo": "고블린"
+    },
+    {
+      "asset": "enemy_E04",
+      "nameKo": "박쥐 떼"
+    },
+    {
+      "asset": "enemy_E05",
+      "nameKo": "해골 병사"
+    },
+    {
+      "asset": "enemy_E06",
+      "nameKo": "늑대"
+    },
+    {
+      "asset": "enemy_E07",
+      "nameKo": "골렘"
+    },
+    {
+      "asset": "enemy_E08",
+      "nameKo": "도깨비불"
+    },
+    {
+      "asset": "enemy_E09",
+      "nameKo": "식인 꽃"
+    },
+    {
+      "asset": "enemy_E10",
+      "nameKo": "게"
+    },
+    {
+      "asset": "enemy_E11",
+      "nameKo": "정령"
+    },
+    {
+      "asset": "enemy_E12",
+      "nameKo": "임프"
+    }
+  ],
+  "enemyReuseNote": "12종을 CSS filter: hue-rotate()로 색조 변형해 36종처럼 사용. 이미지 재생성 불필요.",
+  "systemUnlocks": {
+    "movedTo": "quests.json > trackUnlockQuests",
+    "note": "스테이지 기반 해금(St1/10/25)은 퀘스트 체인 순서와 충돌해 폐기됐다. 현재는 용병=튜토리얼 / 스킬=Q2 / 장비=Q3."
+  },
+  "f2pProgressEstimate": [
+    {
+      "day": 7,
+      "stage": 28,
+      "cp": 3242571
+    },
+    {
+      "day": 30,
+      "stage": 49,
+      "cp": 9307404
+    },
+    {
+      "day": 60,
+      "stage": 119,
+      "cp": 46091127
+    },
+    {
+      "day": 120,
+      "stage": 179,
+      "cp": 331847848
+    },
+    {
+      "day": 180,
+      "stage": 199,
+      "cp": 1334134342
+    }
+  ],
+  "f2pCpModel": {
+    "note": "v1의 진행 추정은 곡선에 맞춰 역으로 써넣은 순환 논리였다. v2는 각 시스템의 실제 타임라인을 곱해 산출한다.",
+    "components": {
+      "cpBase": {
+        "7": 2490,
+        "30": 4540,
+        "60": 12530,
+        "120": 50240,
+        "180": 126400,
+        "source": "용병5 + 스킬8 등급·레벨"
+      },
+      "equipmentMult": {
+        "7": 1.08,
+        "30": 1.34,
+        "60": 1.78,
+        "120": 2.32,
+        "180": 2.86
+      },
+      "codexMult": {
+        "7": 1.1,
+        "30": 1.18,
+        "60": 1.24,
+        "120": 1.29,
+        "180": 1.32
+      },
+      "mercSummonLv": {
+        "7": 3,
+        "30": 10,
+        "60": 17,
+        "120": 25,
+        "180": 34
+      },
+      "equipSummonLv": {
+        "7": 8,
+        "30": 22,
+        "60": 33,
+        "120": 48,
+        "180": 60
+      },
+      "trainingCampMult": {
+        "7": 1,
+        "30": 1,
+        "60": 1.12,
+        "120": 1.26,
+        "180": 1.38
+      },
+      "cpBaseNote": "gacha.json v3(등급 계단 해금) 반영. v2 대비 D7 0.40 / D30 0.28 / D60 0.38 / D120 0.72 / D180 1.00 배다. 뽑기 횟수와 소환 레벨 곡선은 그대로고 **등급 분포만** 바뀌었다 — 초반에 SR·SSR·UR 이 풀에 없으니 같은 횟수를 뽑아도 낮은 등급이 나온다. D180 이 1.00 인 것은 의도다: 늦춘 것은 초반 희귀도지 최종 전력이 아니다."
+    },
+    "formula": "cpBase * equipmentMult * codexMult * (1+mercLv*0.005)^2 * (1+equipLv*0.008) * trainingCampMult",
+    "f2pFinishesSt200": 226,
+    "f2pFinishesSt200Note": "게임 수명 180일을 넘는다. 의도된 결과 - 최종 스테이지는 과금 또는 장기 플레이의 목표로 남는다."
+  },
+  "rewards": {
+    "principle": "반복 클리어 보상은 골드 단독이다. 열쇠·제련석·다이아는 던전과 퀘스트가 전담한다 - 게이트 재화를 스테이지 파밍으로 풀면 던전의 존재 이유가 사라진다.",
+    "earlyGameNote": "보물 창고(Q18) / 용광로(Q40) 해금 전의 열쇠·제련석은 퀘스트 선행공급이 담당한다. quests.json > explicitQuests 참조.",
+    "repeatClear": {
+      "gold": {
+        "formula": "requiredCp(n)^1.35 * 0.00354228",
+        "exponent": 1.35,
+        "coefficient": 0.00194825,
+        "derivation": "생애 골드 총량이 goldsinks.json > budget (150억)과 일치하도록 역산. 스테이지 85% / 황금 광산 15%. v2 곡선(벽 포함)에 맞춰 재산출됨.",
+        "scaleNote": "CP ×1000 에 맞춰 계수를 K^1.35(11220.18)로 나눴다. 골드 배출량은 그대로다.",
+        "split": {
+          "mobs": 0.4,
+          "boss": 0.6
+        },
+        "mobsPerStage": 12,
+        "splitNote": "스테이지 골드를 **잡몹 12마리(40%)와 보스 처치(60%)로 쪼갠다.** 총량은 그대로다.\n전에는 보스를 잡아야만(win) 골드가 들어와서, 벽에 막혀 잡몹만 도는 유저의 수입이 0 이 됐다. 방치형에서 막힌 유저야말로 계속 벌어야 벽을 넘는다 — 안 그러면 막힌 순간 게임을 끌 이유만 생긴다. 절전으로 밤새 돌려도 획득 골드가 0 인 것도 같은 원인이었다.\n잡몹 몫을 40% 로 둔 것은, 막힌 상태의 수입이 뚫는 상태보다 확실히 낮아야 하기 때문이다.\n조우 3회 x 4마리 = 12 (combat.json > formation.enemyWaveSize, stagePresentation.structure).",
+        "rescaleNote": "2026-08-25: 골드 수급 0.55 배. 분해 하향과 함께 골드가 남아돌던 것을 잡는다.",
+        "incomeNote": "2026-08-24: 계수를 3배 올렸다 (판당 18 → 54골드). 초반 비용을 크게 낮추면서 \"자기 손으로 번 골드로 산다\" 가 성립하도록 수입 쪽도 같이 올린 것이다."
+      },
+      "goldenKey": 0,
+      "forgeOre": 0,
+      "diamond": 0
+    },
+    "firstClear": {
+      "diamond": {
+        "formula": "30 * (1 + floor(n / 20))",
+        "examples": {
+          "1": 30,
+          "20": 60,
+          "100": 180,
+          "200": 330
+        },
+        "totalOver200Stages": 39600,
+        "note": "약 264뽑 분량. 생애 4,050뽑의 6.5%로 다이아 경제를 흔들지 않는다."
+      },
+      "summonTickets": "free1000.json > distribution 이 단일 소스. 여기서 중복 정의하지 않는다.",
+      "milestoneBonus": "quests.json 의 퀘스트 보상과 별개. 스테이지 자체 마일스톤은 두지 않는다 - 퀘스트 체인이 이미 그 역할을 한다."
+    },
+    "goldCheckpoints": [
+      {
+        "stage": 10,
+        "goldPerClear": 41
+      },
+      {
+        "stage": 25,
+        "goldPerClear": 161
+      },
+      {
+        "stage": 40,
+        "goldPerClear": 636
+      },
+      {
+        "stage": 50,
+        "goldPerClear": 955
+      },
+      {
+        "stage": 75,
+        "goldPerClear": 2036
+      },
+      {
+        "stage": 100,
+        "goldPerClear": 5030
+      },
+      {
+        "stage": 120,
+        "goldPerClear": 11150
+      },
+      {
+        "stage": 140,
+        "goldPerClear": 28975
+      },
+      {
+        "stage": 160,
+        "goldPerClear": 86807
+      },
+      {
+        "stage": 180,
+        "goldPerClear": 265617
+      },
+      {
+        "stage": 200,
+        "goldPerClear": 965836
+      }
+    ]
+  },
+  "idleReward": {
+    "maxAccumulationHours": 9,
+    "adDoubleMultiplier": 2,
+    "yieldBasis": "최고 돌파 스테이지의 반복 클리어 보상 기준",
+    "stagesPerHour": 156.5,
+    "stagesPerHourNote": "1스테이지 23초 => 시간당 156.5회 (combat.json > stagePresentation.timing)",
+    "offlineEfficiency": 0.35,
+    "offlineEfficiencyReason": "1.0이면 방치가 능동 플레이를 완전히 대체해 게임을 켤 이유가 사라진다. 0.35면 방치가 주력이되 능동 파밍에도 의미가 남는다.",
+    "hourlyFormula": "stageGold(최고돌파스테이지) * 156.5 * 해금최고배속 * 0.35",
+    "dailyEquivalentClears": 696,
+    "dailyEquivalentClearsNote": "2배속 해금 기준. 온라인 39회(15분) + 방치 9시간 × 156.5 × 2 × 0.35 = 약 1,025회. 3배속 구매자는 1,518회. 예산은 goldsinks.json > budget 을 이 값으로 다시 확인한다.",
+    "maxAccumulationNote": "12시간에서 줄였다. 12시간이면 자고 일어나 한 번 받는 리듬만 남아서 낮에 들어올 이유가 없다. 9시간이면 하루에 두 번 차서 복귀 지점이 하나 더 생긴다.",
+    "stagesPerHourAt1x": 156.5,
+    "speedBasis": "unlockedMax",
+    "speedBasisNote": "시간당 클리어 수 = 156.5 × **해금된 최고 배속**. 전에는 1배속으로 고정돼 있어서, 3배속으로 켜두고 파밍하면 방치보다 시간당 8.6배를 벌었다 (156.5×3 vs 156.5×0.35). 방치형인데 화면을 켜두는 쪽이 압도적으로 이득이었다. 배속을 곱하면 격차가 offlineEfficiency 가 의도한 2.9배로 돌아온다."
+  },
+  "f2pProgressEstimateNote": "curve.formula 로 St1~200 요구 CP 를 재구성해 f2pCpModel 의 CP 가 넘는 최대 스테이지를 찍은 값이다. **단위는 requiredCp 와 같은 v3 스케일**이다 — 구버전 표는 gradeCoef x1000 이전 값이 남아 있어 checkpoints 와 1000배 어긋나 있었다.\ngacha v3 로 D7 St49->28, D30 St104->49, D60 St141->119 로 내려갔다. D120 이후는 그대로다. 이 하락은 의도된 것이라 요구 CP 곡선으로 되돌리지 않는다 (gacha.json > rateBandsHistory.v3.f2pStance). 이 표는 목표가 아니라 **실측 추정**이다.",
+  "risks": null
 }

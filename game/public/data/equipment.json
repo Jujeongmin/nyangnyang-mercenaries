@@ -43,70 +43,70 @@
       "id": "common",
       "nameKo": "일반",
       "color": "#9E9E9E",
-      "slotBonus": 0.0074
+      "slotBonus": 0.012
     },
     {
       "tier": 2,
       "id": "uncommon",
       "nameKo": "고급",
       "color": "#4CAF50",
-      "slotBonus": 0.0111
+      "slotBonus": 0.0186
     },
     {
       "tier": 3,
       "id": "rare",
       "nameKo": "희귀",
       "color": "#2196F3",
-      "slotBonus": 0.0148
+      "slotBonus": 0.0288
     },
     {
       "tier": 4,
       "id": "epic",
       "nameKo": "영웅",
       "color": "#9C27B0",
-      "slotBonus": 0.0222
+      "slotBonus": 0.0447
     },
     {
       "tier": 5,
       "id": "legendary",
       "nameKo": "전설",
       "color": "#FF9800",
-      "slotBonus": 0.0308
+      "slotBonus": 0.0693
     },
     {
       "tier": 6,
       "id": "mythic",
       "nameKo": "신화",
       "color": "#F44336",
-      "slotBonus": 0.0444
+      "slotBonus": 0.1074
     },
     {
       "tier": 7,
       "id": "transcendent",
       "nameKo": "초월",
       "color": "#00BCD4",
-      "slotBonus": 0.0628
+      "slotBonus": 0.1664
     },
     {
       "tier": 8,
       "id": "primordial",
       "nameKo": "태초",
       "color": "#FFD700",
-      "slotBonus": 0.0899
+      "slotBonus": 0.2579
     },
     {
       "tier": 9,
       "id": "celestial",
       "nameKo": "천상",
       "color": "#E91E63",
-      "slotBonus": 0.1294
+      "slotBonus": 0.3998
     },
     {
       "tier": 10,
       "id": "infinite",
       "nameKo": "무한",
       "color": "#FFFFFF",
-      "slotBonus": 0.1848,
+      "slotBonus": 0.6197,
       "prismatic": true
     }
   ],
@@ -169,124 +169,124 @@
         "pullsPerAction": 1
       },
       {
-        "summonLv": 3,
+        "summonLv": 2,
         "unlock": "auto_summon",
         "nameKo": "자동 소환 해금 · 1개씩",
         "pullsPerBatch": 1
       },
       {
-        "summonLv": 4,
+        "summonLv": 3,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 2개씩",
         "pullsPerBatch": 2
       },
       {
-        "summonLv": 5,
+        "summonLv": 4,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 3개씩",
         "pullsPerBatch": 3
       },
       {
-        "summonLv": 6,
+        "summonLv": 5,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 4개씩",
         "pullsPerBatch": 4
       },
       {
-        "summonLv": 12,
+        "summonLv": 6,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 5개씩",
         "pullsPerBatch": 5
       },
       {
-        "summonLv": 18,
+        "summonLv": 9,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 6개씩",
         "pullsPerBatch": 6
       },
       {
-        "summonLv": 21,
+        "summonLv": 11,
         "unlock": "filter_grade",
         "nameKo": "필터: 등급 하한"
       },
       {
-        "summonLv": 24,
+        "summonLv": 12,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 8개씩",
         "pullsPerBatch": 8
       },
       {
-        "summonLv": 28,
+        "summonLv": 14,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 10개씩",
         "pullsPerBatch": 10
       },
       {
-        "summonLv": 31,
+        "summonLv": 16,
         "unlock": "filter_cp",
         "nameKo": "필터: 전투력 하한"
       },
       {
-        "summonLv": 34,
+        "summonLv": 17,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 15개씩",
         "pullsPerBatch": 15
       },
       {
-        "summonLv": 37,
+        "summonLv": 19,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 20개씩",
         "pullsPerBatch": 20
       },
       {
-        "summonLv": 40,
+        "summonLv": 20,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 30개씩",
         "pullsPerBatch": 30
       },
       {
-        "summonLv": 43,
+        "summonLv": 22,
         "unlock": "filter_slot",
         "nameKo": "필터: 부위 선택"
       },
       {
-        "summonLv": 45,
+        "summonLv": 23,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 45개씩",
         "pullsPerBatch": 45
       },
       {
-        "summonLv": 48,
+        "summonLv": 24,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 65개씩",
         "pullsPerBatch": 65
       },
       {
-        "summonLv": 51,
+        "summonLv": 26,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 90개씩",
         "pullsPerBatch": 90
       },
       {
-        "summonLv": 54,
+        "summonLv": 27,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 130개씩",
         "pullsPerBatch": 130
       },
       {
-        "summonLv": 57,
+        "summonLv": 29,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 175개씩",
         "pullsPerBatch": 175
       },
       {
-        "summonLv": 60,
+        "summonLv": 30,
         "unlock": "auto_scale",
         "nameKo": "자동 소환 230개씩",
         "pullsPerBatch": 230
       }
     ],
-    "progressionNote": "배치 크기는 **보물 창고 배출 곡선**을 따라간다 (dungeons.json > treasure_vault: baseYield 22, 층당 x1.15).\n기준: **하루 수급을 20초 안에 태울 수 있는 크기.** 자동 루프가 초당 1배치라 배치 N 이면 하루치 I 장을 I/N 초에 태운다. 이보다 작으면 복귀할 때마다 자동이 도는 걸 몇 분씩 쳐다봐야 하고, 크면 열려도 쓸 재고가 없다.\n  Lv3 하루 79장 -> 목표 4 · Lv22 124장 -> 6 · Lv33 294장 -> 15 · Lv48 1,324장 -> 66 · Lv60 4,513장 -> 226\n자동 해금은 Lv3(누적 11분)에 **1개씩**이고 Lv4·5·6 이 +1 씩 따라붙어 목표(4)에 닿는다. 그 뒤로는 수급이 곡선이라 배치도 곡선이다 — 매 레벨 주고 싶어도 줄 재고가 없다. 대신 그 사이 레벨이 빈손은 아니다: gacha.json > equipmentRateBands 가 레벨당 1행이라 매 레벨 확률이 오른다.\n필터는 배치 사이에 끼운다 (Lv21 등급 / Lv31 전투력 / Lv43 부위).",
+    "progressionNote": "배치 크기는 **보물 창고 배출 곡선**을 따라간다 (dungeons.json > treasure_vault: baseYield 22, 층당 x1.15).\n기준: **하루 수급을 20초 안에 태울 수 있는 크기.** 자동 루프가 초당 1배치라 배치 N 이면 하루치 I 장을 I/N 초에 태운다. 이보다 작으면 복귀할 때마다 자동이 도는 걸 몇 분씩 쳐다봐야 하고, 크면 열려도 쓸 재고가 없다.\n  Lv3 하루 79장 -> 목표 4 · Lv22 124장 -> 6 · Lv33 294장 -> 15 · Lv48 1,324장 -> 66 · Lv60 4,513장 -> 226\n자동 해금은 Lv3(누적 11분)에 **1개씩**이고 Lv4·5·6 이 +1 씩 따라붙어 목표(4)에 닿는다. 그 뒤로는 수급이 곡선이라 배치도 곡선이다 — 매 레벨 주고 싶어도 줄 재고가 없다. 대신 그 사이 레벨이 빈손은 아니다: gacha.json > equipmentRateBands 가 레벨당 1행이라 매 레벨 확률이 오른다.\n필터는 배치 사이에 끼운다 (Lv21 등급 / Lv31 전투력 / Lv43 부위). | 2026-08-25: 제작대 최대 레벨 60→30 축소에 맞춰 해금 레벨을 절반으로 당겼다 (tools/gen-forge-bands.mjs 와 같은 기준).",
     "autoSummon": {
       "trigger": "유저가 자동 소환 ON. 황금 열쇠가 남아있는 동안 반복.",
       "batchIntervalSec": 1,
@@ -363,19 +363,20 @@
   "duplicateHandling": {
     "behavior": "부위별로 CP 기여가 가장 높은 장비만 유지, 나머지는 자동 분해 -> 골드",
     "goldByTier": {
-      "1": 100,
-      "2": 300,
-      "3": 900,
-      "4": 2700,
-      "5": 8000,
-      "6": 24000,
-      "7": 72000,
-      "8": 216000,
-      "9": 650000,
-      "10": 2000000
+      "1": 60,
+      "2": 160,
+      "3": 420,
+      "4": 1100,
+      "5": 2900,
+      "6": 7600,
+      "7": 20000,
+      "8": 52000,
+      "9": 135000,
+      "10": 350000
     },
     "goldSinkNote": "분해 골드가 economy.json risks > gold_inflation 를 악화시킨다. 자동 소환 물량이 커질수록 골드가 폭증하므로 T10 강화 비용(5,000,000 x 2.15^15)이 주 소모처로 기능해야 한다.",
-    "note": "장비는 레벨 개념이 없다(강화만 있음). 부위별로 CP가 가장 높은 것만 유지, 나머지 자동 분해."
+    "note": "장비는 레벨 개념이 없다(강화만 있음). 부위별로 CP가 가장 높은 것만 유지, 나머지 자동 분해.",
+    "goldNote": "2026-08-25 하향: 분해가 주 수입이 되어 골드가 남아돌았다."
   },
   "equipMode": "manual_with_recommendation",
   "equipFlow": {
@@ -431,5 +432,7 @@
       "tiers": "9-10",
       "suffix": "EQ-?4"
     }
-  ]
+  ],
+  "totalBonusNote": "2026-08-25: 장비를 성장의 주축으로 올렸다. 6부위 최고등급 기준 곱보너스 합계 +111% → +391%.",
+  "flatCpPerTier": 0.09
 }

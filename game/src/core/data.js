@@ -140,8 +140,13 @@ export function validate(d) {
   const eq = d.equipment;
   push(eq.grades.length === 10, `장비 등급 ${eq.grades.length}개. 10 이어야 한다`);
   const t10 = eq.grades[eq.grades.length - 1];
-  push(near(t10.slotBonus, 0.1848, 1e-9),
-    `장비 T10 slotBonus ${t10.slotBonus} ≠ 0.1848. CP 천장이 바뀐다`);
+  // 2026-08-25: 장비를 성장의 주축으로 올리면서 0.1848 → 0.6197 (6부위 +372%).
+  // 값을 못 박는 대신 **오르내림이 단조인지**만 본다 — 숫자를 조정할 때마다
+  // 불변식을 같이 고쳐야 하면 검사가 아니라 사본이 된다
+  push(t10.slotBonus > eq.grades[0].slotBonus,
+    `장비 T10 slotBonus ${t10.slotBonus} 가 T1 보다 크지 않다`);
+  push(eq.grades.every((g, i) => i === 0 || g.slotBonus > eq.grades[i - 1].slotBonus),
+    '장비 slotBonus 가 등급 순으로 안 커진다 — 상위 등급이 손해가 된다');
   push(eq.slots.length === 6, `장비 부위 ${eq.slots.length}개. 6 이어야 한다`);
   push(eq.setsRemoved !== false, '장비 세트가 부활했다. 부위별 그리디 자동장착이 깨진다');
 

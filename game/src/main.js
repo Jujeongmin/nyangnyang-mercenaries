@@ -230,10 +230,12 @@ const captainCp = () => Math.round(D.stages.curve.baseCp * 0.04);
  * 그 표가 CP 천장 계산의 근거라 손대면 곡선 전체를 다시 재야 한다.
  */
 function equipFlatCp() {
+  // 계수는 **데이터에 둔다** — 밸런스를 만질 때 코드를 안 열게 (equipment.json)
+  const k = D.equipment.flatCpPerTier ?? 0.03;
   let flat = 0;
   for (const s of D.equipment.slots) {
     const it = S.equip[s.id];
-    if (it) flat += D.stages.curve.baseCp * 0.03 * it.tier;
+    if (it) flat += D.stages.curve.baseCp * k * it.tier;
   }
   return flat;
 }
@@ -5466,9 +5468,12 @@ function openForge() {
         <span class="fg-lvto">Lv ${tgt}</span>
         ${running ? `<em class="fg-tag">${t('제작 중')}</em>` : ''}
       </div>
-      <div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>
       ${running
-        ? `<div class="fg-up-row"><span class="k">${t('남은 시간')}</span>
+        // 제작 중에만 게이지를 둔다 — 남은 시간이 줄어드는 것을 보여 주는 유일한
+        // 표시다. 골드 투입 구간에서는 칸(●●○○)과 0/4 가 같은 것을 이미 말하고
+        // 있어서 막대가 겹말이었다 (단장 확정 2026-08-25)
+        ? `<div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>
+           <div class="fg-up-row"><span class="k">${t('남은 시간')}</span>
              <span class="v" id="fgLeft">${dur(forgeRemain())}</span></div>
            <button class="fgbtn hg-open" id="fgHgOpen" ${can < 1 ? 'disabled' : ''}>
              ${cur('CU-10')} ${can < 1 ? t('모래시계 없음') : t('시간 단축')}</button>`
