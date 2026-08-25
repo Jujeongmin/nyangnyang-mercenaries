@@ -95,16 +95,16 @@
    "type": "capped_soft",
    "description": "골드로 전 용병의 기본 스탯을 영구 강화한다. 파티 편성·등급과 무관하게 적용.",
    "maxLevel": 200,
-   "bonusPerLevel": 0.002,
-   "maxBonus": 0.4,
+   "bonusPerLevel": 0.005,
+   "maxBonus": 1.0,
    "costFormula": "800 * 1.055^level",
    "costAtLv200": 213000000,
    "cumulativeCost": 4050000000,
    "cpIntegration": {
     "appliesTo": "CP_총합 곱연산 항",
     "term": "(1 + trainingCampBonus)",
-    "maxMultiplier": 1.4,
-    "warning": "CP 천장이 1,310,000 -> 1,834,000 으로 상승한다. stages.json > cpCeiling 갱신 필요."
+    "maxMultiplier": 2.0,
+    "warning": "CP 천장이 x2.0 항으로 상승. stages.json > cpCeiling 갱신 필요."
    },
    "designNote": "무한 레벨로 만들면 CP 천장이 사라져 스테이지 곡선 기준이 무너진다. Lv200 상한 + 최대 +40%로 천장을 계산 가능하게 유지했다.",
    "promotion": {
@@ -242,7 +242,12 @@
     }
    },
    "costBase": 800,
-   "costNote": "2026-08-24: 5000 * 1.055^level → 800 * 1.055^level. Lv2 까지 10,275 였는데 온보딩 마지막 퀘스트(Q8 훈련소 Lv2)가 그걸 요구해서 퀘스트가 골드를 통째로 대신 줘야 했다. 이제 1,644 다. **생애 골드 예산이 그만큼 줄어든다** — 후반 소모처를 다시 볼 때 이 항목부터 본다."
+   "costNote": "2026-08-24: 5000 * 1.055^level → 800 * 1.055^level. Lv2 까지 10,275 였는데 온보딩 마지막 퀘스트(Q8 훈련소 Lv2)가 그걸 요구해서 퀘스트가 골드를 통째로 대신 줘야 했다. 이제 1,644 다. **생애 골드 예산이 그만큼 줄어든다** — 후반 소모처를 다시 볼 때 이 항목부터 본다.",
+   "bonusHistory": {
+    "v1": 0.002,
+    "current": 0.005,
+    "reason": "단장 지적 2026-08-26: 레벨당 +0.2% 는 전투력 변화가 안 보였다. +0.5%/레벨, 만렙 +100% 로 상향. 천장 재계산 대상."
+   }
   },
   {
    "id": "exchange",

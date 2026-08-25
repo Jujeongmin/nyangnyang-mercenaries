@@ -1899,7 +1899,20 @@
 
   .ar-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;
     margin:2px 0 7px}
+  /* 라벨(용병·스킬)이 꺾이지 않게 — .lbl 이 flex 라 좁으면 글자가 세로로 섰다 */
+  .ar-sec .lbl{flex:0 0 auto;white-space:nowrap;display:inline-block}
   .ar-sec .rt-b{min-width:82px;font-size:11px}
+  /* 제작대 골드 투입 — 아이콘+액수가 버튼 위로 떠오르며 사라진다. 돈이 나가는
+     느낌이 안 든다는 지적(단장 2026-08-26). #ovcard 기준 절대 좌표 */
+  .fg-fly{position:absolute;z-index:5;pointer-events:none;transform:translateX(-50%);
+    display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:14px;
+    color:#ffd76a;text-shadow:0 1px 3px #000;
+    animation:fgFly .9s ease-out forwards}
+  .fg-fly img{width:15px;height:15px;object-fit:contain}
+  @keyframes fgFly{
+    0%{opacity:0;translate:0 4px}
+    15%{opacity:1}
+    100%{opacity:0;translate:0 -44px}}
   .ar-stat{display:flex;gap:6px;margin-top:9px}
   /* 두 칸(점수·상점 문) — 입장권은 좌상단 알약으로 나갔다. 카드가 컸다는
      지적(2026-08-26)으로 높이를 죽인다: 세로쌓기 대신 한 줄 */
@@ -1907,6 +1920,10 @@
     align-items:center;justify-content:center;gap:6px;min-height:38px;
     background:var(--card);border:1px solid var(--line);
     border-radius:10px;padding:4px 6px}
+  /* 상점 문 칸은 카드 상자를 걷는다 — 버튼이 이미 제 테두리를 갖고 있어
+     상자 속 상자였다 (단장 지적 2026-08-26) */
+  .ar-stat span:has(.ar-shopb.big){background:none;border:0;padding:0}
+  .ar-stat span:has(.ar-shopb.big) .ar-shopb.big{width:100%;justify-content:center;min-height:38px}
   /* 입장권 알약 — 상단 재화 캡슐(.cur)과 같은 문법. [+] 는 diaPlus 와 같은 역할 */
   .ar-tkpill{display:inline-flex;align-items:center;gap:5px;
     background:#17120fc8;border:1px solid #ffffff1c;border-radius:11px;
@@ -1914,11 +1931,12 @@
   .ar-tkpill img{width:15px;height:15px;object-fit:contain}
   .ar-tkpill b{font-weight:800;font-variant-numeric:tabular-nums}
   .ar-tkpill button{width:17px;height:17px;padding:0;border:0;border-radius:50%;
-    background:var(--gold);color:#241a10;font-weight:900;font-size:13px;line-height:1;
-    cursor:pointer;font-family:inherit}
+    background:url(/assets/ui/UI-PLUS.png) center/contain no-repeat;
+    color:transparent;font-size:0;cursor:pointer;box-shadow:none}
   .ar-tkpill button:active{transform:scale(.92)}
   .ar-stat i{font-style:normal;font-size:9px;color:var(--dim)}
-  .ar-stat b{display:inline-flex;align-items:center;gap:3px;font-size:13px;
+  /* 점수 숫자 17px (단장 확정 2026-08-26) — 카드가 한 줄이 되면서 파묻혔다 */
+  .ar-stat b{display:inline-flex;align-items:center;gap:3px;font-size:17px;
     font-weight:800}
   #ovb .ar-stat b img{width:14px;height:14px;object-fit:contain}
   .ar-stat u{text-decoration:none;font-size:9px;color:var(--gold);font-weight:800}

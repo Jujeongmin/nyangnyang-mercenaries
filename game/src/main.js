@@ -95,6 +95,8 @@ const S = {
   speed: 1,                                // 배속. speedMax() 안에서만 고를 수 있다
   speed3: false,                           // 3배속 구매 여부. 서버 권한 (save-schema)
   speed3DailyAt: null,                     // 3배속 일일 다이아 마지막 수령일
+  adFree: false,                           // 광고 제거 패키지. 서버 권한 (speed3 과 같은 이유)
+  adFreeMailAt: null,                      // 광고 제거 일일 다이아 우편 마지막 배달일
   lang: null,                              // 언어. 첫 부팅 로딩 화면에서 고른다
   // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
   // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
@@ -308,6 +310,43 @@ function claimSpeed3Daily() {
   S.dia += n;
   save(); renderTop(); shop.render();
   gainToast([['diamond', n]]);
+}
+
+/**
+ * 광고 제거 패키지. 구매 판정은 buySpeed3 과 같은 임시 구현이다 (개발 빌드 즉시
+ * 해금, 프로덕션은 VXShop 등록 후).
+ *
+ * **광고 버튼을 없애지 않는다** — 버튼을 누르면 광고 재생 없이 즉시 보상이
+ * 들어온다 (단장 확정 2026-08-26). playAd 가 S.adFree 를 보고 바로 통과시키므로
+ * 호출부는 하나도 안 고친다. 일일 횟수 상한은 그대로 깎인다.
+ */
+function buyAdFree() {
+  if (S.adFree) return toast(t('이미 구매했습니다'));
+  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  S.adFree = true;
+  save(); shop.render();
+  toast('[개발 빌드] 광고 제거 적용');
+}
+
+/**
+ * 광고 제거 일일 다이아 — **우편으로 자동 배달한다** (단장 확정 2026-08-26).
+ * speed3 은 상점 수령 버튼(접속 이유)이지만, 광고 제거는 구매 후 상점 카드가
+ * 사라지므로 받을 자리가 없다 — 우편이 그 자리다. renderTop 1초 루프에서
+ * 날짜만 비교하므로 자정을 넘겨도 접속 중이면 그날 우편이 온다.
+ */
+function adFreeDailyMail() {
+  if (!S.adFree) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (S.adFreeMailAt === today) return;
+  const pk = (D.shop.packages || []).find(x => x.id === 'adfree_pack');
+  const n = pk?.dailyGrant?.diamond ?? 0;
+  if (!n) return;
+  S.adFreeMailAt = today;
+  (S.mailbox = S.mailbox || []).push({
+    id: 'adfree_' + today, title: '광고 제거 일일 보상', from: '운영팀',
+    grants: { diamond: n }, createdAt: Date.now(), claimed: false,
+  });
+  save();
 }
 
 /** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
@@ -944,6 +983,21 @@ function payForge() {
   if (!c) return toast('최대 레벨');
   if (S.gold < c.per) return toast(`골드 부족 · ${num(c.per)} 필요`);
   S.gold -= c.per;
+  // 돈이 빠져나가는 게 안 보인다는 지적(단장 2026-08-26) — 골드 아이콘과 -액수가
+  // 버튼 위로 떠오르며 사라진다. 패널이 리렌더돼도 살도록 #ovcard 에 단다
+  {
+    const btn = $('#fgPayBtn'), card = $('#ovcard');
+    if (btn && card) {
+      const b = btn.getBoundingClientRect(), k = card.getBoundingClientRect();
+      const e = document.createElement('span');
+      e.className = 'fg-fly';
+      e.innerHTML = `<img src="/assets/ui/CU-04.png" alt=""> -${num(c.per)}`;
+      e.style.left = (b.left - k.left + b.width / 2) + 'px';
+      e.style.top = (b.top - k.top) + 'px';
+      card.appendChild(e);
+      setTimeout(() => e.remove(), 950);
+    }
+  }
   S.forgePaid = (S.forgePaid || 0) + 1;
   if (S.forgePaid >= c.parts) {
     S.forgePaid = 0;
@@ -1342,6 +1396,9 @@ async function claimIdle(mult) {
 
 /** 광고를 끝까지 보여 주고 보상을 줘도 되는지 판정한다. 실패 사유는 토스트로 알린다 */
 async function playAd(placementId) {
+  // 광고 제거 구매자 — 광고 없이 즉시 통과. 횟수 차감·퀘스트 집계는 호출부와
+  // mq('ad') 가 평소대로 한다 (단장 확정 2026-08-26)
+  if (S.adFree) { mq('ad'); return true; }
   const r = await showRewarded(placementId);
   if (r === AD_OK) { mq('ad'); return true; }
   toast(r === AD_SKIPPED ? '광고를 끝까지 봐야 보상이 지급됩니다' : '지금은 광고를 볼 수 없습니다');
@@ -4355,8 +4412,9 @@ function openEntryShop() {
     + `<div class="frow" style="padding:10px 12px">
         <span style="flex:1">${t('입장권 1장')}
           <span class="k" style="display:block">${t('상한 없음')}</span></span>
-        <button class="ar-shopb" id="tkBuy"><img src="/assets/ui/CU-01.png" alt=""
-          style="width:11px;height:11px;vertical-align:-1px" onerror="this.remove()"> ${a.entries.diaEntry.cost}</button></div>`;
+        <button class="fgbtn" id="tkBuy" style="width:auto;min-width:96px;min-height:0;height:40px;padding:0 14px">
+          <img src="/assets/ui/CU-01.png" alt=""
+          style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${a.entries.diaEntry.cost}</button></div>`;
   $('#ovinfo').innerHTML = '';
   $('#tkBack').addEventListener('click', openArena);
   $('#tkAd')?.addEventListener('click', arenaAd);
@@ -4674,12 +4732,16 @@ function openArena(view) {
     </div>`
     // 프리셋 — 용병·스킬이 **딴 책**이다 (단장 지적 2026-08-26: "편성 1·2·3" 은
     // 어느 책인지 안 읽혔다). 줄을 갈라 각각 고른다
+    // 용병 한 줄 · 스킬 한 줄 (단장 확정 2026-08-26). 한 줄에 욱여넣으면 좁은
+    // 카드에서 라벨이 세로로 꺾였다
     + `<div class="ar-sec">
-      <span class="lbl">${t('용병')}</span>
+      <span class="lbl" style="white-space:nowrap">${t('용병')}</span>
       <span id="arPre" class="ar-pre">${[0, 1, 2].map(i =>
         `<button class="pr${book[i] ? ' has' : ''}${i === selP ? ' on' : ''}"
            data-arpre="${i}" title="${t('프리셋')} ${i + 1}">${i + 1}</button>`).join('')}</span>
-      <span class="lbl" style="margin-left:10px">${t('스킬')}</span>
+    </div>`
+    + `<div class="ar-sec">
+      <span class="lbl" style="white-space:nowrap">${t('스킬')}</span>
       <span class="ar-pre">${[0, 1, 2].map(i =>
         `<button class="pr${bookS[i] ? ' has' : ''}${i === selS ? ' on' : ''}"
            data-arpres="${i}" title="${t('프리셋')} ${i + 1}">${i + 1}</button>`).join('')}</span>
@@ -5411,6 +5473,7 @@ function renderQuest() {
 
 let lastCp = 0;
 function renderTop() {
+  adFreeDailyMail();   // 광고 제거 일일 우편 — 날짜 비교뿐이라 1초 루프에 싸다
   const cp = totalCp();
   // 전투력이 오르면 즉시 띄운다 — ui.json > criticalUiRules[0]
   if (lastCp && cp > lastCp + 0.5) {
@@ -5742,8 +5805,7 @@ function openForge() {
       </div>
       <div class="fr-rows">${forgeRateRows(curB.rates, nextB && nextB.rates)}</div>
       ${unlockNext}
-      <div class="sh-note">${t(D.gacha.perItemRateFormula.legalRequirement)}<br>
-        ${t('부위 확률 = 등급 확률 ÷ 부위 {0}종 (부위는 균등 추첨)', D.equipment.slots.length)}</div>
+      <div class="sh-note">${t('부위 확률 = 등급 확률 ÷ 부위 {0}종 (부위는 균등 추첨)', D.equipment.slots.length)}</div>
     </div>`);
   }
 
@@ -6803,7 +6865,7 @@ function bootTapToStart() {
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
-    buySpeed3, claimSpeed3Daily,
+    buySpeed3, claimSpeed3Daily, buyAdFree,
   });
   watchTapHintCover();
   // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십

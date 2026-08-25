@@ -291,6 +291,8 @@
  },
  "serverRecomputed": {
   "note": "아래는 저장하지 않는다. 서버가 요청마다 다시 계산한다. 저장하면 조작 대상이 된다.",
+  "adFree": "광고 제거 구매 여부 (bool). 서버 권한 — speed3 과 같은 규칙",
+  "adFreeMailAt": "광고 제거 일일 다이아 우편을 마지막으로 배달한 날짜 (YYYY-MM-DD)",
   "fields": [
    "CP 총합",
    "용병·스킬 개별 CP",

@@ -140,6 +140,7 @@ export class ShopScreen {
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       // 3배속만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
       if (b.dataset.buy === 'speed3_unlock' && this.api.buySpeed3) return this.api.buySpeed3();
+      if (b.dataset.buy === 'adfree_pack' && this.api.buyAdFree) return this.api.buyAdFree();
       this.api.toast('결제 연동 전 — VXShop 등록 후 붙는다');
     }));
     body.querySelectorAll('[data-claim]').forEach(b => b.addEventListener('click', () => {
@@ -337,10 +338,29 @@ export class ShopScreen {
     </div>`;
   }
 
+  /**
+   * 광고 제거 카드. 3배속 카드 바로 아래 — 같은 "돈으로 사는 편의" 묶음이다.
+   * **구매하면 카드가 사라진다** (단장 확정 2026-08-26). speed3 처럼 수령 버튼을
+   * 남기지 않는 이유: 일일 다이아가 우편으로 자동 배달되기 때문 (main.js >
+   * adFreeDailyMail). 광고 버튼 자체는 게임에 그대로 남는다 — 누르면 광고 없이
+   * 즉시 보상.
+   */
+  adFreeCard() {
+    const D = this.api.data, S = this.api.state;
+    const pk = (D.shop.packages || []).find(x => x.id === 'adfree_pack');
+    if (!pk || S.adFree) return '';
+    const daily = pk.dailyGrant?.diamond ?? 0;
+    return `<div class="sh-card speed3">
+      <b>${t(pk.nameKo)}</b>
+      <span class="sh-desc">${t('광고 버튼을 누르면 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급', daily)}</span>
+      <button class="sh-price" data-buy="adfree_pack">${t('구매')}</button>
+    </div>`;
+  }
+
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.speedCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
+    return this.speedCard() + this.adFreeCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
       // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)
