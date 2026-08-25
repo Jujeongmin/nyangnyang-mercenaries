@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "validate": "node tools/validate.mjs",
     "audit": "node tools/audit.mjs",
-    "check": "npm run validate && npm run audit",
-    "dev:host": "vite --host"
+    "check": "npm run validate && npm run audit && npm run assets",
+    "dev:host": "vite --host",
+    "assets": "node tools/check-assets.mjs"
   },
   "devDependencies": {
     "vite": "^5.4.21"

@@ -73,8 +73,12 @@
   *{scrollbar-width:none;-ms-overflow-style:none}
   *::-webkit-scrollbar{width:0;height:0;display:none}
   /* container 선언 — 아래 좁은화면 규칙이 뷰포트가 아니라 **앱 폭**을 본다 */
+  /* 폭은 **화면 높이에 매단다.** 480px 로 고정하면 PC 처럼 창이 큰 데서
+     좌우가 검게 남는다 (단장 지적 2026-08-25). 세로 비율(약 9:16.5)을 지키며
+     창 높이만큼 넓히면 여백이 사라지고, 폰에서는 100% 가 이겨서 그대로다.
+     720px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져 버려서 둔다 */
   #app{container:app / inline-size;
-    position:relative;width:100%;height:100%;max-width:480px;margin:0 auto;
+    position:relative;width:min(100%, 56vh, 720px);height:100%;margin:0 auto;
     background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 
   /* 상단 12% */
@@ -224,7 +228,9 @@
      세로 화면으로 확 줄어든다 — 같은 게임의 두 화면이 다른 비율로 보인다.
      left/right 가 0 이라 max-width 가 남긴 여백을 margin:auto 가 반씩 먹어
      가운데로 선다. 기둥 밖은 body 색(#0f0b08) — 게임 화면의 레터박스와 같다 */
-  #boot{position:fixed;inset:0;width:100%;max-width:480px;margin:0 auto;
+  /* 폭은 #app 과 **같은 식**이다 — 다르면 로딩 화면만 좌우 여백이 달라
+     시작하자마자 화면이 덜컥 넓어진다 (단장 지적 2026-08-25) */
+  #boot{position:fixed;inset:0;width:min(100%, 56vh, 720px);margin:0 auto;
     z-index:210;display:flex;flex-direction:column;
     align-items:center;overflow:hidden;
     /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
@@ -1954,12 +1960,10 @@
   /* 모래시계 개수 스테퍼 */
   .hg-row{display:flex;align-items:center;gap:5px;margin:8px 0 7px}
   /* 시간 단축 증감 — ‹ ‹‹ 문자를 에셋으로. 오른쪽 방향은 좌우 반전이라
-     그림을 더 그릴 필요가 없다 */
-  .hg-step{font-size:0;background-image:url(/assets/ui/UI-ARROW-L.png);
-    background-size:15px 15px;background-position:center;background-repeat:no-repeat}
-  .hg-step[data-hgd="-10"]{background-image:url(/assets/ui/UI-ARROW-LL.png)}
-  .hg-step[data-hgd="1"],.hg-step[data-hgd="10"]{transform:scaleX(-1)}
-  .hg-step[data-hgd="10"]{background-image:url(/assets/ui/UI-ARROW-LL.png)}
+     그림을 더 그릴 필요가 없다.
+     **화살표는 ::after 한 겹에서만 그린다.** 예전엔 단추 자체에도 배경으로
+     깔고 뒤집었는데, 아래 ::after 규칙이 한 번 더 뒤집으면서 두 반전이
+     상쇄돼 오른쪽 단추가 왼쪽 화살표로 떴다 (단장 지적 2026-08-25) */
   .hg-step{flex:0 0 auto;width:38px;background:var(--card);border:1px solid var(--line);
     color:var(--txt);border-radius:8px;padding:8px 0;font-size:13px;font-weight:900;
     cursor:pointer;font-family:inherit}
@@ -2452,6 +2456,10 @@
   /* 보스 도전 — hudC 아래에 절대배치로 매단다. flex 줄에 두면 나타날 때
      진행도 배너가 옆으로 밀렸다. 전용 에셋(UI-BOSSBTN)이 오면 --f-bossbtn 만 채운다. */
   #hudC{position:relative}
+  /* 던전에서는 스테이지 진행도를 통째로 감춘다 — 층 간판(#dgSign)이 바로
+     아래에 "황금 광산 50층" 을 크게 걸고 있어서 둘이 같이 뜨면 무엇을 도는
+     중인지가 오히려 흐려진다 (단장 지적 2026-08-25) */
+  #app.in-dungeon #hudC{visibility:hidden}
   #bossGo{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
     pointer-events:auto;display:none;white-space:nowrap;
     background:none;border-style:solid;border-width:11px 22px;border-radius:0;

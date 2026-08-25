@@ -2,6 +2,7 @@
 // 게임 로직 없음. 연출만 본다.
 
 import { UnitRig } from './view/battle/rig.js';
+import { loadCutout } from './view/battle/cutout.js';
 import { Impact } from './view/battle/impact.js';
 import { DamageNumbers } from './view/battle/numbers.js';
 import { MOTIONS } from './view/battle/motions.js';
@@ -65,14 +66,17 @@ const state = Object.fromEntries(OPTS.filter(o => o.length > 2).map(o => [o[0], 
     fit(); app.renderer.on('resize', fit);
   } catch { /* 배경 없어도 돈다 */ }
 
-  // 컷아웃이 있으면 팔 파트를 붙인다 (없으면 몸통만)
+  // 컷아웃이 있으면 팔 파트를 붙인다 (없으면 몸통만).
+  //
+  // **팔은 파일이 아니라 런타임에 잘라 만든다.** 예전엔 `<id>_arm.png` 를
+  // 읽었는데 그런 파일은 만들지 않기로 했고(좌표만 저장, view/battle/cutout.js),
+  // 그래서 이 데모는 늘 조용히 실패해 몸통만 나왔다.
   async function loadArm(src) {
-    const id = src.split('/').pop().replace('.png', '');
+    const id = src.split('/').pop().replace(/\.(png|webp)$/, '');
     try {
       const meta = await fetch(`/assets/cutout/${id}.json`).then(r => r.ok ? r.json() : null);
       if (!meta) return null;
-      const texture = await PIXI.Assets.load(`/assets/cutout/${id}_arm.png`);
-      return { texture, pivot: meta.pivot, tip: meta.tip };
+      return await loadCutout(PIXI, src, meta);
     } catch { return null; }
   }
 

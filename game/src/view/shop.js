@@ -192,7 +192,9 @@ export class ShopScreen {
 
     return `<div class="sm-toggle">${tab('mercenary')}${tab('skill')}</div>
       <div class="sh-summon big" style="--tint:${d.tint}">
-        <div class="sh-art" style="background-image:url(/assets/ui/${d.alt}.png)"></div>
+        <!-- ALT-0N 은 해상도 축소 때 webp 로 다시 구웠다 (2026-08-25). png 를
+             부르면 소환진 그림이 통째로 안 뜬다 (단장 지적) -->
+        <div class="sh-art" style="background-image:url(/assets/ui/${d.alt}.webp)"></div>
         <!-- 보유 소환권 — 그림 위 우상단. 가장 먼저 확인하는 숫자라 크게 띄운다 -->
         <span class="sm-tk" title="보유 소환권 — 다이아보다 먼저 쓴다">
           <img src="/assets/ui/${d.icon}.png" alt="">${num(held)}</span>

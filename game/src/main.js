@@ -150,9 +150,12 @@ let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, al
 // class 가 없는 옛 세이브·스킬 객체는 배수 1 로 떨어진다
 // 레벨은 **1부터** 센다. 그래서 성장항은 (level - 1) 이다 — 레벨 1 이 기준값이고
 // 밸런스는 0부터 세던 때와 같다. 그냥 level 을 쓰면 전원 CP 가 6% 뛴다.
-const cpOf = m => D.characters.gradeCoef[m.grade]
+// **빈 칸(null)을 받는다.** 편성은 5칸인데 다 채우는 것이 정상이 아니고,
+// totalCp 가 S.party 를 통째로 훑기 때문에 여기서 막지 않으면 빈 칸 하나에
+// 부팅이 통째로 죽는다 (renderTop 에서 터졌다 — 2026-08-25)
+const cpOf = m => (!m ? 0 : D.characters.gradeCoef[m.grade]
   * (1 + ((m.level || 1) - 1) * D.characters.levelGrowthPerLevel)
-  * (m.class ? promoMult(m.class) : 1);
+  * (m.class ? promoMult(m.class) : 1));
 const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + ((s.level || 1) - 1) * 0.06);
 
 function equipBonus() {
@@ -829,6 +832,8 @@ function partyDps() {
   const aps = D.combat.attack.baseAttacksPerSecond;
   let dps = 0;
   for (const m of S.party) {
+    // 빈 칸은 건너뛴다 — 편성 5칸을 다 채우는 것이 정상 상태가 아니다
+    if (!m) continue;
     const c = cls[m.class], p = c.passive;
     const t = cpOf(m) / c.cpDivisor;
     const atk = t * c.statRatio.atk / 100
@@ -5012,6 +5017,8 @@ async function runDungeon(dg) {
   // **아래 await 들보다 먼저** 지운다 — 배경·파티 로드가 늦으면 그동안 스테이지
   // 이름이 간판과 나란히 떠 있게 된다
   $('#stg').innerHTML = '';
+  // 진행도 점까지 통째로 감춘다 (CSS: #app.in-dungeon #hudC)
+  $('#app').classList.add('in-dungeon');
   markEncounter(-1);
 
   await scene.setBackground(DG_BG[dg.id] || 'BG-01');
@@ -5794,6 +5801,8 @@ async function runStage() {
   // 던전이 도는 중에는 방치 전투로 안 돌아간다. 예약된 setTimeout(runStage) 이
   // 던전 입장 직후에 터지면 배경·파티·웨이브를 전부 스테이지 것으로 갈아 버린다
   if (dgRun) return;
+  // 던전에서 돌아왔다 — 스테이지 진행도를 되살린다
+  $('#app').classList.remove('in-dungeon');
   const bgId = bgFor(S.stage);
   await scene.setBackground(bgId);
   scene.captainClass = S.promoClass || 'warrior';
@@ -5884,6 +5893,24 @@ function hideTapHint() {
   clearTimeout(tapHintT);
   tapHintSel = null;
   $('#tapHint')?.classList.remove('show');
+}
+
+/**
+ * 화면을 덮는 판이 열리면 손을 치운다.
+ *
+ * 손은 fixed(z 120) 라 상점·랭킹 같은 전체화면 위에도 그대로 떠 있는데,
+ * 정작 가리키던 버튼은 그 판 뒤에 숨는다 — 상점에서 엉뚱한 자리를 가리키는
+ * 손이 떠 있었다 (단장 지적 2026-08-25). 판이 닫히면 다시 안내가 필요한지는
+ * maybeOnboardHint 가 판단하므로 여기서는 치우기만 한다.
+ */
+function watchTapHintCover() {
+  const roots = [...document.querySelectorAll('#shop, #ov, #sheet, #smPop, #hgPop, .fullscr')];
+  if (!roots.length) return;
+  const obs = new MutationObserver(() => {
+    if (!tapHintSel) return;
+    if (roots.some(e => e.classList.contains('show'))) hideTapHint();
+  });
+  for (const e of roots) obs.observe(e, { attributes: true, attributeFilter: ['class'] });
 }
 
 // 파라미터 이름을 t 로 두지 않는다 — i18n 의 t() 를 가리면 나중에 번역을
@@ -6170,10 +6197,12 @@ function fitBootTitle() {
       sp.append(ws.slice(0, best).join(' '), document.createElement('br'), ws.slice(best).join(' '));
       el.replaceChildren(sp);
     }
+    // **가로만 본다.** 세로(scrollHeight)까지 조건에 넣었더니, flex 로 가운데
+    // 정렬한 칸에서 값이 늘 크게 잡혀 한국어 제목까지 바닥(9px)으로 줄었다.
+    // 두 줄이 되면 칸보다 조금 높아지는데 그건 판 위에서 문제가 안 된다.
     let size = parseFloat(getComputedStyle(el).fontSize);
-    let guard = 30;
-    while (guard-- > 0 && size > 9
-        && (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight)) {
+    let guard = 24;
+    while (guard-- > 0 && size > 16 && el.scrollWidth > el.clientWidth + 1) {
       size -= 1;
       el.style.fontSize = size + 'px';
     }
@@ -6369,6 +6398,7 @@ function bootTapToStart() {
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
     buySpeed3, claimSpeed3Daily,
   });
+  watchTapHintCover();
   bootStep(55);
   scene = new BattleScene($('#cv'), { data: D, onEvent });
   // 단장의 고정 피해. **1스테이지 보스를 제한시간 안에 겨우 잡는 크기**로 잡는다.
