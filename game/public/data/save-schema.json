@@ -286,13 +286,13 @@
    }
   },
   "speed": "지금 고른 배속 (1|2|3). 해금 안 된 값이면 부팅 때 내려간다",
-  "speed3": "3배속 구매 여부 (bool). 서버 권한 — 결제 검증 뒤에만 true 가 된다",
+  "speed3": "3배속 해금 (bool). premium_pack 이 켠다. 서버 권한 — 결제 검증 뒤에만 true",
   "speed3DailyAt": "3배속 패키지 일일 다이아를 마지막으로 받은 날짜 (서버 시각 기준 YYYY-MM-DD)"
  },
  "serverRecomputed": {
   "note": "아래는 저장하지 않는다. 서버가 요청마다 다시 계산한다. 저장하면 조작 대상이 된다.",
-  "adFree": "광고 제거 구매 여부 (bool). 서버 권한 — speed3 과 같은 규칙",
-  "adFreeMailAt": "광고 제거 일일 다이아 우편을 마지막으로 배달한 날짜 (YYYY-MM-DD)",
+  "adFree": "광고 없이 즉시 보상 (bool). premium_pack 이 speed3 과 같이 켠다. 서버 권한",
+  "adFreeMailAt": "프리미엄 일일 다이아 우편을 마지막으로 배달한 날짜 (YYYY-MM-DD)",
   "fields": [
    "CP 총합",
    "용병·스킬 개별 CP",

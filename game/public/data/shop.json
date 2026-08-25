@@ -69,32 +69,21 @@
    "note": "스테이지 벽(St50/100/150)에 도달했을 때 등장한다. 벽 앞에서 정체하는 순간이 결제 전환율이 가장 높은 지점이다."
   },
   {
-   "id": "speed3_unlock",
-   "nameKo": "3배속 해금",
+   "id": "premium_pack",
+   "nameKo": "프리미엄",
    "type": "one_time",
-   "unlock": "speed3",
+   "unlocks": [
+    "speed3",
+    "adFree"
+   ],
    "dailyGrant": {
     "diamond": 100
    },
-   "dailyGrantNote": "수령 기한 없음. 매일 상점에서 받는다 — 자동 지급이 아니라 접속 이유를 만든다",
+   "dailyGrantNote": "우편 자동 배달 (main.js > premiumDailyMail). 구매하면 상점 카드가 사라지므로 수령 버튼이 없다",
+   "behavior": "3배속 영구 해금 + 광고 제거를 한 상품으로 (단장 확정 2026-08-26). 광고 버튼은 남고, 누르면 재생 없이 즉시 보상. 일일 횟수 상한 동일.",
    "priceTier": "중액",
-   "note": "3배속 영구 해금 + 매일 다이아 100. 배속은 방치 수익의 곱셈 항이라 2배속 대비 시간당 수익이 +50% 가 된다 (stages.json > idleReward.speedBasis).",
-   "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 (economy.json > diamondPackages.gapVerification) 의 2.3% 라 과금 격차 계산에 영향이 없다. 프리미엄 패스(일 500)와도 5배 차이라 구독을 잠식하지 않는다.",
-   "whyNotSubscription": "구독(shop.json > subscription.philosophy)은 \"성능은 팔지 않는다\"가 원칙이다. 배속은 방치 수익을 곱하므로 명백한 성능이라 구독이 아니라 일회성 상품으로 뺐다."
-  },
-  {
-   "id": "adfree_pack",
-   "nameKo": "광고 제거",
-   "type": "one_time",
-   "unlock": "adFree",
-   "dailyGrant": {
-    "diamond": 100
-   },
-   "dailyGrantNote": "우편으로 자동 배달 (adFreeDailyMail). speed3 와 달리 수령 버튼이 없다 — 카드 자체가 구매 후 사라지기 때문 (단장 확정 2026-08-26)",
-   "behavior": "보상형 광고 버튼을 없애지 않는다. 버튼을 누르면 광고 재생 없이 즉시 보상 (단장 확정 2026-08-26). 광고 일일 횟수 상한은 그대로다.",
-   "uiNote": "구매 완료하면 상점 카드가 사라진다 (단장 확정 2026-08-26). speed3 카드 옆(아래)에 둔다.",
-   "priceTier": "중액",
-   "budgetNote": "일일 100 = 월 3,000. speed3 dailyGrant 와 같은 액수 — 3배속 budgetNote 의 2.3% 논리를 그대로 탄다."
+   "history": "구 speed3_unlock(3배속+일일 다이아 상점 수령) 과 adfree_pack 을 합쳤다. 일일 다이아는 우편 쪽으로 통일 — 카드가 사라진 뒤 받을 자리가 우편뿐이다.",
+   "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 의 2.3% — 구 speed3 budgetNote 논리 유지."
   }
  ],
  "subscription": {

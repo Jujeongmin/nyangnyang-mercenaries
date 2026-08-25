@@ -93,10 +93,12 @@ const S = {
   pass: { bought: false, free: [], paid: [] },
   skillAuto: true,                         // 끄면 준비된 스킬을 탭해서 쓴다
   speed: 1,                                // 배속. speedMax() 안에서만 고를 수 있다
-  speed3: false,                           // 3배속 구매 여부. 서버 권한 (save-schema)
-  speed3DailyAt: null,                     // 3배속 일일 다이아 마지막 수령일
-  adFree: false,                           // 광고 제거 패키지. 서버 권한 (speed3 과 같은 이유)
-  adFreeMailAt: null,                      // 광고 제거 일일 다이아 우편 마지막 배달일
+  // 프리미엄 패키지(premium_pack) — 한 상품이 두 플래그를 같이 켠다.
+  // 플래그를 하나로 안 합친 이유: speedMax 는 speed3 만, playAd 는 adFree 만
+  // 보면 되는 별개 효과라, 나중에 상품을 다시 쪼개도 코드가 안 바뀐다
+  speed3: false,                           // 3배속 해금. 서버 권한 (save-schema)
+  adFree: false,                           // 광고 없이 즉시 보상. 서버 권한
+  adFreeMailAt: null,                      // 프리미엄 일일 다이아 우편 마지막 배달일
   lang: null,                              // 언어. 첫 부팅 로딩 화면에서 고른다
   // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
   // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
@@ -278,72 +280,41 @@ function speedMax() {
 }
 
 /**
- * 3배속 해금 구매.
+ * 프리미엄 패키지 — 3배속 영구 해금 + 광고 제거를 **한 상품**으로 (단장 확정
+ * 2026-08-26). 구매 판정은 임시 구현이다: 실결제는 아직 없고(VXShop 등록 전),
+ * 해금은 원래 서버 권한이다 (save-schema.json > speed3/adFree). 개발 빌드에서만
+ * 즉시 해금해 테스트를 열어 두고, 프로덕션 번들에는 이 분기가 안 들어간다.
  *
- * **실결제는 아직 없다** — VXShop 등록 전이라 검증할 방법이 없고, 해금 판정은
- * 원래 서버가 쥐어야 한다 (save-schema.json > schema.speed3: "서버 권한").
- * 그래서 개발 빌드에서만 즉시 해금해 테스트를 열어 두고, 프로덕션 번들에는
- * 이 분기가 아예 안 들어간다 (net/ads.js 의 unsupported_env 처리와 같은 방식).
+ * **광고 버튼을 없애지 않는다** — playAd 가 S.adFree 를 보고 광고 재생 없이
+ * 통과시킨다. 횟수 차감·퀘스트 집계는 그대로다.
  */
-function buySpeed3() {
-  if (S.speed3) return toast(t('이미 해금되어 있습니다'));
+function buyPremium() {
+  if (S.speed3 && S.adFree) return toast(t('이미 구매했습니다'));
   if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
   S.speed3 = true;
+  S.adFree = true;
   S.speed = 3;
   if (scene) scene.speed = 3;
   save(); syncSpeedBtns(); shop.render();
-  toast('[개발 빌드] 3배속 해금');
+  toast('[개발 빌드] 프리미엄 적용 — 3배속 + 광고 제거');
 }
 
 /**
- * 3배속 패키지의 일일 다이아. **자동 지급이 아니라 수령이다** —
- * 자동이면 받은 줄도 모르고 지나가서 접속 이유가 안 된다 (소환 레벨 보상과 같은 규칙).
+ * 프리미엄 일일 다이아 — **우편으로 자동 배달한다.** 구매하면 상점 카드가
+ * 사라지므로(깔끔한 UI, 단장 확정 2026-08-26) 수령 버튼을 둘 자리가 없다 —
+ * 우편이 그 자리다. renderTop 1초 루프에서 날짜만 비교하므로 자정을 넘겨도
+ * 접속 중이면 그날 우편이 온다.
  */
-function claimSpeed3Daily() {
-  if (!S.speed3) return;
-  const pk = (D.shop.packages || []).find(x => x.id === 'speed3_unlock');
-  const n = pk?.dailyGrant?.diamond ?? 0;
-  // 서버 시각이 아니라 클라 날짜다. 서버 연동 때 net/backend.js 로 옮긴다
-  const today = new Date().toISOString().slice(0, 10);
-  if (S.speed3DailyAt === today) return toast('오늘은 이미 받았습니다');
-  S.speed3DailyAt = today;
-  S.dia += n;
-  save(); renderTop(); shop.render();
-  gainToast([['diamond', n]]);
-}
-
-/**
- * 광고 제거 패키지. 구매 판정은 buySpeed3 과 같은 임시 구현이다 (개발 빌드 즉시
- * 해금, 프로덕션은 VXShop 등록 후).
- *
- * **광고 버튼을 없애지 않는다** — 버튼을 누르면 광고 재생 없이 즉시 보상이
- * 들어온다 (단장 확정 2026-08-26). playAd 가 S.adFree 를 보고 바로 통과시키므로
- * 호출부는 하나도 안 고친다. 일일 횟수 상한은 그대로 깎인다.
- */
-function buyAdFree() {
-  if (S.adFree) return toast(t('이미 구매했습니다'));
-  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
-  S.adFree = true;
-  save(); shop.render();
-  toast('[개발 빌드] 광고 제거 적용');
-}
-
-/**
- * 광고 제거 일일 다이아 — **우편으로 자동 배달한다** (단장 확정 2026-08-26).
- * speed3 은 상점 수령 버튼(접속 이유)이지만, 광고 제거는 구매 후 상점 카드가
- * 사라지므로 받을 자리가 없다 — 우편이 그 자리다. renderTop 1초 루프에서
- * 날짜만 비교하므로 자정을 넘겨도 접속 중이면 그날 우편이 온다.
- */
-function adFreeDailyMail() {
+function premiumDailyMail() {
   if (!S.adFree) return;
   const today = new Date().toISOString().slice(0, 10);
   if (S.adFreeMailAt === today) return;
-  const pk = (D.shop.packages || []).find(x => x.id === 'adfree_pack');
+  const pk = (D.shop.packages || []).find(x => x.id === 'premium_pack');
   const n = pk?.dailyGrant?.diamond ?? 0;
   if (!n) return;
   S.adFreeMailAt = today;
   (S.mailbox = S.mailbox || []).push({
-    id: 'adfree_' + today, title: '광고 제거 일일 보상', from: '운영팀',
+    id: 'premium_' + today, title: '프리미엄 일일 보상', from: '운영팀',
     grants: { diamond: n }, createdAt: Date.now(), claimed: false,
   });
   save();
@@ -1989,7 +1960,7 @@ function openPass() {
       <button class="mdBuy" id="psAll">${t('전부 받기')}</button>
       ${S.pass.bought
         ? `<span class="ps-own">${t('프리미엄 보유 중')}</span>`
-        : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0}원', numExact(P.tracks.paid.price.krw))}</button>`}
+        : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0} VX', numExact(P.tracks.paid.price.vx))}</button>`}
       </div>`
     + `<div class="ps-head"><span></span><span>${t('무료')}</span><span>${t('프리미엄')}</span></div>`
     + Array.from({ length: P.progress.maxTier }, (_, i) => row(i + 1)).join('');
@@ -5504,7 +5475,7 @@ function renderQuest() {
 
 let lastCp = 0;
 function renderTop() {
-  adFreeDailyMail();   // 광고 제거 일일 우편 — 날짜 비교뿐이라 1초 루프에 싸다
+  premiumDailyMail();  // 프리미엄 일일 우편 — 날짜 비교뿐이라 1초 루프에 싸다
   const cp = totalCp();
   // 전투력이 오르면 즉시 띄운다 — ui.json > criticalUiRules[0]
   if (lastCp && cp > lastCp + 0.5) {
@@ -6895,7 +6866,7 @@ function bootTapToStart() {
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
-    buySpeed3, claimSpeed3Daily, buyAdFree,
+    buyPremium,
   });
   watchTapHintCover();
   // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십
