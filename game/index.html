@@ -86,23 +86,23 @@
   #cp{font-weight:800;font-size:18px;color:var(--gold);line-height:1}
   .sub{font-size:11px;color:var(--dim)}
   /* 재화 캡슐 — 아이콘이 왼쪽에 겹쳐 올라탄 어두운 pill. 숫자가 판 위에 앉는다 */
-  .cur{display:flex;align-items:center;gap:0;font-size:12px;color:var(--dim);
-    background:#17120fc8;border:1px solid #ffffff1c;border-radius:12px;
-    padding:2px 10px 2px 2px;box-shadow:inset 0 1px 3px #0008}
-  .cur b{color:var(--txt);font-weight:800;margin-left:4px;
+  .cur{display:flex;align-items:center;gap:0;font-size:15px;color:var(--dim);
+    background:#17120fc8;border:1px solid #ffffff1c;border-radius:14px;
+    padding:3px 12px 3px 3px;box-shadow:inset 0 1px 3px #0008}
+  .cur b{color:var(--txt);font-weight:800;margin-left:5px;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
   /* [+] — 재화에서 상점으로 가는 지름길. 키우기 장르 공통 문법 */
   /* [+] — 재화에서 상점으로 가는 지름길. 재화마다 색을 달리하면(초록·금)
      "무엇을 뜻하는 색인가" 가 생겨 버린다. 같은 황동 단추 하나로 통일한다 */
   /* line-height 로 세로 중앙을 맞추면 글꼴마다 1~2px 씩 어긋난다 — flex 로 잡는다 */
-  #diaPlus,#goldPlus{width:17px;height:17px;margin-left:6px;padding:0;border-radius:50%;
+  #diaPlus,#goldPlus{width:20px;height:20px;margin-left:7px;padding:0;border-radius:50%;
     display:inline-flex;align-items:center;justify-content:center;line-height:1;
     border:0;background:url(/assets/ui/UI-PLUS.png) center/contain no-repeat;
     color:transparent;font-size:0;cursor:pointer;font-family:inherit;
     box-shadow:none}
   #diaPlus:active,#goldPlus:active{transform:scale(.9);filter:brightness(.92)}
   .dot{width:9px;height:9px;border-radius:50%}
-  .cui{width:17px;height:17px;object-fit:contain}
+  .cui{width:22px;height:22px;object-fit:contain}
 
   /* 전투 40% */
   #battle{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#1e1710}
@@ -2879,6 +2879,9 @@
   .lbl::after,.sh-h2::after,.cx-h::after{content:"";position:absolute;
     left:50%;bottom:0;width:76px;height:19px;margin-left:-38px;pointer-events:none;
     background:url(/assets/ui/UI-DIV.png) center/contain no-repeat}
+  /* 장비 독은 프레임(UI-PANEL) 안이라 장식선이 겹장식이다 — 뺀다 (단장 확정) */
+  #bottom .lbl{padding-bottom:4px}
+  #bottom .lbl::before,#bottom .lbl::after{display:none}
 
   /* 화면 네 귀 장식 — 오버레이 카드에만. 전투 화면에 두면 캐릭터를 가린다 */
   #ovcard{position:relative}
