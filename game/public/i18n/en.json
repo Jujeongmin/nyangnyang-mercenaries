@@ -637,7 +637,11 @@
     "51~100등": "Rank 51-100",
     "그 밖에": "Below 100",
     "오늘은 더 살 수 없습니다": "Daily purchase limit reached",
-    "입장권": "Entry ticket"
+    "입장권": "Entry ticket",
+    "광고 보고 +{0}": "Watch ad +{0}",
+    "하루 {0}회": "{0}/day",
+    "입장권 1장": "1 entry ticket",
+    "상한 없음": "No limit"
   },
   "data": {
     "N-01": "Tiny Hamzzi",

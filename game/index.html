@@ -1376,7 +1376,7 @@
   #ov.show #ovcard{animation:ovPop .18s ease-out}
   @keyframes ovDim{from{background:#120e0b00}}
   @keyframes ovPop{from{transform:scale(.94);opacity:.4}}
-  #ovcard{width:100%;max-width:330px;max-height:76%;background:var(--bg);
+  #ovcard{position:relative;width:100%;max-width:330px;max-height:76%;background:var(--bg);
     border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px #000a;
     display:flex;flex-direction:column;overflow:hidden}
   #ovh{display:flex;justify-content:space-between;align-items:center;gap:8px;
@@ -1901,12 +1901,22 @@
     margin:2px 0 7px}
   .ar-sec .rt-b{min-width:82px;font-size:11px}
   .ar-stat{display:flex;gap:6px;margin-top:9px}
-  /* 세 칸(점수·상점 문·남은 입장)이 같은 높이·같은 세로 중심이어야 한다 —
-     내용 높이가 달라 카드 크기가 제각각이었다 (단장 지적 2026-08-26) */
-  .ar-stat span{flex:1;min-width:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:2px;min-height:54px;
+  /* 두 칸(점수·상점 문) — 입장권은 좌상단 알약으로 나갔다. 카드가 컸다는
+     지적(2026-08-26)으로 높이를 죽인다: 세로쌓기 대신 한 줄 */
+  .ar-stat span{flex:1;min-width:0;display:flex;flex-direction:row;
+    align-items:center;justify-content:center;gap:6px;min-height:38px;
     background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:7px 4px}
+    border-radius:10px;padding:4px 6px}
+  /* 입장권 알약 — 상단 재화 캡슐(.cur)과 같은 문법. [+] 는 diaPlus 와 같은 역할 */
+  .ar-tkpill{display:inline-flex;align-items:center;gap:5px;
+    background:#17120fc8;border:1px solid #ffffff1c;border-radius:11px;
+    padding:3px 4px 3px 6px;font-size:12px}
+  .ar-tkpill img{width:15px;height:15px;object-fit:contain}
+  .ar-tkpill b{font-weight:800;font-variant-numeric:tabular-nums}
+  .ar-tkpill button{width:17px;height:17px;padding:0;border:0;border-radius:50%;
+    background:var(--gold);color:#241a10;font-weight:900;font-size:13px;line-height:1;
+    cursor:pointer;font-family:inherit}
+  .ar-tkpill button:active{transform:scale(.92)}
   .ar-stat i{font-style:normal;font-size:9px;color:var(--dim)}
   .ar-stat b{display:inline-flex;align-items:center;gap:3px;font-size:13px;
     font-weight:800}
@@ -2788,7 +2798,11 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   #ovt::after{content:"";display:block;width:56%;height:2px;margin:3px auto 0;
     background:linear-gradient(90deg,#0000,#ffc94a88,#0000)}
-  #ovx{border-width:8px;padding:0 3px;font-size:11px}
+  /* 닫기는 카드 **우측 상단 모서리**에 못 박는다 (단장 확정 2026-08-26).
+     헤더 흐름 안에 두면 배너 스킨·제목 길이에 따라 자리가 흔들렸다 */
+  /* 기준은 #ovcard 다 — #ovh 에 붙이면 헤더 안쪽 여백만큼 모서리에서 뜬다 (실측 23px) */
+  #ovx{position:absolute;top:7px;right:8px;z-index:3;
+    border-width:8px;padding:0 3px;font-size:11px}
   #ovt{line-height:1.2}
   #ovb{padding:2px}
   #ovinfo{border-top:1px solid #ffffff1f;padding:8px 2px}
@@ -4099,11 +4113,13 @@
   <div id="ov">
     <div id="ovcard">
       <i id="ovskin"></i>
+      <!-- 닫기는 헤더 밖, 카드 직속이다 — #ovh 가 position:relative 라 안에 두면
+           absolute 가 헤더 안쪽 여백 기준으로 앉아 모서리에서 23px 떴다 (실측) -->
+      <button id="ovx">닫기</button>
       <div id="ovh">
         <span id="ovt"></span>
         <span id="ovcur"></span>
         <button id="ovi" title="해금 정보">i</button>
-        <button id="ovx">닫기</button>
       </div>
       <div id="ovb"></div>
       <div id="ovinfo"></div>

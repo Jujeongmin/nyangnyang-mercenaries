@@ -4322,15 +4322,45 @@ const arenaLeft = () => {
 };
 
 /** 다이아로 입장권 1장 (arena.json > entries.diaEntry). **상한 없음** — 다이아가 곧 상한이다 */
-function buyArenaEntry() {
+function buyArenaEntry(reopen) {
   const d = D.arena.entries.diaEntry;
   const a = arenaState();
   if (S.dia < d.cost) return toast(`다이아 ${num(d.cost - S.dia)} 부족`);
   S.dia -= d.cost;
   a.bought++;
   // 소리는 gainToast 가 낸다 (수령음) — 여기서 또 내면 두 소리가 겹친다
-  save(); renderTop(); openArena();
+  save(); renderTop(); (reopen || openArena)();
   gainToast([['arena_entry', 1, t('입장권')]]);
+}
+
+/**
+ * 입장권 구매 창 — 좌상단 알약의 [+] 가 연다 (단장 확정 2026-08-26).
+ * 광고(+3, 일 1회)와 다이아 구매(상한 없음)를 한 자리에 모은다 — 늘리는 길이
+ * 두 갈래인데 흩어져 있으면 하나는 못 보고 지나간다.
+ */
+function openEntryShop() {
+  const a = D.arena;
+  $('#ovt').textContent = t('입장권');
+  setSkin('arena');
+  $('#ovb').innerHTML =
+    `<div class="ar-sec"><span class="lbl"><img src="/assets/ui/CU-13.png" alt=""
+        style="width:15px;height:15px;vertical-align:-3px" onerror="this.remove()">
+        ${t('남은 입장')} ${arenaLeft()} / ${a.entries.baseDaily}</span>
+      <button id="tkBack" class="rt-b">‹ ${t('아레나로')}</button></div>`
+    + `<div class="frow" style="padding:10px 12px;margin-bottom:6px">
+        <span style="flex:1">${t('광고 보고 +{0}', a.entries.adBonus.entries)}
+          <span class="k" style="display:block">${t('하루 {0}회', a.entries.adBonus.dailyLimit)}</span></span>
+        <button class="ar-shopb" id="tkAd" ${arenaState().adUsed ? 'disabled' : ''}>
+          ${arenaState().adUsed ? t('받았습니다') : t('광고')}</button></div>`
+    + `<div class="frow" style="padding:10px 12px">
+        <span style="flex:1">${t('입장권 1장')}
+          <span class="k" style="display:block">${t('상한 없음')}</span></span>
+        <button class="ar-shopb" id="tkBuy"><img src="/assets/ui/CU-01.png" alt=""
+          style="width:11px;height:11px;vertical-align:-1px" onerror="this.remove()"> ${a.entries.diaEntry.cost}</button></div>`;
+  $('#ovinfo').innerHTML = '';
+  $('#tkBack').addEventListener('click', openArena);
+  $('#tkAd')?.addEventListener('click', arenaAd);
+  $('#tkBuy').addEventListener('click', () => buyArenaEntry(openEntryShop));
 }
 
 /** 오늘의 상대 5명 — 날짜 시드로 고정한다. 열 때마다 바뀌면 "고르는 맛"이 없다 */
@@ -4632,13 +4662,27 @@ function openArena(view) {
   // 어느 쪽으로 싸우는지가 안 읽힌다. 여기서는 용병 화면에서 저장해 둔 그
   // 프리셋을 그대로 불러온다 (단장 확정 2026-08-25)
   const book = presetBook('mercenary');
+  const bookS = presetBook('skill');
   const selP = (S.presetSel && S.presetSel.mercenary) ?? 0;
+  const selS = (S.presetSel && S.presetSel.skill) ?? 0;
   $('#ovb').innerHTML =
-    `<div class="ar-sec">
-      <span class="lbl">${t('편성')}</span>
+    // 입장권 — 좌상단 재화 알약. [+] 가 구매 창을 연다 (단장 확정 2026-08-26)
+    `<div class="ar-sec" style="margin-bottom:6px">
+      <span class="ar-tkpill"><img src="/assets/ui/CU-13.png" alt="" onerror="this.remove()">
+        <b>${left} / ${a.entries.baseDaily}</b>
+        <button id="aTkPlus" title="${t('입장권')}">+</button></span>
+    </div>`
+    // 프리셋 — 용병·스킬이 **딴 책**이다 (단장 지적 2026-08-26: "편성 1·2·3" 은
+    // 어느 책인지 안 읽혔다). 줄을 갈라 각각 고른다
+    + `<div class="ar-sec">
+      <span class="lbl">${t('용병')}</span>
       <span id="arPre" class="ar-pre">${[0, 1, 2].map(i =>
         `<button class="pr${book[i] ? ' has' : ''}${i === selP ? ' on' : ''}"
            data-arpre="${i}" title="${t('프리셋')} ${i + 1}">${i + 1}</button>`).join('')}</span>
+      <span class="lbl" style="margin-left:10px">${t('스킬')}</span>
+      <span class="ar-pre">${[0, 1, 2].map(i =>
+        `<button class="pr${bookS[i] ? ' has' : ''}${i === selS ? ' on' : ''}"
+           data-arpres="${i}" title="${t('프리셋')} ${i + 1}">${i + 1}</button>`).join('')}</span>
     </div>`
     + `<div class="ar-sec">
       <span class="lbl">${t('상대')}</span>
@@ -4647,19 +4691,8 @@ function openArena(view) {
     + rows
     + `<div class="ar-stat">
         <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b></span>
-        <!-- 보유 훈장 수는 여기서 뺐다 (단장 확정 2026-08-26) — 훈장을 쓰는
-             자리는 상점뿐이라 숫자는 상점 좌상단에서만 보여 준다. 여기는
-             상점으로 가는 문만 크게 남긴다 -->
         <span><button class="ar-shopb big" id="aShop">
             <img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.remove()">${t('훈장 상점')}</button></span>
-        <span><i>${t('남은 입장')}</i><b><img src="/assets/ui/CU-13.png" alt=""
-          style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${left} / ${a.entries.baseDaily}</b>
-          <span style="display:flex;gap:4px">
-          ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">+${
-            a.entries.adBonus.entries} ${t('광고')}</button>`}
-          <button class="ar-shopb" id="aBuy">+1 <img src="/assets/ui/CU-01.png" alt=""
-                style="width:10px;height:10px;vertical-align:-1px" onerror="this.remove()">${a.entries.diaEntry.cost}</button>
-          </span></span>
       </div>`
     + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
         ${claimed ? t('오늘 보상 수령 완료')
@@ -4680,8 +4713,13 @@ function openArena(view) {
     save(); openArena();
   });
   $('#aDaily').addEventListener('click', claimArenaDaily);
-  $('#aBuy')?.addEventListener('click', buyArenaEntry);
-  $('#aAd')?.addEventListener('click', arenaAd);
+  $('#aTkPlus').addEventListener('click', openEntryShop);
+  $('#ovb').querySelectorAll('[data-arpres]').forEach(b =>
+    b.addEventListener('click', () => {
+      loadPreset('skill', +b.dataset.arpres);
+      openArena();
+    }));
+  // 광고·다이아 구매는 입장권 창(openEntryShop)으로 옮겼다
   $('#ovb').querySelectorAll('[data-af]').forEach(b =>
     b.addEventListener('click', e => { e.stopPropagation(); arenaFight(arenaFoes()[+b.dataset.af]); }));
   // 행을 누르면 편성이 보인다 — 도전 버튼과 분리 (버튼은 stopPropagation)
