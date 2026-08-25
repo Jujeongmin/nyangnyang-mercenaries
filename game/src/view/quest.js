@@ -27,8 +27,8 @@ const CUR_NAME = {
  *   goto  화면 키. track 이 있으면 그 화면 안에서 해당 트랙까지 연다.
  */
 /**
- * 사이클별 던전 목표. 7칸 사이클이라 퀘스트 번호는 (k-1)*7 + 5 다 —
- * 자동 구간에서는 k4→Q26, k5→Q33, k6→Q40, k8→Q54, k10→Q68.
+ * 사이클별 던전 목표. 9칸 사이클의 7번째 칸이라 퀘스트 번호는 (k-1)*9 + 7 이다 —
+ * k1→Q7(명시), k2→Q16, k3→Q25, k4→Q34, k5→Q43, k6→Q52, k8→Q70, k10→Q88.
  *
  * **던전 해금(dungeons.json > unlockQuest)보다 뒤에 와야 한다.** 예전에는
  * Q5 가 황금 광산을 요구하는데 해금이 Q8 이라 잠긴 던전을 깨라는 퀘스트가
@@ -37,22 +37,22 @@ const CUR_NAME = {
  * 'tower' 는 무한의 탑이다. 입장권이 없어 하루에 여러 층을 오를 수 있으니,
  * 열쇠를 기다려야 하는 던전 사이에 끼워 진행이 멈추지 않게 한다.
  */
-// 자동 사이클의 던전 칸은 N ≡ 5 (mod 7) 이다: k4→Q26 부터 (Q1~24 는 explicitQuests).
-// k1~k3 칸은 명시 퀘스트(Q7·Q11·Q17·Q23)가 대신 서 있고, 이 표의 앞 세 줄은
-// dungeonNth(재방문 횟수) 계산에만 쓰인다.
-// 해금(dungeons.json > unlockQuest)은 각 칸 직전이다: furnace Q39→칸 Q40,
-// crystal_cave Q53→Q54, trial_tower Q67→Q68 — tools/validate.mjs 가 정합을 검사한다.
+// 자동 사이클의 던전 칸은 N ≡ 7 (mod 9) 이다: k2→Q16 부터 (Q1~9 는 explicitQuests).
+// k1 칸은 명시 퀘스트 Q7 이 대신 서 있고, 이 표의 첫 줄은 dungeonNth(재방문
+// 횟수) 계산에만 쓰인다.
+// 해금(dungeons.json > unlockQuest)은 각 칸보다 앞서야 한다: furnace Q39 → 칸 Q52,
+// crystal_cave Q53 → Q70, trial_tower Q67 → Q88 — tools/validate.mjs 가 검사한다.
 export const DUNGEON_BY_CYCLE = [
-  'gold_mine',       // k1  (explicit Q7·Q11 구간)
-  'gold_mine',       // k2
-  'treasure_vault',  // k3  (explicit Q17)
-  'gold_mine',       // k4  Q26
-  'tower',           // k5  Q33
-  'furnace',         // k6  Q40  해금 Q39
-  'tower',           // k7  Q47
-  'crystal_cave',    // k8  Q54  해금 Q53
-  'tower',           // k9  Q61
-  'trial_tower',     // k10 Q68  해금 Q67
+  'gold_mine',       // k1  Q7  (explicit)
+  'gold_mine',       // k2  Q16
+  'treasure_vault',  // k3  Q25  해금 Q16
+  'gold_mine',       // k4  Q34
+  'tower',           // k5  Q43
+  'furnace',         // k6  Q52  해금 Q39
+  'tower',           // k7  Q61
+  'crystal_cave',    // k8  Q70  해금 Q53
+  'tower',           // k9  Q79
+  'trial_tower',     // k10 Q88  해금 Q67
 ];
 
 /** 이 사이클이 그 던전(또는 탑)을 몇 번째로 요구하는가 (1부터) */
@@ -111,6 +111,12 @@ export function questAt(D, n) {
     // 그 성립이 깨지고, 유저는 자기가 얼마나 모아야 하는지 매번 다시 센다
     mercenary_summon: () => 10,
     skill_summon: () => 10,
+    // 제작대 **도크**를 누르는 칸 (레벨과 다른 축이다). 소환권 1장 = 1회라
+    // 앞 퀘스트가 그만큼 주면 그대로 끝난다. Q1 이 5회이므로 k1 에서 5 다
+    equip_summon_count: () => 5 * k,
+    // 처치는 방치로 저절로 찬다 — "가서 뭘 해라"가 아닌 칸을 사이클마다
+    // 하나 끼운다. Q4 가 10 이므로 k1 에서 10 이다
+    monster_kill: () => 10 * k,
     equip_summon_level: () => Math.min(2 * k, 60),
     // 열쇠가 던전마다 하루 3개(리필)다. 3*k 로 두면 사이클 7 에 21층을 요구해
     // 며칠이 걸린다 — **새 던전이면 2층**, 같은 던전을 또 요구할 때만 2층씩 깊게
@@ -135,6 +141,10 @@ export function questAt(D, n) {
   const nextType = D.quests.cycle.slots[(n % D.quests.cycle.length)].type;
   if (nextType === 'mercenary_summon') rewards.merc_ticket = 10;
   if (nextType === 'skill_summon') rewards.skill_ticket = 10;
+  // 무기 제작 칸도 같은 규칙이다 — 소환권 1장 = 1회 (main.js > summonEquip)라
+  // 다음 칸의 목표(5 * 그 사이클)만큼 여기서 준다. 안 주면 자동 구간에서
+  // 장비 소환권이 아예 안 나와 그 칸이 며칠씩 막힌다
+  if (nextType === 'equip_summon_count') rewards.equip_ticket = 5 * Math.ceil((n + 1) / D.quests.cycle.length);
   if (n % 10 === 0) rewards.diamond *= 4;
   const out = { q: n, cycle: k, type: slot.type, target, rewards, auto: true };
   // 던전 퀘스트는 **어느 던전인지**가 붙어야 한다. 안 붙이면 "아무 던전이나

@@ -39,17 +39,22 @@ const errs = validate(D);
   });
 }
 // ── 던전 해금 ↔ 사이클 정합 ──────────────────────────────────
-// 자동 사이클의 던전 칸은 N ≡ 5 (mod 7) 이다 (view/quest.js > DUNGEON_BY_CYCLE).
-// 해금 퀘스트가 그 칸 **이후**면 잠긴 던전을 깨라는 퀘스트가 걸린다 — Q5 황금
+// 해금 퀘스트가 던전 칸 **이후**면 잠긴 던전을 깨라는 퀘스트가 걸린다 — Q5 황금
 // 광산에서 실제로 났던 사고다. 표가 바뀔 때마다 손으로 다시 세지 않도록 여기서 잰다.
+//
+// 던전 칸의 위치는 **박아 두지 않는다.** 사이클 길이가 7 → 9 로 바뀌었을 때
+// `N ≡ 5 (mod 7)` 이 그대로 남아 있으면, 검사기가 있지도 않은 칸을 재면서
+// 통과를 뱉는다. 슬롯 표에서 dungeon_floor 가 몇 번째인지 직접 찾는다.
 {
   const BY_CYCLE = ['gold_mine', 'gold_mine', 'treasure_vault', 'gold_mine', 'tower',
     'furnace', 'tower', 'crystal_cave', 'tower', 'trial_tower'];   // quest.js 와 같아야 한다
-  const len = D.quests.cycle.length;                                // 7
-  for (let k = 1; k <= BY_CYCLE.length; k++) {
+  const len = D.quests.cycle.length;
+  const dgSlot = D.quests.cycle.slots.findIndex(s => s.type === 'dungeon_floor') + 1;
+  if (!dgSlot) errs.push('quests cycle.slots 에 dungeon_floor 칸이 없다');
+  for (let k = 1; dgSlot && k <= BY_CYCLE.length; k++) {
     const id = BY_CYCLE[k - 1];
     if (id === 'tower') continue;                                   // 탑은 해금 퀘스트가 없다
-    const questN = (k - 1) * len + 5;                               // 그 사이클의 던전 칸
+    const questN = (k - 1) * len + dgSlot;                          // 그 사이클의 던전 칸
     const dg = D.dungeons.dungeons.find(x => x.id === id);
     if (!dg) { errs.push(`quests 사이클 k${k}: 없는 던전 ${id}`); continue; }
     // explicit 구간(Q1~24)은 명시 퀘스트가 담당한다 — 자동 칸 번호로 재지 않는다

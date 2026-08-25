@@ -6,19 +6,20 @@
     "sideEffect": "Q1~Q6만 따라가면 6개 시스템을 전부 경험한다. 별도 튜토리얼이 불필요해진다."
   },
   "cycle": {
-    "length": 7,
-    "slotFormula": "slot = ((N - 1) mod 7) + 1",
-    "cycleFormula": "k = ceil(N / 7)",
+    "length": 9,
+    "slotFormula": "slot = ((N - 1) mod 9) + 1",
+    "cycleFormula": "k = ceil(N / 9)",
+    "slotsNote": "7 → 9 (2026-08-25). **온보딩 Q1~Q8 의 순서가 곧 사이클이다.** 예전 7칸에는 무기 제작(equip_summon_count)과 처치(monster_kill)가 없어서, 명시 구간이 끝나면 그 둘이 다시는 안 나왔다 — 제작대 도크와 방치가 사이클에서 통째로 빠져 있었다. 9번째 칸에 전투력을 두면 아홉 시스템이 사이클마다 한 번씩 돈다.",
     "slots": [
       {
         "slot": 1,
-        "type": "stage_clear",
+        "type": "equip_summon_count",
         "targetFormula": "5 * k",
-        "needs": "CP",
+        "needs": "장비 소환권",
         "prevRewardShouldGive": [
-          "gold",
-          "golden_key"
-        ]
+          "equip_ticket"
+        ],
+        "targetNote": "Q1 이 5회다(k1). 소환 칸과 같은 규칙 — 바로 앞 퀘스트가 그만큼의 장비 소환권을 주므로 \"받은 만큼 쓰면 끝난다\"."
       },
       {
         "slot": 2,
@@ -33,6 +34,26 @@
       },
       {
         "slot": 3,
+        "type": "stage_clear",
+        "targetFormula": "5 * k",
+        "needs": "CP",
+        "prevRewardShouldGive": [
+          "gold",
+          "golden_key"
+        ]
+      },
+      {
+        "slot": 4,
+        "type": "monster_kill",
+        "targetFormula": "10 * k",
+        "needs": "없음 (방치로 찬다)",
+        "prevRewardShouldGive": [
+          "gold"
+        ],
+        "targetNote": "Q4 가 10 이다(k1). **가서 뭘 해라가 아닌 칸**을 사이클마다 하나 끼운다 — 켜 두면 저절로 차는 자리가 있어야 방치 게임이 방치 게임이 된다."
+      },
+      {
+        "slot": 5,
         "type": "skill_summon",
         "targetFormula": "10 (고정)",
         "needs": "다이아 / 스킬 소환권",
@@ -43,7 +64,7 @@
         "targetNote": "바로 앞 퀘스트가 소환권 10장을 주므로 \"받은 만큼 쓰면 끝난다\". 예전 10*k^1.6 은 사이클마다 목표가 늘어 그 성립이 깨졌다."
       },
       {
-        "slot": 4,
+        "slot": 6,
         "type": "equip_summon_level",
         "targetFormula": "min(2 * k, 60)",
         "needs": "제련석 + 시간",
@@ -52,7 +73,7 @@
         ]
       },
       {
-        "slot": 5,
+        "slot": 7,
         "type": "dungeon_floor",
         "targetFormula": "2 * dungeonNth(k) — 새 던전이면 2층, 재방문마다 +2층",
         "needs": "CP + 입장 횟수",
@@ -64,7 +85,7 @@
         "targetNote": "탑 차례(DUNGEON_BY_CYCLE)면 tower_floor 로 바뀌어 5*n 층. 열쇠가 하루 3개라 3*k 는 사이클 7에 21층 = 며칠짜리였다."
       },
       {
-        "slot": 6,
+        "slot": 8,
         "type": "training_level",
         "targetFormula": "4 * k",
         "needs": "골드",
@@ -74,7 +95,7 @@
         "note": "2026-08-24 추가. 전직 게이트(goldsinks > training_camp.promotion)인데 사이클에 없어서 Q8 이후로 한 번도 안 나왔다. 골드 소모처를 사이클이 직접 가리켜야 벌어 둔 골드가 갈 곳이 생긴다."
       },
       {
-        "slot": 7,
+        "slot": 9,
         "type": "power_reach",
         "targetFormula": "2000 * 1.9^(k-2)",
         "needs": "모든 성장 재화",
@@ -82,11 +103,11 @@
           "diamond",
           "ticket_mixed"
         ],
-        "targetNote": "숫자 스케일 축소(2026-08-24, CP/400) 반영. 권장CP*1.1 이던 시절 문자열은 낡았다."
+        "targetNote": "숫자 스케일 축소(2026-08-24, CP/400) 반영. **사이클 끝에 두는 이유** — 앞 여덟 칸이 전부 전투력을 올리는 행위라, 마지막 칸이 그 결과를 한 번에 확인하는 자리가 된다."
       }
     ],
-    "lengthNote": "6 → 7 (2026-08-24). 훈련소 칸을 정식으로 넣었다.",
-    "formulaNote": "2026-08-25 정정. 훈련소 칸이 들어와 7칸이 됐는데 공식 문자열이 6칸 시절 것이었다. 실제 판정은 view/quest.js > questAt 이 cycle.length 를 읽으므로 게임은 처음부터 7칸으로 돌았다 — 이 문자열은 문서다."
+    "lengthNote": "6 → 7 (2026-08-24) → 9 (2026-08-25). 무기 제작과 처치가 사이클에 없어 명시 구간이 끝나면 사라지던 것을 넣었다.",
+    "formulaNote": "실제 판정은 view/quest.js > questAt 이 cycle.length 를 읽는다 — 이 문자열은 문서다. 길이를 바꾸면 던전 칸 번호도 같이 움직인다: 던전은 슬롯 7 이므로 N ≡ 7 (mod 9), 곧 k1→Q7 · k2→Q16 · k3→Q25 · k4→Q34 · k5→Q43 · k6→Q52 · k8→Q70 · k10→Q88 이다. dungeons.json > unlockQuest 가 그보다 앞서야 하고 tools/validate.mjs 가 검사한다."
   },
   "supplyRate": {
     "formula": "reward(N) = requiredAmount(N+1) * supplyRate(k)",
@@ -251,194 +272,17 @@
     },
     {
       "q": 9,
-      "cycle": 2,
-      "type": "skill_summon",
-      "target": 10,
+      "cycle": 1,
+      "type": "power_reach",
+      "target": 1000,
       "rewards": {
-        "speedup_5m": 11
+        "gold": 1800,
+        "equip_ticket": 10,
+        "diamond": 120
       },
       "feedsInto": 10,
-      "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
-    },
-    {
-      "q": 10,
-      "cycle": 2,
-      "type": "equip_summon_level",
-      "target": 4,
-      "rewards": {
-        "diamond": 300,
-        "gold": 1800,
-        "equip_ticket": 42
-      },
-      "milestone": true,
-      "feedsInto": 11
-    },
-    {
-      "q": 11,
-      "cycle": 2,
-      "type": "dungeon_floor",
-      "target": 2,
-      "dungeon": "gold_mine",
-      "rewards": {
-        "diamond": 180,
-        "merc_ticket": 8,
-        "skill_ticket": 8
-      },
-      "feedsInto": 12
-    },
-    {
-      "q": 12,
-      "cycle": 2,
-      "type": "power_reach",
-      "target": 2000,
-      "rewards": {
-        "gold": 1800,
-        "equip_ticket": 36
-      },
-      "feedsInto": 13,
-      "targetNote": "CP 400 축소에 맞춘 값. 이 시점의 예상 전력은 용병 3칸(R~SR) + 장비 몇 칸 이다."
-    },
-    {
-      "q": 13,
-      "cycle": 3,
-      "type": "stage_clear",
-      "target": 15,
-      "rewards": {
-        "merc_ticket": 10,
-        "diamond": 120
-      },
-      "feedsInto": 14
-    },
-    {
-      "q": 14,
-      "cycle": 3,
-      "type": "mercenary_summon",
-      "target": 10,
-      "rewards": {
-        "skill_ticket": 10,
-        "diamond": 120
-      },
-      "feedsInto": 15,
-      "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
-    },
-    {
-      "q": 15,
-      "cycle": 3,
-      "type": "skill_summon",
-      "target": 10,
-      "rewards": {
-        "speedup_5m": 14
-      },
-      "feedsInto": 16,
-      "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
-    },
-    {
-      "q": 16,
-      "cycle": 3,
-      "type": "equip_summon_level",
-      "target": 6,
-      "rewards": {
-        "gold": 4800,
-        "equip_ticket": 66
-      },
-      "feedsInto": 17
-    },
-    {
-      "q": 17,
-      "cycle": 3,
-      "type": "dungeon_floor",
-      "target": 2,
-      "dungeon": "treasure_vault",
-      "rewards": {
-        "diamond": 240,
-        "merc_ticket": 12,
-        "skill_ticket": 12
-      },
-      "feedsInto": 18
-    },
-    {
-      "q": 18,
-      "cycle": 3,
-      "type": "power_reach",
-      "target": 4200,
-      "rewards": {
-        "gold": 7200,
-        "equip_ticket": 54
-      },
-      "unlock": "treasure_vault",
-      "feedsInto": 19,
-      "targetNote": "CP 400 축소에 맞춘 값. 이 시점의 예상 전력은 SR 3~4칸 + 장비 6칸 이다."
-    },
-    {
-      "q": 19,
-      "cycle": 4,
-      "type": "stage_clear",
-      "target": 20,
-      "rewards": {
-        "merc_ticket": 10,
-        "diamond": 150
-      },
-      "feedsInto": 20
-    },
-    {
-      "q": 20,
-      "cycle": 4,
-      "type": "mercenary_summon",
-      "target": 10,
-      "rewards": {
-        "diamond": 480,
-        "skill_ticket": 10
-      },
-      "milestone": true,
-      "feedsInto": 21,
-      "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
-    },
-    {
-      "q": 21,
-      "cycle": 4,
-      "type": "skill_summon",
-      "target": 10,
-      "rewards": {
-        "speedup_5m": 21
-      },
-      "feedsInto": 22,
-      "targetNote": "항상 10회. 직전 퀘스트 보상이 소환권 10장이다."
-    },
-    {
-      "q": 22,
-      "cycle": 4,
-      "type": "equip_summon_level",
-      "target": 8,
-      "rewards": {
-        "gold": 18000,
-        "equip_ticket": 108
-      },
-      "feedsInto": 23
-    },
-    {
-      "q": 23,
-      "cycle": 4,
-      "type": "dungeon_floor",
-      "target": 3,
-      "dungeon": "gold_mine",
-      "rewards": {
-        "diamond": 300,
-        "merc_ticket": 20,
-        "skill_ticket": 20
-      },
-      "feedsInto": 24
-    },
-    {
-      "q": 24,
-      "cycle": 4,
-      "type": "monster_kill",
-      "target": 10,
-      "rewards": {
-        "gold": 24000,
-        "equip_ticket": 156
-      },
-      "feedsInto": 25,
-      "targetNote": "회차 기준(이번 퀘스트 동안 300마리 ≈ 25 스테이지). 4,200 은 누적이던 시절 값이다."
+      "targetNote": "온보딩 한 바퀴의 **마감**이다. 앞 여덟 칸이 전부 전투력을 올리는 행위라, 여기서 그 결과를 한 번에 확인한다. 1,000 은 자동 공식(2000*1.9^(k-2), k1 = 1,053)을 반올림한 값이다 — **실제 진행으로 잰 값이 아니다.** 퀘스트는 순차 진행이라 이 목표가 Q8 직후 도달 가능한 CP 보다 높으면 사슬이 여기서 영구히 멈춘다. 플레이로 재서 확정해야 한다 (2026-08-25 미검증).",
+      "rewardNote": "장비 소환권 10 은 Q10(무기 제작 10회)의 밑천이다 — 소환권 1장 = 1회 (main.js > summonEquip). 사슬 규칙 그대로 \"받은 만큼 쓰면 끝난다\"."
     }
   ],
   "generationRule": {
