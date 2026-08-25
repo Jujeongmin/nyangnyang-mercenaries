@@ -352,7 +352,9 @@ export class ShopScreen {
         <button class="sh-price" data-buy="${x.id}">${t('구매')}</button>
       </div>`;
     }).join('') + `</div>
-      <div class="sh-note">${mdb(t(p.exchangeRate))}<br>${t('실결제는 VXShop 등록 후 연동된다.')}</div>`;
+      <!-- 환산 문구(약 1890 다이아 = $1)는 뺐다 (단장 지시 2026-08-26).
+           확정 전 숫자를 상점에 박아 두면 나중에 약속이 된다 -->
+      <div class="sh-note">${t('실결제는 VXShop 등록 후 연동된다.')}</div>`;
   }
 
   // ── 교환 ──

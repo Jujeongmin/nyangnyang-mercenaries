@@ -547,9 +547,15 @@
   /* ── 아레나 양측 체력바 ──
      내 쪽은 왼쪽에서, 상대는 오른쪽에서 줄어든다 — 화면의 좌우 진영과 같은
      방향이라 어느 막대가 누구 것인지 읽을 필요가 없다 */
-  #arBars{position:absolute;left:0;right:0;top:6px;z-index:6;display:none;
+  /* 좌우 54px 안쪽 — 전폭으로 깔면 사이드 버튼 열을 가로지른다
+     (실측 2026-08-26: 바 260~772 · 좌열 266~310 · 우열 722~766) */
+  #arBars{position:absolute;left:54px;right:54px;top:6px;z-index:6;display:none;
     gap:8px;padding:0 10px}
   #arBars.show{display:flex}
+  /* 아레나 중에는 스테이지 글자·조우 점·타이머를 숨긴다 — HP 바 두 줄과 그 위
+     이름이 같은 자리를 쓰고, 바에 이미 양쪽 이름이 있어 겹말이다
+     (실측: 바 y102~127 위에 '아레나단장…' 글자가 올라타 있었다) */
+  #app.arena #stg,#app.arena #enc,#app.arena #timer{display:none}
   #arBars>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
   #arBars b{font-size:10px;font-weight:800;color:#f2e5db;text-shadow:0 1px 3px #000;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

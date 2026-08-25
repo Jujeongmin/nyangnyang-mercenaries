@@ -1583,6 +1583,10 @@ export class BattleScene {
       const alive = this.foes.filter(f => !f.dead);
       const u = this.units[(Math.random() * this.units.length) | 0];
       if (u && alive.length) this.launchAttack(u, alive[(Math.random() * alive.length) | 0], false);
+      // **파티가 비어 있으면 단장이 휘두른다.** 초기화 직후처럼 편성이 0명일 때
+      // 아무도 안 움직여서 "전투가 안 일어난다" 로 읽혔다 (단장 보고 2026-08-26).
+      // 판정은 어차피 CP 확률이라 그림만 있으면 된다
+      else if (!u && alive.length && this.captain) this.captain.attack?.();
       // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다
       const f = alive[(Math.random() * alive.length) | 0];
       if (f && this.units.length) f.rig.attack?.();

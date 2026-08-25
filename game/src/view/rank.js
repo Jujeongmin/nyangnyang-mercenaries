@@ -250,7 +250,7 @@ export class SettingsScreen {
         <div class="st-seg" data-k="fxset">
           <button data-v="fx"    class="${S.fxOn === false ? '' : 'on'}">${t('타격')}</button>
           <button data-v="shake" class="${S.shakeOn === false ? '' : 'on'}">${t('흔들림')}</button>
-          <button data-v="nums"  class="${S.numsOn === false ? '' : 'on'}">${t('숫자')}</button>
+          <button data-v="nums"  class="${S.numsOn === false ? '' : 'on'}">${t('피해 숫자')}</button>
         </div></div>
 
       <div class="st-h">${t('사운드')}</div>

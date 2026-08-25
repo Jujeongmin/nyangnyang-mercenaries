@@ -1,297 +1,341 @@
 {
- "meta": {
-  "version": "1.0",
-  "description": "비동기 PvP 아레나 + 2주 시즌",
-  "coreProblem": "자동장착 때문에 편성 전략이 없다. 그대로 두면 아레나 순위 = 전투력 순위가 되어 별도 콘텐츠일 이유가 사라진다.",
-  "solution": "시즌 모디파이어. 매 시즌 룰이 바뀌어 CP 1등이 항상 이기지 않는다. 유저는 고정 슬롯 2칸으로 대응한다 - 여기서 고정 슬롯이 비로소 의미를 얻는다."
- },
- "battle": {
-  "type": "asynchronous",
-  "format": "5v5_single_round",
-  "resolution": "cp_probability",
-  "defenseTeam": "자동장착 스냅샷 (유저 접속 불필요)",
-  "snapshotUpdate": "자동장착 결과가 바뀔 때마다 갱신",
-  "defenseBonus": 0,
-  "defenseBonusNote": "방어측 보정 없음. 순수 CP 비교.",
-  "winProbability": {
-   "formula": "p = 1 / (1 + (oppCp / myCp)^6)",
-   "exponent": 6,
-   "table": {
-    "1.0": 0.5,
-    "1.05": 0.57,
-    "1.1": 0.64,
-    "1.2": 0.75,
-    "1.5": 0.92,
-    "2.0": 0.98
-   },
-   "note": "CP가 비슷하면 뒤집힐 여지가 있고 격차가 크면 사실상 확정. 지수 6이 그 균형점."
+  "meta": {
+    "version": "1.0",
+    "description": "비동기 PvP 아레나 + 2주 시즌",
+    "coreProblem": "자동장착 때문에 편성 전략이 없다. 그대로 두면 아레나 순위 = 전투력 순위가 되어 별도 콘텐츠일 이유가 사라진다.",
+    "solution": "시즌 모디파이어. 매 시즌 룰이 바뀌어 CP 1등이 항상 이기지 않는다. 유저는 고정 슬롯 2칸으로 대응한다 - 여기서 고정 슬롯이 비로소 의미를 얻는다."
   },
-  "whyNotTickSim": {
-   "finding": "5v5 단판 틱 시뮬을 돌린 결과 직군 편차가 65~82%p로 붕괴했다. 전사 평균 승률 34.9% vs 궁수 100%.",
-   "cause": "위치·사거리가 없고 양측 스탯이 대칭이라 동일 CP 단판은 사실상 결정론적이다. 승패가 직군 조합만으로 갈리고 작은 밸런스 차이가 0%/100%로 증폭된다. 감산계수를 2배 바꿔도 마법사 승률이 소수점까지 동일하게 나왔다 - 난수가 결과를 바꾸지 못한다는 뜻.",
-   "attemptsFailed": [
-    "감산 계수 0.003~0.04 전 구간 탐색 (최선 15%p, 계수 흔들면 50%p로 튐)",
-    "랜덤 타겟팅 (82%p -> 82%p, 무효)"
-   ],
-   "conclusion": "CP 확률 판정으로 전환하면 아레나가 직군을 보지 않으므로 밸런스 문제가 통째로 사라진다. 스테이지의 battleResolution 과도 구조가 일치한다.",
-   "evidence": "sim/arena.js (기각된 접근의 기록)"
-  },
-  "presentation": {
-   "mode": "hp_drain",
-   "principle": "서버가 승패와 최종 HP 잔량을 먼저 정하고, 그 결과에 도달하도록 연출 로그를 역산 생성한다. 연출이 결과와 모순되면 안 된다 - 지는 쪽 HP가 반드시 먼저 0이 된다.",
-   "winnerHpRemaining": {
-    "formula": "clamp(0.08, 0.85, 1 - (oppCp/myCp)^2 * 0.9)",
-    "upsetOverride": "승자가 CP 열세면 0.05~0.15 고정 (극적인 신승 연출)",
-    "table": {
-     "1.0": 0.1,
-     "1.2": 0.375,
-     "1.5": 0.6,
-     "2.0": 0.775
+  "battle": {
+    "type": "asynchronous",
+    "format": "5v5_single_round",
+    "resolution": "cp_probability",
+    "defenseTeam": "자동장착 스냅샷 (유저 접속 불필요)",
+    "snapshotUpdate": "자동장착 결과가 바뀔 때마다 갱신",
+    "defenseBonus": 0,
+    "defenseBonusNote": "방어측 보정 없음. 순수 CP 비교.",
+    "winProbability": {
+      "formula": "p = 1 / (1 + (oppCp / myCp)^6)",
+      "exponent": 6,
+      "table": {
+        "1.0": 0.5,
+        "1.05": 0.57,
+        "1.1": 0.64,
+        "1.2": 0.75,
+        "1.5": 0.92,
+        "2.0": 0.98
+      },
+      "note": "CP가 비슷하면 뒤집힐 여지가 있고 격차가 크면 사실상 확정. 지수 6이 그 균형점."
     },
-    "note": "CP 격차가 클수록 승자 HP가 많이 남아 압승으로 보이고, 접전이면 아슬아슬하게 남는다."
-   },
-   "durationSec": {
-    "formula": "6 + 8 * (1 - winnerHpRemaining)",
-    "range": [
-     6,
-     14
+    "whyNotTickSim": {
+      "finding": "5v5 단판 틱 시뮬을 돌린 결과 직군 편차가 65~82%p로 붕괴했다. 전사 평균 승률 34.9% vs 궁수 100%.",
+      "cause": "위치·사거리가 없고 양측 스탯이 대칭이라 동일 CP 단판은 사실상 결정론적이다. 승패가 직군 조합만으로 갈리고 작은 밸런스 차이가 0%/100%로 증폭된다. 감산계수를 2배 바꿔도 마법사 승률이 소수점까지 동일하게 나왔다 - 난수가 결과를 바꾸지 못한다는 뜻.",
+      "attemptsFailed": [
+        "감산 계수 0.003~0.04 전 구간 탐색 (최선 15%p, 계수 흔들면 50%p로 튐)",
+        "랜덤 타겟팅 (82%p -> 82%p, 무효)"
+      ],
+      "conclusion": "CP 확률 판정으로 전환하면 아레나가 직군을 보지 않으므로 밸런스 문제가 통째로 사라진다. 스테이지의 battleResolution 과도 구조가 일치한다.",
+      "evidence": "sim/arena.js (기각된 접근의 기록)"
+    },
+    "presentation": {
+      "mode": "hp_drain",
+      "principle": "서버가 승패와 최종 HP 잔량을 먼저 정하고, 그 결과에 도달하도록 연출 로그를 역산 생성한다. 연출이 결과와 모순되면 안 된다 - 지는 쪽 HP가 반드시 먼저 0이 된다.",
+      "winnerHpRemaining": {
+        "formula": "clamp(0.08, 0.85, 1 - (oppCp/myCp)^2 * 0.9)",
+        "upsetOverride": "승자가 CP 열세면 0.05~0.15 고정 (극적인 신승 연출)",
+        "table": {
+          "1.0": 0.1,
+          "1.2": 0.375,
+          "1.5": 0.6,
+          "2.0": 0.775
+        },
+        "note": "CP 격차가 클수록 승자 HP가 많이 남아 압승으로 보이고, 접전이면 아슬아슬하게 남는다."
+      },
+      "durationSec": {
+        "formula": "6 + 8 * (1 - winnerHpRemaining)",
+        "range": [
+          6,
+          14
+        ],
+        "note": "접전일수록 길고 압승일수록 짧다. 일 최대 11회라 20초를 넘기면 지루하다."
+      },
+      "logGeneration": [
+        "1. 패자 총 HP를 100% 소진, 승자를 (1 - winnerHpRemaining) 만큼 소진하도록 총 딜량을 배분",
+        "2. 유닛별 사망 시점을 전투 길이에 균등 분산 (패자 5명 전원 사망, 승자는 잔량에 따라 0~4명)",
+        "3. 각 타격 데미지 = 남은 HP / 남은 타격 수, 소량 난수 가미",
+        "4. 크리티컬·회피·추가타 이펙트는 직군 패시브 확률대로 클라가 굴려 재생 (결과 무관)"
+      ],
+      "uiRequirement": "양측 HP바를 상단에 표시하고 실시간으로 깎는다. 유저가 왜 이겼는지/졌는지를 HP바로 납득해야 한다.",
+      "skip": "스킵 버튼 제공. 결과만 즉시 표시."
+    },
+    "matchmaking": {
+      "candidateCount": 5,
+      "rule": "내 경쟁점수 기준 -100 ~ +150 구간에서 무작위 5명",
+      "showOpponentCp": true,
+      "showOpponentScore": true,
+      "showOpponentNote": "유저가 상대 전투력과 점수를 보고 직접 고른다. 이길 만한 상대를 고르는 것 자체가 플레이의 일부.",
+      "refresh": {
+        "free": 1,
+        "adCost": 1,
+        "dailyLimit": 3
+      },
+      "fallback": "구간 내 인원 부족 시 범위를 점진적으로 확대"
+    }
+  },
+  "entries": {
+    "baseDaily": 5,
+    "adBonus": {
+      "entries": 3,
+      "dailyLimit": 1
+    },
+    "premiumBonus": 3,
+    "maxDaily": 11
+  },
+  "scoring": {
+    "nameKo": "경쟁점수",
+    "rankingBoard": "ranking.json > boards > score",
+    "startScore": 1000,
+    "winFormula": "gain = clamp(30 - floor((myScore - oppScore) / 50), 10, 50)",
+    "loseFormula": "loss = clamp(15 + floor((myScore - oppScore) / 50), 5, 25)",
+    "defenseWin": {
+      "scoreGain": 0,
+      "note": "방어 성공 보상도 없다. 방어측 보정이 없어 방어 성공이 사실상 CP 우위에만 달려 있으므로, 보상을 주면 고CP 유저에게 자동 적립되는 셈이 된다."
+    },
+    "defenseLoss": {
+      "scoreLoss": 0,
+      "note": "상대가 나를 공격해 이겨도 내 점수는 깎이지 않는다. 점수 변동은 오직 내 도전의 승패로만 발생한다. 오프라인 손실은 이탈 요인."
+    },
+    "floor": 0,
+    "note": "점수는 내 도전의 승패로만 움직인다. 전투력이 높은 유저가 자연히 상위권에 오르는 구조."
+  },
+  "tiers": [
+    {
+      "id": "bronze",
+      "nameKo": "브론즈",
+      "minScore": 0,
+      "dailyMedals": 30,
+      "dailyDiamond": 50,
+      "color": "#b0793f"
+    },
+    {
+      "id": "silver",
+      "nameKo": "실버",
+      "minScore": 1200,
+      "dailyMedals": 60,
+      "dailyDiamond": 100,
+      "color": "#b9c4cf"
+    },
+    {
+      "id": "gold",
+      "nameKo": "골드",
+      "minScore": 1500,
+      "dailyMedals": 120,
+      "dailyDiamond": 180,
+      "color": "#ffc94a"
+    },
+    {
+      "id": "platinum",
+      "nameKo": "플래티넘",
+      "minScore": 1900,
+      "dailyMedals": 220,
+      "dailyDiamond": 300,
+      "color": "#7fd8c9"
+    },
+    {
+      "id": "diamond",
+      "nameKo": "다이아몬드",
+      "minScore": 2400,
+      "dailyMedals": 400,
+      "dailyDiamond": 500,
+      "color": "#6fb6ff"
+    },
+    {
+      "id": "master",
+      "nameKo": "마스터",
+      "minScore": 3000,
+      "dailyMedals": 700,
+      "dailyDiamond": 800,
+      "color": "#c07fff"
+    },
+    {
+      "id": "grandmaster",
+      "nameKo": "그랜드마스터",
+      "minScore": 3800,
+      "dailyMedals": 1200,
+      "dailyDiamond": 1300,
+      "color": "#ff6a6a"
+    }
+  ],
+  "tierRewardNote": "티어 일일 보상은 우편함 자동 지급. 아레나가 다이아 배출의 보조 경로가 된다 - 랭커일수록 성장이 빨라지는 양의 피드백이지만, 티어 보상 폭이 크지 않아 던전(60%)을 넘지 않는다.",
+  "season": {
+    "durationDays": 14,
+    "softReset": {
+      "formula": "newScore = 1000 + floor((oldScore - 1000) * 0.5)",
+      "reason": "완전 리셋은 상위권 이탈, 무리셋은 신규 진입 불가. 절반 수축이 표준."
+    },
+    "endRewards": {
+      "canonicalSource": "ranking.json > rankRewards",
+      "note": "최종 순위 보상 테이블은 ranking.json이 단일 소스. 여기에 중복 정의하지 않는다.",
+      "grantTiming": "lazy_claim (시즌 종료 후 첫 접속 시 서버가 지급)"
+    }
+  },
+  "seasonModifiers": {
+    "purpose": "매 시즌 아레나 CP 산출 규칙을 바꿔 일반 전투력 순위와 아레나 순위를 어긋나게 만든다. 고정 슬롯 2칸의 존재 이유.",
+    "appliesTo": "arena_cp_only",
+    "appliesToNote": "모디파이어는 아레나 승률 계산에 쓰이는 CP에만 적용된다. 스테이지·던전의 CP나 전투력 랭킹에는 영향이 없다.",
+    "rotation": "시즌마다 1개 적용, 순환",
+    "announceBeforeDays": 3,
+    "conversionNote": "구버전은 스탯 버프·쿨타임 감소 같은 틱 전투 효과로 기술돼 있었다. 아레나가 CP 확률 판정으로 바뀌면서 전부 CP 배율 형태로 변환했다.",
+    "list": [
+      {
+        "id": "warrior_rally",
+        "nameKo": "전사의 함성",
+        "effect": "전사 용병 CP x1.25"
+      },
+      {
+        "id": "archer_wind",
+        "nameKo": "궁수의 순풍",
+        "effect": "궁수 용병 CP x1.25"
+      },
+      {
+        "id": "mage_surge",
+        "nameKo": "마력 폭주",
+        "effect": "마법사 용병 CP x1.25"
+      },
+      {
+        "id": "element_fire",
+        "nameKo": "화염의 계절",
+        "effect": "불 속성 용병 CP x1.35"
+      },
+      {
+        "id": "element_dark",
+        "nameKo": "그림자의 계절",
+        "effect": "암 속성 용병 CP x1.35"
+      },
+      {
+        "id": "low_grade",
+        "nameKo": "약자의 반란",
+        "effect": "SR 이하 용병 CP x2.2"
+      },
+      {
+        "id": "skill_storm",
+        "nameKo": "스킬 폭풍",
+        "effect": "액티브 스킬 CP x1.40"
+      },
+      {
+        "id": "no_passive",
+        "nameKo": "무공의 시련",
+        "effect": "패시브 스킬 CP x0 (전부 무효)"
+      },
+      {
+        "id": "iron_wall",
+        "nameKo": "철벽",
+        "effect": "CP 재산출 시 DEF 가중치 x1.6 / ATK x0.8 (방어형 유리)"
+      },
+      {
+        "id": "glass_cannon",
+        "nameKo": "유리대포",
+        "effect": "CP 재산출 시 ATK 가중치 x1.6 / HP x0.6 (공격형 유리)"
+      }
     ],
-    "note": "접전일수록 길고 압승일수록 짧다. 일 최대 11회라 20초를 넘기면 지루하다."
-   },
-   "logGeneration": [
-    "1. 패자 총 HP를 100% 소진, 승자를 (1 - winnerHpRemaining) 만큼 소진하도록 총 딜량을 배분",
-    "2. 유닛별 사망 시점을 전투 길이에 균등 분산 (패자 5명 전원 사망, 승자는 잔량에 따라 0~4명)",
-    "3. 각 타격 데미지 = 남은 HP / 남은 타격 수, 소량 난수 가미",
-    "4. 크리티컬·회피·추가타 이펙트는 직군 패시브 확률대로 클라가 굴려 재생 (결과 무관)"
-   ],
-   "uiRequirement": "양측 HP바를 상단에 표시하고 실시간으로 깎는다. 유저가 왜 이겼는지/졌는지를 HP바로 납득해야 한다.",
-   "skip": "스킵 버튼 제공. 결과만 즉시 표시."
+    "designNote": "element_* 가 삭제된 속성 시스템에 목적을 되돌려준다 - 전투 상성은 없지만 시즌 룰의 축으로 쓰인다. low_grade 는 무과금 라이트 유저의 상위권 진입 안전밸브. iron_wall / glass_cannon 은 cpWeights 자체를 흔들어 직군 우열을 뒤집는다.",
+    "strategyLoop": "시즌 3일 전 예고 -> 유저가 해당 직군·속성 용병을 고정 슬롯 2칸에 박음 -> 아레나 CP 상승. 자동장착 게임에서 유저가 개입할 수 있는 유일한 지점."
   },
-  "matchmaking": {
-   "candidateCount": 5,
-   "rule": "내 경쟁점수 기준 -100 ~ +150 구간에서 무작위 5명",
-   "showOpponentCp": true,
-   "showOpponentScore": true,
-   "showOpponentNote": "유저가 상대 전투력과 점수를 보고 직접 고른다. 이길 만한 상대를 고르는 것 자체가 플레이의 일부.",
-   "refresh": {
-    "free": 1,
-    "adCost": 1,
-    "dailyLimit": 3
-   },
-   "fallback": "구간 내 인원 부족 시 범위를 점진적으로 확대"
+  "medalShop": {
+    "currency": "arena_medal",
+    "nameKo": "투기장 훈장",
+    "items": [
+      {
+        "id": "merc_ticket_10",
+        "nameKo": "용병 소환권 10",
+        "cost": 600,
+        "dailyLimit": 5,
+        "icon": "CU-05"
+      },
+      {
+        "id": "skill_ticket_10",
+        "nameKo": "스킬 소환권 10",
+        "cost": 600,
+        "dailyLimit": 5,
+        "icon": "CU-06"
+      },
+      {
+        "id": "equip_ticket_20",
+        "nameKo": "장비 소환권 20",
+        "cost": 300,
+        "dailyLimit": 5,
+        "icon": "CU-07"
+      },
+      {
+        "id": "hourglass_5",
+        "nameKo": "모래시계 5",
+        "cost": 500,
+        "dailyLimit": 1,
+        "note": "일일 1회로 묶는다. 모래시계는 제작 타이머를 직접 씹는 유료 재화라 무과금 배출을 늘리면 과금 이유가 사라진다. 상위 티어라도 하루 5개가 상한.",
+        "icon": "CU-10"
+      }
+    ],
+    "lrNote": "LR을 아레나 독점으로 두면 랭커만 갖게 된다. 시즌 픽업 가챠로도 획득 가능해야 한다. 훈장 120,000은 그랜드마스터 기준 약 3시즌(6주) 분량 - 장기 목표로 기능한다.",
+    "ui": {
+      "entry": "아레나 화면 안. 훈장 보유 줄 오른쪽의 작은 상점 아이콘으로 연다.",
+      "entryNote": "상점 하단 네비에 훈장 탭을 따로 두지 않는다. 훈장은 아레나에서만 벌고 아레나에서만 쓰는 닫힌 재화라, 버는 화면과 쓰는 화면이 떨어져 있으면 유저가 상점까지 가서야 \"훈장이 모자라네\"를 알게 된다.",
+      "back": "상점을 닫으면 아레나 화면으로 돌아온다. 화면 전환이 아니라 같은 오버레이 안의 전환이다."
+    },
+    "itemsNote": "혼 팩 2종을 뺐다(혼 폐기). 제련석 대량·가속권(1일)도 이미 폐기된 재화라 장비 소환권·모래시계로 갈았다. 훈장 총 배출량은 그대로다 — 품목만 바뀌었다.",
+    "noSelector": "LR 선택권을 뺐다. 혼 폐기로 확정 획득 경로가 사라진 상태에서 이것만 남으면 아레나가 사실상 유일한 천장이 돼서, 전투 콘텐츠가 아니라 가챠 우회로가 된다. 상위 등급은 순수 확률로만 나온다."
+  },
+  "ranking": {
+    "scope": "global",
+    "displayTop": 100,
+    "showMyRank": true,
+    "showDefenseTeam": true,
+    "showDefenseTeamNote": "상위권 방어팀 공개. 모방 유도 + '쟤 저거 뭐임' 유발."
+  },
+  "serverAuthority": {
+    "battleSimulation": "server",
+    "scoreUpdate": "server",
+    "snapshotStorage": "globalCollection",
+    "verse8Api": "https://docs.verse8.io/ko/docs/gameserver/sdk/globalCollection",
+    "note": "전투 결과를 클라가 보내면 조작된다. 시뮬레이션 전체를 서버에서 돌리고 결과만 반환."
+  },
+  "riskMitigation": {
+    "targetRisk": "economy.json > risks > f2p_stage200_gap",
+    "note": "무과금이 D150쯤 메인 스테이지에서 정체할 때 시즌 아레나가 목표를 갈아끼운다. 2주마다 룰이 바뀌므로 콘텐츠가 소진되지 않는다."
+  },
+  "tiersRemovedNote": "티어(브론즈~그랜드마스터)는 뺐다 (단장 확정 2026-08-26). 판단은 점수로만 하고, 일일 보상은 **등수 브래킷**으로 준다 — 아래 dailyByRank. tiers 배열은 옛 세이브 호환·참고용으로만 남긴다(화면·보상 코드는 더 안 읽는다).",
+  "dailyByRank": {
+    "note": "일일 보상 — 현재 등수 기준 (단장 확정 2026-08-26). 브래킷 숫자는 옛 티어 보상에서 옮겨 왔다: 1~3등=그랜드마스터, 4~10=마스터, 11~50=다이아몬드, 51~100=플래티넘, 그 밖에=실버 급.",
+    "rankSource": "서버 아레나 랭킹이 붙기 전에는 등수를 모른다 — 그때까지는 최하 브래킷을 준다 (main.js > claimArenaDaily). 지어낸 등수로 큰 보상을 주면 서버가 붙는 날 하향이 되고, 하향은 항상 사고다.",
+    "brackets": [
+      {
+        "rank": "1-3",
+        "nameKo": "1~3등",
+        "dailyMedals": 1200,
+        "dailyDiamond": 1300
+      },
+      {
+        "rank": "4-10",
+        "nameKo": "4~10등",
+        "dailyMedals": 700,
+        "dailyDiamond": 800
+      },
+      {
+        "rank": "11-50",
+        "nameKo": "11~50등",
+        "dailyMedals": 400,
+        "dailyDiamond": 500
+      },
+      {
+        "rank": "51-100",
+        "nameKo": "51~100등",
+        "dailyMedals": 220,
+        "dailyDiamond": 300
+      },
+      {
+        "rank": "else",
+        "nameKo": "그 밖에",
+        "dailyMedals": 60,
+        "dailyDiamond": 100
+      }
+    ]
   }
- },
- "entries": {
-  "baseDaily": 5,
-  "adBonus": {
-   "entries": 3,
-   "dailyLimit": 1
-  },
-  "premiumBonus": 3,
-  "maxDaily": 11
- },
- "scoring": {
-  "nameKo": "경쟁점수",
-  "rankingBoard": "ranking.json > boards > score",
-  "startScore": 1000,
-  "winFormula": "gain = clamp(30 - floor((myScore - oppScore) / 50), 10, 50)",
-  "loseFormula": "loss = clamp(15 + floor((myScore - oppScore) / 50), 5, 25)",
-  "defenseWin": {
-   "scoreGain": 0,
-   "note": "방어 성공 보상도 없다. 방어측 보정이 없어 방어 성공이 사실상 CP 우위에만 달려 있으므로, 보상을 주면 고CP 유저에게 자동 적립되는 셈이 된다."
-  },
-  "defenseLoss": {
-   "scoreLoss": 0,
-   "note": "상대가 나를 공격해 이겨도 내 점수는 깎이지 않는다. 점수 변동은 오직 내 도전의 승패로만 발생한다. 오프라인 손실은 이탈 요인."
-  },
-  "floor": 0,
-  "note": "점수는 내 도전의 승패로만 움직인다. 전투력이 높은 유저가 자연히 상위권에 오르는 구조."
- },
- "tiers": [
-  {
-   "id": "bronze",
-   "nameKo": "브론즈",
-   "minScore": 0,
-   "dailyMedals": 30,
-   "dailyDiamond": 50
-  },
-  {
-   "id": "silver",
-   "nameKo": "실버",
-   "minScore": 1200,
-   "dailyMedals": 60,
-   "dailyDiamond": 100
-  },
-  {
-   "id": "gold",
-   "nameKo": "골드",
-   "minScore": 1500,
-   "dailyMedals": 120,
-   "dailyDiamond": 180
-  },
-  {
-   "id": "platinum",
-   "nameKo": "플래티넘",
-   "minScore": 1900,
-   "dailyMedals": 220,
-   "dailyDiamond": 300
-  },
-  {
-   "id": "diamond",
-   "nameKo": "다이아몬드",
-   "minScore": 2400,
-   "dailyMedals": 400,
-   "dailyDiamond": 500
-  },
-  {
-   "id": "master",
-   "nameKo": "마스터",
-   "minScore": 3000,
-   "dailyMedals": 700,
-   "dailyDiamond": 800
-  },
-  {
-   "id": "grandmaster",
-   "nameKo": "그랜드마스터",
-   "minScore": 3800,
-   "dailyMedals": 1200,
-   "dailyDiamond": 1300
-  }
- ],
- "tierRewardNote": "티어 일일 보상은 우편함 자동 지급. 아레나가 다이아 배출의 보조 경로가 된다 - 랭커일수록 성장이 빨라지는 양의 피드백이지만, 티어 보상 폭이 크지 않아 던전(60%)을 넘지 않는다.",
- "season": {
-  "durationDays": 14,
-  "softReset": {
-   "formula": "newScore = 1000 + floor((oldScore - 1000) * 0.5)",
-   "reason": "완전 리셋은 상위권 이탈, 무리셋은 신규 진입 불가. 절반 수축이 표준."
-  },
-  "endRewards": {
-   "canonicalSource": "ranking.json > rankRewards",
-   "note": "최종 순위 보상 테이블은 ranking.json이 단일 소스. 여기에 중복 정의하지 않는다.",
-   "grantTiming": "lazy_claim (시즌 종료 후 첫 접속 시 서버가 지급)"
-  }
- },
- "seasonModifiers": {
-  "purpose": "매 시즌 아레나 CP 산출 규칙을 바꿔 일반 전투력 순위와 아레나 순위를 어긋나게 만든다. 고정 슬롯 2칸의 존재 이유.",
-  "appliesTo": "arena_cp_only",
-  "appliesToNote": "모디파이어는 아레나 승률 계산에 쓰이는 CP에만 적용된다. 스테이지·던전의 CP나 전투력 랭킹에는 영향이 없다.",
-  "rotation": "시즌마다 1개 적용, 순환",
-  "announceBeforeDays": 3,
-  "conversionNote": "구버전은 스탯 버프·쿨타임 감소 같은 틱 전투 효과로 기술돼 있었다. 아레나가 CP 확률 판정으로 바뀌면서 전부 CP 배율 형태로 변환했다.",
-  "list": [
-   {
-    "id": "warrior_rally",
-    "nameKo": "전사의 함성",
-    "effect": "전사 용병 CP x1.25"
-   },
-   {
-    "id": "archer_wind",
-    "nameKo": "궁수의 순풍",
-    "effect": "궁수 용병 CP x1.25"
-   },
-   {
-    "id": "mage_surge",
-    "nameKo": "마력 폭주",
-    "effect": "마법사 용병 CP x1.25"
-   },
-   {
-    "id": "element_fire",
-    "nameKo": "화염의 계절",
-    "effect": "불 속성 용병 CP x1.35"
-   },
-   {
-    "id": "element_dark",
-    "nameKo": "그림자의 계절",
-    "effect": "암 속성 용병 CP x1.35"
-   },
-   {
-    "id": "low_grade",
-    "nameKo": "약자의 반란",
-    "effect": "SR 이하 용병 CP x2.2"
-   },
-   {
-    "id": "skill_storm",
-    "nameKo": "스킬 폭풍",
-    "effect": "액티브 스킬 CP x1.40"
-   },
-   {
-    "id": "no_passive",
-    "nameKo": "무공의 시련",
-    "effect": "패시브 스킬 CP x0 (전부 무효)"
-   },
-   {
-    "id": "iron_wall",
-    "nameKo": "철벽",
-    "effect": "CP 재산출 시 DEF 가중치 x1.6 / ATK x0.8 (방어형 유리)"
-   },
-   {
-    "id": "glass_cannon",
-    "nameKo": "유리대포",
-    "effect": "CP 재산출 시 ATK 가중치 x1.6 / HP x0.6 (공격형 유리)"
-   }
-  ],
-  "designNote": "element_* 가 삭제된 속성 시스템에 목적을 되돌려준다 - 전투 상성은 없지만 시즌 룰의 축으로 쓰인다. low_grade 는 무과금 라이트 유저의 상위권 진입 안전밸브. iron_wall / glass_cannon 은 cpWeights 자체를 흔들어 직군 우열을 뒤집는다.",
-  "strategyLoop": "시즌 3일 전 예고 -> 유저가 해당 직군·속성 용병을 고정 슬롯 2칸에 박음 -> 아레나 CP 상승. 자동장착 게임에서 유저가 개입할 수 있는 유일한 지점."
- },
- "medalShop": {
-  "currency": "arena_medal",
-  "nameKo": "투기장 훈장",
-  "items": [
-   {
-    "id": "merc_ticket_10",
-    "nameKo": "용병 소환권 10",
-    "cost": 600,
-    "dailyLimit": 5,
-    "icon": "CU-05"
-   },
-   {
-    "id": "skill_ticket_10",
-    "nameKo": "스킬 소환권 10",
-    "cost": 600,
-    "dailyLimit": 5,
-    "icon": "CU-06"
-   },
-   {
-    "id": "equip_ticket_20",
-    "nameKo": "장비 소환권 20",
-    "cost": 300,
-    "dailyLimit": 5,
-    "icon": "CU-07"
-   },
-   {
-    "id": "hourglass_5",
-    "nameKo": "모래시계 5",
-    "cost": 500,
-    "dailyLimit": 1,
-    "note": "일일 1회로 묶는다. 모래시계는 제작 타이머를 직접 씹는 유료 재화라 무과금 배출을 늘리면 과금 이유가 사라진다. 상위 티어라도 하루 5개가 상한.",
-    "icon": "CU-10"
-   }
-  ],
-  "lrNote": "LR을 아레나 독점으로 두면 랭커만 갖게 된다. 시즌 픽업 가챠로도 획득 가능해야 한다. 훈장 120,000은 그랜드마스터 기준 약 3시즌(6주) 분량 - 장기 목표로 기능한다.",
-  "ui": {
-   "entry": "아레나 화면 안. 훈장 보유 줄 오른쪽의 작은 상점 아이콘으로 연다.",
-   "entryNote": "상점 하단 네비에 훈장 탭을 따로 두지 않는다. 훈장은 아레나에서만 벌고 아레나에서만 쓰는 닫힌 재화라, 버는 화면과 쓰는 화면이 떨어져 있으면 유저가 상점까지 가서야 \"훈장이 모자라네\"를 알게 된다.",
-   "back": "상점을 닫으면 아레나 화면으로 돌아온다. 화면 전환이 아니라 같은 오버레이 안의 전환이다."
-  },
-  "itemsNote": "혼 팩 2종을 뺐다(혼 폐기). 제련석 대량·가속권(1일)도 이미 폐기된 재화라 장비 소환권·모래시계로 갈았다. 훈장 총 배출량은 그대로다 — 품목만 바뀌었다.",
-  "noSelector": "LR 선택권을 뺐다. 혼 폐기로 확정 획득 경로가 사라진 상태에서 이것만 남으면 아레나가 사실상 유일한 천장이 돼서, 전투 콘텐츠가 아니라 가챠 우회로가 된다. 상위 등급은 순수 확률로만 나온다."
- },
- "ranking": {
-  "scope": "global",
-  "displayTop": 100,
-  "showMyRank": true,
-  "showDefenseTeam": true,
-  "showDefenseTeamNote": "상위권 방어팀 공개. 모방 유도 + '쟤 저거 뭐임' 유발."
- },
- "serverAuthority": {
-  "battleSimulation": "server",
-  "scoreUpdate": "server",
-  "snapshotStorage": "globalCollection",
-  "verse8Api": "https://docs.verse8.io/ko/docs/gameserver/sdk/globalCollection",
-  "note": "전투 결과를 클라가 보내면 조작된다. 시뮬레이션 전체를 서버에서 돌리고 결과만 반환."
- },
- "riskMitigation": {
-  "targetRisk": "economy.json > risks > f2p_stage200_gap",
-  "note": "무과금이 D150쯤 메인 스테이지에서 정체할 때 시즌 아레나가 목표를 갈아끼운다. 2주마다 룰이 바뀌므로 콘텐츠가 소진되지 않는다."
- }
 }

@@ -3402,11 +3402,6 @@ function openDungeons() { roster.open('dungeon'); }
 // 용병 / 스킬 편성은 바텀시트로 뺐다 (view/roster.js). 화면 60% 를 쓰고
 // 전체 목록 + [자동강화]·[자동장착] 을 담아야 해서 가운데 카드로는 좁았다.
 
-const tierOf = score => {
-  const t = [...D.arena.tiers].reverse().find(x => score >= x.minScore);
-  return t ? t.nameKo : D.arena.tiers[0].nameKo;
-};
-
 /** 아레나. arena.json > battle.winProbability 로 예상 승률을 보여준다. */
 // ── 연합 게이트 — 미가입이면 생성/가입부터 ─────────────────
 /**
@@ -4374,6 +4369,9 @@ function arenaFoes() {
       i, account: x.account, name: x.nickname || '단장',
       cp: x.cp || 0, score: x.arenaScore || 0, stage: x.stage || 1,
       capCls: x.capCls || 'warrior',
+      // 프로필 카드 — 서버가 title·frame 을 주는데 버리고 있었다 (단장 지적
+      // 2026-08-26). 랭킹 행과 같은 문법: 액자색 테두리 + 칭호
+      title: x.title || '', frame: x.frame || '',
       // 서버가 주는 party 는 { id, grade, level } 이다. 화면은 characters 를
       // id 로 찾아 그림을 붙인다 — 없는 id 면 조용히 빠진다
       party: (x.party || []).map(m => D.characters.characters.find(c => c.id === m.id))
@@ -4384,6 +4382,11 @@ function arenaFoes() {
 }
 
 /** 서버가 없을 때의 상대. 날짜 시드라 하루 동안은 같은 얼굴이다 */
+/** 프로필 액자 id → 테두리 색 (profile.json > profileFrame.unlocks) */
+function frameColorOf(frameId) {
+  return D.profile.profileFrame.unlocks.find(f => f.id === frameId)?.color || null;
+}
+
 function demoArenaFoes() {
   const my = totalCp();
   const day = dayIdx(Date.now());
@@ -4424,6 +4427,13 @@ let arRun = null;
  * 위치·사거리가 없어 동일 CP 단판이 결정론적이 되고 직군 승률이 35% 대 100%
  * 로 갈라졌다. 판정을 그대로 두면 서버 이관도 그대로다.
  */
+/**
+ * 이기면 얻는 점수. **점수 차가 정한다** — 나보다 높은 점수를 이길수록 많이 준다.
+ * 도전 카드의 색·+N 표기와 실제 지급이 같은 식이어야 화면이 약속이 된다.
+ */
+const arenaWinDelta = foeScore =>
+  Math.max(10, Math.min(50, 30 - Math.floor((S.arenaScore - foeScore) / 50)));
+
 function arenaFight(foe) {
   if (arRun || dgRun) return;
   if (arenaLeft() < 1) return toast(t('오늘 입장을 다 썼습니다'));
@@ -4434,7 +4444,7 @@ function arenaFight(foe) {
   const win = Math.random() < p;
   let delta;
   if (win) {
-    delta = Math.max(10, Math.min(50, 30 - Math.floor((S.arenaScore - foe.score) / 50)));
+    delta = arenaWinDelta(foe.score);
   } else {
     delta = -Math.max(5, Math.min(25, 15 + Math.floor((S.arenaScore - foe.score) / 50)));
   }
@@ -4498,9 +4508,13 @@ function showArenaBars(foe) {
   el.querySelector('.ar-me i').style.width = '100%';
   el.querySelector('.ar-foe i').style.width = '100%';
   el.classList.add('show');
+  $('#app').classList.add('arena');     // 스테이지 글자·타이머를 걷는다 (CSS)
 }
 
-function hideArenaBars() { $('#arBars').classList.remove('show'); }
+function hideArenaBars() {
+  $('#arBars').classList.remove('show');
+  $('#app').classList.remove('arena');
+}
 
 /** 점수 카운트업. 0.8초 동안 숫자가 굴러간다 — 이긴 값이 즉시 박히면 안 읽힌다 */
 function countUpScore(from, to, win) {
@@ -4518,16 +4532,33 @@ function countUpScore(from, to, win) {
   requestAnimationFrame(step);
 }
 
-/** 티어 일일 보상 — 하루 1회, 현재 티어 기준 (arena.json > tiers) */
+/**
+ * 지금 내 등수 브래킷 (arena.json > dailyByRank).
+ *
+ * **서버 아레나 랭킹이 붙기 전에는 등수를 모른다** — 그때까지는 최하 브래킷이다.
+ * 지어낸 등수로 큰 보상을 주면 서버가 붙는 날 하향이 되고, 하향은 항상 사고다.
+ */
+function arenaRankBracket() {
+  const br = D.arena.dailyByRank.brackets;
+  const r = live.get('myArenaRank')?.rank;
+  if (!r || r < 1) return br[br.length - 1];
+  for (const b of br) {
+    if (b.rank === 'else') return b;
+    const [lo, hi] = b.rank.split('-').map(Number);
+    if (r >= lo && r <= hi) return b;
+  }
+  return br[br.length - 1];
+}
+
+/** 일일 보상 — 하루 1회, 현재 **등수** 기준 (단장 확정 2026-08-26. 티어 폐지) */
 function claimArenaDaily() {
   const day = dayIdx(Date.now());
   if (S.arena.tierClaimedDay === day) return toast(t('오늘 보상은 이미 받았습니다'));
-  const tier = [...D.arena.tiers].reverse().find(x => S.arenaScore >= x.minScore)
-    || D.arena.tiers[0];
+  const b = arenaRankBracket();
   S.arena.tierClaimedDay = day;
-  const got = passGrant({ diamond: tier.dailyDiamond });
-  S.medal += tier.dailyMedals;
-  got.pairs.push(['arena_medal', tier.dailyMedals]);
+  const got = passGrant({ diamond: b.dailyDiamond });
+  S.medal += b.dailyMedals;
+  got.pairs.push(['arena_medal', b.dailyMedals]);
   save(); renderTop(); openArena();
   gainToast(got.pairs);
 }
@@ -4551,22 +4582,25 @@ function openArena(view) {
   live.pullArenaFoes(my, () => {
     if ($('#ov').classList.contains('show') && $('#ovt').textContent === '아레나') openArena();
   });
-  const winP = cp => 1 / (1 + Math.pow(cp / my, a.battle.winProbability.exponent));
   const left = arenaLeft();
 
   const rows = foes.map(f => {
-    const p = winP(f.cp);
-    const col = p > 0.6 ? 'var(--up)' : p > 0.35 ? 'var(--gold)' : 'var(--warn)';
+    // **색도 숫자도 점수 기준이다** (단장 확정 2026-08-26). 예전에는 CP 승률로
+    // 색을 갈랐는데, 얻는 점수는 점수 차가 정하므로 화면과 보상이 따로 놀았다.
+    // 나보다 점수가 높은 상대 = 이기면 많이 주는 상대 = 초록으로 권한다
+    const gain = arenaWinDelta(f.score);
+    const col = gain >= 40 ? 'var(--up)' : gain >= 25 ? 'var(--gold)' : 'var(--warn)';
     return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
-      <span class="af-ava"><img src="/assets/captain/captain_${f.capCls}.png" alt=""
+      <span class="af-ava"${frameColorOf(f.frame) ? ` style="border:2px solid ${frameColorOf(f.frame)};border-radius:50%"` : ''}><img src="/assets/captain/captain_${f.capCls}.png" alt=""
         onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
-        <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${(p * 100).toFixed(0)}%</span></span>
+        ${f.title ? `<i style="display:block;font-size:9px;color:var(--gold);font-style:normal">${t(f.title)}</i>` : ''}
+        <span class="k" style="display:block">${t('전투력')} ${num(f.cp)} · ${t('승리 시')} <b style="color:${col}">+${gain}</b></span></span>
       <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
         style="--wc:${col}">${t('도전')}</button></div>`;
   }).join('');
 
-  const tier = [...a.tiers].reverse().find(x => S.arenaScore >= x.minScore) || a.tiers[0];
+  const bracket = arenaRankBracket();
   const claimed = S.arena.tierClaimedDay === day;
   $('#ovt').textContent = '아레나';
   setSkin('arena');
@@ -4590,7 +4624,7 @@ function openArena(view) {
     </div>`
     + rows
     + `<div class="ar-stat">
-        <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b><u>${tier.nameKo}</u></span>
+        <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b></span>
         <span><i>${t('훈장')}</i><b><img src="/assets/ui/CU-11.png" alt=""
           onerror="this.remove()">${num(S.medal)}</b>
           <button class="ar-shopb ic" id="aShop" title="${t('훈장 상점')}">
@@ -4602,8 +4636,8 @@ function openArena(view) {
             a.entries.adBonus.entries} ${t('광고')}</button>`}</span>
       </div>`
     + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
-        ${claimed ? t('오늘 티어 보상 수령 완료')
-          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', tier.nameKo, tier.dailyMedals, tier.dailyDiamond)}</button>`;
+        ${claimed ? t('오늘 보상 수령 완료')
+          : t('{0} 일일 보상 받기 (훈장 {1} · 다이아 {2})', t(bracket.nameKo), bracket.dailyMedals, bracket.dailyDiamond)}</button>`;
   $('#ovinfo').innerHTML = '';
   // 프리셋을 누르면 그 편성으로 갈아입고 화면을 다시 그린다 — 승률 표시가
   // 내 전투력 기준이라 편성이 바뀌면 숫자도 같이 바뀌어야 한다
@@ -4683,9 +4717,9 @@ function openMedalShop() {
           <img src="/assets/ui/CU-11.png" alt="" onerror="this.remove()">${num(x.cost)}</button>
       </div>`; }).join('') + '</div>';
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">훈장 수급</div>'
-    + `<div class="frow" style="padding:7px 10px"><span class="k">일일 티어 보상</span>
-        <span class="v" style="font-size:11px">${D.arena.tiers.map(t =>
-          `${t.nameKo} ${t.dailyMedals}`).join(' · ')}</span></div>`
+    + `<div class="frow" style="padding:7px 10px"><span class="k">일일 등수 보상</span>
+        <span class="v" style="font-size:11px">${D.arena.dailyByRank.brackets.map(b =>
+          `${b.nameKo} ${b.dailyMedals}`).join(' · ')}</span></div>`
     + `<div class="sub" style="line-height:1.5;margin-top:6px">${sh.itemsNote}</div>`;
   $('#mdBack').addEventListener('click', () => openArena());
   $('#ovb').querySelectorAll('.mdBuy').forEach(btn => btn.addEventListener('click', () => {
