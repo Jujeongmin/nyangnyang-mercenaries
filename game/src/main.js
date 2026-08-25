@@ -1378,7 +1378,7 @@ function pull(trackId, n) {
     }
     const pool = D.characters.characters.filter(c => c.grade === g);
     const c = pool[(Math.random() * pool.length) | 0];
-    return { grade: g, name: tn(c.id, c.nameKo), img: `/assets/char/${c.id}.png`,
+    return { grade: g, name: tn(c.id, c.nameKo), img: `/assets/char/${c.id}.webp`,
              id: c.id, cls: c.class, kind: 'merc' };
   });
 
@@ -2091,7 +2091,7 @@ function openUnitInfo(kind, id) {
     art.classList.remove('icon');
     // 도감 일러가 본체다. 없으면 전투 원화로 물러난다
     img.src = `/assets/art/${def.id}-ART.png`;
-    img.onerror = () => { img.onerror = null; img.src = `/assets/char/${def.id}.png`; };
+    img.onerror = () => { img.onerror = null; img.src = `/assets/char/${def.id}.webp`; };
   }
 
   const tags = isSkill
@@ -4078,7 +4078,7 @@ async function openChatProfile(account) {
       <div class="lbl" style="margin:8px 0 6px">${t('착용 용병')}</div>
       <div class="af-party">${x.party.map(c => `
         <span class="af-m" style="--c:${GC_COL[c.grade] || '#999'}">
-          <img src="/assets/char/${esc(c.id)}.png" alt="" onerror="this.remove()">
+          <img src="/assets/char/${esc(c.id)}.webp" alt="" onerror="this.remove()">
           <b style="color:${GC_COL[c.grade] || '#999'}">${esc(c.grade)}</b>
         </span>`).join('')}</div>` : ''}
     ${!x ? `<div class="sh-note">${t('아직 프로필을 올리지 않은 단장입니다')}</div>` : ''}
@@ -4464,7 +4464,7 @@ function openFoeInfo(i) {
     <div class="lbl" style="margin:8px 0 6px">${t('착용 용병')}</div>
     <div class="af-party">${f.party.map(c => `
       <span class="af-m" style="--c:${GC_COL[c.grade]}">
-        <img src="/assets/char/${c.id}.png" alt="" onerror="this.remove()">
+        <img src="/assets/char/${c.id}.webp" alt="" onerror="this.remove()">
         <b style="color:${GC_COL[c.grade]}">${c.grade}</b>
       </span>`).join('')}</div>
     <div class="frow" style="margin-top:10px"><span class="k">${t('예상 승률')}</span>
@@ -4734,7 +4734,7 @@ function openAlliance(tab = 'home') {
     const hpLeft = bs ? (bs.max ? bs.hp / bs.max : 0) : (S.allyBossHp ?? 0.72);
     const tries = bs ? B.attemptsPerWeek - bs.triesLeft : (S.allyBossTries ?? 0);
     return `<div class="al-boss">
-        <img src="/assets/boss/B-0${Math.min(6, tier)}.png" alt="" onerror="this.remove()">
+        <img src="/assets/boss/B-0${Math.min(6, tier)}.webp" alt="" onerror="this.remove()">
         <div class="al-boss-t"><b>${tier}단계 심연의 군주</b>
           <span>주 ${B.attemptsPerWeek}회 도전 · ${B.resetAt} 초기화</span></div>
       </div>
@@ -4809,7 +4809,7 @@ function openAlliance(tab = 'home') {
          <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
          <span class="al-on">접속 중</span></div>`
         + ALLY_DEMO.map(m => `<div class="al-mem">
-         <span class="rk-ava"><img src="/assets/char/${m.ava}.png" alt=""></span>
+         <span class="rk-ava"><img src="/assets/char/${m.ava}.webp" alt=""></span>
          <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
          <span class="al-mem-c">${coin}${num(m.coin)}</span>
          <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('');
@@ -5816,7 +5816,7 @@ async function challengeBoss() {
   $('#hudC').classList.remove('farm');
   const id = scene.bossAssetId();
   const b = D.stages.bosses.find(x => x.stage === S.stage);
-  $('#vsBossImg').src = `/assets/boss/${id}.png`;
+  $('#vsBossImg').src = `/assets/boss/${id}.webp`;
   $('#vsCapImg').src = '/assets/captain/captain_warrior.png';
   // 보스 이름은 안 띄운다. 그림과 체력바로 충분하다.
   $('#bossGo').classList.remove('show');

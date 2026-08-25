@@ -92,7 +92,8 @@ async function boot() {
 async function load(i) {
   const u = UNITS[i];
   if (st.rig) st.rig.view.destroy({ children: true });
-  const src = `/assets/${u.cat}/${u.id}.png`;
+  // char/boss/enemy 는 webp 로 다시 구웠다 (2026-08-25 해상도 축소). captain 은 png 그대로
+  const src = `/assets/${u.cat}/${u.id}.${u.cat === 'captain' ? 'png' : 'webp'}`;
   st.src = src;
   const tex = await PIXI.Assets.load(src);
 

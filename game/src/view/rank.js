@@ -147,7 +147,7 @@ export class RankScreen {
       <div class="rk-row${r.rank <= 3 ? ' top' : ''}">
         <span class="rk-n rk-${r.rank <= 3 ? r.rank : 'x'}">${r.rank}</span>
         <span class="rk-ava" style="border-color:${r.frame}">
-          <img src="/assets/char/${r.merc}.png" alt="">
+          <img src="/assets/char/${r.merc}.webp" alt="">
         </span>
         <span class="rk-who">
           <b>${r.name}</b>
@@ -166,7 +166,7 @@ export class RankScreen {
       <div class="rk-row mine">
         <span class="rk-n">${myRank}</span>
         <span class="rk-ava" style="border-color:${myFrame?.color || '#9E9E9E'}">
-          <img src="${myMerc ? `/assets/char/${myMerc}.png`
+          <img src="${myMerc ? `/assets/char/${myMerc}.webp`
                              : '/assets/captain/captain_warrior.png'}" alt="">
         </span>
         <span class="rk-who">

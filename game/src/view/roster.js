@@ -14,6 +14,13 @@
 
 import { tn, t } from '../core/i18n.js';
 
+/**
+ * 유닛 그림 경로. **폴더마다 확장자가 다르다** — char 는 해상도를 줄이면서
+ * webp 로 다시 구웠고(2026-08-25), skill 아이콘은 원본 png 그대로다.
+ * 확장자를 한 곳에서 정해 두지 않으면 새 화면을 만들 때마다 빠뜨린다.
+ */
+const unitImg = (dir, id) => `/assets/${dir}/${id}.${dir === 'char' ? 'webp' : 'png'}`;
+
 const $ = s => document.querySelector(s);
 const GRADES = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 
@@ -120,7 +127,7 @@ export class RosterSheet {
            src="/assets/ui/UI-LOCK.png" alt="잠김"></div>`
       : x
       ? `<div class="rt-slot g-${x.grade}" data-info="${x.id}">
-           <img src="/assets/${dir}/${x.id}.png" alt="">
+           <img src="${unitImg(dir, x.id)}" alt="">
            <b>Lv ${x.level || 0}</b></div>`
       : '<div class="rt-slot empty"></div>';
     // 스킬은 액티브 4 / 패시브 4 사이를 벌린다. 안 벌리면 8칸이 한 덩어리로 보인다
@@ -260,7 +267,7 @@ export class RosterSheet {
     const foot = has ? '' : '<span class="cx-f">???</span>';
     return `<div class="cx-cell${cls}${on ? ' on' : ''}${dupes ? ' up' : ''}" title="${nm}"${
       has ? ` data-info="${id}"` : ''}>
-      <img src="/assets/${dir}/${id}.png" alt="" onerror="this.remove()">
+      <img src="${unitImg(dir, id)}" alt="" onerror="this.remove()">
       ${kind ? `<i class="rt-kind">${kind}</i>` : ''}
       ${lvTag}${gauge}${foot}
     </div>`;

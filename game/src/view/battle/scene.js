@@ -968,7 +968,7 @@ export class BattleScene {
     // 소환수 몸은 **실제 냥이 원화**다. 타격 이펙트를 파랗게 물들여 놓으면
     // 무엇이 나온 건지 안 읽힌다 (처음에 그렇게 했다가 "아무것도 안 보인다"는
     // 보고를 받았다). N-01 = 가장 작은 잡냥이 원화.
-    const tex = await this.load('/assets/char/N-01.png');
+    const tex = await this.load('/assets/char/N-01.webp');
     if (!tex || !this.captain) return;
     const n = e.count || 1;
     this.summons = this.summons || [];

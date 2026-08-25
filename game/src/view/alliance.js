@@ -197,7 +197,7 @@ export class AllianceVillage {
     DEMO_CATS.forEach((id, i) => {
       const el = document.createElement('div');
       el.className = 'al-bot';
-      el.innerHTML = `<img src="/assets/char/${id}.png" alt="" onerror="this.parentNode.remove()">
+      el.innerHTML = `<img src="/assets/char/${id}.webp" alt="" onerror="this.parentNode.remove()">
         <i>냥이${i + 1}</i>`;
       this.field.appendChild(el);
       const pos = { x: 20 + i * 26, y: 55 + (i % 2) * 20 };

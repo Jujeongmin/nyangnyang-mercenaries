@@ -13,10 +13,10 @@ const $ = s => document.querySelector(s);
 const ALLIES = [
   { src: '/assets/captain/captain_warrior.png', motion: 'slash', label: '전사 · 베기', size: 150 },
   { src: '/assets/char/SR-06.webp', motion: 'draw', label: '궁수 · 활', size: 146 },
-  { src: '/assets/char/SR-05.png', motion: 'cast', label: '마법사 · 지팡이', size: 150 },
+  { src: '/assets/char/SR-05.webp', motion: 'cast', label: '마법사 · 지팡이', size: 150 },
 ];
 const ENEMIES = [
-  { src: '/assets/enemy/E-01.png', motion: 'pounce', label: '무기없음 · 점프', size: 128 },
+  { src: '/assets/enemy/E-01.webp', motion: 'pounce', label: '무기없음 · 점프', size: 128 },
   { src: '/assets/enemy/E-03.webp', motion: 'slash', label: '전사 · 베기', size: 132 },
   { src: '/assets/enemy/E-05.webp', motion: 'slash', label: '전사 · 베기', size: 138 },
 ];

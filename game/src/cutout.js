@@ -43,7 +43,8 @@ async function load(cat, id) {
   st.cat = cat; st.id = id;
   st.poly = []; st.pivot = null; st.tip = null; st.preview = 0;
   const img = new Image();
-  img.src = `/assets/${cat}/${id}.png`;
+  // char/boss/enemy 는 webp 로 다시 구웠다 (2026-08-25). captain 만 png 그대로
+  img.src = `/assets/${cat}/${id}.${cat === 'captain' ? 'png' : 'webp'}`;
   await img.decode();
   st.img = img;
   fit();

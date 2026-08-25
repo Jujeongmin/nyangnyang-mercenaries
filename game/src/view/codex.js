@@ -94,7 +94,7 @@ export class CodexScreen {
           return `<div class="cx-cell g-${g}${has ? '' : ' lock'}"
               ${has ? `data-info="${c.id}" data-kind="merc"` : ''} title="${tn(c.id, c.nameKo)}">
             <img src="/assets/art/${c.id}-ART.png" alt=""
-              onerror="this.onerror=null;this.src='/assets/char/${c.id}.png'">
+              onerror="this.onerror=null;this.src='/assets/char/${c.id}.webp'">
             <span>${has ? tn(c.id, c.nameKo) : '???'}</span>
           </div>`;
         }).join('') + `</div>`;

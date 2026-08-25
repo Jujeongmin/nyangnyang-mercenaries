@@ -124,7 +124,7 @@ export class ProfileScreen {
       <div class="pf-card" style="--fr:${frame.color}">
         <div class="pf-ava pfr-${frame.tier || 1}" title="${frame.nameKo}"
           ${frame.asset ? `style="--pfr-img:url(/assets/ui/${frame.asset}.png)"` : ''}>
-          ${fc ? `<img src="/assets/char/${fc.id}.png" alt="">`
+          ${fc ? `<img src="/assets/char/${fc.id}.webp" alt="">`
                : `<img src="/assets/captain/captain_warrior.png" alt="">`}
         </div>
         <div class="pf-nick">
@@ -156,7 +156,7 @@ export class ProfileScreen {
         if (!ch) return '';
         return `<button class="pf-m g-${ch.grade}${featured === id ? ' on' : ''}" data-merc="${id}"
           title="${ch.nameKo}">
-          <img src="/assets/char/${id}.png" alt=""></button>`;
+          <img src="/assets/char/${id}.webp" alt=""></button>`;
       }).join('') || '<div class="sh-note">용병을 소환하면 여기에 걸 수 있습니다.</div>'}</div>`;
 
     // 닉네임 변경 — 첫 변경은 무료, 이후 다이아 + 쿨타임
