@@ -18,6 +18,28 @@ import { loadCutout } from './cutout.js';
 // 안에서 가려져서 문자열을 함수로 부르게 되고 `sfx is not a function` 이 난다
 // (단장 보고 2026-08-26, 에디터에서 터졌다)
 import { sfx as playSfx } from '../../core/sfx.js';
+
+/**
+ * 액티브 스킬 → 효과음. skills.json 의 SK-A01~A16 을 그대로 짚는다.
+ *
+ * 없는 스킬은 **조용히 둔다.** 성격이 가까운 소리로 때우면 얼음 스킬에서
+ * 불 소리가 나는 식이 되는데, 그건 무음보다 나쁘다.
+ * (연쇄 번개·약점 노출·시간 정지·천공 붕괴는 전용 소리가 아직 없다)
+ */
+const SKILL_SFX = {
+  'SK-A01': 'sfx_sk_lightning',   // 낙뢰
+  'SK-A02': 'sfx_sk_fire',        // 화염구
+  'SK-A03': 'sfx_sk_pierce',      // 관통 화살
+  'SK-A04': 'sfx_sk_ice',         // 얼음 창
+  'SK-A05': 'sfx_sk_slash',       // 참격
+  'SK-A06': 'sfx_sk_buff',        // 공격 태세
+  'SK-A07': 'sfx_sk_buff',        // 광폭화
+  'SK-A08': 'sfx_sk_buff',        // 시간 가속
+  'SK-A11': 'sfx_sk_summon',      // 새끼 냥이 소환
+  'SK-A12': 'sfx_sk_summon',      // 유령 용병
+  'SK-A13': 'sfx_sk_lightning',   // 연쇄 번개
+  'SK-A16': 'sfx_sk_fire',        // 천공 붕괴 — 화염 계열이다
+};
 import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX, PASSIVE_FX } from './fx.js';
 import { passiveAgg, EMPTY_PASSIVES, passiveTakenMult } from '../../core/passives.js';
 
@@ -874,6 +896,11 @@ export class BattleScene {
 
   /** 쿨타임을 걸고 스킬바에 와이프를 알린다. 실시간 = 데이터 초 / 배속 */
   fireSkill(sk) {
+    // 스킬 소리. **효과 종류(effect.kind)가 아니라 스킬 id 로 고른다** — 같은
+    // 종류라도 화염과 얼음은 다른 소리여야 하고, 표를 하나 더 두면 스킬이
+    // 늘 때 두 곳을 고쳐야 한다. 표에 없는 스킬은 조용하다(참격으로 때우면
+    // 엉뚱한 소리가 난다)
+    playSfx(SKILL_SFX[sk.id]);
     const cd = this.cooldownOf(sk);
     this.skCd.set(sk.id, cd);
     this.applySkillEffect(sk);

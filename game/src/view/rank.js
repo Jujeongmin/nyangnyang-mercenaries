@@ -243,13 +243,15 @@ export class SettingsScreen {
       <div class="st-row link" data-a="pwrsave"><span>${t('절전 모드')}</span>
         <b>${t('켜기')} ›</b></div>
 
-      <div class="st-h">${t('연출')}</div>
-      <div class="st-row"><span>${t('타격 이펙트')}</span>
-        ${seg('fx', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.fxOn === false ? 0 : 1)}</div>
-      <div class="st-row"><span>${t('화면 흔들림')}</span>
-        ${seg('shake', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.shakeOn === false ? 0 : 1)}</div>
-      <div class="st-row"><span>${t('데미지 숫자')}</span>
-        ${seg('nums', [{ v: 1, t: 'ON' }, { v: 0, t: 'OFF' }], S.numsOn === false ? 0 : 1)}</div>
+      <!-- 연출 셋을 **한 줄**에 넣는다 (단장 확정 2026-08-26). ON/OFF 토글 세
+           줄이 각각 한 칸을 먹어 설정이 한 화면을 넘겼다. 켜고 끄는 값이라
+           이름 자체가 곧 상태다 — 눌러서 켜지면 금색, 꺼지면 갈색 -->
+      <div class="st-row"><span>${t('연출')}</span>
+        <div class="st-seg" data-k="fxset">
+          <button data-v="fx"    class="${S.fxOn === false ? '' : 'on'}">${t('타격')}</button>
+          <button data-v="shake" class="${S.shakeOn === false ? '' : 'on'}">${t('흔들림')}</button>
+          <button data-v="nums"  class="${S.numsOn === false ? '' : 'on'}">${t('숫자')}</button>
+        </div></div>
 
       <div class="st-h">${t('사운드')}</div>
       <div class="st-row"><span>${t('배경음')}</span>
@@ -260,7 +262,6 @@ export class SettingsScreen {
       <div class="st-h">${t('정보')}</div>
       <!-- 확률표 고지 줄은 뺐다 — 확률은 소환·제작대 화면에서 1탭 이내로
            보이고 있어 여기서 한 번 더 들어가는 통로는 중복이다 (단장 확정) -->
-      <div class="st-row link" data-a="account"><span>${t('계정')}</span><b>${S.nickname || t('단장')} ›</b></div>
       <!-- 플레이어 코드 — 특정 사람에게 우편을 보낼 때 쓰는 주소다.
            문의할 때 이 값을 알려 주면 그 사람에게만 보상을 넣을 수 있다
            (data/mail.json > entries[].to). 눌러서 복사한다 -->
@@ -285,7 +286,17 @@ export class SettingsScreen {
            적은 개발 메모였다. 의무 자체는 그 표가 지킨다 (gacha.json 단일 소스) -->
       <button class="st-danger" data-a="reset">${t('저장 데이터 초기화')}</button>`;
 
-    this.el.querySelectorAll('.st-seg button').forEach(b => b.addEventListener('click', () => {
+    // 연출 줄은 **여러 개를 각각 켜고 끈다** — 하나만 고르는 다른 세그먼트와
+    // 규칙이 다르므로 먼저 가로챈다. 안 그러면 아래 핸들러가 fxset 을 단일
+    // 선택으로 처리해서 하나를 켜면 나머지가 꺼진다
+    this.el.querySelectorAll('.st-seg[data-k="fxset"] button').forEach(b =>
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        const on = !b.classList.contains('on');
+        b.classList.toggle('on', on);
+        this.api.set(b.dataset.v, on ? 1 : 0);
+      }));
+    this.el.querySelectorAll('.st-seg:not([data-k="fxset"]) button').forEach(b => b.addEventListener('click', () => {
       // 같은 세그먼트를 ON/OFF(숫자)와 언어(문자열 'ko'·'en')가 같이 쓴다.
       // 전부 +v 로 받으면 언어가 NaN 으로 들어간다
       const v = b.dataset.v;

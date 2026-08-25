@@ -1461,7 +1461,10 @@ function pull(trackId, n) {
   applyPulls(out);
   // 상점을 닫지 않는다. #reveal(z 80) 이 #shop(z 70) 을 이미 덮는데,
   // 닫으면 연출이 페이드되는 동안 뒤에 메인 화면이 비친다.
-  reveal.play(trackId, out, () => shop.render());
+  sfx('sfx_drumroll');
+  // 결과음은 **연출이 닫힐 때** 낸다 — 그때가 유저가 결과를 보는 순간이다.
+  // 10연이어도 한 번만 난다 (등급별로 나누지 않기로 했다 · sound.json)
+  reveal.play(trackId, out, () => { sfx('sfx_summon_result'); shop.render(); });
   renderTop();
   // 소환은 퀘스트 진행도다 (Q2 용병 10회 등). 안 그리면 10연을 돌려도
   // 배너가 0/10 그대로다 (실사용 보고 2026-08-25)
@@ -1559,6 +1562,7 @@ function applyPulls(out) {
       if (!cur || gradeRank(g.grade) > gradeRank(cur)) S.codex.skill[g.id] = g.grade;
     } else if (!S.codex.mercenary.includes(g.id)) {
       S.codex.mercenary.push(g.id);
+      sfx('sfx_codex_new');
     }
   }
 
@@ -4499,6 +4503,7 @@ function hideArenaBars() { $('#arBars').classList.remove('show'); }
 
 /** 점수 카운트업. 0.8초 동안 숫자가 굴러간다 — 이긴 값이 즉시 박히면 안 읽힌다 */
 function countUpScore(from, to, win) {
+  sfx(win ? 'sfx_arena_win' : 'sfx_arena_lose');
   const el = $('#arScore');
   el.classList.remove('up', 'down');
   el.classList.add('show', win ? 'up' : 'down');
@@ -5374,6 +5379,15 @@ const CUR_ICON = {
  */
 function gainToast(pairs) {
   const box = $('#gains');
+  // **한 번만 낸다.** 보상 하나에 여러 재화가 붙는 자리가 흔한데(퀘스트·던전),
+  // 항목마다 울리면 한 번의 수령이 소리 넷으로 들린다 (sound.json > batchCollapse)
+  {
+    const got = pairs.filter(([, q]) => q);
+    if (got.length) {
+      const coin = got.every(([id]) => id === 'gold' || id === 'diamond');
+      sfxBatch(coin ? 'sfx_gold' : 'sfx_claim', got.length);
+    }
+  }
   for (const [id, qty, label] of pairs) {
     if (!qty) continue;
     const el = document.createElement('div');
@@ -6683,6 +6697,33 @@ function bootTapToStart() {
   // 곳이라 개별로 걸면 반드시 빠뜨리고, 새 버튼이 생길 때마다 또 잊는다.
   // capture 로 받는 이유: 핸들러가 stopPropagation 하는 곳이 있어서 버블에서는 놓친다.
   // 소리를 따로 내는 자리(제작·수령·분해)는 그 자리에서 내므로 여기서 뺀다
+  // 팝업 여닫는 소리 — **여는 코드가 19곳이라 개별로 안 건다.** 하나라도
+  // 빠뜨리면 어떤 창만 소리가 없고, 새 화면이 생기면 또 잊는다. 덮개들의
+  // class 변화를 한 곳에서 지켜본다
+  {
+    // **선택자를 만들지 않고 요소를 그대로 모은다.** id 없는 .fullscr 가 하나라도
+    // 있으면 '#' 이 만들어지고 querySelector('#') 는 null 이 아니라 **예외를 던진다** —
+    // 그러면 이 함수의 나머지 배선(탭음·절전·드래그…)이 통째로 안 걸린다.
+    // 실제로 그렇게 조용해졌었다 (2026-08-26)
+    const panes = [
+      document.querySelector('#ov'), document.querySelector('#sheet'), document.querySelector('#shop'),
+      ...document.querySelectorAll('.fullscr'),
+    ];
+    const obs = new MutationObserver(ms => {
+      for (const m of ms) {
+        const el = m.target;
+        const now = el.classList.contains('show');
+        if (now === (el.__wasShown ?? false)) continue;   // class 는 자주 바뀐다 — show 만 본다
+        el.__wasShown = now;
+        sfx(now ? 'sfx_popup_open' : 'sfx_popup_close');
+      }
+    });
+    for (const el of panes) {
+      if (!el) continue;
+      el.__wasShown = el.classList.contains('show');
+      obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
   const NO_TAP = new Set(['fgObj', 'quest', 'erWear', 'erScrap']);
   addEventListener('pointerdown', e => {
     const b = e.target.closest?.('button, .nv, .st-row.link, .sh-b, .sbtn, .side button');
