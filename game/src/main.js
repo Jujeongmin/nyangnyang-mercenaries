@@ -15,6 +15,7 @@ import { num, numExact, dur, cpNum } from './core/fmt.js';
 import { initCloud, cloudSave } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
+import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
 import * as live from './net/live.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
@@ -6577,6 +6578,17 @@ function bootTapToStart() {
   bootStep(38);
   // 효과음. **부팅을 막지 않는다** — 파일이 없어도 조용히 넘어간다 (core/sfx.js)
   initSfx(D, { volume: S.sfx ?? 0.9 });
+  initBgm({ volume: S.bgm ?? 0.7 });
+  // **어느 곡을 틀지는 1초마다 화면 상태로 계산한다.** 상점·아레나가 닫히는
+  // 경로가 여럿이라(뒤로가기·배경 탭·다른 화면 이동…) 이벤트마다 걸면 반드시
+  // 하나를 빠뜨린다 — 팝업 소리에서 이미 배운 것과 같은 이유다.
+  // 우선순위: 상점(소환 포함) > 아레나(패널이 열려 있거나 전투 중) > 메인
+  setInterval(() => {
+    const shop = $('#shop')?.classList.contains('show');
+    const arena = arRun
+      || ($('#ov')?.classList.contains('show') && $('#ovt')?.textContent === t('아레나'));
+    bgmWant(shop ? 'bgm_shop' : arena ? 'bgm_arena' : 'bgm_main');
+  }, 1000);
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
     state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
@@ -6613,7 +6625,7 @@ function bootTapToStart() {
       else if (k === 'fx') { S.fxOn = !!v; scene.fx.enabled = !!v; }
       else if (k === 'shake') { S.shakeOn = !!v; scene.impact.opts.shake = !!v; }
       else if (k === 'nums') { S.numsOn = !!v; scene.numbers.enabled = !!v; }
-      else if (k === 'bgm') S.bgm = v;
+      else if (k === 'bgm') { S.bgm = v; setBgmVolume(v); }
       // 슬라이더를 움직이는 즉시 반영한다 — 저장만 하고 다음 부팅에 적용되면
       // "슬라이더가 안 먹는다" 로 읽힌다
       else if (k === 'sfx') { S.sfx = v; setSfxVolume(v); }
