@@ -249,7 +249,18 @@ export class BattleScene {
     }[grade] || { size: 1, echo: false, motes: 0 };
   }
 
+  /**
+   * 편성을 다시 세운다.
+   *
+   * **겹쳐 부르는 것을 막는다.** 이 함수는 그림을 기다리는 await 가 여럿인데,
+   * 호출부 두 곳이 await 없이 부른다(renderAll · applyCaptainClass). 둘이
+   * 겹치면 늦게 끝난 쪽이 layout() **뒤에** 유닛을 밀어 넣어, 그 유닛들이
+   * 기본 좌표(0,0)에 그대로 남는다 — 화면 왼쪽 위에 전원이 겹쳐 서 있었다
+   * (단장 지적 2026-08-25). 표를 하나 들고 있다가 낡은 호출은 스스로 물러난다.
+   */
   async setParty(party) {
+    const token = (this._partyToken = (this._partyToken || 0) + 1);
+    const stale = () => token !== this._partyToken;
     for (const u of this.units) u.rig.view.destroy({ children: true });
     this.units = [];
     if (this.captain) { this.captain.view.destroy({ children: true }); this.captain = null; }
@@ -257,6 +268,7 @@ export class BattleScene {
     if (this.capBar) { this.capBar.destroy(); this.capBar = null; }
 
     const TR = await this.loadTrim();
+    if (stale()) return;
     // 단장 모습은 전직 직업을 따른다 (main 이 setCaptainClass 로 준다).
     // 공격 모션도 직업 모션이다 — 궁수 단장이 검을 휘두르면 전직이 안 읽힌다
     const capCls = this.captainClass || 'warrior';
@@ -300,10 +312,15 @@ export class BattleScene {
       this.ui.addChild(this.capBar);
     }
     for (const m of party) {
+      // **빈 칸을 거른다.** 편성 5칸을 다 채우는 것이 정상 상태가 아닌데,
+      // 여기서 m.id 를 읽다 예외가 나면 **아래 layout() 이 통째로 안 돌아**
+      // 이미 만든 유닛들이 기본 좌표(0,0)에 겹쳐 선다 — 화면 왼쪽 위에
+      // 전원이 포개져 보이던 원인이다 (단장 지적 2026-08-25)
+      if (!m) continue;
       const { tex: t, src } = await this.loadSprite(m.id === 'CAPTAIN'
         ? '/assets/captain/captain_warrior'
         : `/assets/char/${m.id}`);
-      if (!t) continue;
+      if (!t || stale()) continue;
       const arm = await this.cutoutFor(m.id === 'CAPTAIN' ? 'captain_warrior' : m.id, src);
       const rig = new UnitRig(PIXI(), t, {
         size: this.allySize(), facing: 1, grid: [5, 9],

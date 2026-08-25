@@ -1,4 +1,6 @@
-// 클라우드 세이브 어댑터 — Verse8 게임서버(server/server.js)와 짝이다.
+import { findServer } from '../net/live.js';
+
+// 클라우드 세이브 어댑터 — Verse8 게임서버(루트 server.js)와 짝이다.
 //
 // 원칙 (신중하게 가는 지점들):
 //   · **서버 객체는 주입받는다.** Verse8 의 비-React 접속법이 문서화돼 있지 않아
@@ -40,8 +42,9 @@ export const cloudReady = () => !!server;
  */
 export async function initCloud(stateGetter, injected) {
   getState = stateGetter;
-  server = injected
-    || (typeof window !== 'undefined' && window.__V8_SERVER) || null;
+  // 찾는 방법은 net/live.js 가 정한다 — 두 곳이 다른 이름을 보면 한쪽만
+  // 붙는 어긋남이 난다 (세이브는 되는데 채팅은 안 되는 식)
+  server = injected || findServer();
   if (!server || typeof server.remoteFunction !== 'function') { server = null; return null; }
 
   // 떠날 때 마지막 상태를 흘려 보낸다 — 응답을 기다릴 수 없는 시점이라

@@ -37,10 +37,37 @@ const cache = {
 const at = {};
 const FRESH_MS = 20_000;
 
+/**
+ * 호스트가 넣어 준 게임서버 객체를 찾는다.
+ *
+ * 문서에 있는 접속법은 React 훅(`useGameServer()`)뿐이라 vanilla 에서 쓸
+ * 전역 이름이 확인된 적이 없다. 그래서 **이름을 하나로 못 박지 않고**
+ * `remoteFunction` 을 가진 객체를 전역에서 찾는다 — 호스트가 어떤 이름으로
+ * 넣든 붙는다. 못 찾으면 예전처럼 조용히 데모로 떨어진다.
+ */
+export function findServer() {
+  if (typeof window === 'undefined') return null;
+  const ok = o => o && typeof o.remoteFunction === 'function';
+  // 이름이 알려진 후보부터 (확인되면 이 줄만 남기면 된다)
+  for (const k of ['__V8_SERVER', 'server', '$server', 'gameServer', 'agent8', '__AGENT8__']) {
+    if (ok(window[k])) return window[k];
+    if (window[k] && ok(window[k].server)) return window[k].server;
+  }
+  // 그래도 없으면 전역을 한 번 훑는다. 창의 전역은 수백 개라 얕게만 본다
+  for (const k of Object.getOwnPropertyNames(window)) {
+    if (/^(webkit|chrome|on)/.test(k)) continue;
+    let v; try { v = window[k]; } catch { continue; }
+    if (ok(v)) return v;
+  }
+  return null;
+}
+
 export function initLive(injected) {
-  server = injected
-    || (typeof window !== 'undefined' && window.__V8_SERVER) || null;
+  server = injected || findServer();
   if (!server || typeof server.remoteFunction !== 'function') server = null;
+  // 붙었는지/못 붙었는지를 콘솔에 남긴다 — 배포 환경에서 이게 없으면
+  // 채팅·랭킹·연합이 전부 데모로 도는데, 화면만 봐서는 이유를 알 수 없다
+  console.log('[냥냥] gameserver', server ? '연결됨' : '없음 (데모로 동작)');
   return !!server;
 }
 
