@@ -229,6 +229,11 @@ export class SettingsScreen {
       <div class="st-row stack"><span>언어 / Language</span>
         ${seg('lang', LANGS.map(l => ({ v: l.id, t: l.label })), S.lang || 'ko')}</div>
       <div class="sh-note">${t('언어를 바꾸면 게임이 다시 시작됩니다 — 진행은 저장됩니다.')}</div>
+      <!-- 절전. 전투 화면 우측 열에도 같은 버튼이 있지만, 세로가 660px 이 안 되는
+           화면에서는 그 열에 자리가 없어 빠진다(index.html > @media max-height:660).
+           빠지는 화면에서도 길이 남아야 해서 여기에 둔다 -->
+      <div class="st-row link" data-a="pwrsave"><span>${t('절전 모드')}</span>
+        <b>${t('켜기')} ›</b></div>
 
       <div class="st-h">${t('연출')}</div>
       <div class="st-row"><span>${t('타격 이펙트')}</span>

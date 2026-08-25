@@ -6576,6 +6576,9 @@ function bootTapToStart() {
     action: a => {
       if (a === 'reset') { localStorage.removeItem(SAVE_KEY); location.reload(); }
       else if (a === 'rates') { settings.close(); shop.open(); }
+      // 절전 — 낮은 화면에서는 사이드 열의 [절전]이 빠지므로 여기가 유일한 길이다.
+      // 덮개가 #app 을 display:none 하니 설정 화면부터 닫고 켠다
+      else if (a === 'pwrsave') { settings.close(); pwr(true); }
       else if (a === 'copycode') {
         // 문의할 때 옮겨 적기 쉽게 — 복사가 막힌 환경이면 그냥 보여 주기만 한다
         const code = playerCode();
