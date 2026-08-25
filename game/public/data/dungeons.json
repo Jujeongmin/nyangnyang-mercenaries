@@ -74,18 +74,23 @@
   {
    "id": "furnace",
    "nameKo": "용광로",
-   "reward": "gold",
-   "baseYield": 3000,
+   "reward": "equip_ticket",
+   "baseYield": 40,
    "unlockCp": 25750,
    "unlockQuest": 39,
    "estimatedUnlockDay": 12,
-   "purpose": "장비 소환 레벨업",
+   "purpose": "장비 소환권 (제작대 가동)",
    "unlockCpHistory": {
     "v1": 20000,
     "v2": 10300
    },
    "keyId": "DK-03",
-   "rewardNote": "모래시계는 과금 재화라 던전으로 정기 공급하지 않는다 (economy.json > equipmentSummonLevel.speedup.monetizationNote). 용광로는 골드를 준다 — 제작대 레벨업이 골드를 먹으므로 이름과 역할은 그대로 이어진다."
+   "rewardNote": "2026-08-26 단장 확정: 골드가 아니라 장비 소환권을 준다. 골드 3,000 시절 주석은 폐기.",
+   "baseYieldHistory": {
+    "goldEra": 3000,
+    "current": 40,
+    "reason": "보상 종류가 골드에서 장비 소환권으로 바뀜. 40 은 보물창고 22(D3)의 D12 층 진행분(22 x 1.15^5 ≈ 44)에 맞춘 값 — 두 번째 소환권 던전이 첫 던전의 현재 층을 못 넘으면 열 이유가 없다."
+   }
   },
   {
    "id": "crystal_cave",
@@ -100,7 +105,7 @@
    "unlockCp": 56000,
    "unlockQuest": 53,
    "estimatedUnlockDay": 25,
-   "purpose": "용병·스킬 소환 (핵심)",
+   "purpose": "용병·스킬 소환",
    "criticalNote": "D25 해금이 이 게임의 분기점. 그전까지 다이아는 퀘스트 보상이 거의 전부이므로 퀘스트 체인의 선행공급 설계가 필수가 된다.",
    "unlockCpHistory": {
     "v1": 45000,
