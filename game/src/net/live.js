@@ -47,16 +47,33 @@ const FRESH_MS = 20_000;
  */
 export function findServer() {
   if (typeof window === 'undefined') return null;
-  const ok = o => o && typeof o.remoteFunction === 'function';
+
+  /**
+   * **속성을 읽는 것 자체가 예외를 던질 수 있다.** 전역에는 다른 출처의
+   * 프레임(window.parent · window.top · window[0] …)이 섞여 있는데, 그 객체의
+   * 속성에 손대면 브라우저가 SecurityError 로 막는다 — 게임이 프리뷰 iframe
+   * 안에서 돌 때 실제로 터졌다 ("Blocked a frame with origin …", 2026-08-25).
+   * 그래서 읽기를 통째로 try 로 감싼다.
+   */
+  const ok = o => {
+    try { return !!o && typeof o.remoteFunction === 'function'; } catch { return false; }
+  };
+  const at = k => { try { return window[k]; } catch { return null; } };
+
   // 이름이 알려진 후보부터 (확인되면 이 줄만 남기면 된다)
   for (const k of ['__V8_SERVER', 'server', '$server', 'gameServer', 'agent8', '__AGENT8__']) {
-    if (ok(window[k])) return window[k];
-    if (window[k] && ok(window[k].server)) return window[k].server;
+    const v = at(k);
+    if (ok(v)) return v;
+    if (v) { try { if (ok(v.server)) return v.server; } catch { /* 다른 출처 */ } }
   }
-  // 그래도 없으면 전역을 한 번 훑는다. 창의 전역은 수백 개라 얕게만 본다
+
+  // 그래도 없으면 전역을 한 번 훑는다. 창·프레임 자신을 가리키는 이름과
+  // 프레임 번호(window[0])는 건드리지 않는다 — 전부 다른 출처일 수 있다
+  const SKIP = /^(webkit|chrome|on|\d+$)/;
+  const FRAMES = new Set(['window', 'self', 'top', 'parent', 'frames', 'opener', 'document']);
   for (const k of Object.getOwnPropertyNames(window)) {
-    if (/^(webkit|chrome|on)/.test(k)) continue;
-    let v; try { v = window[k]; } catch { continue; }
+    if (SKIP.test(k) || FRAMES.has(k)) continue;
+    const v = at(k);
     if (ok(v)) return v;
   }
   return null;
