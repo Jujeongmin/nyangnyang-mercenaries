@@ -135,14 +135,14 @@
     "failureChance": 0,
     "failureNote": "강화 실패 없음. 방치형에서 실패는 골드 소각 이상의 의미가 없고 스트레스만 준다."
   },
-  "totalBonusFormula": "equipmentBonus = SUM(slotBonus × (1 + 강화×0.045) for 6 slots)",
+  "totalBonusFormula": "(폐기 2026-08-25) equipmentBonus = SUM(slotBonus x (1 + 강화x0.045) for 6 slots). 곱산 모델이던 시절의 식이다. 지금은 flatCpByTier 가산이고 코드는 grades[].slotBonus 를 안 읽는다.",
   "maxBonusVerification": {
     "sixT10Slots": 1.109,
     "afterMaxEnhance": 1.8575,
     "setBonus": 0,
     "total": 1.8575,
     "cpMultiplier": 2.8575,
-    "status": "세트 삭제 전(2.8575)과 동일. CP 천장 1,834,000 불변."
+    "status": "(폐기) 곱산 모델의 검산이다. 값도 이미 낡았다 — sixT10Slots 1.109 로 적혀 있지만 현재 grades 표로는 3.7182 다."
   },
   "autoEquip": {
     "enabled": false,
@@ -434,5 +434,21 @@
     }
   ],
   "totalBonusNote": "2026-08-25: 장비를 성장의 주축으로 올렸다. 6부위 최고등급 기준 곱보너스 합계 +111% → +391%.",
-  "flatCpPerTier": 0.09
+  "flatCpByTier": {
+    "1": 15,
+    "2": 25,
+    "3": 100,
+    "4": 370,
+    "5": 1350,
+    "6": 4700,
+    "7": 15500,
+    "8": 50000,
+    "9": 210000,
+    "10": 845000
+  },
+  "flatCpByTierNote": "**한 칸에 끼웠을 때 오르는 전투력, 그 자체다** (2026-08-25 단장 확정). 장비 카드에 적히는 숫자와 실제 CP 증가가 정확히 같아야 한다는 기획이라, 장비는 이제 곱산이 아니라 순수 가산이다.",
+  "flatCpByTierDerivation": "임의값이 아니라 역산이다. (1) 등급별 해금 제작대 레벨은 gacha.json > equipmentRateBands.bands[].unlocks 에서 읽었다 (T3@4 · T5@10 · T10@27, 최대 30). (2) 그 레벨에서 기대되는 총 CP 는 퀘스트 사이클이 선언한 값이다 — 제작대 칸 목표가 min(2k,60) 이라 Lv L 은 사이클 k=L/2 이고, 전투력 칸 목표가 2000*1.9^(k-2) 다. 그 시점에 곱산(slotBonus)이 실제로 주고 있던 CP 를 6칸으로 나눠 가산으로 옮긴 뒤, 단장 지시로 2배 했다.",
+  "flatCpByTierScale": "등급 한 칸에 3.2~4.2 배. 예전 곱산 사다리(T1 0.012 → T10 0.6197, 52배)와 같은 결이라 한 등급 올랐을 때의 체감이 유지된다.",
+  "flatCpByTierCeilingNote": "T10 6칸이면 5,070,000 이라 St200 요구(4,000,000)를 혼자 넘는다. **의도된 것이다** — 스테이지를 계속 추가할 예정이라 지금 최종 스테이지를 상한으로 두지 않는다 (단장 확정 2026-08-25). 스테이지 추가는 stages.json > bosses 에 줄을 더하면 된다 (main.js 가 bosses.find(x => x.stage === S.stage) 로만 찾는다).",
+  "slotBonusNote": "**코드는 더 이상 이 값을 안 읽는다** (2026-08-25). flatCpByTier 를 역산할 때의 근거로 남겨 둔다 — 지우면 그 표가 어디서 나왔는지가 사라진다."
 }

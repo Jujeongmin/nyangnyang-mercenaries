@@ -166,15 +166,19 @@ const cpOf = m => (!m ? 0 : D.characters.gradeCoef[m.grade]
   * (m.class ? promoMult(m.class) : 1));
 const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + ((s.level || 1) - 1) * 0.06);
 
-function equipBonus() {
-  // equipment.json > totalBonusFormula. 장비 레벨이 없으므로 강화항은 쓰지 않는다.
-  let b = 0;
-  for (const s of D.equipment.slots) {
-    const it = S.equip[s.id];
-    if (it) b += D.equipment.grades[it.tier - 1].slotBonus;
-  }
-  return b;
-}
+/**
+ * 한 칸에 낀 장비가 주는 전투력. **카드에 적히는 그 숫자 그대로다.**
+ *
+ * 예전에는 여기에 두 갈래가 있었다 — 등급별 고정 가산(baseCp x 0.09 x 등급)과
+ * 전체 CP 에 곱해지는 퍼센트(grades[].slotBonus). 곱산 때문에 **같은 장비가
+ * 언제 뽑히느냐에 따라 값이 26배씩 달랐다** (실측: T5 한 벌이 바탕 500 에서
+ * +4,986, 바탕 300,000 에서 +129,518). 그러면 "이 장비 +N" 이라고 적을 수가 없다.
+ *
+ * 이제 등급별 고정값 하나다 (equipment.json > flatCpByTier). 적힌 만큼 오른다.
+ * 대신 "바탕이 크면 장비도 세진다" 가 사라졌으므로, 그 몫은 **등급을 올려서**
+ * 가져간다 — 한 등급에 3.2~4.2 배다 (단장 확정 2026-08-25).
+ */
+const eqCpOf = it => (it ? (D.equipment.flatCpByTier?.[it.tier] || 0) : 0);
 
 /** codex.json > cpIntegration 의 곱연산 항을 그대로 따른다 */
 function codexBonus() {
@@ -219,41 +223,34 @@ function cosmeticBonus() {
  */
 const captainCp = () => Math.round(D.stages.curve.baseCp * 0.04);
 
-/**
- * 장비의 **고정 전투력**. 등급 보너스(equipBonus)는 총합에 곱해지는 퍼센트라
- * 초반처럼 바탕이 작을 때는 한 칸 끼워도 1~2 밖에 안 올랐다 — 장비를 맞추는
- * 재미가 숫자로 안 보였다.
- *
- * 그래서 **바탕에 더하는 몫**을 따로 둔다. 스테이지 1 요구치의 3% × 등급이라
- * 일반(1등급) 한 칸이 38, 여섯 칸을 다 채우면 225 다 — 단장(50)·첫 용병(N 250)과
- * 나란히 놓았을 때 "장비를 맞추는 것"이 용병 한 명에 버금가게 보인다.
- * 뒤로 갈수록 요구치가 지수로 오르므로 저절로 퍼센트 쪽이 주도권을 가져간다.
- *
- * 퍼센트 상한(equipment.json > maxBonusVerification)은 안 건드렸다 —
- * 그 표가 CP 천장 계산의 근거라 손대면 곡선 전체를 다시 재야 한다.
- */
+/** 낀 장비 여섯 칸의 전투력 합. 표는 데이터에 있다 (flatCpByTier) */
 function equipFlatCp() {
-  // 계수는 **데이터에 둔다** — 밸런스를 만질 때 코드를 안 열게 (equipment.json)
-  const k = D.equipment.flatCpPerTier ?? 0.03;
   let flat = 0;
-  for (const s of D.equipment.slots) {
-    const it = S.equip[s.id];
-    if (it) flat += D.stages.curve.baseCp * k * it.tier;
-  }
+  for (const s of D.equipment.slots) flat += eqCpOf(S.equip[s.id]);
   return flat;
 }
 
+/**
+ * 총 전투력.
+ *
+ * **장비는 곱산이 다 끝난 뒤에 더한다.** 바탕에 섞어 넣으면 도감·훈련소·전직·
+ * 제작대 배수가 장비에도 곱해져서, T5 를 끼울 때 오르는 값이 그 사람의 다른
+ * 성장에 따라 달라진다 — 카드에 적은 숫자와 실제가 어긋나고, 그게 이번에
+ * 고치려던 바로 그 문제다 (단장 확정 2026-08-25).
+ *
+ * 그래서 장비는 곱산의 대상이 아니라 **곱산 결과에 얹는 몫**이다. 대신 등급
+ * 사다리가 그 몫을 키운다 (flatCpByTier, 한 등급에 3.2~4.2 배).
+ */
 function totalCp() {
   let base = captainCp();
-  base += equipFlatCp();
   base += S.party.reduce((a, m) => a + cpOf(m), 0);
   base += [...S.skills.active, ...S.skills.passive].reduce((a, s) => a + (s ? skillCp(s) : 0), 0);
   return base
-    * (1 + equipBonus())
     * (1 + codexBonus())
     * (1 + trainingBonus(trainDef(), S.trainLv))
     * (1 + S.forgeLv * 0.008)
-    * (1 + cosmeticBonus());
+    * (1 + cosmeticBonus())
+    + equipFlatCp();
 }
 
 /**
@@ -885,7 +882,16 @@ const bgFor = n => {
 // 여기 넣지 않는다. 그건 매 타격마다 굴려야 해서 scene 이 쥔다.
 function partyDps() {
   const cls = D.characters.classes;
-  const gear = (1 + equipBonus()) * (1 + S.forgeLv * 0.008);
+  // 장비의 피해 기여. 예전에는 `1 + equipBonus()` (CP 곱산항)를 그대로 썼는데,
+  // 장비가 순수 가산으로 바뀌면서 그 항이 없어졌다. 그냥 지우면 **장비가 CP 만
+  // 올리고 실제 타격은 1도 안 느는** 상태가 된다 — 패시브에서 이미 한 번
+  // 겪은 함정이다 (바로 위 주석).
+  //
+  // 그래서 **CP 에서 차지하는 몫만큼** 피해도 올린다: 장비가 총 CP 의 60% 면
+  // 피해도 2.5배다. CP 와 실전이 같은 비율로 움직여야 sim 의 상관계수가 유지된다.
+  const cpAll = totalCp();
+  const eqCp = equipFlatCp();
+  const gear = (cpAll > eqCp ? cpAll / (cpAll - eqCp) : 1) * (1 + S.forgeLv * 0.008);
   const aps = D.combat.attack.baseAttacksPerSecond;
   let dps = 0;
   for (const m of S.party) {
@@ -5732,7 +5738,13 @@ function eqBonusOf(it) {
   return it ? D.equipment.grades[it.tier - 1].slotBonus : 0;
 }
 
-/** 그 장비를 끼웠을 때의 총 전투력 — 비교는 % 가 아니라 실제 CP 로 보여야 읽힌다 */
+/**
+ * 그 장비를 끼웠을 때의 총 전투력.
+ *
+ * 장비가 순수 가산이 된 뒤로는 `총합 - 그 칸의 현재 장비 + 새 장비` 와 같아졌지만,
+ * 계산식을 복제하지 않고 실제로 끼워 보고 재는 방식을 유지한다 — totalCp 가
+ * 바뀌어도 여기가 저절로 따라온다.
+ */
 function cpWith(slotId, it) {
   const keep = S.equip[slotId];
   S.equip[slotId] = it;
@@ -5749,6 +5761,10 @@ function eqCard(it, isNew, base) {
   const sl = D.equipment.slots.find(x => x.id === it.slot);
   const g = D.equipment.grades[it.tier - 1];
   const cp = Math.round(cpWith(it.slot, it));
+  // 카드의 큰 숫자는 **그 장비 자신의 전투력**이다. 예전에는 "끼웠을 때의 총
+  // 전투력" 을 적었는데, 그건 장비가 아니라 그 사람 전체를 말하는 값이라
+  // "이 무기 62,000" 처럼 읽히면서 실제 증가분과 어긋났다 (단장 지적)
+  const own = eqCpOf(it);
   const d = base == null ? null : cp - base;
   const col = d == null ? '' : d > 0 ? 'var(--up)' : d < 0 ? 'var(--warn)' : 'var(--dim)';
   // 변화가 없으면 뱃지를 안 띄운다 — '= 0' 은 읽을 값이 아니다
@@ -5758,7 +5774,7 @@ function eqCard(it, isNew, base) {
     <i>${isNew ? t('새로 나옴') : t('착용 중')}</i>
     ${eqImg(sl, it.tier)}>
     <b style="color:${g.color}">${t(g.nameKo)} T${it.tier}</b>
-    <div class="er-cp">${t(sl.nameKo)} · ${t('전투력')} <em>${cpNum(cp)}</em></div>
+    <div class="er-cp">${t(sl.nameKo)} · ${t('전투력')} <em>+${cpNum(own)}</em></div>
     ${tag}
   </div>`;
 }
