@@ -2975,9 +2975,12 @@
      탭 줄은 가로 스크롤이라 다이아는 그 위에 고정으로 얹는다 */
   #shop .sh-head .sh-cur{display:none}
   /* 탭 줄은 가로 스크롤이라 지갑을 그 안에 넣으면 밀려 사라진다 — 줄을
-     [스크롤되는 탭][고정 지갑] 두 칸으로 나눈다 */
-  .sh-tabrow{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-right:10px}
-  .sh-tabrow .sh-tabs{flex:1 1 auto;min-width:0}
+     [스크롤되는 탭][고정 지갑] 두 칸으로 나눈다.
+     **배경띠는 줄 전체가 든다** — .sh-tabs 에 남겨 두면 지갑 자리만 띠가
+     끊겨 UI 가 잘린 것처럼 보인다 (단장 지적) */
+  .sh-tabrow{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-right:10px;
+    background:var(--ink2);border-bottom:1px solid var(--line)}
+  .sh-tabrow .sh-tabs{flex:1 1 auto;min-width:0;background:none;border-bottom:none}
   .sh-tabrow .sh-cur{flex:0 0 auto}
   /* 시상대 위 고양이 셋이 그림의 아래쪽 절반에 있다 */
   #rank .sh-head{background-image:url(/assets/ui/PN-RANK.webp);--pn-y:40%}
