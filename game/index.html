@@ -52,8 +52,14 @@
     text-shadow:0 1px 2px #000a}
   #bootTitle{font-family:"Black Han Sans","Jua",system-ui,sans-serif;font-weight:400;
     letter-spacing:.3px}
+  /* PC 에서는 앱(세로 화면)이 창을 다 못 채운다 — 남는 좌우를 **검정으로 두면
+     게임이 작아 보인다.** 타이틀 배경을 흐리게 깔아 화면 전체가 한 장면으로
+     읽히게 한다 (단장 지적 2026-08-25). 폰에서는 앱이 100% 라 안 보인다 */
   html,body{margin:0;height:100%;background:#0f0b08;color:var(--txt);overflow:hidden;
     font-family:"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+  body{background:
+    linear-gradient(#0f0b08cc,#0f0b08cc),
+    url(/assets/ui/TT-BG.webp) center/cover no-repeat #0f0b08}
 
   /* 스킬 아이콘 — 22종 중 14종이 **투명 배경 없이 사각 통짜**로 생성됐다.
      **에셋은 전부 원형으로 정리됐다** (사각 14종을 원형으로 클립, 2026-08-22).
@@ -77,11 +83,13 @@
      · 480px 고정이면 PC 에서 좌우가 검게 남는다
      · 높이(56vh)에만 매달면 창이 낮고 넓을 때(1440x900 등) 앱이 좁아져
        UI 가 전부 작아진다 — 실제로 그렇게 보였다 (단장 지적 2026-08-25)
-     그래서 max(56vh, 42vw): 창이 높으면 높이가, 넓으면 폭이 잡는다.
-     820px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져서 둔다.
+     그래서 max(62vh, 52vw): 창이 높으면 높이가, 넓으면 폭이 잡는다.
+     계수는 두 번 올렸다 — 1280x800 같은 흔한 PC 창에서 앱이 538px 로 남아
+     좌우가 371px 씩 검었다 (단장 지적 2026-08-25). 지금은 666px 다.
+     900px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져서 둔다.
      폰에서는 100% 가 이겨 그대로다 */
   #app{container:app / inline-size;
-    position:relative;width:min(100%, max(56vh, 42vw), 820px);height:100%;margin:0 auto;
+    position:relative;width:min(100%, max(62vh, 52vw), 900px);height:100%;margin:0 auto;
     background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 
   /* 상단 12% */
@@ -239,7 +247,7 @@
      가운데로 선다. 기둥 밖은 body 색(#0f0b08) — 게임 화면의 레터박스와 같다 */
   /* 폭은 #app 과 **같은 식**이다 — 다르면 로딩 화면만 좌우 여백이 달라
      시작하자마자 화면이 덜컥 넓어진다 (단장 지적 2026-08-25) */
-  #boot{position:fixed;inset:0;width:min(100%, max(56vh, 42vw), 820px);margin:0 auto;
+  #boot{position:fixed;inset:0;width:min(100%, max(62vh, 52vw), 900px);margin:0 auto;
     z-index:210;display:flex;flex-direction:column;
     align-items:center;overflow:hidden;
     /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
@@ -2890,7 +2898,10 @@
   .fre-2{--fre-img:url(/assets/ui/FRE-02.png)}
   .fre-3{--fre-img:url(/assets/ui/FRE-03.png)}
   /* 상세 카드는 86px 이라 액자 무늬가 실제로 보인다. 그림은 액자 안쪽에 들어가게 줄인다 */
-  .ei-ic[class*="fre-"]{position:relative;overflow:visible;border-color:transparent;
+  /* 액자 그림(FRE-*)을 쓸 때는 **CSS 테두리를 아예 뺀다.** color 만 투명하게
+     두면 2px 자리와 15px 둥근 모서리가 그대로 남아, 액자 바깥에 네모 테두리가
+     한 겹 더 있는 것처럼 보였다 (단장 지적 2026-08-25) */
+  .ei-ic[class*="fre-"]{position:relative;overflow:visible;border:0;border-radius:0;
     background:none;box-shadow:none}
   .ei-ic[class*="fre-"]::after{content:"";position:absolute;inset:-14%;pointer-events:none;
     z-index:2;background:var(--fre-img) center/100% 100% no-repeat}
@@ -3446,7 +3457,11 @@
     background:none;border-style:solid;border-width:10px;border-radius:0;
     border-image:var(--f-card) 122 fill stretch;color:var(--txt);min-height:78px}
   .ps-cell.off{opacity:.45;cursor:default}
-  .ps-cell.done{opacity:.6}
+  /* 이미 받은 칸은 **색으로 구분한다.** 흐리게만 하면(opacity) 잠긴 칸과
+     구별이 안 돼서 "받은 것"과 "못 받는 것"이 같아 보였다 (단장 지적 2026-08-25) */
+  .ps-cell.done{opacity:.62;background:#16301c;border-color:#3f8a4f}
+  .ps-cell.done .ps-mark{color:#8cf59a}
+  .ps-cell.done .ps-c{color:#a9d9b3}
   .ps-c{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800;
     line-height:1}
   .ps-c img{width:12px;height:12px;object-fit:contain}

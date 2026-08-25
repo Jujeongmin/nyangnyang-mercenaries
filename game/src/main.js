@@ -1880,7 +1880,8 @@ function openPass() {
           : !open ? '' : '<i class="ps-mark ps-go">받기</i>'}</button>`;
     };
     return `<div class="ps-row${t === cur ? ' now' : ''}" data-tier="${t}">
-      <span class="ps-tier"><b>${t}</b><span>St${t * per}</span></span>
+      <!-- "St15" 는 유저가 쓰는 말이 아니다 — 화면 표기(일반 2-5)로 적는다 -->
+      <span class="ps-tier"><b>${t}</b><span>${stageLabel(t * per).text}</span></span>
       ${cell('free', f)}${cell('paid', p2)}</div>`;
   };
 
@@ -2559,6 +2560,10 @@ async function rollDice() {
   save(); renderTop(); syncNav();
   diceBusy = false;
   renderDiceBoard();
+  // **화면을 통째로 다시 그린다.** 보드만 그리면 누적 굴림수·확정 보상 진행이
+  // 옛 숫자로 남아, 굴려도 "누적 3회" 가 그대로였다 (단장 지적 2026-08-25).
+  // 그 값들은 보드 밖(이벤트 상세 본문)에 있다
+  if ($('#ov').classList.contains('show') && $('#dcBoard')) openEventDetail('dice');
 }
 
 /** 한정 코스메틱 지급 + 즉시 장착 — 보여야 자랑이 된다 */
@@ -2762,7 +2767,7 @@ function openEvents() {
     <b>${t('무료 1000뽑')}</b>
     <span class="evb-sub">${pendN
       ? t('받을 수 있는 소환권 {0}장', num(pendN))
-      : `${num(S.f1k.total)} / 1000${nx ? ` · ${t('다음: 스테이지 {0}', nx.stage)}` : ''}`}</span>
+      : `${num(S.f1k.total)} / 1000${nx ? ` · ${t('다음: {0}', stageLabel(nx.stage).text)}` : ''}`}</span>
     <span class="evb-bar"><i style="width:${S.f1k.total / 10}%"></i></span>
     ${pendN ? `<i class="evb-dot"></i>` : ''}
   </button>`);
@@ -2794,13 +2799,16 @@ function openEventDetail(id) {
     h.push(pend
       ? `<button class="fgbtn" id="f1kClaim">${t('소환권 {0}장 받기', num(pend))}</button>`
       : nx
-        ? `<div class="pr-note">${t('다음 지급: 스테이지 {0} (소환권 {1}장)', nx.stage, nx.n)}</div>`
+        ? `<div class="pr-note">${t('다음 지급: {0} (소환권 {1}장)', stageLabel(nx.stage).text, nx.n)}</div>`
         : `<div class="pr-note">${t('모든 보상을 받았습니다')}</div>`);
     h.push('<div class="lbl" style="margin:8px 0 6px">' + t('지급 구간') + '</div>');
     h.push(F.distribution.map(b => {
       const got = S.f1k.claimed.filter(st => st >= b.fromStage && st <= b.toStage).length;
+      // 데이터의 band 는 "St 1-9" 라 유저가 쓰는 말이 아니다 — 구간을 화면
+      // 표기(일반 1-1 ~ 일반 1-9)로 다시 적는다
+      const bandText = `${stageLabel(b.fromStage).text} ~ ${stageLabel(b.toStage).text}`;
       return `<div class="frow" style="padding:7px 10px;margin-bottom:5px">
-        <span class="k">${b.band}</span>
+        <span class="k">${bandText}</span>
         <span class="v" style="font-size:11px">${got}/${b.grants} · ${t('{0}장씩', b.ticketsPerGrant)}</span>
       </div>`;
     }).join(''));
