@@ -79,7 +79,20 @@ export class UnitRig {
     const w = texture.width, h = texture.height;
     // 원화 여백이 제각각이라 캔버스 크기로 맞추면 그림마다 보이는 크기가 다르다.
     // trim(불투명 영역)이 있으면 그걸 기준으로 잡는다. assets/trim.json
-    const tr = opt.trim && opt.trim.h ? opt.trim : { x: 0, y: 0, w, h };
+    //
+    // **trim 은 잰 당시의 원화 크기(cw/ch)에 매인 값이다.** 그림을 나중에 줄이면
+    // (2026-08-25 해상도 축소) 두 값의 세대가 어긋날 수 있고, 그러면 크기가
+    // texH/eh 비율만큼 통째로 틀어진다 — 1024 그림에 512 기준 trim 이 붙으면
+    // 1.87배로 커지고, 반대면 절반으로 쪼그라든다. 실제로 배포본에서 그림만
+    // 옛것이 남아 잡몹·보스가 커져 보였다.
+    // 그래서 **실제 텍스처 크기에 맞춰 그 자리에서 환산한다** — 이제 그림과
+    // 좌표의 세대가 달라도 스스로 맞춘다.
+    const raw = opt.trim && opt.trim.h ? opt.trim : { x: 0, y: 0, w, h };
+    const k = raw.cw ? w / raw.cw : 1;
+    const tr = k === 1 ? raw : {
+      x: raw.x * k, y: raw.y * k, w: raw.w * k, h: raw.h * k,
+      cw: w, ch: h, eh: (raw.eh || 0) * k,
+    };
     this.trim = tr;
     this.originX = tr.x + tr.w / 2;   // 가로 중심
     this.originY = tr.y + tr.h;       // 발밑

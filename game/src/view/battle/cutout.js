@@ -47,17 +47,28 @@ export function buildParts(img, poly, pivot) {
   return { body, arm };
 }
 
-/** PixiJS 텍스처로 만들어 rig 에 넘길 형태로 돌려준다. */
+/**
+ * PixiJS 텍스처로 만들어 rig 에 넘길 형태로 돌려준다.
+ *
+ * 좌표는 **찍을 당시의 원화 크기(meta.size)** 기준이다. 그림을 나중에 줄이면
+ * (2026-08-25 해상도 축소) 어깨·다각형이 두 배 자리를 가리켜 팔이 엉뚱한 데서
+ * 잘린다. 실제로 불러온 그림 크기에 맞춰 그 자리에서 환산한다 — trim 과 같은
+ * 원칙이다(rig.js). 이러면 그림과 좌표의 세대가 달라도 스스로 맞는다.
+ */
 export async function loadCutout(PIXI, srcPath, meta) {
   const img = new Image();
   img.src = srcPath;
   await img.decode();
-  const { body, arm } = buildParts(img, meta.polygon, meta.pivot);
+  const k = meta.size?.w ? img.width / meta.size.w : 1;
+  const pt = p => (k === 1 || !p ? p : { x: p.x * k, y: p.y * k });
+  const polygon = k === 1 ? meta.polygon : meta.polygon.map(pt);
+  const pivot = pt(meta.pivot);
+  const { body, arm } = buildParts(img, polygon, pivot);
   return {
     bodyTexture: PIXI.Texture.from(body),
     texture: PIXI.Texture.from(arm),
-    pivot: meta.pivot,
-    tip: meta.tip,
+    pivot,
+    tip: pt(meta.tip),
     mirror: meta.mirror,
   };
 }

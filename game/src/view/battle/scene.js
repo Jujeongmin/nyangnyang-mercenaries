@@ -309,10 +309,13 @@ export class BattleScene {
         orbs: m.grade === 'UR' || m.grade === 'LR',
         aura: ['SSR', 'UR', 'LR'].includes(m.grade),
       });
+      // 적과 같은 이유로 배치 전에는 숨긴다 (아래 spawnWave 의 주석 참고)
+      rig.view.visible = false;
       this.field.addChild(rig.view);
       this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5) });
     }
     this.layout();
+    for (const u of this.units) u.rig.view.visible = true;
   }
 
   /** combat.json > enemyAttack.byId. 없으면 몸통박치기로 본다. */
@@ -341,9 +344,10 @@ export class BattleScene {
       const rig = new UnitRig(P, t, {
         arm,
         // 보스는 확실히 커야 한다. 잡몹과 급이 같으면 "좀 센 잡몹"으로 읽힌다.
-        // 잡몹은 아군보다 확실히 작아야 한다. 0.88 은 용병과 거의 같아서
-        // 잡몹 셋이 서면 화면 오른쪽이 아군 진영만큼 무거워 보였다.
-        size: kind === 'boss' ? this.allySize() * 1.85 : this.allySize() * 0.68,
+        // 잡몹은 아군보다 작아야 하지만 0.68 은 너무 작았다(단장 지적 2026-08-25).
+        // 0.88 은 반대로 용병과 거의 같아 잡몹 셋이 서면 오른쪽이 아군 진영만큼
+        // 무거워 보인다 — 그 사이 값이다. **크기를 바꾸려면 이 숫자만 만진다.**
+        size: kind === 'boss' ? this.allySize() * 1.85 : this.allySize() * 0.85,
         trim: TR[id],
         // facing 은 이동 방향(왼쪽으로 돌진), flip 은 스프라이트 반전.
         // 적 원화는 오른손잡이(무기가 이미지 왼쪽)로 뽑으므로 뒤집지 않는다.
@@ -351,6 +355,10 @@ export class BattleScene {
         // 공격 유형에 따라 모션이 갈린다 (combat.json > enemyAttack)
         motion: MOB_MOTION[this.enemyKind(id)],
       });
+      // **자리를 잡기 전에는 숨긴다.** 배치는 루프가 다 끝난 뒤 layout() 이
+      // 하는데, 그 사이 다음 그림을 기다리는 동안(await) 이 스프라이트가
+      // 기본 좌표(0,0)에 그려져 화면 왼쪽 위에서 잡몹이 번쩍인다
+      rig.view.visible = false;
       this.field.addChild(rig.view);
       const bar = new P.Graphics();
       this.ui.addChild(bar);
@@ -360,6 +368,7 @@ export class BattleScene {
         hp: hpEach, maxHp: hpEach, cd: rnd(0.5, 1.6), cdMax: rnd(1.3, 2.0) });
     }
     this.layout();
+    for (const f of this.foes) f.rig.view.visible = true;
   }
 
   /** 아군 5 + 적 4 = 9유닛이 좁은 모바일 화면에 들어가야 한다. 전투 영역 높이 기준. */
