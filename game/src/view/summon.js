@@ -51,7 +51,7 @@ export class SummonReveal {
     this.queue = items.slice();
     this.onDone = onDone;
     this.el.querySelector('.rv-alt').style.backgroundImage =
-      `url(/assets/ui/${ALT[track] || ALT.mercenary}.png)`;
+      `url(/assets/ui/${ALT[track] || ALT.mercenary}.webp)`;
     this.el.classList.add('show');
     this.busy = true;
     // 10연은 하나씩 다 보여주면 지친다. 최고 등급만 연출하고 나머지는 격자로.
@@ -80,7 +80,7 @@ export class SummonReveal {
     const char = this.el.querySelector('.rv-char');
     const info = this.el.querySelector('.rv-info');
 
-    burst.src = `/assets/fx/FX-${it.grade}.png`;
+    burst.src = `/assets/fx/FX-${it.grade}.webp`;
     char.src = it.img || '';
     char.style.display = it.img ? '' : 'none';
     this.el.querySelector('.rv-grade').textContent = it.grade;

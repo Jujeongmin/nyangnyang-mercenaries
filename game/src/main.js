@@ -3172,7 +3172,7 @@ function dungeonHtml() {
       // 배경으로 떨어뜨리는 이유: 열쇠를 깔면 우측 열쇠 칩과 같은 그림이 두 번 나온다
       const n = dg.keyId.replace('DK-', '');
       return `<div class="dg${open ? '' : ' lock'}" data-id="${dg.id}"
-        style="--dg-art:url(/assets/dungeon/DG-${n}.png),url(/assets/bg/${DG_BG[dg.id] || 'BG-01'}.webp)">
+        style="--dg-art:url(/assets/dungeon/DG-${n}.webp),url(/assets/bg/${DG_BG[dg.id] || 'BG-01'}.webp)">
         <span class="nm">
           <b>${t(dg.nameKo)}</b>
           <span class="why">${open
@@ -5321,11 +5321,13 @@ function renderForgeRateBrowser(idx) {
   const ttl = $('#smTitle');
   if (ttl) ttl.textContent = t('레벨별 확률');
   $('#smBody').innerHTML = `
-    <div class="fr2-head" style="margin-bottom:7px">
-      <button class="hg-step" data-fgb="${idx - 1}" ${idx === 0 ? 'disabled' : ''}>‹</button>
+    <!-- 화살표는 &lt; &gt; 다. ‹ › 는 글꼴에 없으면 양쪽이 같은 모양으로 떨어져
+         어느 쪽이 다음인지 안 보인다 (단장 지적 2026-08-25) -->
+    <div class="fr2-nav">
+      <button class="hg-step" data-fgb="${idx - 1}" ${idx === 0 ? 'disabled' : ''}>&lt;</button>
       <span class="${mine ? 'fr2-now' : ''}" style="min-width:96px;text-align:center">
         ${lvLabel}${mine ? ` · ${t('현재')}` : ''}</span>
-      <button class="hg-step" data-fgb="${idx + 1}" ${idx === bands.length - 1 ? 'disabled' : ''}>›</button>
+      <button class="hg-step" data-fgb="${idx + 1}" ${idx === bands.length - 1 ? 'disabled' : ''}>&gt;</button>
     </div>
     <div class="fr-rows">${forgeRateRows(b.rates, null)}</div>
     ${newG ? `<div class="fr-unlock" style="--c:${newG.color}">
@@ -5372,9 +5374,10 @@ function openForge() {
   //
   // 대장간 그림은 **머리 배너가 대신 든다**. 배너와 본문에 같은 그림을 두 장
   // 두면 배경이 겹쳐 보인다(실사용 보고). 배너는 현재 단계를 따라간다.
+  // 레벨 배지는 안 단다 — 바로 아래 카드가 "Lv 30 › Lv 31" 로 이미 말하고 있어
+  // 같은 숫자가 두 번 뜬다 (단장 지적 2026-08-25)
   h.push(`<div id="fgBar">
       <span id="fgStage">${t('{0}단계 대장간 · {1} 구간', stageNo, vis ? vis.levelRange : '')}</span>
-      <span id="fgLvBadge">Lv ${S.forgeLv}</span>
     </div>`);
 
 
@@ -5428,10 +5431,13 @@ function openForge() {
       ? `<div class="fr-unlock" style="--c:${D.equipment.grades[nextB.unlocks - 1].color}">
            Lv ${S.forgeLv + 1} — <b>${t(D.equipment.grades[nextB.unlocks - 1].nameKo)}</b> ${t('등급이 새로 열립니다')}</div>`
       : '';
+    // 머리글은 **아래 두 숫자 열과 같은 자리**에 선다 — 가운데 정렬로 두면
+    // 어느 퍼센트가 지금이고 어느 게 다음인지 눈으로 짝지어야 한다
     h.push(`<div id="fgRates">
       <div class="fr2-head">
+        <span class="fr2-hgap"></span>
         <span class="fr2-now">${t('현재')} Lv ${S.forgeLv}</span>
-        ${nextB ? `<i>»</i><span class="fr2-next">${t('다음')} Lv ${S.forgeLv + 1}</span>`
+        ${nextB ? `<span class="fr2-next">${t('다음')} Lv ${S.forgeLv + 1}</span>`
                 : `<span class="fr2-next">${t('최대 레벨')}</span>`}
       </div>
       <div class="fr-rows">${forgeRateRows(curB.rates, nextB && nextB.rates)}</div>
@@ -5454,7 +5460,7 @@ function openForge() {
   $('#ovt').textContent = '제작대';
   setSkin('forge');
   // 배너를 현재 단계 대장간으로 갈아 끼운다 — 레벨이 오르면 머리 그림이 바뀐다
-  $('#ovcard').style.setProperty('--ov-img', `url(/assets/ui/FG-0${stageNo}.png)`);
+  $('#ovcard').style.setProperty('--ov-img', `url(/assets/ui/FG-0${stageNo}.webp)`);
   // 모래시계는 이 화면에서만 쓰는 재화다. 헤더에 두면 본문이 안 밀린다.
   $('#ovh').classList.add('has-cur');
   // + 를 누르면 상점 교환 탭(모래시계 묶음)으로 간다 — 부족을 확인한 그 자리가

@@ -1114,11 +1114,20 @@
   #chat{cursor:pointer}
 
   /* 제작대 확률 — 현재/다음 두 열 비교 (버섯커 램프 표 문법) */
-  .fr2-head{display:flex;align-items:center;justify-content:center;gap:9px;
-    margin:2px 0 9px;font-size:12px;font-weight:800}
+  /* 머리글은 아래 줄(.fr2-row)과 **같은 칸 구조**다 — 이름 자리를 비워 두고
+     두 레벨 이름이 각자의 퍼센트 열 위에 선다. 안 맞추면 어느 숫자가 지금이고
+     어느 게 다음인지 눈으로 짝지어야 한다 */
+  .fr2-head{display:flex;align-items:center;gap:7px;
+    padding:0 8px;margin:2px 0 9px;font-size:12px;font-weight:800}
+  .fr2-head .fr2-hgap{flex:1 1 auto}
+  .fr2-head .fr2-now,.fr2-head .fr2-next{flex:0 0 64px;text-align:right}
   .fr2-head .fr2-now{color:var(--gold)}
   .fr2-head .fr2-next{color:#8fd18f}
   .fr2-head i{font-style:normal;color:var(--dim)}
+  /* ⓘ 팝업의 레벨 넘김 줄 — 여기는 가운데 정렬이다 (표 머리글과 다른 물건) */
+  .fr2-nav{display:flex;align-items:center;justify-content:center;gap:9px;
+    margin:2px 0 7px;font-size:12px;font-weight:800}
+  .fr2-nav .fr2-now{color:var(--gold)}
   .fr2-row{display:flex;align-items:center;gap:7px;padding:4px 8px;margin-bottom:3px;
     background:var(--ink);border:1px solid var(--line);border-radius:8px;font-size:11px}
   .fr2-row .fr2-bar{flex:0 0 4px;height:14px;border-radius:2px;background:var(--c)}
@@ -3458,7 +3467,10 @@
      **@media 가 아니라 @container 다.** 게임은 #app 안에서 살고 데스크톱에서는
      뷰포트가 넓어도 앱이 480px 로 잘린다 — 뷰포트를 재면 정작 좁은 건 앱인데
      규칙이 안 걸린다 (검사기가 그래서 같은 겹침을 계속 뱉었다). */
-  @container app (max-width: 440px){
+  /* 문턱은 **400px** 이다. 440 으로 두면 430(iPhone Pro Max 급)·414 까지
+     좁은 화면 보정을 물어서, 넓은 화면인데도 사이드 아이콘이 작아지고 글자가
+     사라진다 (단장 지적 2026-08-25). 이 블록이 실측으로 잡은 것은 360~390 이다 */
+  @container app (max-width: 400px){
     /* 사이드 열 — 더 작게 + 위로. 전투 중앙을 비운다.
        문턱이 440 인 이유: 앱 최대폭이 480 이고 412(픽셀7 계열)에서도 같은
        겹침이 났다. 480 미만은 사실상 전부 "좁은 폰"이다 */

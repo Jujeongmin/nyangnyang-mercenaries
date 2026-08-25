@@ -100,11 +100,17 @@ export class FxLayer {
     this.pool = [];
   }
 
+  /** 확장자는 **webp 먼저, 없으면 png**. 원화 축소분이 webp 로만 남아 있다 */
   async preload(ids, base = '/assets/fx') {
     await Promise.all(ids.map(async id => {
       if (this.tex.has(id)) return;
-      try { this.tex.set(id, await this.PIXI.Assets.load(`${base}/${id}.png`)); }
-      catch { this.tex.set(id, null); }
+      for (const ext of ['.webp', '.png']) {
+        try {
+          const t = await this.PIXI.Assets.load(`${base}/${id}${ext}`);
+          if (t) { this.tex.set(id, t); return; }
+        } catch { /* 다음 확장자 */ }
+      }
+      this.tex.set(id, null);
     }));
   }
 
