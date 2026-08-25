@@ -166,9 +166,18 @@ export class RosterSheet {
       el.addEventListener('click', () => this.api.openUnitInfo(kind, el.dataset.info)));
 
     // ── 액션바 ───────────────────────────────────────────────
-    $('#shUp').textContent = pend.length ? `자동강화 (${pend.length})` : '자동강화';
-    $('#shUp').disabled = !pend.length;
-    $('#shEqBtn').disabled = !this.api.canEquip(this.track);
+    // **금색이면 할 일이 있다, 갈색이면 없다** (단장 확정 2026-08-25).
+    // 두 버튼이 같은 규칙을 쓴다 — 하나만 금색이면 그게 색인지 강조인지 안 읽힌다.
+    // 흐리게(:disabled opacity)로 구별하던 때에는 "지금 눌리는가"만 보이고
+    // "누를 게 있는가"는 안 보였다.
+    // 이름이 eq 면 위(126행)의 장착 칸 배열과 부딪힌다 — 같은 render() 안이다
+    const upBtn = $('#shUp'), eqBtn = $('#shEqBtn');
+    const hasUp = pend.length > 0, hasEq = this.api.canEquip(this.track);
+    upBtn.textContent = hasUp ? `자동강화 (${pend.length})` : '자동강화';
+    upBtn.classList.toggle('go', hasUp);
+    eqBtn.classList.toggle('go', hasEq);
+    upBtn.disabled = !hasUp;
+    eqBtn.disabled = !hasEq;
   }
 
   /** 던전 — 목록 HTML 과 클릭 배선을 main.js 가 준다 (열쇠·CP·runDungeon 을 쥐고 있다) */

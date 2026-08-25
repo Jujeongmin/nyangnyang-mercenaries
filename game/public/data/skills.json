@@ -44,7 +44,14 @@
   "autoApply": false,
   "autoApplyReason": "용병·장비와 동일. 계산은 시스템이 하되 확정은 유저가 누른다.",
   "badge": "현재 장착보다 CP가 높은 조합이 가능하면 스킬 탭에 빨간 뱃지 + 상승 예상치",
-  "optimality": "시너지 없음. 각 풀 내 그리디 정렬이 수학적 최적해."
+  "optimality": "시너지 없음. 각 풀 내 그리디 정렬이 수학적 최적해.",
+  "excludeKinds": [
+   "party_heal",
+   "party_shield"
+  ],
+  "excludeKindsNote": "자동장착이 **CP 순으로만** 고르는데 CP는 등급·레벨만 본다(cpFormula) — 효과가 무엇인지는 안 본다. 그래서 SR 보호막이 R 얼음 창을 제치고 하나뿐인 액티브 칸을 차지한다. 그런데 combat.json > stageRules.mobDamageScale 가 0.05 라 **스테이지에서는 파티가 죽지 않는다** — 회복·보호막은 그 칸에서 아무 일도 안 한다 (단장 지적 2026-08-25). 여기 적힌 effect.kind 는 자동장착이 뒤로 미룬다.",
+  "excludeFallbackNote": "**빼기만 하고 끝내지는 않는다.** 뺀 뒤에도 칸이 남으면 그때는 제외 대상으로 채운다 — 회복밖에 없는 사람에게 빈 칸을 주는 것은 더 나쁘다. 그러니 정확히는 '제외'가 아니라 '맨 뒤로'다 (main.js > bestOf).",
+  "excludeCpNote": "이 규칙은 **표시 CP를 낮춘다.** SR 을 빼고 R 을 끼우므로 숫자는 내려가고 실제 전투력은 올라간다. CP 와 실전이 어긋나는 지점이라, 정렬 기준을 등급이 아니라 실효 기여로 바꾸는 것이 근본 해법이다 (sim/skill-coef.json 이 이미 그 계수를 갖고 있다)."
  },
  "combatRules": {
   "source": "combat.json > skills",

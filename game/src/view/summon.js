@@ -33,6 +33,9 @@ export class SummonReveal {
       </div>
       <div class="rv-info"><span class="rv-grade"></span><span class="rv-name"></span></div>
       <div class="rv-grid"></div>
+      <!-- 여기에 [장착하기] 를 두지 않는다. 장착은 **용병 탭·스킬 탭에서만**
+           한다 (단장 확정 2026-08-25) — 편성을 바꾸는 자리가 여러 곳이면
+           어디서 바뀌었는지가 안 읽힌다. 뽑기 결과는 보유함까지만 간다 -->
       <div class="rv-hint">화면을 탭하면 넘어갑니다</div>`;
     root.appendChild(this.el);
     this.el.addEventListener('click', () => this.next());

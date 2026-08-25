@@ -1445,9 +1445,14 @@ function pull(trackId, n) {
              id: c.id, cls: c.class, kind: 'merc' };
   });
 
+  // **결과를 연출보다 먼저 적는다.** 두 가지가 걸려 있다:
+  //   · 연출 안의 [장착하기 +N] 이 보유함을 읽어서 증가치를 계산한다
+  //   · 연출이 중간에 끊겨도 뽑은 것이 사라지지 않는다 — 예전에는 play() 가
+  //     busy 인 채로 다시 불리면 앞의 onDone 이 덮여 그 판이 통째로 증발했다
+  applyPulls(out);
   // 상점을 닫지 않는다. #reveal(z 80) 이 #shop(z 70) 을 이미 덮는데,
   // 닫으면 연출이 페이드되는 동안 뒤에 메인 화면이 비친다.
-  reveal.play(trackId, out, () => { applyPulls(out); shop.render(); });
+  reveal.play(trackId, out, () => shop.render());
   renderTop();
   // 소환은 퀘스트 진행도다 (Q2 용병 10회 등). 안 그리면 10연을 돌려도
   // 배너가 0/10 그대로다 (실사용 보고 2026-08-25)
@@ -1638,7 +1643,19 @@ function bestOf(track) {
     const n = slotsOf('mercenary');
     return { party: pool.slice(0, n), rest: pool.slice(n) };
   }
-  const take = (pre, n) => pool.filter(x => x.id.startsWith(pre)).slice(0, n);
+  // **스테이지에서 아무 일도 안 하는 스킬은 뒤로 미룬다** (skills.json >
+  // autoEquip.excludeKinds). CP 는 등급·레벨만 보므로 SR 보호막이 R 얼음 창을
+  // 제치고 하나뿐인 액티브 칸을 먹는데, mobDamageScale 이 0.05 라 스테이지에서는
+  // 파티가 죽지 않아 회복·보호막이 그 칸에서 하는 일이 없다 (단장 지적 2026-08-25).
+  const exKinds = new Set(D.skills.autoEquip?.excludeKinds || []);
+  const isIdle = x => exKinds.has(
+    D.skills.skills.find(s => s.id === x.id)?.effect?.kind);
+  // 빼기만 하고 끝내지 않는다 — 뺀 뒤에도 칸이 남으면 그때 채운다. 회복밖에
+  // 없는 사람에게 빈 칸을 주는 것은 더 나쁘다
+  const take = (pre, n) => {
+    const all = pool.filter(x => x.id.startsWith(pre));   // 이미 CP 내림차순이다
+    return [...all.filter(x => !isIdle(x)), ...all.filter(isIdle)].slice(0, n);
+  };
   const act = take('SK-A', slotsOf('skillActive'));
   const pas = take('SK-P', slotsOf('skillPassive'));
   const on = new Set([...act, ...pas]);

@@ -3328,6 +3328,10 @@
   .rt-b.go{border-image:var(--f-go) 159 209 fill stretch;color:#2a1c05;
     text-shadow:0 1px 0 #ffe9a880}
   .rt-b:disabled{opacity:.4;cursor:default}
+  /* 액션바의 두 버튼만 예외다 — 할 일이 없을 때 **갈색으로 또렷하게** 남아야
+     한다. 흐려 놓으면 갈색인지 꺼진 것인지 구별이 안 되고, 그 둘이 여기서는
+     같은 뜻이 아니다 (금색 = 할 일 있음 / 갈색 = 없음) */
+  #shAct .rt-b:disabled{opacity:1}
 
   /* 던전 모드 — 장착 줄·이월·액션바가 없다. 시트 껍데기만 같이 쓴다 */
   #sheet.mode-dg #shEq,#sheet.mode-dg #shSum,#sheet.mode-dg #shAct,
@@ -3912,8 +3916,10 @@
     <div id="shEq"></div>
     <div id="shBody"></div>
     <div id="shAct">
+      <!-- 금/갈은 roster.js 가 매 렌더마다 정한다 — 할 일이 있으면 .go(금색),
+           없으면 갈색이다. 여기 class 는 첫 프레임의 폴백일 뿐이다 -->
       <button class="rt-b" id="shEqBtn">자동장착</button>
-      <button class="rt-b go" id="shUp">자동강화</button>
+      <button class="rt-b" id="shUp">자동강화</button>
     </div>
   </div>
 
