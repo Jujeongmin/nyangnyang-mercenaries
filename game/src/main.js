@@ -4308,14 +4308,30 @@ function esc(v) {
 
 function arenaState() {
   const day = dayIdx(Date.now());
-  if (S.arena.day !== day) S.arena = { day, used: 0, adUsed: 0,
+  if (S.arena.day !== day) S.arena = { day, used: 0, adUsed: 0, bought: 0,
     tierClaimedDay: S.arena.tierClaimedDay };
+  if (S.arena.bought == null) S.arena.bought = 0;   // 옛 세이브
   return S.arena;
 }
 const arenaLeft = () => {
   const a = arenaState();
-  return D.arena.entries.baseDaily + (a.adUsed ? D.arena.entries.adBonus.entries : 0) - a.used;
+  return D.arena.entries.baseDaily
+    + (a.adUsed ? D.arena.entries.adBonus.entries : 0)
+    + a.bought                                     // 다이아 구매분 (diaEntry)
+    - a.used;
 };
+
+/** 다이아로 입장권 1장 (arena.json > entries.diaEntry). **상한 없음** — 다이아가 곧 상한이다 */
+function buyArenaEntry() {
+  const d = D.arena.entries.diaEntry;
+  const a = arenaState();
+  if (S.dia < d.cost) return toast(`다이아 ${num(d.cost - S.dia)} 부족`);
+  S.dia -= d.cost;
+  a.bought++;
+  // 소리는 gainToast 가 낸다 (수령음) — 여기서 또 내면 두 소리가 겹친다
+  save(); renderTop(); openArena();
+  gainToast([['arena_entry', 1, t('입장권')]]);
+}
 
 /** 오늘의 상대 5명 — 날짜 시드로 고정한다. 열 때마다 바뀌면 "고르는 맛"이 없다 */
 /**
@@ -4635,12 +4651,15 @@ function openArena(view) {
              자리는 상점뿐이라 숫자는 상점 좌상단에서만 보여 준다. 여기는
              상점으로 가는 문만 크게 남긴다 -->
         <span><button class="ar-shopb big" id="aShop">
-            <img src="/assets/ui/CU-11.png" alt="" onerror="this.remove()">${t('훈장 상점')}</button></span>
+            <img src="/assets/ui/IC-SHOP.png" alt="" onerror="this.remove()">${t('훈장 상점')}</button></span>
         <span><i>${t('남은 입장')}</i><b><img src="/assets/ui/CU-13.png" alt=""
-          style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${left} / ${
-          a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}</b>
+          style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${left} / ${a.entries.baseDaily}</b>
+          <span style="display:flex;gap:4px">
           ${arenaState().adUsed ? '' : `<button class="ar-shopb" id="aAd">+${
-            a.entries.adBonus.entries} ${t('광고')}</button>`}</span>
+            a.entries.adBonus.entries} ${t('광고')}</button>`}
+          <button class="ar-shopb" id="aBuy">+1 <img src="/assets/ui/CU-01.png" alt=""
+                style="width:10px;height:10px;vertical-align:-1px" onerror="this.remove()">${a.entries.diaEntry.cost}</button>
+          </span></span>
       </div>`
     + `<button class="fgbtn" id="aDaily" style="margin-top:8px" ${claimed ? 'disabled' : ''}>
         ${claimed ? t('오늘 보상 수령 완료')
@@ -4661,6 +4680,7 @@ function openArena(view) {
     save(); openArena();
   });
   $('#aDaily').addEventListener('click', claimArenaDaily);
+  $('#aBuy')?.addEventListener('click', buyArenaEntry);
   $('#aAd')?.addEventListener('click', arenaAd);
   $('#ovb').querySelectorAll('[data-af]').forEach(b =>
     b.addEventListener('click', e => { e.stopPropagation(); arenaFight(arenaFoes()[+b.dataset.af]); }));

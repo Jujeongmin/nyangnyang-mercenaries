@@ -88,7 +88,11 @@
       "dailyLimit": 1
     },
     "premiumBonus": 3,
-    "maxDaily": 11
+    "maxDaily": 11,
+    "diaEntry": {
+      "cost": 100,
+      "note": "다이아 100 = 입장권 1장. **상한 없음** (단장 확정 2026-08-26 — 처음 3장 상한을 뒀다가 없앴다). 다이아가 곧 상한이다. maxDaily 11 은 이 구매와 무관해졌으므로 참고값으로만 남는다."
+    }
   },
   "scoring": {
     "nameKo": "경쟁점수",

@@ -635,7 +635,9 @@
     "4~10등": "Rank 4-10",
     "11~50등": "Rank 11-50",
     "51~100등": "Rank 51-100",
-    "그 밖에": "Below 100"
+    "그 밖에": "Below 100",
+    "오늘은 더 살 수 없습니다": "Daily purchase limit reached",
+    "입장권": "Entry ticket"
   },
   "data": {
     "N-01": "Tiny Hamzzi",
