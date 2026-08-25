@@ -990,8 +990,12 @@
      절대배치로 얹는다 — 흐름에 넣으면 제작대가 오른쪽으로 밀린다 */
   #fgRow{position:relative;margin-top:auto;padding:4px 2px 12px}
   #fgDock{position:relative;display:flex;flex-direction:column;align-items:center}
+  /* 제작대 그림도 화면 높이에 매단다. 104x74 로 박아 두면 하단 패널에서
+     제일 큰 덩치가 안 줄어 그 패널이 낮은 화면을 통째로 먹는다.
+     가로세로 비(104/74 = 1.405)는 그림 비율이라 지켜야 한다 */
   #fgObj{border:none;background:none;padding:0;cursor:pointer;position:relative;
-    width:104px;height:74px;transition:transform .12s}
+    height:clamp(50px, 9.1vh, 74px);width:calc(clamp(50px, 9.1vh, 74px) * 1.405);
+    transition:transform .12s}
   #foAnim{filter:drop-shadow(0 4px 10px #000a) drop-shadow(0 0 14px #ffb04a55)}
   #fgObj:active{transform:translateY(2px) scale(.97)}
   @keyframes fgBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
@@ -2502,8 +2506,14 @@
   /* 스킬바가 bottom:6 에 높이 58 이라 위쪽 경계가 64px 이다. 상자는 그 위에 서야
      하는데, 남은 시간 배지(#chestT)가 상자보다 4px 더 내려오므로 그만큼 더 띄운다.
      62px 이면 배지가 마지막 스킬 아이콘을 덮는다 — 실제로 그랬다. */
-  #chest{position:absolute;right:6px;bottom:78px;z-index:19;pointer-events:auto;
-    width:52px;height:52px;border:none;background:none;cursor:pointer;padding:0}
+  /* 상자도 화면 높이에 매단다 — 52px 로 못 박아 두면 낮은 화면에서 전투 영역의
+     4분의 1을 먹고, 사이드 열·스킬바와 서로 자리를 다툰다 (단장 지적 2026-08-25).
+     812 에서 52px 이 기준이고 600 에서 38px 이다. bottom 도 같이 따라와야
+     스킬바 위에 계속 서 있는다 (스킬바 높이도 화면에 매달려 있다) */
+  #chest{position:absolute;right:6px;bottom:clamp(52px, 9.6vh, 78px);
+    z-index:19;pointer-events:auto;
+    width:clamp(34px, 6.4vh, 52px);height:clamp(34px, 6.4vh, 52px);
+    border:none;background:none;cursor:pointer;padding:0}
   #chest img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 3px 8px #000a)}
   #chest.full img{animation:chBob 1.4s ease-in-out infinite}
@@ -2565,17 +2575,26 @@
       radial-gradient(ellipse at 50% 50%,#0000 40%,#000000cc 100%)}
   /* 56% 씩 두 장이 대각으로 겹쳐 서로를 가렸다. 폭을 46% 로 줄이고 높이 상한을
      둬서 세로로 긴 원화도 화면을 넘지 않게 한다 */
-  #vsBoss,#vsCap{position:absolute;width:46%;max-height:42%;display:flex;
+  /* 높이는 **max-height 가 아니라 height 다.** max-height 만 주면 상자 높이가
+     auto 로 남고, 그러면 자식 img 의 `max-height:100%` 가 기댈 기준이 없어
+     none 으로 떨어진다 — 정사각 원화가 폭(46%)만큼 세로로 자라 전투 영역을
+     27px 뚫고 나갔다 (2026-08-25 실측 360x640). 예전 `22cqh` 는 이 구멍을
+     우회하려던 것이었는데 그 단위 자체가 안 풀렸다 */
+  #vsBoss,#vsCap{position:absolute;width:46%;height:42%;display:flex;
     align-items:center;justify-content:center}
   #vsBoss{right:1%;top:4%;animation:vsInR .5s cubic-bezier(.2,1.3,.4,1) both}
   #vsCap{left:1%;bottom:2%;animation:vsInL .5s cubic-bezier(.2,1.3,.4,1) .12s both}
-  #vsBoss img,#vsCap img{width:100%;max-height:100%;object-fit:contain;
+  #vsBoss img,#vsCap img{width:100%;height:100%;object-fit:contain;
     filter:drop-shadow(0 8px 22px #000c)}
   #vsCap img{transform:scaleX(1)}
   @keyframes vsInL{from{opacity:0;transform:translateX(-60%)}to{opacity:1;transform:none}}
   @keyframes vsInR{from{opacity:0;transform:translateX(60%)}to{opacity:1;transform:none}}
+  /* VS 글자도 화면 높이에 매단다. 두 원화는 이미 % (폭 46% · 높이 상한 42%)라
+     전투 상자를 따라가는데, 글자만 64px 로 박혀 있어 낮은 화면에서는 그림보다
+     글자가 커져 둘을 다 덮었다 (단장 지적 2026-08-25) */
   #vsMark{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);
-    font-family:"Black Han Sans",system-ui,sans-serif;font-size:64px;color:#fff;
+    font-family:"Black Han Sans",system-ui,sans-serif;
+    font-size:clamp(34px, 7.9vh, 64px);color:#fff;
     text-shadow:0 0 18px #ff5a4a,0 4px 0 #8e2119,0 6px 16px #000;
     animation:vsPop .45s cubic-bezier(.2,1.6,.4,1) .34s both}
   @keyframes vsPop{from{opacity:0;transform:translate(-50%,-50%) scale(2.4) rotate(-14deg)}
@@ -2590,10 +2609,8 @@
     /* 사이드 열 축소는 UI 킷 뒤(파일 끝)에서 한다 — 여기서 하면 킷 규칙이 덮는다 */
     /* 가로로 겹치지 않게 퀘스트 배너와 상자를 사이드 열 안쪽으로 민다 */
     #chest{right:8px}
-    #chest{width:46px;height:46px;bottom:56px}
     #auto,#bossGo{font-size:10px}
     #timer{font-size:19px}
-    #fgObj{width:88px;height:62px}
     #fgLv{left:calc(50% + 48px)}
     #b_auto{left:calc(50% + 50px);top:46px;width:34px;height:34px}
   }
@@ -3420,9 +3437,14 @@
      사이에서 혼자 차갑게 떠 있었다. 새 에셋을 만드는 대신 **제작대를 광원으로**
      삼는다 — 판 아래 가운데에서 불빛이 번지고 가장자리로 갈수록 어두워진다.
      제작대가 이 판의 주인공이라는 것도 빛이 대신 말해 준다. */
+  /* 액자 두께도 화면 높이에 매단다. 위아래 22px 은 1024x600 하단 패널(217px)의
+     10% 였다 — 안쪽 내용은 다 줄여 놨는데 테두리만 그대로면 그만큼이 고스란히
+     전투 화면에서 나온다 (단장 지적 2026-08-25). 좌우는 앱 폭이 바뀌지 않으니
+     그대로 12px 이다 */
   #bottom{position:relative;isolation:isolate;
     background:none;border-top:none;border-style:solid;
-    border-width:10px 12px 12px;border-image:var(--f-panel) 86 fill stretch;
+    border-width:clamp(7px, 1.23vh, 10px) 12px clamp(8px, 1.48vh, 12px);
+    border-image:var(--f-panel) 86 fill stretch;
     padding:2px 4px 4px}
   #bottom::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
     background:
@@ -3668,7 +3690,9 @@
     /* 퀘스트·상자를 사이드 안쪽으로 더 밀고 낮춘다 */
     /* 전투 영역 **우측 하단 모서리**, 스킬바 바로 위. 예전 값(right 40 · bottom 100)은
        사이드 열도 스킬바도 아닌 허공에 떠 있어 어디에 속한 물건인지 안 읽혔다 */
-    #chest{right:8px;bottom:52px;width:42px;height:42px}
+    /* 크기·높이는 위(#chest 기본 규칙)의 vh clamp 가 정한다 — 여기서 px 로
+       다시 박으면 화면 대응이 통째로 죽는다. 좁은 앱에서는 안쪽으로만 민다 */
+    #chest{right:8px}
     /* HUD 상단 — 스테이지 글자와 배속 줄을 세로로 분리 */
     #hudTop{align-items:flex-start}
     #stg{font-size:10px;max-width:40cqw}
@@ -3733,10 +3757,16 @@
     #skRow:has(#csChip2:not([hidden])) :is(.sk,#csChip,#csChip2){
       width:clamp(16px,calc((100cqw - 158px)/10),25px)}
     /* VS 연출 — 그림이 세로 공간을 넘지 않게 높이로도 묶는다. 폭 56% 는
-       360x640(전투 영역 ~205px)에서 세로로 터졌다 */
-    #vsBoss img,#vsCap img{max-height:22cqh}
-    #vsBoss,#vsCap{width:42%}
-    #vsMark{font-size:44px}
+       360x640(전투 영역 ~205px)에서 세로로 터졌다.
+
+       **`22cqh` 는 여기서 아무것도 안 했다.** #app 은 `container-type:inline-size`
+       라 세로축 컨테이너 단위를 못 푼다 — cqh 는 작은 뷰포트(svh)로 떨어져서
+       640 화면에서 141px, 곧 상한이 아니라 무제한이었다. 세로 상한은 부모
+       (#vsBoss/#vsCap 의 max-height:42%)가 이미 쥐고 있고 그 42% 는 전투 상자를
+       따라간다 — img 는 그 안에 맞추기만 하면 된다 (2026-08-25) */
+    #vsBoss,#vsCap{width:42%;height:34%}
+    /* 글자 크기는 위 기본 규칙의 vh clamp 가 정한다 — 여기서 px 로 다시 박으면
+       600 과 812 가 같은 44px 이 된다 */
     /* 벽 안내 카드 — 좁은 화면은 글자도 한 단계 줄인다 */
     #wallCard{padding:10px 11px}
     #wallCard>b{font-size:12px}
