@@ -2428,6 +2428,12 @@
   .st-row{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
   .st-row > span:first-child{flex:1}
+  /* 줄 앞의 아이콘. 그림 파일이 아니라 **인라인 SVG** 다 — 20px 짜리 로고
+     하나를 위해 에셋을 늘리지 않았고, 벡터라 화면 크기와 무관하게 안 뭉갠다.
+     :first-child 가 아이콘으로 바뀌므로 위 규칙(flex:1)이 라벨을 안 잡는다 —
+     그래서 라벨 쪽을 따로 늘린다 */
+  .st-row .st-ic{flex:0 0 auto;width:20px;height:20px;display:block}
+  .st-row .st-ic + span{flex:1}
   .st-row.link{cursor:pointer}
   .st-row.link b{color:var(--dim);font-weight:700}
   .st-seg{display:flex;gap:4px}
