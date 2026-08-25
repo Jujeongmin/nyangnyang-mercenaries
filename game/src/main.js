@@ -4625,11 +4625,11 @@ function openArena(view) {
     + rows
     + `<div class="ar-stat">
         <span><i>${t('점수')}</i><b>${num(S.arenaScore)}</b></span>
-        <span><i>${t('훈장')}</i><b><img src="/assets/ui/CU-11.png" alt=""
-          onerror="this.remove()">${num(S.medal)}</b>
-          <button class="ar-shopb ic" id="aShop" title="${t('훈장 상점')}">
-            <img src="/assets/ui/IC-SHOP.png" alt="${t('상점')}"
-              onerror="this.replaceWith(document.createTextNode('${t('상점')}'))"></button></span>
+        <!-- 보유 훈장 수는 여기서 뺐다 (단장 확정 2026-08-26) — 훈장을 쓰는
+             자리는 상점뿐이라 숫자는 상점 좌상단에서만 보여 준다. 여기는
+             상점으로 가는 문만 크게 남긴다 -->
+        <span><button class="ar-shopb big" id="aShop">
+            <img src="/assets/ui/CU-11.png" alt="" onerror="this.remove()">${t('훈장 상점')}</button></span>
         <span><i>${t('남은 입장')}</i><b><img src="/assets/ui/CU-13.png" alt=""
           style="width:14px;height:14px;vertical-align:-2px" onerror="this.remove()"> ${left} / ${
           a.entries.baseDaily + (arenaState().adUsed ? a.entries.adBonus.entries : 0)}</b>

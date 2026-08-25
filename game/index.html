@@ -1389,10 +1389,9 @@
     padding:4px 10px;cursor:pointer;font-size:12px}
   #ovb{flex:1;overflow-y:auto;overflow-x:hidden;font-size:13px;padding:12px}
   /* 훈장 상점 — 아레나 화면 안의 작은 아이콘. 버는 곳과 쓰는 곳을 붙여 둔다 */
-  #aShop{width:22px;height:22px;margin-left:6px;padding:0;vertical-align:-5px;
-    background:var(--ink);border:1px solid var(--gold);border-radius:6px;cursor:pointer;
-    font-size:12px;line-height:1;color:var(--gold)}
-  #aShop img{width:14px;height:14px;object-fit:contain;display:block;margin:auto}
+  /* 작은 아이콘 단추(22px) 시절 규칙은 걷었다 — 훈장 상점 문이 [훈장 그림 +
+     글자] 버튼(.ar-shopb.big)으로 커지면서 id 규칙이 그걸 도로 22px 로 눌렀다
+     (2026-08-26. id 가 클래스보다 세다) */
   #aShop:active{transform:translateY(1px)}
   .mdBuy{min-width:66px;padding:6px 10px;border-radius:8px;cursor:pointer;
     font-family:inherit;font-size:12px;font-weight:800;color:#1a1408;
@@ -1912,6 +1911,10 @@
   .ar-stat u{text-decoration:none;font-size:9px;color:var(--gold);font-weight:800}
   .ar-shopb.ic{padding:2px 7px;line-height:0}
   #ovb .ar-shopb.ic img{width:16px;height:16px;object-fit:contain}
+  /* 훈장 상점 문 — 아이콘 하나였을 땐 상점인지 몰랐다. 훈장 그림 + 글자로 크게 */
+  .ar-shopb.big{display:inline-flex;align-items:center;gap:5px;
+    padding:7px 14px;font-size:12px}
+  #ovb .ar-shopb.big img{width:17px;height:17px;object-fit:contain}
   .ar-shopb{margin-top:2px;background:#241a12;border:1px solid #c9a22766;
     color:var(--gold);border-radius:7px;padding:2px 8px;font-size:9px;
     font-weight:800;font-family:inherit;cursor:pointer}
