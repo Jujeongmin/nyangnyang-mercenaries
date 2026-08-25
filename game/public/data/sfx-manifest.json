@@ -21,8 +21,8 @@
       "ms": 917
     },
     "sfx_hit_melee": {
-      "f": "sfx_hit_melee.mp3",
-      "ms": 297
+      "f": "sfx_hit_melee.ogg",
+      "ms": 183
     },
     "sfx_hit_range": {
       "f": "sfx_hit_range.mp3",
