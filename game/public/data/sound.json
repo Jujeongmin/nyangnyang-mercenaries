@@ -23,7 +23,10 @@
     "loading": {
       "bgm": "lazy - 해당 화면 진입 시 로드",
       "sfx": "P0는 프리로드, P1/P2는 지연 로드"
-    }
+    },
+    "conversionDecision": "변환 없이 원본을 그대로 쓴다 (단장 확정 2026-08-26). 이 PC 에 ffmpeg 이 없고, 42종이면 총 1~2MB 라 감당된다. mp3 96kbps 모노 목표는 나중에 필요해지면 그때 맞춘다.",
+    "oggWarning": "**Kenney 후보는 ogg 다.** Safari 는 Vorbis 를 18.4 에서야 넣었다 — 그 아래 iOS 는 ogg 를 못 연다. 재생기가 로드 실패를 그냥 무음으로 넘기므로 게임이 깨지지는 않지만, 그 큐만 조용해진다. iOS 구버전을 챙겨야 하면 고른 ogg 만 mp3 로 다시 구워야 한다 (ffmpeg 필요).",
+    "mixedNote": "ElevenLabs 로 만든 것은 이미 mp3 라 문제 없다. 섞여 있어도 재생기는 URL 만 읽으므로 상관없다."
   },
   "playbackRules": {
     "criticalNote": "자동 소환은 배치당 최대 700개를 굴린다. 개당 소리를 재생하면 오디오가 즉시 붕괴한다.",
