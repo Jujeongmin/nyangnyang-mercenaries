@@ -116,7 +116,13 @@
      둔 자식들(사이드 열·스킬바·상자)이 그만큼 밀린다 — 아래에서 되돌린다 */
   #app{--bleed:18px}
   #top,#bottom{position:relative;z-index:2}
+  /* **isolation 이 핵심이다.** 전투 상자는 위아래 패널 뒤로 파고드는데, 그 안의
+     높은 z-index 자식들(#vs 30 · #wall 28 · 스킬바 20 …)이 층위를 안 가르면
+     패널(z 2)과 같은 무대에서 경쟁해 패널 위로 그려진다 — VS 연출이 전투
+     화면을 넘어 위아래로 새어 나왔다 (단장 지적 2026-08-25).
+     독립 층위로 만들면 안쪽 z-index 는 상자 안에서만 겨룬다 */
   #battle{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#1e1710;
+    isolation:isolate;z-index:0;
     margin-top:calc(var(--bleed) * -1);margin-bottom:calc(var(--bleed) * -1)}
   /* 파고든 만큼 되돌린다 — 이 값들은 "패널에서 얼마 떨어졌나"라서 상자가
      커져도 눈에 보이는 거리는 그대로여야 한다.
@@ -294,11 +300,13 @@
   #bootLogo{display:block;width:100%;filter:drop-shadow(0 12px 30px #000c)}
   /* 나무판 안쪽 — GT-LOGO.png(512²) 실측 좌 92 우 420 상 222 하 332 을
      비율로 옮긴 값이다. 그림을 갈면 이 네 숫자를 다시 잰다 */
-  /* 긴 번역(영어)은 한 줄로 안 들어간다 — 줄바꿈을 허용하고 balance 로
-     두 줄을 비슷한 길이로 가른다. 한국어는 원래 한 줄에 들어가 그대로다 */
+  /* **줄바꿈은 코드가 정한다** (main.js > fitBootTitle). nowrap 이라 브라우저가
+     제멋대로 접지 않고, 넘치면 scrollWidth 로 잡혀 글자가 줄어든다.
+     여기서 접기를 허용하면 폭 초과가 감지되지 않아 축소가 안 걸리고, 영어가
+     "Nyang / Nyang / Mercenaries" 세 줄이 된다 (단장 지적 2026-08-25) */
   #bootTitle{position:absolute;left:19%;right:19%;top:43.5%;height:21.5%;
     display:flex;align-items:center;justify-content:center;
-    text-align:center;line-height:1.05;text-wrap:balance;
+    text-align:center;line-height:1.05;white-space:nowrap;
     font-size:10cqi;letter-spacing:.5px;
     /* 색·굵기 주의:
        · Black Han Sans 는 **굵기가 400 하나뿐**이다. 900 을 주면 브라우저가
@@ -862,8 +870,10 @@
   #skillbar #skills{pointer-events:auto}
   #dpsInfo{font-size:10px;color:#f2e5db;text-shadow:0 1px 3px #000,0 0 6px #000}
   #skills{max-width:calc(100cqw - 62px);display:flex;justify-content:center;gap:6px}
-  /* 아이콘 폭 = (화면 - AUTO 40 - 간격·여백 88) / 8. 고정폭이면 390 에서 8px 넘쳤다 */
-  .sk{position:relative;width:clamp(30px,calc((100cqw - 110px)/8),46px);aspect-ratio:1;
+  /* 아이콘 폭 = (화면 - AUTO 40 - 간격·여백 88) / 8. 고정폭이면 390 에서 8px 넘쳤다.
+     상한 46px 은 앱이 480px 이던 시절 값이라, PC 에서 앱이 720px 로 넓어지자
+     칸만 작게 남아 줄이 가운데로 쪼그라들어 보였다 (단장 지적 2026-08-25) */
+  .sk{position:relative;width:clamp(30px,calc((100cqw - 110px)/8),64px);aspect-ratio:1;
     height:auto;border-radius:50%;overflow:hidden;
     background:radial-gradient(circle at 50% 35%,#2b3650cc,#1c1612cc);
     border:2px solid #0009;box-shadow:0 2px 6px #0008;
@@ -2905,7 +2915,12 @@
     background:none;border-style:solid;border-width:10px;border-radius:0;
     border-image:var(--f-btn) 127 163 fill stretch;color:var(--txt);
     text-shadow:0 1px 2px #0009;padding:2px 6px}
+  /* **background 를 여기서도 지운다.** 위 규칙의 background:none 은 기본형에만
+     걸려 있어서, 광고 버튼(.ad)에 남아 있던 초록 그라디언트가 9-slice 프레임의
+     둥근 모서리 **바깥**으로 비쳐 네 귀에 초록 얼룩이 남았다
+     (방치 보상 패널에서 실제로 보였다 — 단장 지적 2026-08-25) */
   .er-pick:not(.scrap),.q-go.done,.id-btns .ad,.id-alt button.ad,.act.primary,.act.on{
+    background:none;border-color:transparent;
     border-image:var(--f-go) 159 209 fill stretch;color:#2a1c05;
     text-shadow:0 1px 0 #ffe9a880}
   .act:disabled,.q-go:disabled,.er-pick:disabled{opacity:1;

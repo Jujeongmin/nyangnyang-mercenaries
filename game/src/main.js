@@ -6203,6 +6203,10 @@ function fitBootTitle() {
     // **가로만 본다.** 세로(scrollHeight)까지 조건에 넣었더니, flex 로 가운데
     // 정렬한 칸에서 값이 늘 크게 잡혀 한국어 제목까지 바닥(9px)으로 줄었다.
     // 두 줄이 되면 칸보다 조금 높아지는데 그건 판 위에서 문제가 안 된다.
+    //
+    // 이 축소가 **동작하려면 칸이 nowrap 이어야 한다** (index.html > #bootTitle).
+    // 접기를 허용하면 넘쳐도 scrollWidth 가 안 커져서 줄이 조용히 하나 더
+    // 늘 뿐이다 — 영어가 "Nyang / Nyang / Mercenaries" 세 줄이 됐다
     let size = parseFloat(getComputedStyle(el).fontSize);
     let guard = 24;
     while (guard-- > 0 && size > 16 && el.scrollWidth > el.clientWidth + 1) {
