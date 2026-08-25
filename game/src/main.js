@@ -3411,9 +3411,13 @@ function openDungeons() { roster.open('dungeon'); }
  */
 function allianceRows() {
   const rows = live.get('alliances');
-  return rows ? rows.map(a => ({
+  if (rows) return rows.map(a => ({
     id: a.__id, name: a.name, members: a.members || 0, weekly: a.weekly || 0,
-  })) : demoAlliances();
+  }));
+  // 데모 목록은 **개발 빌드에서만** (단장 확정 2026-08-26. 친구 목록과 같은
+  // 결 — DEMO_SOCIAL 의 이유 참조). 배포본에서 지어낸 연합이 서 있으면
+  // 가입 버튼이 아무 데도 안 가는 장식이고, 실제 연합이 생겨도 그 사이에 묻힌다
+  return DEMO_SOCIAL ? demoAlliances() : [];
 }
 
 /** 데모 연합 목록 — 서버가 없을 때. 날짜 시드라 하루 동안은 같은 목록이다 */
@@ -4595,9 +4599,11 @@ function openArena(view) {
         onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         ${f.title ? `<i style="display:block;font-size:9px;color:var(--gold);font-style:normal">${t(f.title)}</i>` : ''}
-        <span class="k" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t('전투력')} ${num(f.cp)} · ${t('승리 시')} <b style="color:${col}">+${gain}</b></span></span>
+        <span class="k" style="display:block;white-space:nowrap">${t('전투력')} ${num(f.cp)}</span></span>
+      <!-- 승리 +N 은 버튼 안에 — 설명 줄에 두면 좁은 화면에서 말줄임에 먼저
+           잘리는 게 하필 그 숫자였다 (단장 지적 2026-08-26). 색도 같이 간다 -->
       <button class="ar-fight" data-af="${f.i}" ${left < 1 ? 'disabled' : ''}
-        style="--wc:${col}">${t('도전')}</button></div>`;
+        style="--wc:${col}">${t('도전')} +${gain}</button></div>`;
   }).join('');
 
   const bracket = arenaRankBracket();
