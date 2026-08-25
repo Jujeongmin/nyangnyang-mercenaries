@@ -23,53 +23,26 @@ const HAVE_DIR = path.join(ROOT, 'game/public/assets/sfx');
 const P = { rpg: 'rpg-audio', ui: 'ui-audio', ifc: 'interface-sounds', imp: 'impact-sounds' };
 const f = (pack, name) => `_pick/${P[pack]}/${name}.ogg`;
 
-// ── 남은 큐의 후보 3안 — 실사 폴리만 ──────────────────────────
+// ── 2차 후보 — 1차 반려분만 ──────────────────────────────────
 const PICK = {
-  // 전투
-  sfx_hit_magic:    [f('imp','impactGlass_light_000'), f('imp','impactTin_medium_000'), f('imp','impactPlate_light_000')],
-  sfx_crit:         [f('imp','impactMetal_heavy_000'), f('imp','impactBell_heavy_000'), f('imp','impactMetal_heavy_003')],
-  sfx_stage_win:    [f('ifc','confirmation_002'),      f('ifc','bong_001'),             f('ifc','pluck_001')],
-  sfx_drumroll:     [f('imp','impactMining_000'),      f('imp','impactMining_002'),     f('rpg','creak2')],
-  sfx_summon_result:[f('rpg','metalLatch'),            f('ifc','confirmation_001'),     f('rpg','bookClose')],
-  sfx_quest_done:   [f('ifc','confirmation_003'),      f('ifc','pluck_002'),            f('ifc','bong_001')],
-  sfx_evade:        [f('rpg','cloth1'),                f('rpg','cloth3'),               f('rpg','clothBelt')],
-  sfx_counter:      [f('imp','impactMetal_medium_000'),f('rpg','metalClick'),           f('imp','impactMetal_light_002')],
-  sfx_damaged:      [f('imp','impactSoft_heavy_000'),  f('imp','impactSoft_medium_002'),f('imp','impactGeneric_light_000')],
-  sfx_unit_death:   [f('imp','impactSoft_heavy_003'),  f('imp','impactWood_heavy_002'), f('rpg','dropLeather')],
-  sfx_boss_appear:  [f('imp','impactBell_heavy_002'),  f('imp','impactMining_004'),     f('imp','impactPlate_heavy_000')],
-  sfx_stage_lose:   [f('imp','impactWood_heavy_004'),  f('rpg','doorClose_3'),          f('imp','impactSoft_heavy_004')],
-  sfx_popup_open:   [f('ifc','open_001'),              f('rpg','bookOpen'),             f('ifc','maximize_002')],
-  sfx_popup_close:  [f('ifc','close_001'),             f('rpg','bookClose'),            f('ifc','minimize_002')],
-  // 스킬 — 현실 사물로 대신한다
-  sfx_sk_lightning: [f('imp','impactGlass_light_003'), f('ifc','glitch_002'),           f('imp','impactTin_medium_002')],
-  sfx_sk_fire:      [f('rpg','cloth4'),                f('imp','impactSoft_medium_004'),f('rpg','clothBelt2')],
-  sfx_sk_pierce:    [f('rpg','knifeSlice'),            f('rpg','knifeSlice2'),          f('imp','impactPlank_medium_000')],
-  sfx_sk_ice:       [f('imp','impactGlass_medium_001'),f('ifc','glass_003'),            f('imp','impactGlass_light_004')],
-  sfx_sk_slash:     [f('rpg','chop'),                  f('rpg','drawKnife1'),           f('rpg','drawKnife3')],
-  sfx_sk_buff:      [f('ifc','pluck_001'),             f('rpg','metalPot2'),            f('ifc','bong_001')],
-  sfx_sk_heal:      [f('ifc','drop_001'),              f('ifc','drop_003'),             f('rpg','metalPot3')],
-  sfx_sk_shield:    [f('imp','impactPlate_medium_000'),f('ifc','glass_005'),            f('imp','impactPlate_light_002')],
-  sfx_sk_summon:    [f('ifc','drop_004'),              f('rpg','beltHandle2'),          f('rpg','cloth2')],
-  // 재화
-  sfx_gold:         [f('rpg','handleCoins'),           f('rpg','handleCoins2'),         f('imp','impactTin_medium_001')],
-  sfx_diamond:      [f('imp','impactGlass_light_001'), f('ifc','glass_001'),            f('ifc','tick_001')],
-  sfx_purchase:     [f('rpg','metalLatch'),            f('ifc','confirmation_004'),     f('rpg','handleCoins')],
-  // 알림
-  sfx_badge:        [f('ifc','tick_002'),              f('ifc','bong_001'),             f('ui','click2')],
-  sfx_timer_done:   [f('ifc','bong_001'),              f('ifc','confirmation_001'),     f('ifc','tick_004')],
-  // 던전·아레나
-  sfx_floor_clear:  [f('rpg','metalLatch'),            f('ifc','confirmation_002'),     f('rpg','doorOpen_2')],
-  sfx_arena_match:  [f('imp','impactPlate_heavy_002'), f('imp','impactMetal_heavy_004'),f('rpg','metalPot1')],
-  sfx_arena_win:    [f('ifc','confirmation_003'),      f('ifc','pluck_002'),            f('rpg','handleCoins2')],
-  sfx_arena_lose:   [f('imp','impactWood_heavy_003'),  f('rpg','doorClose_4'),          f('imp','impactSoft_heavy_002')],
-  // 기타
-  sfx_codex_new:    [f('rpg','bookFlip1'),             f('rpg','bookFlip3'),            f('rpg','bookPlace2')],
-  sfx_mail:         [f('rpg','bookPlace1'),            f('ifc','drop_002'),             f('ifc','scroll_002')],
-  sfx_dungeon_enter:[f('rpg','doorOpen_1'),            f('rpg','creak1'),               f('rpg','doorOpen_2')],
+  // 2차 후보 — 1차가 전부 반려된 7종만 남았다. **반려된 파일은 다시 안 내민다.**
+  // 성격을 아예 다른 쪽으로 튼다: 1차가 유리·금속 계열이었으면 2차는 나무·천·
+  // 종이·물 쪽으로. 같은 계열에서 번호만 바꿔 내밀면 또 반려될 뿐이다.
+  sfx_sk_lightning: [f('imp','impactTin_medium_004'),  f('ifc','scratch_001'),          f('rpg','metalClick')],
+  sfx_sk_pierce:    [f('rpg','drawKnife2'),            f('imp','impactWood_light_000'), f('rpg','cloth2')],
+  sfx_sk_buff:      [f('rpg','handleSmallLeather'),    f('ifc','select_006'),           f('rpg','clothBelt')],
+  sfx_sk_heal:      [f('rpg','bookPlace3'),            f('ifc','scroll_004'),           f('rpg','cloth1')],
+  sfx_sk_shield:    [f('rpg','beltHandle1'),           f('imp','impactWood_medium_001'),f('rpg','handleSmallLeather2')],
+  sfx_diamond:      [f('rpg','metalClick'),            f('ifc','select_002'),           f('imp','impactBell_heavy_003')],
+  sfx_arena_lose:   [f('rpg','doorClose_1'),           f('imp','impactPlank_medium_003'),f('rpg','creak3')],
 };
 
+// 확장자는 mp3(직접 만든 것)와 ogg(Kenney)가 섞인다 — 둘 다 "확보" 로 센다.
+// mp3 만 보면 방금 넣은 ogg 를 못 알아보고 다시 고르라고 내민다 (실제로 그랬다)
 const have = fs.existsSync(HAVE_DIR)
-  ? new Set(fs.readdirSync(HAVE_DIR).filter(x => x.endsWith('.mp3')).map(x => x.replace('.mp3', '')))
+  ? new Set(fs.readdirSync(HAVE_DIR)
+      .filter(x => /\.(mp3|ogg)$/.test(x))
+      .map(x => x.replace(/\.(mp3|ogg)$/, '')))
   : new Set();
 
 const cues = [];

@@ -130,43 +130,6 @@
         "nameKo": "크리티컬",
         "priority": "P0",
         "note": "일반 타격과 확실히 구분돼야 한다. 전사 패시브의 체감이 여기서 나온다"
-      },
-      {
-        "id": "sfx_evade",
-        "nameKo": "회피",
-        "priority": "P1",
-        "note": "궁수 패시브 체감"
-      },
-      {
-        "id": "sfx_counter",
-        "nameKo": "반격",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_damaged",
-        "nameKo": "피격",
-        "priority": "P1",
-        "note": "공격음보다 작게. 같은 크기면 화면이 뭉개진다"
-      },
-      {
-        "id": "sfx_unit_death",
-        "nameKo": "유닛 사망",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_boss_appear",
-        "nameKo": "보스 등장",
-        "priority": "P1"
-      },
-      {
-        "id": "sfx_stage_win",
-        "nameKo": "스테이지 승리",
-        "priority": "P0"
-      },
-      {
-        "id": "sfx_stage_lose",
-        "nameKo": "스테이지 패배",
-        "priority": "P1"
       }
     ],
     "skill": [
@@ -305,45 +268,12 @@
     ],
     "notify": [
       {
-        "id": "sfx_badge",
-        "nameKo": "뱃지 등장",
-        "priority": "P1",
-        "note": "교체 가능 장비·자동강화 대기 알림"
-      },
-      {
         "id": "sfx_quest_done",
         "nameKo": "퀘스트 완료",
         "priority": "P0"
-      },
-      {
-        "id": "sfx_timer_done",
-        "nameKo": "타이머 완료",
-        "priority": "P1",
-        "note": "장비 소환 레벨업 완료"
-      },
-      {
-        "id": "sfx_mail",
-        "nameKo": "우편 도착",
-        "priority": "P2"
       }
     ],
     "dungeonArena": [
-      {
-        "id": "sfx_dungeon_enter",
-        "nameKo": "던전 입장",
-        "priority": "P2"
-      },
-      {
-        "id": "sfx_floor_clear",
-        "nameKo": "층 돌파",
-        "priority": "P1",
-        "note": "일일 수령량 영구 상승. 성취 체감 필요"
-      },
-      {
-        "id": "sfx_arena_match",
-        "nameKo": "아레나 매칭",
-        "priority": "P2"
-      },
       {
         "id": "sfx_arena_win",
         "nameKo": "아레나 승리",
@@ -405,5 +335,24 @@
     "note": "버튼을 누르는 순간일 뿐인 큐는 sfx_tap 하나로 통일했다 (단장 확정 2026-08-26). 소리를 따로 만들어도 유저는 \"버튼이 먹었다\" 로만 읽고, 큐가 늘수록 만들 것과 어긋날 곳만 는다.",
     "impl": "재생기가 이 id 들을 받으면 sfx_tap 을 낸다 — 호출부를 안 고쳐도 되고, 나중에 따로 주고 싶어지면 여기서 다시 갈라내면 된다."
   },
-  "aliasNote": "aliasOf 가 있는 큐는 그 큐의 파일을 그대로 쓴다. 재생기가 id 를 받으면 alias 를 따라간다 — 호출부는 원래 id 를 그대로 부르면 된다."
+  "aliasNote": "aliasOf 가 있는 큐는 그 큐의 파일을 그대로 쓴다. 재생기가 id 를 받으면 alias 를 따라간다 — 호출부는 원래 id 를 그대로 부르면 된다.",
+  "droppedCues": {
+    "cues": [
+      "sfx_evade",
+      "sfx_counter",
+      "sfx_damaged",
+      "sfx_unit_death",
+      "sfx_boss_appear",
+      "sfx_stage_win",
+      "sfx_stage_lose",
+      "sfx_badge",
+      "sfx_mail",
+      "sfx_timer_done",
+      "sfx_dungeon_enter",
+      "sfx_floor_clear",
+      "sfx_arena_match"
+    ],
+    "note": "소리를 안 넣기로 한 큐다 (단장 확정 2026-08-26). 전투 중 자잘한 사건(회피·반격·피격·사망)과 상시 알림(뱃지·우편·타이머)이 대부분이다 — 방치 게임에서 이것들은 초당 여러 번, 혹은 백그라운드에서 계속 나므로 소리가 붙으면 득보다 소음이 된다.",
+    "reversible": "나중에 넣고 싶어지면 이 목록에서 빼고 파일만 넣으면 된다. 재생기는 파일이 없는 큐를 조용히 넘긴다."
+  }
 }
