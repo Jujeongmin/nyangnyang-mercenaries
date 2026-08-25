@@ -3553,6 +3553,16 @@ const FRIEND_MAX = 30;
 const FR_FACES = ['normal', 'happy', 'surprise', 'trouble'];
 const FR_CLS = ['warrior', 'archer', 'mage'];
 
+/**
+ * 지어낸 계정을 화면에 올려도 되는 판인가 — **개발 빌드에서만** 참이다.
+ *
+ * 친구는 선물로 진짜 골드가 들어오는 자리다. 서버가 안 붙은 배포본에서
+ * 지어낸 이름 다섯이 목록에 앉아 있으면, 그건 데모가 아니라 매일 눌러서
+ * 골드를 찍는 버튼이고 실제 단장이 있는 척하는 거짓말이다
+ * (단장 지적 2026-08-25). 개발 중에는 목록 UI 를 볼 표본이 필요하므로 남긴다.
+ */
+const DEMO_SOCIAL = !import.meta.env.PROD;
+
 function demoFriends() {
   // publicProfile() 과 같은 필드만 — 서버가 붙으면 findProfiles() 가 준다
   const NAMES = ['까칠한 츄르', '엉덩이 탐정', '식빵 굽는 냥', '새벽 야옹', '츄르 도둑'];
@@ -3640,8 +3650,8 @@ function friendState() {
       id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
       stage: x.stage || 1, capCls: x.capCls || 'warrior',
     }));
-  } else if (!S.friends.list.length && !live.liveReady()) {
-    S.friends.list = demoFriends();   // 서버가 없을 때만
+  } else if (!S.friends.list.length && !live.liveReady() && DEMO_SOCIAL) {
+    S.friends.list = demoFriends();   // 서버가 없는 **개발 빌드**에서만
   }
   if (S.friends.day !== day) {
     S.friends.day = day;
@@ -3682,7 +3692,9 @@ function friendCandidates(seed, n = 6) {
       face: i % 4, frame: i % 4,
     }));
   }
-  return demoFriendCandidates(seed, n);
+  // 배포본에서 서버가 없으면 추천할 단장이 **없는 게 맞다**. 지어낸 후보를
+  // 세워 두면 신청 버튼이 아무 데도 안 가는 장식이 된다
+  return DEMO_SOCIAL ? demoFriendCandidates(seed, n) : [];
 }
 
 /** 서버가 없을 때의 후보. seed 가 같으면 같은 목록이다 */
@@ -3813,7 +3825,8 @@ function openFriendRequests() {
       <button class="rt-b" id="frRe" ${left > 0 ? 'disabled' : ''}>${
         left > 0 ? `${left}${t('초')}` : `⟳ ${t('새로 고침')}`}</button>
     </div>
-    ${cands.map((x, i) => row(x, i, 'out')).join('')}
+    ${cands.length ? cands.map((x, i) => row(x, i, 'out')).join('')
+      : `<div class="sh-note">${t('지금은 추천할 단장이 없습니다')}</div>`}
     `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
@@ -3950,9 +3963,11 @@ function openFriends() {
         style="width:12px;height:12px;vertical-align:-2px"> ${num(gift)}</span></div>
     ${G.live ? `<div class="frow"><span class="k">${t('받을 선물')}</span>
       <span class="v">${(G.inbox || []).length}</span></div>` : ''}
-    <button class="fgbtn" id="frAll" style="margin:8px 0 10px"
-      ${allLeft ? '' : 'disabled'}>${allLeft ? t('전체 선물 보내기 + 받기') : t('오늘은 다 주고받았습니다')}</button>
+    ${f.list.length ? `<button class="fgbtn" id="frAll" style="margin:8px 0 10px"
+      ${allLeft ? '' : 'disabled'}>${allLeft ? t('전체 선물 보내기 + 받기') : t('오늘은 다 주고받았습니다')}</button>` : ''}
     ${rows}
+    ${f.list.length ? '' : `<div class="sh-note" style="margin-top:10px">${
+      t('아직 친구가 없습니다. [친구 신청] 에서 다른 단장을 찾아보세요')}</div>`}
     `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
@@ -4002,7 +4017,8 @@ function openFriends() {
       else openFriends();
       if (g) gainToast([['gold', g]]);
     }));
-  $('#frAll').addEventListener('click', async () => {
+  // 친구가 하나도 없으면 이 버튼 자체를 안 그린다
+  $('#frAll')?.addEventListener('click', async () => {
     let got = 0;
     if (G.live) {
       // 보내기는 각자 한 번씩 (서버가 쌍마다 하루 한 번을 센다), 받기는 한 번에
@@ -6041,11 +6057,24 @@ function hideTapHint() {
 /** 화면을 덮는 판들. watchTapHintCover 가 채운다 */
 let hintCovers = [];
 
-/** 지금 화면을 덮고 있는 판이 있나 — 손을 띄울지 말지의 기준 */
+/**
+ * 지금 화면을 덮고 있는 판이 있나 — 손을 띄울지 말지의 기준.
+ *
+ * **떠 있는 것과 가리는 것은 다르다.** display 만 보던 때에는 `#toast`·`#gains`
+ * 처럼 z 만 높고 실제로는 아무것도 안 가리는 칸(pointer-events:none, 크기 0)이
+ * 늘 "열려 있음" 으로 세어져서 coverOpen 이 **항상 참**이었다 — 그래서 손이
+ * 어느 퀘스트에서도 안 떴다 (단장 지적 2026-08-25, Q1 무기 제작).
+ * 판정은 셋을 다 본다: 보이는가, 클릭을 먹는가, 덮을 만한 크기인가.
+ */
 function coverOpen() {
   return hintCovers.some(e => {
     const c = getComputedStyle(e);
-    return c.display !== 'none' && c.visibility !== 'hidden';
+    if (c.display === 'none' || c.visibility === 'hidden') return false;
+    // 클릭을 안 먹으면 밑의 버튼을 그대로 누를 수 있다 — 가리는 게 아니다
+    // (`#boot.hide` 도 여기서 걸린다: opacity 0 + pointer-events none)
+    if (c.pointerEvents === 'none' || parseFloat(c.opacity) < 0.05) return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 40 && r.height > 40;
   });
 }
 
@@ -6881,5 +6910,10 @@ function bootTapToStart() {
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));
   await bootTapToStart();
+  // 타이틀이 걷힌 **뒤에** 온보딩 손을 판단한다. renderQuest 안에서만 부르면
+  // 그 렌더는 타이틀이 아직 화면을 덮고 있을 때 이미 지나갔고, 걷힌 다음에는
+  // 진행도가 바뀌기 전까지 다시 안 돌아서 첫 손이 영영 안 떴다
+  // (단장 지적 2026-08-25). 걷히는 애니메이션(0.4s)이 끝나고 잰다
+  setTimeout(maybeOnboardHint, 500);
   await runStage();
 })();

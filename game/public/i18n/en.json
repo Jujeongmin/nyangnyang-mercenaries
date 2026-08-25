@@ -1,5 +1,7 @@
 {
  "ui": {
+    "아직 친구가 없습니다. [친구 신청] 에서 다른 단장을 찾아보세요": "No friends yet. Find other captains under [Friend requests].",
+    "지금은 추천할 단장이 없습니다": "No captains to recommend right now.",
     "다음 지급: {0} (소환권 {1}장)": "Next: {0} ({1} tickets)",
     "다음: {0}": "Next: {0}",
     "편성": "Party",
