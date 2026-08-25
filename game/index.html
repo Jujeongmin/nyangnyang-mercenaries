@@ -366,19 +366,26 @@
     #boot.ready #bootStart{animation:none;opacity:.95}
   }
   /* 언어 선택 — 진행이 끝나면 첫 실행에만 뜬다 */
-  /* 화면 한가운데에 두면 로고(#bootLogo)를 반쯤 덮는다. 로고 아래로 내린다 —
-     top 을 62% 로 두고 자기 높이만큼만 위로 당긴다(translateY 0) */
-  #bootLang{position:absolute;left:50%;top:62%;transform:translateX(-50%);
+  /* **띄우지 않고 세로 기둥에 끼운다.** 예전에는 absolute + top:62% 였는데,
+     그 62% 는 화면 높이의 62% 지 상자 높이와는 아무 상관이 없다. 언어가 다섯
+     줄로 늘어나 상자가 274px 이 되자 667px 짜리 화면에서 아래가 20px 잘려
+     繁體中文 버튼이 #boot 의 overflow:hidden 에 먹혔다 (단장 지적 2026-08-25).
+     흐름에 끼우면 위 칸(#bootMain)이 남는 만큼만 차지하므로 **몇 줄이 되든
+     상자가 화면 밖으로 못 나간다.** 그래도 모자라면 상자 안에서 스크롤한다 */
+  #bootLang{position:relative;z-index:2;flex:0 0 auto;
+    max-height:calc(100% - 24px);overflow-y:auto;margin-bottom:5vh;
     display:none;flex-direction:column;gap:7px;align-items:center;
     background:var(--card)f2;border:1px solid var(--gold);border-radius:14px;
-    padding:16px 22px;box-shadow:0 16px 50px #000c;z-index:2}
-  /* 언어 선택이 떠 있는 동안에는 로고를 살짝 올려 자리를 비운다 */
-  #boot:has(#bootLang.show) #bootMain{justify-content:flex-start;padding-top:12%}
+    padding:16px 22px;box-shadow:0 16px 50px #000c}
+  /* 위 칸이 줄어들 수 있어야 한다 — min-height 기본값(auto)이면 flex 항목은
+     내용보다 작아지지 않아서 상자를 도로 밀어낸다. 간판도 같이 조금 줄인다 */
+  #boot:has(#bootLang.show) #bootMain{min-height:0;overflow:hidden}
+  #boot:has(#bootLang.show) #bootSign{width:min(300px,72vw)}
   /* 그리고 **하단(진행바·플레이버)을 감춘다.** 언어를 고를 때까지 로딩은 어차피
      멈춰 있어 진행도가 의미가 없는데, 상자 아래쪽 안내문과 겹쳐서 글자가
      서로를 파고들었다 (실측: 상자 503~716 · 진행바 674~686 · 문구 693~708).
-     display 가 아니라 visibility 인 이유 — 자리는 남겨야 상자가 안 움직인다 */
-  #boot:has(#bootLang.show) #bootBottom{visibility:hidden}
+     흐름에 들어온 뒤로는 자리를 남길 이유가 없다 — display 로 통째로 뺀다 */
+  #boot:has(#bootLang.show) #bootBottom{display:none}
   #bootLang.show{display:flex}
   #bootLang>b{font-size:13px}
   #bootLangBtns{display:flex;flex-direction:column;gap:7px}
