@@ -44,9 +44,12 @@ export class CodexScreen {
       const c = D.characters.characters.find(x => x.id === id);
       if (c && byG[c.grade]) m += byG[c.grade].bonusEach;
     }
+    // 스킬 표도 **등급마다 객체**다 ({count, bonusEach, subtotal}). 예전에는
+    // 숫자처럼 그냥 더해서 합이 NaN 이 되고 "전투력 +NaN%" 으로 떴다
+    // (단장 지적 2026-08-25)
     const skG = D.codex.skill.individualByGrade;
     let s = 0;
-    for (const g of Object.values(S.codex.skill)) s += skG[g] || 0;
+    for (const g of Object.values(S.codex.skill)) s += skG[g]?.bonusEach || 0;
     return { merc: m, skill: s, total: Math.min(D.codex.budget.totalMaxBonus, m + s) };
   }
 

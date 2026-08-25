@@ -73,12 +73,15 @@
   *{scrollbar-width:none;-ms-overflow-style:none}
   *::-webkit-scrollbar{width:0;height:0;display:none}
   /* container 선언 — 아래 좁은화면 규칙이 뷰포트가 아니라 **앱 폭**을 본다 */
-  /* 폭은 **화면 높이에 매단다.** 480px 로 고정하면 PC 처럼 창이 큰 데서
-     좌우가 검게 남는다 (단장 지적 2026-08-25). 세로 비율(약 9:16.5)을 지키며
-     창 높이만큼 넓히면 여백이 사라지고, 폰에서는 100% 가 이겨서 그대로다.
-     720px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져 버려서 둔다 */
+  /* 폭은 **창의 두 축 중 큰 쪽**을 따라간다.
+     · 480px 고정이면 PC 에서 좌우가 검게 남는다
+     · 높이(56vh)에만 매달면 창이 낮고 넓을 때(1440x900 등) 앱이 좁아져
+       UI 가 전부 작아진다 — 실제로 그렇게 보였다 (단장 지적 2026-08-25)
+     그래서 max(56vh, 42vw): 창이 높으면 높이가, 넓으면 폭이 잡는다.
+     820px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져서 둔다.
+     폰에서는 100% 가 이겨 그대로다 */
   #app{container:app / inline-size;
-    position:relative;width:min(100%, 56vh, 720px);height:100%;margin:0 auto;
+    position:relative;width:min(100%, max(56vh, 42vw), 820px);height:100%;margin:0 auto;
     background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 
   /* 상단 12% */
@@ -236,7 +239,7 @@
      가운데로 선다. 기둥 밖은 body 색(#0f0b08) — 게임 화면의 레터박스와 같다 */
   /* 폭은 #app 과 **같은 식**이다 — 다르면 로딩 화면만 좌우 여백이 달라
      시작하자마자 화면이 덜컥 넓어진다 (단장 지적 2026-08-25) */
-  #boot{position:fixed;inset:0;width:min(100%, 56vh, 720px);margin:0 auto;
+  #boot{position:fixed;inset:0;width:min(100%, max(56vh, 42vw), 820px);margin:0 auto;
     z-index:210;display:flex;flex-direction:column;
     align-items:center;overflow:hidden;
     /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
@@ -1954,8 +1957,8 @@
   .fg-up .fgbtn{width:100%;margin-top:7px}
   .fg-up.done{opacity:.75}
 
-  #fgProg{height:9px;background:#0006;border-radius:5px;margin:2px 0 6px;overflow:hidden}
-  #fgProgFill{height:100%;width:0;background:linear-gradient(90deg,var(--ore),var(--gold))}
+  /* 제작대 진행 막대는 없앴다 (2026-08-25) — 골드 투입 칸과 남은 시간 글자가
+     같은 것을 이미 말해서 겹말이었다. 규칙도 같이 지운다 */
   .fgbtn{width:100%;padding:11px;font-size:13px;border-radius:9px;font-weight:800;
     border:1px solid #c09c7e;background:linear-gradient(#a8886e,#806854);color:var(--txt);cursor:pointer}
   .fgbtn:disabled{opacity:.4;cursor:default}
@@ -2765,10 +2768,10 @@
      "틀 안에 다른 알약이 떠 있는" 모습이 된다 — 게이지와 채움이 따로 노는
      느낌의 정체였다 (단장 지적 2026-08-25).
      틀은 그림 그대로 두고, 안쪽에 여백을 줘 채움이 금테를 안 밟게 한다. */
-  #xpbar,#fgProg,#qbar,.sh-bar,.tw-bar{
+  #xpbar,#qbar,.sh-bar,.tw-bar{
     background:var(--f-gauge) center/100% 100% no-repeat;
     padding:0 3px;display:flex;align-items:center;border-radius:999px;overflow:hidden}
-  #xpfill,#fgProgFill,#qfill,.sh-bar>i,.tw-bar>i{
+  #xpfill,#qfill,.sh-bar>i,.tw-bar>i{
     height:56%;border-radius:999px;background:linear-gradient(180deg,#ffe08a,#f0b23a 55%,#d18a24);
     box-shadow:0 0 5px #ffc94a66,inset 0 1px 0 #fff6}
 

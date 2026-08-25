@@ -99,21 +99,28 @@ export class RosterSheet {
     // 번호를 누르면 그 칸이 **선택되고, 저장된 것이 있으면 바로 불러온다.**
     // 비어 있는 칸은 선택만 된다 — 불러올 것이 없으니 편성을 건드릴 이유도 없다.
     // 지금 편성을 그 칸에 넣으려면 [저장] 을 누른다.
+    // 프리셋은 **탭마다 따로다** — 용병 탭에서는 용병 편성만, 스킬 탭에서는
+    // 스킬 편성만 담고 불러온다 (단장 확정 2026-08-25)
+    const preKind = isSkill ? 'skill' : 'mercenary';
+    const book = (S.presets && S.presets[preKind]) || [];
     const pre = $('#shPre');
-    const cur = S.presetSel ?? 0;
+    S.presetSel = S.presetSel || {};
+    const cur = S.presetSel[preKind] ?? 0;
     pre.innerHTML = [0, 1, 2].map(i =>
-      `<button class="pr${S.presets?.[i] ? ' has' : ''}${i === cur ? ' on' : ''}"
-         data-pre="${i}" title="프리셋 ${i + 1}${S.presets?.[i] ? ' 불러오기' : ' (비어 있음)'}"
+      `<button class="pr${book[i] ? ' has' : ''}${i === cur ? ' on' : ''}"
+         data-pre="${i}" title="${t('프리셋')} ${i + 1}${book[i] ? '' : ` (${t('비어 있음')})`}"
          >${i + 1}</button>`).join('')
-      + `<button class="pr-save" data-presave title="지금 편성을 ${cur + 1}번에 저장">저장</button>`;
+      + `<button class="pr-save" data-presave>${t('저장')}</button>`;
     pre.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => {
       const i = +b.dataset.pre;
-      S.presetSel = i;
-      if (S.presets?.[i]) this.api.loadPreset(i);   // 있으면 적용
-      else this.render();                           // 비었으면 선택만
+      S.presetSel[preKind] = i;
+      // **빈 칸을 눌러도 적용한다** — 그 칸은 "아무것도 안 낀 편성" 이다.
+      // 예전처럼 선택만 하면 1번을 저장한 뒤 2번을 눌러도 1번이 그대로 남아
+      // 두 칸이 같은 편성으로 보였다 (단장 지적)
+      this.api.loadPreset(preKind, i);
     }));
     pre.querySelector('[data-presave]').addEventListener('click', () =>
-      this.api.savePreset(S.presetSel ?? 0));
+      this.api.savePreset(preKind, S.presetSel[preKind] ?? 0));
 
     // ── 장착 줄 ──────────────────────────────────────────────
     const eq = this.equipped();                       // null = 빈 칸, 'lock' = 미해금

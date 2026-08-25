@@ -99,7 +99,10 @@ const S = {
   attend: { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] },
   // 편성 프리셋 3개. id 만 저장한다 — 실객체는 로드 때 보유·장착 풀에서 다시 찾는다.
   // 실객체를 넣으면 레벨업·캐스케이드 뒤 프리셋 속 사본이 낡는다
-  presets: [null, null, null],
+  // 프리셋은 용병·스킬이 따로다 (presetBook 참고). 옛 세이브의 배열 모양은
+  // 읽는 순간 이 모양으로 옮겨진다
+  presets: { mercenary: [null, null, null], skill: [null, null, null] },
+  presetSel: {},
   // 연합 코인 — 프로토타입은 로컬 보유. 서버 연동 시 net/backend.js 로 옮긴다
   allyCoin: 0,
   // 소속 연합. null 이면 미가입 — 연합 탭이 생성/가입 화면을 연다.
@@ -2088,35 +2091,65 @@ function unequipUnit(kind, id) {
 }
 
 // ── 프리셋 — 현재 편성 스냅샷 3칸 ───────────────────────────
-function savePreset(n) {
-  S.presets[n] = {
-    party: S.party.filter(Boolean).map(x => x.id),
-    active: S.skills.active.map(x => x && x.id),
-    passive: S.skills.passive.map(x => x && x.id),
-  };
+/**
+ * 프리셋 — **용병과 스킬이 서로 다른 묶음이다** (단장 확정 2026-08-25).
+ *
+ * 예전에는 한 칸에 편성·액티브·패시브를 통째로 넣어서, 스킬만 바꾸고 싶어도
+ * 용병까지 따라 바뀌었다. `S.presets` 는 이제 { mercenary:[], skill:[] } 다.
+ * 옛 세이브(배열)는 읽는 순간 용병 쪽으로 옮긴다.
+ */
+function presetBook(kind) {
+  // 옛 모양(배열 3칸) → 새 모양으로 한 번 옮긴다
+  if (Array.isArray(S.presets)) {
+    const old = S.presets;
+    S.presets = { mercenary: old.map(p => p && { party: p.party || [] }),
+                  skill: old.map(p => p && { active: p.active || [], passive: p.passive || [] }) };
+  }
+  if (!S.presets || typeof S.presets !== 'object') S.presets = {};
+  S.presets[kind] = S.presets[kind] || [null, null, null];
+  return S.presets[kind];
+}
+
+function savePreset(kind, n) {
+  const book = presetBook(kind);
+  book[n] = kind === 'skill'
+    ? { active: S.skills.active.map(x => x && x.id),
+        passive: S.skills.passive.map(x => x && x.id) }
+    // **빈 칸을 그대로 담는다.** filter(Boolean) 로 접으면 3인 편성이 3칸짜리
+    // 배열이 되어 자리 정보가 사라진다
+    : { party: S.party.map(x => x && x.id) };
   save();
-  toast(`프리셋 ${n + 1} 저장`);
+  toast(`${kind === 'skill' ? t('스킬') : t('용병')} ${t('프리셋')} ${n + 1} ${t('저장')}`);
   if (roster.isOpen) roster.render();
 }
 
-function loadPreset(n) {
-  const p = S.presets[n];
-  if (!p) return toast(`프리셋 ${n + 1} 이 비어 있습니다 — [저장] 으로 현재 편성을 기록하세요`);
-  // 지금 장착분을 전부 보유함에 합치고, 프리셋 id 를 그 풀에서 다시 찾는다.
-  // 캐스케이드로 사라진 id 는 조용히 건너뛴다 — 남은 것만으로 최대한 복원한다
-  const pool = { mercenary: [...S.party.filter(Boolean), ...S.own.mercenary],
-                 skill: [...S.skills.active, ...S.skills.passive].filter(Boolean).concat(S.own.skill) };
-  const take = (arr, id) => {
-    const i = id ? arr.findIndex(x => x.id === id) : -1;
-    return i < 0 ? null : arr.splice(i, 1)[0];
+/** 지금 장착분 + 보유함을 한 통에 합친다 — 프리셋 id 를 여기서 다시 찾는다 */
+function presetPool(kind) {
+  return kind === 'skill'
+    ? [...S.skills.active, ...S.skills.passive].filter(Boolean).concat(S.own.skill)
+    : [...S.party.filter(Boolean), ...S.own.mercenary];
+}
+
+function loadPreset(kind, n) {
+  const p = presetBook(kind)[n];
+  const pool = presetPool(kind);
+  const take = id => {
+    const i = id ? pool.findIndex(x => x.id === id) : -1;
+    return i < 0 ? null : pool.splice(i, 1)[0];
   };
-  S.party = p.party.map(id => take(pool.mercenary, id)).filter(Boolean);
-  S.skills.active = p.active.map(id => take(pool.skill, id));
-  S.skills.passive = p.passive.map(id => take(pool.skill, id));
-  S.own.mercenary = pool.mercenary;
-  S.own.skill = pool.skill;
+  const slots = kind === 'skill' ? null : Math.max(5, S.party.length);
+  if (kind === 'skill') {
+    // 비어 있는 칸을 누르면 **전부 벗는다** — 칸마다 다른 조합이라야 프리셋이다
+    S.skills.active = (p?.active || S.skills.active.map(() => null)).map(take);
+    S.skills.passive = (p?.passive || S.skills.passive.map(() => null)).map(take);
+    S.own.skill = pool;
+  } else {
+    const ids = p?.party || new Array(slots).fill(null);
+    S.party = Array.from({ length: slots }, (_, i) => take(ids[i]));
+    S.own.mercenary = pool;
+  }
   save(); refreshParty();
-  toast(`프리셋 ${n + 1} 적용`);
+  toast(`${kind === 'skill' ? t('스킬') : t('용병')} ${t('프리셋')} ${n + 1} ${p ? t('적용') : t('비움')}`);
   if (roster.isOpen) roster.render();
 }
 
@@ -5433,8 +5466,7 @@ function openForge() {
   const running = !!S.forgeStart;
   const vis = forgeStageAsset();
   const stageNo = vis ? vis.stage : 1;
-  const pct = running ? (1 - forgeRemain() / forgeCost(S.forgeTarget).sec) * 100
-    : (S.forgePaid || 0) / (c ? c.parts : 1) * 100;
+  // (게이지를 없애면서 진행률 계산도 뺐다 — 칸과 남은 시간 글자가 대신한다)
 
   const cur = n => `<img src="/assets/ui/${n}.png" alt="">`;
   const h = [];
@@ -5469,11 +5501,10 @@ function openForge() {
         ${running ? `<em class="fg-tag">${t('제작 중')}</em>` : ''}
       </div>
       ${running
-        // 제작 중에만 게이지를 둔다 — 남은 시간이 줄어드는 것을 보여 주는 유일한
-        // 표시다. 골드 투입 구간에서는 칸(●●○○)과 0/4 가 같은 것을 이미 말하고
-        // 있어서 막대가 겹말이었다 (단장 확정 2026-08-25)
-        ? `<div id="fgProg"><div id="fgProgFill" style="width:${pct}%"></div></div>
-           <div class="fg-up-row"><span class="k">${t('남은 시간')}</span>
+        // **게이지를 안 쓴다.** 골드 투입 구간은 칸(●●○○)과 0/4 가, 제작 중에는
+        // 남은 시간 글자가 같은 것을 이미 말한다 — 막대는 어느 쪽에서도 겹말이다
+        // (단장 확정 2026-08-25)
+        ? `<div class="fg-up-row"><span class="k">${t('남은 시간')}</span>
              <span class="v" id="fgLeft">${dur(forgeRemain())}</span></div>
            <button class="fgbtn hg-open" id="fgHgOpen" ${can < 1 ? 'disabled' : ''}>
              ${cur('CU-10')} ${can < 1 ? t('모래시계 없음') : t('시간 단축')}</button>`
@@ -6387,7 +6418,11 @@ function bootTapToStart() {
   // 배속 오염 방어. NaN 이 JSON 을 거치면 null 이 되고, 그대로 scene.speed 에
   // 들어가면 전투가 0배속으로 영영 멈춘다 — 유효값(1·2·3) 아니면 1로 되돌린다
   if (![1, 2, 3].includes(S.speed)) S.speed = 1;
-  if (!Array.isArray(S.presets) || S.presets.length !== 3) S.presets = [null, null, null];
+  // 프리셋 모양 정리 — 옛 배열은 presetBook 이 새 모양으로 옮긴다.
+  // (예전엔 여기서 배열이 아니면 통째로 지웠는데, 그러면 새 모양이 매 부팅마다
+  //  날아가 프리셋이 안 먹는다)
+  presetBook('mercenary'); presetBook('skill');
+  if (!S.presetSel || typeof S.presetSel !== 'object') S.presetSel = {};
   if (!S.attend) S.attend = { day: 0, lastAt: null, month: null, monthDays: 0, cumClaimed: [] };
   // 세이브를 읽은 직후에 한 번 — 잠긴 칸에 남아 있는 유닛을 보유함으로 되돌린다
   trimToSlots();
@@ -6754,12 +6789,9 @@ function bootTapToStart() {
   setInterval(() => {
     // 제작대 타이머
     if (S.forgeStart && forgeRemain() <= 0) finishForge();
+    // 남은 시간 글자만 갱신한다 — 게이지는 없앴다 (겹말이었다)
     if ($('#ov').classList.contains('show') && $('#fgLeft')) {
       $('#fgLeft').textContent = dur(forgeRemain());
-      const tot = forgeCost(S.forgeTarget);
-      if (tot && $('#fgProgFill')) {
-        $('#fgProgFill').style.width = (1 - forgeRemain() / tot.sec) * 100 + '%';
-      }
     }
 
     // 자동 소환 — 배치를 초당 1회로 묶는다 (Verse8 호출 제한 10회/초)
