@@ -105,18 +105,26 @@
   .cui{width:22px;height:22px;object-fit:contain}
 
   /* 전투 40% */
-  /* 전투 화면은 상단 패널 **아래로 파고든다.** 배경이 패널 바로 밑에서 시작하면
-     그 경계가 한 줄로 딱 끊겨 보인다 — 하늘이 나무틀 뒤로 이어져 있어야 자연스럽다.
-     패널이 위에 뜨도록 z-index 를 주고(--bleed 만큼), HUD 는 같은 값으로 밀어
-     내려 상단 표시가 패널에 안 가린다 */
+  /* 전투 화면은 위·아래 패널 **뒤로 파고든다.** 배경이 패널 경계에서 딱 시작하고
+     딱 끝나면 그 선이 잘린 자국으로 읽힌다 — 하늘과 바닥이 나무틀 뒤로 이어져
+     있어야 한 장면이 된다. 패널은 z-index 로 위에 띄운다.
+     **대가**: #battle 상자가 위아래로 --bleed 만큼 커져서, 그 안에 픽셀로 붙여
+     둔 자식들(사이드 열·스킬바·상자)이 그만큼 밀린다 — 아래에서 되돌린다 */
   #app{--bleed:18px}
-  #top{position:relative;z-index:2}
+  #top,#bottom{position:relative;z-index:2}
   #battle{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;background:#1e1710;
-    margin-top:calc(var(--bleed) * -1)}
+    margin-top:calc(var(--bleed) * -1);margin-bottom:calc(var(--bleed) * -1)}
+  /* 파고든 만큼 되돌린다 — 이 값들은 "패널에서 얼마 떨어졌나"라서 상자가
+     커져도 눈에 보이는 거리는 그대로여야 한다.
+     **top/bottom 이 아니라 margin 으로 민다.** 이 요소들의 top·bottom 은 화면
+     크기별로 여러 번 다시 정해지는데(container query), 여기서 top 을 덮으면
+     그 조정이 통째로 죽는다. margin 은 그 값들과 더해지므로 안 부딪힌다 */
+  #sideL,#sideR,#arBars{margin-top:var(--bleed)}
+  #skillbar,#chest{margin-bottom:var(--bleed)}
   #cv{display:block;width:100%;height:100%}
-  /* 위쪽 --bleed 는 상단 패널에 가려진 띠다 — HUD 는 그만큼 내려서 시작한다 */
+  /* 위아래 --bleed 는 패널에 가려진 띠다 — HUD 는 그만큼 안쪽에서 시작한다 */
   #hud{position:absolute;inset:0;pointer-events:none;
-    padding:calc(6px + var(--bleed)) 9px 6px;
+    padding:calc(6px + var(--bleed)) 9px calc(6px + var(--bleed));
     display:flex;flex-direction:column;justify-content:space-between}
   #hudTop{display:flex;justify-content:space-between;align-items:flex-start;text-shadow:0 1px 3px #000}
   /* 진행도는 상단 중앙. 좌우 칸이 같은 폭이라야 가운데가 진짜 가운데다 */
