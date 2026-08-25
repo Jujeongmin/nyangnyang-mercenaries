@@ -5274,57 +5274,63 @@ function eqBandNow(lv = S.forgeLv) {
 const fgPct = v => (v < 1 ? +v.toFixed(3) : +v.toFixed(2));
 
 /**
- * 제작대 레벨별 확률. **한 번에 한 구간**만 보여 주고 ‹ › 로 넘긴다 —
- * 15개 구간을 한 번에 펴면 스크롤만 길고 정작 지금 확률이 안 읽힌다.
- * 확률은 공시 의무 대상이라 전 구간에 닿을 수 있어야 하고, 그 통로가 화살표다.
+ * 등급 확률 줄들. ratesB 가 있으면 현재/다음 두 열, 없으면 한 열.
+ * 전 등급을 다 그린다 — 0% 도 자물쇠로 보여야 "언젠가 저게 나온다" 는
+ * 사다리가 보인다.
  */
-function openForgeRates() {
-  // **현재 레벨과 다음 레벨을 두 열로 나란히** 놓는다 (버섯커의 램프 Lv업 표).
-  // 예전에는 화살표로 60개 밴드를 넘기는 탐색이었는데, 유저가 실제로 궁금한 것은
-  // "지금 뭐가 나오고, 한 레벨 올리면 뭐가 좋아지나" 딱 하나다 — 탐색은 답을
-  // 60번 넘겨서 찾게 만드는 UI 였다.
-  const bands = D.gacha.equipmentRateBands.bands;
-  const bandAt = lv => bands.find(b => lv >= b.minLevel && lv <= b.maxLevel);
-  const cur = bandAt(S.forgeLv);
-  const maxLv = bands[bands.length - 1].maxLevel;
-  const nextB = S.forgeLv < maxLv ? bandAt(S.forgeLv + 1) : null;
-  if (!cur) return;
-
-  // 전 등급을 다 그린다 — 0% 도 자물쇠로 보여야 "언젠가 저게 나온다" 는
-  // 사다리가 보인다. 사진의 골든/영원 자물쇠 줄과 같은 역할이다.
-  const rows = D.equipment.grades.map(g => {
-    const a = cur.rates[g.tier] || 0;
-    const b = nextB ? (nextB.rates[g.tier] || 0) : null;
-    const locked = a === 0 && (!nextB || b === 0);
-    const up = nextB && b > a;          // 다음 레벨에서 오르는 등급 — 레벨업의 이유다
-    const down = nextB && b < a;
+function forgeRateRows(ratesA, ratesB) {
+  return D.equipment.grades.map(g => {
+    const a = ratesA[g.tier] || 0;
+    const b = ratesB ? (ratesB[g.tier] || 0) : null;
+    const locked = a === 0 && (!ratesB || b === 0);
+    const up = ratesB && b > a;          // 다음 레벨에서 오르는 등급 — 레벨업의 이유다
+    const down = ratesB && b < a;
     return `<div class="fr2-row${locked ? ' locked' : ''}" style="--c:${g.color}">
       <i class="fr2-bar"></i>
-      <b>${locked ? '<img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="">' : ''}${g.nameKo}</b>
+      <b>${locked ? '<img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="">' : ''}${t(g.nameKo)}</b>
       <span class="fr2-a">${fgPct(a)}%</span>
-      ${nextB ? `<span class="fr2-b${up ? ' up' : down ? ' down' : ''}">${fgPct(b)}%</span>` : ''}
+      ${ratesB ? `<span class="fr2-b${up ? ' up' : down ? ' down' : ''}">${fgPct(b)}%</span>` : ''}
     </div>`;
   }).join('');
+}
 
-  const nSlots = D.equipment.slots.length;
-  const unlockNext = nextB?.unlocks
-    ? `<div class="fr-unlock" style="--c:${D.equipment.grades[nextB.unlocks - 1].color}">
-         Lv ${S.forgeLv + 1} — <b>${D.equipment.grades[nextB.unlocks - 1].nameKo}</b> ${t('등급이 새로 열립니다')}</div>`
-    : '';
+/** 해금 이름. 데이터 원문이 키다 — 수량이 낀 자동 소환만 자리표 키로 접는다 */
+function fgUnlockName(p) {
+  const nm = p.nameKo || p.unlock;
+  const m = nm.match(/^자동 소환 (\d+)개씩$/);
+  return m ? t('자동 소환 {0}개씩', m[1]) : t(nm);
+}
 
-  const ttl = $('#smTitle');
-  if (ttl) ttl.textContent = t('제작대 확률');
-  $('#smBody').innerHTML = `
-    <div class="fr2-head">
-      <span class="fr2-now">${t('현재')} Lv ${S.forgeLv}</span>
-      ${nextB ? `<i>»</i><span class="fr2-next">${t('다음')} Lv ${S.forgeLv + 1}</span>`
-              : `<span class="fr2-next">${t('최대 레벨')}</span>`}
+/**
+ * ⓘ 서랍 — 다른 레벨 구간의 확률 구성을 ‹ › 로 넘겨 보는 열람기.
+ * (해금 목록이 있던 자리다. 해금은 본문 "다음 해금" 한 줄로 충분하고,
+ * 확률은 공시 의무라 전 구간에 닿는 통로가 필요하다 — 단장 확정 2026-08-25)
+ */
+function renderForgeRateBrowser(idx) {
+  const bands = D.gacha.equipmentRateBands.bands;
+  if (idx == null || idx < 0 || idx >= bands.length)
+    idx = Math.max(0, bands.findIndex(b => S.forgeLv >= b.minLevel && S.forgeLv <= b.maxLevel));
+  const b = bands[idx];
+  const mine = S.forgeLv >= b.minLevel && S.forgeLv <= b.maxLevel;
+  const lvLabel = b.minLevel === b.maxLevel ? `Lv ${b.minLevel}` : `Lv ${b.minLevel}–${b.maxLevel}`;
+  const newG = b.unlocks ? D.equipment.grades[b.unlocks - 1] : null;
+  $('#ovinfo').innerHTML = `<div class="lbl" style="margin-bottom:6px">${t('레벨별 확률')}</div>
+    <div class="fr2-head" style="margin-bottom:7px">
+      <button class="hg-step" data-fgb="${idx - 10}" ${idx === 0 ? 'disabled' : ''}>‹‹</button>
+      <button class="hg-step" data-fgb="${idx - 1}" ${idx === 0 ? 'disabled' : ''}>‹</button>
+      <span class="${mine ? 'fr2-now' : ''}" style="min-width:86px;text-align:center">
+        ${lvLabel}${mine ? ` · ${t('현재')}` : ''}</span>
+      <button class="hg-step" data-fgb="${idx + 1}" ${idx === bands.length - 1 ? 'disabled' : ''}>›</button>
+      <button class="hg-step" data-fgb="${idx + 10}" ${idx === bands.length - 1 ? 'disabled' : ''}>››</button>
     </div>
-    <div class="fr-rows">${rows}</div>
-    ${unlockNext}
-    <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
-      ${t('부위 확률 = 등급 확률 ÷ 부위 {0}종 (부위는 균등 추첨)', nSlots)}</div>`;
-  $('#smPop').classList.add('show');
+    <div class="fr-rows">${forgeRateRows(b.rates, null)}</div>
+    ${newG ? `<div class="fr-unlock" style="--c:${newG.color}">
+        ${lvLabel} — <b>${t(newG.nameKo)}</b> ${t('등급이 새로 열립니다')}</div>` : ''}`;
+  $('#ovinfo').querySelectorAll('[data-fgb]').forEach(x =>
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      renderForgeRateBrowser(Math.max(0, Math.min(bands.length - 1, +x.dataset.fgb)));
+    }));
 }
 
 
@@ -5357,8 +5363,8 @@ function openForge() {
   // 대장간 그림은 **머리 배너가 대신 든다**. 배너와 본문에 같은 그림을 두 장
   // 두면 배경이 겹쳐 보인다(실사용 보고). 배너는 현재 단계를 따라간다.
   h.push(`<div id="fgBar">
-      <span id="fgStage">${stageNo}단계 대장간 · ${vis ? vis.levelRange : ''} 구간</span>
-      <button id="fgLvBadge" title="이 레벨의 장비 등급 확률">Lv ${S.forgeLv} <i>ⓘ</i></button>
+      <span id="fgStage">${t('{0}단계 대장간 · {1} 구간', stageNo, vis ? vis.levelRange : '')}</span>
+      <span id="fgLvBadge">Lv ${S.forgeLv}</span>
     </div>`);
 
 
@@ -5401,13 +5407,36 @@ function openForge() {
         <span class="v">${t('더 올릴 곳이 없습니다')}</span></div></div>`);
   }
 
-  // 다음 해금 한 줄만 본문에. 전체 목록은 ⓘ 버튼으로 연다 —
-  // 카드가 화면을 다 덮지 않아야 해서 목록을 본문에 두면 안 된다.
+  // 확률표는 본문 상시 노출이다 (단장 확정 2026-08-25). 배지 팝업에 숨기면
+  // 공시 확률을 한 번 더 눌러야 보이고, 레벨업의 이유(다음 열 초록)도 안 보인다.
+  {
+    const bands = D.gacha.equipmentRateBands.bands;
+    const curB = eqBandNow();
+    const maxLv = bands[bands.length - 1].maxLevel;
+    const nextB = S.forgeLv < maxLv ? eqBandNow(S.forgeLv + 1) : null;
+    const unlockNext = nextB?.unlocks
+      ? `<div class="fr-unlock" style="--c:${D.equipment.grades[nextB.unlocks - 1].color}">
+           Lv ${S.forgeLv + 1} — <b>${t(D.equipment.grades[nextB.unlocks - 1].nameKo)}</b> ${t('등급이 새로 열립니다')}</div>`
+      : '';
+    h.push(`<div id="fgRates">
+      <div class="fr2-head">
+        <span class="fr2-now">${t('현재')} Lv ${S.forgeLv}</span>
+        ${nextB ? `<i>»</i><span class="fr2-next">${t('다음')} Lv ${S.forgeLv + 1}</span>`
+                : `<span class="fr2-next">${t('최대 레벨')}</span>`}
+      </div>
+      <div class="fr-rows">${forgeRateRows(curB.rates, nextB && nextB.rates)}</div>
+      ${unlockNext}
+      <div class="sh-note">${t(D.gacha.perItemRateFormula.legalRequirement)}<br>
+        ${t('부위 확률 = 등급 확률 ÷ 부위 {0}종 (부위는 균등 추첨)', D.equipment.slots.length)}</div>
+    </div>`);
+  }
+
+  // 다음 해금 한 줄만 본문에. 전체 해금 목록 대신 ⓘ 는 레벨별 확률 열람기다.
   const nextUnlock = D.equipment.summon.progression.find(p => p.summonLv > S.forgeLv);
   if (nextUnlock) {
     h.push(`<div class="frow" style="padding:7px 12px">
-      <span class="k">다음 해금 Lv ${nextUnlock.summonLv}</span>
-      <span class="v" style="font-size:12px">${nextUnlock.nameKo || nextUnlock.unlock}</span></div>`);
+      <span class="k">${t('다음 해금 Lv {0}', nextUnlock.summonLv)}</span>
+      <span class="v" style="font-size:12px">${fgUnlockName(nextUnlock)}</span></div>`);
   }
 
   const reopen = () => { const y = $('#ovb').scrollTop; openForge(); $('#ovb').scrollTop = y; };
@@ -5430,19 +5459,9 @@ function openForge() {
     setTimeout(() => document.querySelector('#shHg')?.scrollIntoView({ block: 'start' }), 60);
   });
   $('#ovb').innerHTML = h.join('');
-  $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">해금 현황</div>'
-    + D.equipment.summon.progression.map(p => {
-      const on = p.summonLv <= S.forgeLv;
-      return `<div class="frow" style="opacity:${on ? 1 : .42};padding:6px 10px;margin-bottom:5px">
-        <span class="k">Lv ${p.summonLv}</span>
-        <span class="v" style="font-size:11px">${p.nameKo || p.unlock}</span>
-        <span>${on ? '✅' : `<img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김">`}</span></div>`;
-    }).join('');
+  renderForgeRateBrowser();
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
-  // 레벨 배지를 누르면 이 레벨의 등급 확률을 편다. 제작대는 확률이 레벨로
-  // 갈리는데(equipmentRateBands) 그 값을 볼 데가 없었다
-  $('#fgLvBadge')?.addEventListener('click', e => { e.stopPropagation(); openForgeRates(); });
   $('#fgPayBtn')?.addEventListener('click', payForge);
   $('#fgHgOpen')?.addEventListener('click', openHourglass);
 }
@@ -6468,10 +6487,10 @@ function bootTapToStart() {
           `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         const sec = Math.floor((Date.now() - pvSince) / 1000);
         const el = sec < 3600
-          ? `${Math.floor(sec / 60)}분 ${sec % 60}초`
-          : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec % 3600 / 60)}분`;
-        $('#pvStage').textContent = `절전 ${el}`;
-        $('#pvGold').textContent = `획득 골드 +${num(Math.max(0, S.gold - pvGold0))}`;
+          ? t('{0}분 {1}초', Math.floor(sec / 60), sec % 60)
+          : t('{0}시간 {1}분', Math.floor(sec / 3600), Math.floor(sec % 3600 / 60));
+        $('#pvStage').textContent = t('절전 {0}', el);
+        $('#pvGold').textContent = t('획득 골드 +{0}', num(Math.max(0, S.gold - pvGold0)));
       };
       tick(); pvTimer = setInterval(tick, 1000);
     }

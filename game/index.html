@@ -3260,7 +3260,8 @@
   #hudC{padding:2px 4px;border:0;pointer-events:none}
   #stg{text-shadow:0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 2px 8px #000}
   #stg{font-size:13px;text-shadow:0 1px 3px #000}
-  #stg i{color:var(--gold);opacity:1;font-weight:800}
+  /* 지역명이 스테이지 번호에 붙어 보인다 (영어처럼 긴 라벨에서 특히) — 간격은 CSS 몫 */
+  #stg i{color:var(--gold);opacity:1;font-weight:800;margin-left:6px}
   /* 화살표(점 위 12px)가 스테이지 이름을 파고들지 않게 띄운다 */
   #enc{margin-top:11px}
   /* 진행도 점 — UI-PIP 3종이 생기면 첫 배경층(그림)이 그라디언트를 덮는다.
