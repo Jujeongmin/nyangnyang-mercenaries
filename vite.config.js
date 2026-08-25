@@ -1,6 +1,20 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { execSync } from 'node:child_process';
 import { bgeditPlugin } from './tools/bgedit-plugin.js';
+
+/**
+ * 빌드 표식 — **지금 도는 화면이 어느 커밋인지** 설정 화면에 찍는다.
+ * 배포본이 갱신됐는지 눈으로 확인할 길이 없어서, 옛 빌드를 보며 "왜 수정이
+ * 안 됐나" 를 세 번 되풀이했다 (2026-08-25). git 이 없는 환경에서는 조용히
+ * 'dev' 로 떨어진다 — 표식 때문에 빌드가 깨지면 안 된다.
+ */
+function buildStamp() {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+  } catch { return 'dev'; }
+}
 
 // Verse8 은 Vite 프로젝트를 전제로 한다 (docs.verse8.io — "Vite 기반").
 //
@@ -17,6 +31,7 @@ import { bgeditPlugin } from './tools/bgedit-plugin.js';
 export default defineConfig({
   // 배경 지우개(`/bgedit.html`)의 저장 API. dev 에서만 붙는다
   plugins: [bgeditPlugin(__dirname)],
+  define: { __BUILD__: JSON.stringify(buildStamp()) },
   root: 'game',
   publicDir: 'public',
   build: {

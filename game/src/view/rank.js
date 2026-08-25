@@ -12,6 +12,10 @@ import { cpNum, num } from '../core/fmt.js';
 import { LANGS, t } from '../core/i18n.js';
 import * as live from '../net/live.js';
 
+// vite 가 빌드 때 커밋 해시로 치환한다. 정의가 없는 환경(직접 연 html 등)에서도
+// 화면이 죽지 않게 기본값을 둔다
+const BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
+
 
 // 더미 순위표의 이름. **닉네임은 고유명사라 번역하지 않는다** — 다만 한국어
 // 이름만 늘어놓으면 외국어 화면에서 이 표만 한글 덩어리가 된다. 로마자를 같이 둔다
@@ -242,7 +246,10 @@ export class SettingsScreen {
       <div class="st-h">${t('정보')}</div>
       <div class="st-row link" data-a="rates"><span>${t('확률표 고지')}</span><b>›</b></div>
       <div class="st-row link" data-a="account"><span>${t('계정')}</span><b>${S.nickname || t('단장')} ›</b></div>
-      <div class="st-row"><span>${t('버전')}</span><b>proto ${D.ui.meta.version}</b></div>
+      <!-- 빌드 표식(커밋 해시)을 같이 찍는다 — 배포본이 갱신됐는지 확인할
+           길이 없어서 옛 빌드를 보며 헤맸다 (vite.config.js > buildStamp) -->
+      <div class="st-row"><span>${t('버전')}</span>
+        <b>proto ${D.ui.meta.version} · ${BUILD}</b></div>
       <button class="st-danger" data-a="reset">${t('저장 데이터 초기화')}</button>
       <div class="sh-note" style="text-wrap:balance">${t('확률 공시는 게임산업법(2024.3) 의무다. gacha.json 이 단일 소스이며 소환 화면에서 1탭 이내로 접근할 수 있어야 한다.')}</div>`;
 

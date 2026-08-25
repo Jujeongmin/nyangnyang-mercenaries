@@ -3614,7 +3614,10 @@
     </div>
     <!-- 보스 도전 VS 연출 -->
     <div id="vs">
-    <div id="vsBoss"><img id="vsBossImg" src="" alt=""></div>
+    <!-- src 는 **비워 두지 않는다.** 빈 문자열은 문서 URL 을 그림으로 요청해
+         콘솔에 "Failed to load img: <사이트 주소>" 를 남긴다. 그림은 코드가
+         채우므로 여기서는 속성 자체를 안 쓴다 -->
+    <div id="vsBoss"><img id="vsBossImg" alt=""></div>
     <div id="vsCap"><img id="vsCapImg" src="/assets/captain/captain_warrior.png" alt=""></div>
     <div id="vsMark">VS</div>
     </div>
@@ -3777,7 +3780,8 @@
   <div id="unit">
     <div id="unitCard">
       <button id="unitX">✕</button>
-      <div id="unitArt"><img id="unitImg" src="" alt=""></div>
+      <!-- src 를 비우면 문서 URL 을 그림으로 요청한다 (vsBossImg 주석 참고) -->
+      <div id="unitArt"><img id="unitImg" alt=""></div>
       <div id="unitBody">
         <div id="unitHead"><b id="unitName"></b><i id="unitGrade"></i></div>
         <div id="unitTags"></div>
