@@ -259,6 +259,11 @@ export class SettingsScreen {
            (data/mail.json > entries[].to). 눌러서 복사한다 -->
       <div class="st-row link" data-a="copycode"><span>${t('플레이어 코드')}</span>
         <b id="stCode">${this.api.playerCode ? this.api.playerCode() : '—'}</b></div>
+      <!-- 디스코드 — 링크는 data/ui.json > links.discord 에 붙여 넣는다.
+           **비어 있으면 줄 자체를 안 그린다.** 눌러도 아무 데도 안 가는 줄이
+           설정에 남아 있으면 그건 고장으로 읽힌다 -->
+      ${D.ui.links?.discord ? `<div class="st-row link" data-a="discord">
+        <span>${t('디스코드')}</span><b>${t('열기')} ›</b></div>` : ''}
       <!-- 빌드 표식(커밋 해시)을 같이 찍는다 — 배포본이 갱신됐는지 확인할
            길이 없어서 옛 빌드를 보며 헤맸다 (vite.config.js > buildStamp) -->
       <div class="st-row"><span>${t('버전')}</span>

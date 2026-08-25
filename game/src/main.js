@@ -6596,6 +6596,21 @@ function bootTapToStart() {
       // 절전 — 낮은 화면에서는 사이드 열의 [절전]이 빠지므로 여기가 유일한 길이다.
       // 덮개가 #app 을 display:none 하니 설정 화면부터 닫고 켠다
       else if (a === 'pwrsave') { settings.close(); pwr(true); }
+      // 디스코드 — 주소는 data/ui.json > links.discord 다.
+      // **새 창이 막힐 수 있다.** 이 게임은 호스트(Verse8)의 iframe 안에서
+      // 돌 수 있고, sandbox 에 allow-popups 가 없으면 window.open 이 조용히
+      // null 을 준다. 그때는 주소를 복사해 주고 직접 붙여 넣게 한다 —
+      // "눌렀는데 아무 일도 없다" 로 끝나면 안 된다
+      else if (a === 'discord') {
+        const url = D.ui.links?.discord;
+        if (!url) return;
+        let win = null;
+        try { win = window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* 막힘 */ }
+        if (win) return;
+        navigator.clipboard?.writeText(url)
+          .then(() => toast(t('링크를 복사했습니다 — 브라우저에 붙여 넣어 주세요')))
+          .catch(() => toast(url));
+      }
       else if (a === 'copycode') {
         // 문의할 때 옮겨 적기 쉽게 — 복사가 막힌 환경이면 그냥 보여 주기만 한다
         const code = playerCode();
