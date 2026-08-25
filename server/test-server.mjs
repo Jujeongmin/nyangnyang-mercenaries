@@ -1,5 +1,5 @@
 // server.js 헤드리스 점검 — $global/$sender 를 메모리로 흉내 내고 시나리오를 돌린다.
-//   node server/test-server.mjs
+//   node server/test-server.mjs (server.js 는 저장소 루트)
 // Verse8 에 올리기 전에 로직 버그를 잡는 용도다. 컬렉션 흉내는 문서에서 확인한
 // 동작만 구현한다: __id 자동 부여, filters(==/>/>=/<=), orderBy, limit,
 // getCollectionItem 은 없으면 {} 를 돌려준다.
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, 'server.js'), 'utf8');
+const src = readFileSync(join(here, '..', 'server.js'), 'utf8');
 
 // ── $global 흉내 ─────────────────────────────────────────────
 let seq = 0;

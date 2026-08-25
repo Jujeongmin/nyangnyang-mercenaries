@@ -5302,9 +5302,10 @@ function fgUnlockName(p) {
 }
 
 /**
- * ⓘ 서랍 — 다른 레벨 구간의 확률 구성을 ‹ › 로 넘겨 보는 열람기.
+ * ⓘ — 다른 레벨 구간의 확률 구성을 ‹ › 로 넘겨 보는 **별도 팝업**(#smPop).
  * (해금 목록이 있던 자리다. 해금은 본문 "다음 해금" 한 줄로 충분하고,
- * 확률은 공시 의무라 전 구간에 닿는 통로가 필요하다 — 단장 확정 2026-08-25)
+ * 확률은 공시 의무라 전 구간에 닿는 통로가 필요하다 — 단장 확정 2026-08-25.
+ * 서랍이 아니라 팝업, 이동은 ‹ › 한 칸씩 — 단장 확정 2026-08-25 2차)
  */
 function renderForgeRateBrowser(idx) {
   const bands = D.gacha.equipmentRateBands.bands;
@@ -5314,25 +5315,29 @@ function renderForgeRateBrowser(idx) {
   const mine = S.forgeLv >= b.minLevel && S.forgeLv <= b.maxLevel;
   const lvLabel = b.minLevel === b.maxLevel ? `Lv ${b.minLevel}` : `Lv ${b.minLevel}–${b.maxLevel}`;
   const newG = b.unlocks ? D.equipment.grades[b.unlocks - 1] : null;
-  $('#ovinfo').innerHTML = `<div class="lbl" style="margin-bottom:6px">${t('레벨별 확률')}</div>
+  const ttl = $('#smTitle');
+  if (ttl) ttl.textContent = t('레벨별 확률');
+  $('#smBody').innerHTML = `
     <div class="fr2-head" style="margin-bottom:7px">
-      <button class="hg-step" data-fgb="${idx - 10}" ${idx === 0 ? 'disabled' : ''}>‹‹</button>
       <button class="hg-step" data-fgb="${idx - 1}" ${idx === 0 ? 'disabled' : ''}>‹</button>
-      <span class="${mine ? 'fr2-now' : ''}" style="min-width:86px;text-align:center">
+      <span class="${mine ? 'fr2-now' : ''}" style="min-width:96px;text-align:center">
         ${lvLabel}${mine ? ` · ${t('현재')}` : ''}</span>
       <button class="hg-step" data-fgb="${idx + 1}" ${idx === bands.length - 1 ? 'disabled' : ''}>›</button>
-      <button class="hg-step" data-fgb="${idx + 10}" ${idx === bands.length - 1 ? 'disabled' : ''}>››</button>
     </div>
     <div class="fr-rows">${forgeRateRows(b.rates, null)}</div>
     ${newG ? `<div class="fr-unlock" style="--c:${newG.color}">
         ${lvLabel} — <b>${t(newG.nameKo)}</b> ${t('등급이 새로 열립니다')}</div>` : ''}`;
-  $('#ovinfo').querySelectorAll('[data-fgb]').forEach(x =>
+  $('#smBody').querySelectorAll('[data-fgb]').forEach(x =>
     x.addEventListener('click', e => {
       e.stopPropagation();
       renderForgeRateBrowser(Math.max(0, Math.min(bands.length - 1, +x.dataset.fgb)));
     }));
+  $('#smPop').classList.add('show');
 }
 
+
+/** ⓘ 의 화면별 오버라이드. null 이면 기본(서랍 토글). 화면 전환마다 리셋한다 */
+let ovInfoAction = null;
 
 /**
  * 패널 스킨 지정. 인라인 --ov-img 를 **반드시 지운다** — 제작대가 단계 그림으로
@@ -5343,6 +5348,8 @@ function setSkin(name) {
   c.dataset.skin = name;
   c.style.removeProperty('--ov-img');
   c.classList.remove('no-banner');   // 배너를 끈 화면이 다음 화면까지 물려주지 않게
+  ovInfoAction = null;               // ⓘ 오버라이드도 화면 소유물이다
+  $('#ovi').style.removeProperty('display');
 }
 
 function openForge() {
@@ -5459,7 +5466,11 @@ function openForge() {
     setTimeout(() => document.querySelector('#shHg')?.scrollIntoView({ block: 'start' }), 60);
   });
   $('#ovb').innerHTML = h.join('');
-  renderForgeRateBrowser();
+  // ⓘ 는 서랍 대신 **레벨별 확률 팝업**을 연다. 서랍(ovinfo)이 비면 버튼이
+  // 숨는 CSS(:has(:empty))가 있어 인라인 display 로 되살린다 — setSkin 이 지운다
+  $('#ovinfo').innerHTML = '';
+  $('#ovi').style.display = 'block';
+  ovInfoAction = () => renderForgeRateBrowser();
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#fgPayBtn')?.addEventListener('click', payForge);
@@ -6120,6 +6131,25 @@ function fitBootTitle() {
   if (!el) return;
   const fit = () => {
     el.style.fontSize = '';
+    // 한 줄이 안 들어가면 **가운데 공백에서 두 줄로 직접 가른다.**
+    // 자동 축소에만 맡기면 "두 줄→한 줄" 경계에서 작은 한 줄로 멈춘다 (실측 22px).
+    // 컨테이너가 flex 라 <br> 은 span 안에 있어야 줄바꿈이 된다.
+    // 두 번째 호출(fonts.ready)에서 textContent 를 다시 읽으면 <br> 자리의
+    // 공백이 사라져 "NyangMercenaries" 로 붙는다 — 원문을 캐시해 둔다
+    const raw = (el.dataset.full || el.textContent).trim().replace(/\s+/g, ' ');
+    el.dataset.full = raw;
+    el.textContent = raw;
+    if (raw.includes(' ') && el.scrollWidth > el.clientWidth) {
+      const ws = raw.split(' ');
+      let best = 1, diff = Infinity;
+      for (let i = 1; i < ws.length; i++) {
+        const d = Math.abs(ws.slice(0, i).join(' ').length - ws.slice(i).join(' ').length);
+        if (d < diff) { diff = d; best = i; }
+      }
+      const sp = document.createElement('span');
+      sp.append(ws.slice(0, best).join(' '), document.createElement('br'), ws.slice(best).join(' '));
+      el.replaceChildren(sp);
+    }
     let size = parseFloat(getComputedStyle(el).fontSize);
     let guard = 30;
     while (guard-- > 0 && size > 9
@@ -6547,6 +6577,7 @@ function bootTapToStart() {
     $('#ovi').classList.remove('on');
   });
   $('#ovi').addEventListener('click', () => {
+    if (ovInfoAction) return ovInfoAction();   // 화면이 ⓘ 를 팝업으로 쓰겠다고 했다
     $('#ovinfo').classList.toggle('show');
     $('#ovi').classList.toggle('on');
   });
