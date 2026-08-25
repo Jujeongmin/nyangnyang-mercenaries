@@ -79,17 +79,23 @@
   *{scrollbar-width:none;-ms-overflow-style:none}
   *::-webkit-scrollbar{width:0;height:0;display:none}
   /* container 선언 — 아래 좁은화면 규칙이 뷰포트가 아니라 **앱 폭**을 본다 */
-  /* 폭은 **창의 두 축 중 큰 쪽**을 따라간다.
-     · 480px 고정이면 PC 에서 좌우가 검게 남는다
-     · 높이(56vh)에만 매달면 창이 낮고 넓을 때(1440x900 등) 앱이 좁아져
-       UI 가 전부 작아진다 — 실제로 그렇게 보였다 (단장 지적 2026-08-25)
-     그래서 max(62vh, 52vw): 창이 높으면 높이가, 넓으면 폭이 잡는다.
-     계수는 두 번 올렸다 — 1280x800 같은 흔한 PC 창에서 앱이 538px 로 남아
-     좌우가 371px 씩 검었다 (단장 지적 2026-08-25). 지금은 666px 다.
-     900px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져서 둔다.
-     폰에서는 100% 가 이겨 그대로다 */
+  /* 이 게임은 **세로형 모바일이 기준**이고 PC 는 그 화면을 창에 맞춰 키워 보여
+     주는 것뿐이다. 그러니 폭은 비율 하나로 정해진다 — 9:16, 곧 높이의 56.25%.
+     `--aspect` 하나만 고치면 #app 과 #boot 이 같이 따라온다.
+
+     예전에는 `max(62vh, 52vw)` 였다. PC 에서 좌우가 검다는 지적에 vw 항을
+     넣었는데, **vw 항에는 비율 상한이 없다.** 창이 넓고 낮을수록 앱이 정사각에
+     가까워져서 1190x700 에디터 창에서 619x700(0.88)이 나왔다 — 전투 패널이
+     2.29:1 로 퍼져 세로 게임이 아니게 됐다 (단장 지적 2026-08-25, 9:16 확정).
+
+     좌우 검은 띠는 **버그가 아니라 세로 게임의 레터박스**다. 비율을 지키는
+     값이지 없애야 할 낭비가 아니다. 폰에서는 100% 가 이겨 그대로 꽉 찬다.
+     900px 상한은 그 위로 가면 글자·아이콘이 태블릿처럼 커져서 둔다
+     (높이 1600px 이 넘는 창에서만 걸린다) */
+  :root{--aspect:.5625}   /* 9:16 */
   #app{container:app / inline-size;
-    position:relative;width:min(100%, max(62vh, 52vw), 900px);height:100%;margin:0 auto;
+    position:relative;width:min(100%, calc(100vh * var(--aspect)), 900px);
+    height:100%;margin:0 auto;
     background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 
   /* 상단 12% */
@@ -246,8 +252,10 @@
      left/right 가 0 이라 max-width 가 남긴 여백을 margin:auto 가 반씩 먹어
      가운데로 선다. 기둥 밖은 body 색(#0f0b08) — 게임 화면의 레터박스와 같다 */
   /* 폭은 #app 과 **같은 식**이다 — 다르면 로딩 화면만 좌우 여백이 달라
-     시작하자마자 화면이 덜컥 넓어진다 (단장 지적 2026-08-25) */
-  #boot{position:fixed;inset:0;width:min(100%, max(62vh, 52vw), 900px);margin:0 auto;
+     시작하자마자 화면이 덜컥 넓어진다 (단장 지적 2026-08-25).
+     같은 --aspect 를 읽으므로 한 곳만 고치면 둘이 같이 움직인다 */
+  #boot{position:fixed;inset:0;margin:0 auto;
+    width:min(100%, calc(100vh * var(--aspect)), 900px);
     z-index:210;display:flex;flex-direction:column;
     align-items:center;overflow:hidden;
     /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
@@ -467,11 +475,27 @@
     background:#0009;font-size:26px;font-weight:900;letter-spacing:2px}
 
   /* ── 탭 유도 손 ──
-     퀘스트가 가리키는 버튼 위에 고양이 발이 톡톡 두드린다. 위치는 main.js 가
-     목표 버튼의 실제 좌표로 잡아 준다(fixed) — 목표가 시트 안이든 도크든 따라간다 */
-  #tapHint{position:fixed;z-index:120;display:none;pointer-events:none;
+     퀘스트가 가리키는 버튼 위에 고양이 발이 톡톡 두드린다.
+
+     **좌표를 복사하지 않는다.** main.js 는 손을 목표 버튼의 **자식으로 옮기기만**
+     하고, 자리는 여기 % 가 정한다 — 버튼이 움직이든 창이 바뀌든 시트가
+     스크롤되든 손은 붙어 있다. 예전에는 fixed 에 픽셀을 박아 한 번만 쟀고,
+     1190x700 → 900x620 으로 창을 줄이면 145x80px 어긋난 채 빈 곳을 가리켰다
+     (단장 지적 2026-08-25).
+
+     62%/58% 는 버튼의 오른쪽 아래에 걸치는 값이다 — 가운데에 두면 정작
+     눌러야 할 그림을 손이 덮는다. 버튼 밖으로 조금 나가는 것이 정상이다 */
+  #tapHint{position:absolute;left:62%;top:58%;
+    z-index:120;display:none;pointer-events:none;
     width:44px;height:44px}
   #tapHint.show{display:block}
+  /* 목표가 position:static 이면 손이 그 버튼이 아니라 더 위 조상을 기준으로
+     앉는다. **그럴 때만** relative 를 씌운다 — 이미 relative/absolute 인 버튼에
+     덧씌우면 그 버튼의 자리가 틀어진다 (main.js > showTapHint 가 판단한다) */
+  .th-host{position:relative}
+  /* 던전 줄은 배경 그림을 자르려고 overflow:hidden 이다 — 여기서만 손이 아래로
+     넘치면 잘린다. 줄 안쪽 바닥에 붙여 넘칠 일을 없앤다 */
+  .dg > #tapHint{top:auto;bottom:4px}
   #tapHint img{position:absolute;left:0;top:0;width:100%;height:100%;
     object-fit:contain;filter:drop-shadow(0 3px 6px #000a);
     animation:tapPaw 1.15s ease-in-out infinite}

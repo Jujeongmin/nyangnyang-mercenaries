@@ -6010,26 +6010,48 @@ let tapHintSel = null;
 // 이번 퀘스트에서 **이미 눌러 본** 목표. 한 번 누르면 그 퀘스트 동안은 다시 안
 // 뜬다 — renderQuest 가 자주 도는데 그때마다 손이 되살아나면 잔소리가 된다
 let tapHintUsed = null;
+// 지금 손을 달고 있는 버튼. 손을 치울 때 .th-host 를 도로 벗기려고 들고 있다
+let tapHintHost = null;
+/**
+ * 손 그 자체를 **붙잡아 둔다.** 손이 시트 안 버튼의 자식으로 들어간 상태에서
+ * 그 시트가 다시 그려지면(`innerHTML = ...`) 손도 같이 지워진다. 그러면
+ * `$('#tapHint')` 는 null 이 되고 손은 영영 안 돌아온다. 노드를 들고 있으면
+ * DOM 에서 떨어져 나가도 살아 있어서 다음에 그대로 다시 붙일 수 있다.
+ */
+let tapHintEl = null;
+const tapHintNode = () => (tapHintEl ||= $('#tapHint'));
+/**
+ * 손을 목표 버튼 **안으로 옮긴다.** 좌표는 안 잰다 — 자리는 CSS 의 62%/58% 가
+ * 정하고, 버튼이 움직이면 자식인 손도 같이 움직인다.
+ *
+ * 예전에는 getBoundingClientRect 로 잰 값을 fixed 좌표에 박았다. 재는 순간의
+ * 사진일 뿐이라 창이 바뀌면 그대로 틀렸다 — 1190x700 → 900x620 에서 145x80px
+ * 어긋나 빈 곳을 가리켰다 (단장 지적 2026-08-25). 에디터는 로드 뒤 iframe 을
+ * 다시 재는 구조라 실제로 매번 걸렸다.
+ */
 function showTapHint(sel, ms = 6000) {
-  const hint = $('#tapHint');
+  const hint = tapHintNode();
   const el = typeof sel === 'string' ? $(sel) : sel;
   clearTimeout(tapHintT);
   if (!el || !hint) return;
   // **덮개가 열려 있으면 아예 안 띄운다.** 치우는 것만으로는 부족했다 —
   // 상점을 열면 그 안에서 렌더가 돌고, 그때 이 함수가 다시 불려 손이 되살아났다
   if (coverOpen()) return hideTapHint();
+  // 아직 자리를 못 잡은 버튼(폭 0)에는 안 붙인다 — 시트가 뜨는 중이다
+  if (!el.getBoundingClientRect().width) return hideTapHint();
   // 같은 목표로 이미 떠 있으면 그냥 둔다 — renderQuest 가 자주 도는데 그때마다
-  // 다시 걸면 click 리스너가 계속 쌓이고 애니메이션도 매번 처음으로 튄다
-  if (tapHintSel === sel && hint.classList.contains('show')) return;
+  // 다시 걸면 click 리스너가 계속 쌓이고 애니메이션도 매번 처음으로 튄다.
+  // (자리를 다시 잴 일은 없다 — 손이 버튼의 자식이라 알아서 따라간다)
+  // **다만 아직 그 버튼에 붙어 있을 때만이다** — 시트가 다시 그려지면서 손이
+  // 떨어져 나갔으면 도로 붙여야 한다
+  if (tapHintSel === sel && hint.classList.contains('show')
+      && hint.parentElement === el) return;
   tapHintSel = sel;
-  const place = () => {
-    const r = el.getBoundingClientRect();
-    if (!r.width) return hideTapHint();
-    // 버튼의 오른쪽 아래에 걸친다 — 가운데에 두면 정작 눌러야 할 그림을 가린다
-    hint.style.left = Math.round(r.left + r.width * 0.62) + 'px';
-    hint.style.top = Math.round(r.top + r.height * 0.58) + 'px';
-  };
-  place();
+  // static 인 버튼은 손의 기준이 못 된다. **그럴 때만** relative 를 씌운다
+  if (tapHintHost) tapHintHost.classList.remove('th-host');
+  if (getComputedStyle(el).position === 'static') el.classList.add('th-host');
+  tapHintHost = el;
+  el.appendChild(hint);
   hint.classList.add('show');
   // 목표를 누르면 역할이 끝났다
   el.addEventListener('click', () => {
@@ -6043,7 +6065,10 @@ function showTapHint(sel, ms = 6000) {
 function hideTapHint() {
   clearTimeout(tapHintT);
   tapHintSel = null;
-  $('#tapHint')?.classList.remove('show');
+  // 씌웠던 relative 를 벗긴다 — 안 벗기면 그 버튼이 계속 기준점으로 남는다
+  tapHintHost?.classList.remove('th-host');
+  tapHintHost = null;
+  tapHintNode()?.classList.remove('show');
 }
 
 /**
