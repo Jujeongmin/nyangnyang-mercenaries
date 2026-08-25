@@ -67,8 +67,25 @@ function makeMerc(classId, grade, level, globalMult) {
     counterRatio: p.counterAtkRatio || 0,
     procChance:  p.procChance  || 0,
     procRatio:   p.procAtkRatio || 0,
-    lifesteal: 0, reflect: 0, executeChance: 0, doubleHitChance: 0,
+    lifesteal: 0, executeChance: 0, doubleHitChance: 0,
+    ...passiveSlots(),
     nextAttack: 0, shield: 0, alive: true,
+  };
+}
+
+/** 패시브가 채우는 칸. 아군·적이 같은 모양을 가져야 전투 루프가 분기 없이 돈다 */
+function passiveSlots() {
+  return {
+    pierce: 0,                       // 관통력 — 감산을 깎는다
+    openPct: 0, openSec: 0,          // 선제
+    thorns: 0,                       // 가시 오라 — 맞을 때 되돌림
+    ragePS: 0, rageMax: 0,           // 투지
+    vigorAtk: 0, regenPS: 0,         // 활력
+    lifeAtkPct: 0,                   // 흡혈이 얹는 공격력
+    doubleHitRatio: 0,               // 이중 공격의 추가 타격 배율
+    execHp: 0,                       // 즉사 문턱
+    killAtk: 0, killMax: 0, kills: 0,// 응징의 오라
+    ampChance: 0, ampMult: 1,        // 심판
   };
 }
 
@@ -84,7 +101,8 @@ function makeEnemy(cp, ratio) {
     atkFromDef: 0, atkFromHp: 0,
     critChance: 0, critMult: 2.0, evadeChance: 0, counterRatio: 0,
     procChance: 0, procRatio: 0,
-    lifesteal: 0, reflect: 0, executeChance: 0, doubleHitChance: 0,
+    lifesteal: 0, executeChance: 0, doubleHitChance: 0,
+    ...passiveSlots(),
     nextAttack: 0, shield: 0, alive: true,
   };
 }
@@ -108,7 +126,13 @@ function skillPower(grade, level) {
   return skillCp(grade, level) / SKILL_BASELINE_CP;
 }
 
-// 패시브를 파티에 적용
+// 패시브를 파티에 적용.
+//
+// **배율 규칙은 game/src/core/passives.js 와 같아야 한다.** 이 시뮬레이터가 재는
+// 값으로 스킬 계수를 튜닝하는데, 규칙이 다르면 튜닝 결과가 실제 게임과 어긋난다.
+//   scaled : pct / add / atkPct / atkRatio / maxHpRatioPerSec
+//   raw    : chance / hpThreshold / pctPerStack / maxStacks / mult / sec
+//            / pctPerSec / maxPct
 function applyPassives(party, passives) {
   for (const ps of passives) {
     const sk = SKILL_BY_ID[ps.id], e = sk.effect;
@@ -123,16 +147,62 @@ function applyPassives(party, passives) {
           else if (e.stat === 'atkSpeed') u.atkSpeedMult *= (1 + v);
           break;
         }
-        case 'crit_chance':   u.critChance  += e.add * scale; break;
-        case 'evade_chance':  u.evadeChance += e.add * scale; break;
-        case 'lifesteal':     u.lifesteal   += e.pct * scale; break;
-        case 'reflect':       u.reflect     += e.pct * scale; break;
-        case 'execute':       u.executeChance  += e.chance * scale; break;
-        case 'double_hit':    u.doubleHitChance += e.chance * scale; break;
+        case 'crit_chance':   u.critChance += e.add * scale; break;
+        case 'crit_damage':   u.critMult   += e.add * scale; break;
+        case 'def_pierce':    u.pierce      = Math.min(0.9, u.pierce + e.pct * scale); break;
+        case 'thorns_aura':   u.thorns     += (e.atkPct || 0) * scale; break;
+        case 'opening_burst':
+          u.openPct += e.pct * scale;
+          u.openSec = Math.max(u.openSec, e.sec || 0);
+          break;
+        case 'vigor':
+          u.vigorAtk += (e.fullHpAtkPct || 0) * scale;
+          u.regenPS  += (e.maxHpRatioPerSec || 0) * scale;
+          break;
+        case 'lifesteal':
+          u.lifesteal  += e.pct * scale;
+          u.lifeAtkPct += (e.atkPct || 0) * scale;
+          break;
+        case 'rage_ramp':
+          u.ragePS  += e.pctPerSec || 0;
+          u.rageMax += e.maxPct || 0;
+          break;
+        case 'double_hit': {
+          // 확률 가중 평균 — 같은 종류가 겹쳐도 추가 타격 배율이 한 값으로 남는다
+          const c0 = u.doubleHitChance, c1 = e.chance || 0;
+          u.doubleHitRatio = (c0 + c1) > 0
+            ? (c0 * u.doubleHitRatio + c1 * (e.atkRatio || 0) * scale) / (c0 + c1) : 0;
+          u.doubleHitChance = Math.min(0.9, c0 + c1);
+          break;
+        }
+        case 'execute':
+          u.executeChance = Math.min(0.6, u.executeChance + (e.chance || 0));
+          u.execHp = Math.max(u.execHp, e.hpThreshold || 0);
+          break;
+        case 'kill_stack_atk':
+          u.killAtk += e.pctPerStack || 0;
+          u.killMax = Math.max(u.killMax, e.maxStacks || 0);
+          break;
+        case 'damage_amplify':
+          u.ampChance = Math.min(0.8, u.ampChance + (e.chance || 0));
+          u.ampMult = Math.max(u.ampMult, e.mult || 1);
+          break;
         default: break; // resource_gain / idle_gain 은 전투 무관
       }
     }
   }
+  for (const u of party) u.critChance = Math.min(0.8, u.critChance);
+}
+
+/** 시간·상태에 따라 변하는 공격력 배수. 상시 항(stat_pct)은 이미 atk 에 곱해져 있다 */
+function atkMulOf(u, sec) {
+  let m = 1;
+  if (u.openPct && sec < u.openSec) m += u.openPct;
+  if (u.ragePS) m += Math.min(u.rageMax, u.ragePS * sec);
+  if (u.vigorAtk && u.hp >= u.maxHp * 0.999) m += u.vigorAtk;
+  if (u.lifeAtkPct) m += u.lifeAtkPct;
+  if (u.killAtk) m += Math.min(u.kills, u.killMax) * u.killAtk;
+  return m;
 }
 
 // ---------- 전투 ----------
@@ -186,6 +256,8 @@ function firstAlive(list) { for (const u of list) if (u.alive) return u; return 
 // 한 번의 조우(웨이브) 전투. 승리 시 true.
 function runEncounter(party, enemies, actives, rng, state) {
   for (const u of party) { u.nextAttack = 0; u.shield = 0; }
+  // kills 는 **조우를 넘어 누적**한다. 웨이브마다 리셋하면 응징의 오라가
+  // 잡몹 4마리 상한에 묶여 보스전에서 항상 0 중첩으로 들어간다
   for (const e of enemies) e.nextAttack = 0;
 
   for (let tick = 0; tick < MAX_TICKS; tick++) {
@@ -260,6 +332,14 @@ function runEncounter(party, enemies, actives, rng, state) {
       }
     }
 
+    // --- 활력 재생 --- 1초에 한 번만 돌린다 (틱마다 돌리면 10배가 된다)
+    if (tick % 10 === 0) {
+      for (const u of party) {
+        if (u.alive && u.regenPS > 0 && u.hp < u.maxHp)
+          u.hp = Math.min(u.maxHp, u.hp + u.maxHp * u.regenPS);
+      }
+    }
+
     // --- 일반 공격 ---
     for (const attacker of [...party, ...enemies]) {
       if (!attacker.alive) continue;
@@ -278,23 +358,33 @@ function runEncounter(party, enemies, actives, rng, state) {
         continue;
       }
 
-      let raw = attacker.atk;
+      // 선제·투지·활력·응징은 **시간과 상태**로 변한다. 전투 시작 시 한 번 곱해
+      // 두면 "전투가 길수록 세진다"는 투지가 그냥 상시 버프가 된다
+      const atkNow = attacker.atk * atkMulOf(attacker, tick / 10);
+      let raw = atkNow;
       if (attacker.critChance > 0 && rng() < attacker.critChance) raw *= attacker.critMult;
-      if (attacker.procChance > 0 && rng() < attacker.procChance) raw += attacker.atk * attacker.procRatio;
-      if (attacker.doubleHitChance > 0 && rng() < attacker.doubleHitChance) raw += attacker.atk * 0.5;
+      if (attacker.procChance > 0 && rng() < attacker.procChance) raw += atkNow * attacker.procRatio;
+      if (attacker.doubleHitChance > 0 && rng() < attacker.doubleHitChance)
+        raw += atkNow * (attacker.doubleHitRatio || 0.5);
+      if (attacker.ampChance > 0 && rng() < attacker.ampChance) raw *= attacker.ampMult;
 
       // 잡몹은 때리되 거의 깎지 못한다 (stageRules.mobDamageScale). 보스만 실제로 문다.
       const scale = (!ARENA_MODE && attacker.side === 'enemy') ? (attacker.dmgScale || 1) : 1;
-      const dmg = dealDamage(target, raw * (1 - mitigate(target, attacker.atk)) * scale);
+      // 관통력은 감산을 깎는다 — 여기가 "방어력 무시" 의 제자리다
+      const mit = mitigate(target, atkNow) * (1 - (attacker.pierce || 0));
+      const dmg = dealDamage(target, raw * (1 - mit) * scale);
 
       if (attacker.lifesteal > 0)
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + dmg * attacker.lifesteal);
-      if (target.alive && target.reflect > 0)
-        dealDamage(attacker, dmg * target.reflect);
+      // 가시 오라 — 맞은 쪽이 자기 공격력에 비례해 되돌린다. 받은 피해 비례가 아니라
+      // 고정 반사라 mobDamageScale 0.05 앞에서도 값을 한다
+      if (target.alive && target.thorns > 0)
+        dealDamage(attacker, target.atk * target.thorns);
       if (target.alive && attacker.executeChance > 0 &&
-          target.hp / target.maxHp < 0.15 && rng() < attacker.executeChance) {
+          target.hp / target.maxHp < (attacker.execHp || 0.15) && rng() < attacker.executeChance) {
         target.hp = 0; target.alive = false;
       }
+      if (!target.alive) attacker.kills = (attacker.kills || 0) + 1;
 
       attacker.nextAttack = tick + attackInterval(attacker);
     }

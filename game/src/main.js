@@ -13,6 +13,8 @@
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
 import { initCloud, cloudSave } from './core/cloudsave.js';
+import { passiveAgg, passiveAtkMult } from './core/passives.js';
+import * as live from './net/live.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
 import { ShopScreen, summonProgress, levelRewardPending } from './view/shop.js';
@@ -23,7 +25,7 @@ import { questAt, questProgress, QUEST_TYPE } from './view/quest.js';
 import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
 import { AllianceVillage } from './view/alliance.js';
-import { t, tn, loadLang, LANGS } from './core/i18n.js';
+import { t, tn, loadLang, LANGS, watchDom } from './core/i18n.js';
 import { showRewarded, initAds, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM } from './net/ads.js';
 
 const $ = s => document.querySelector(s);
@@ -677,7 +679,36 @@ function save() {
   saveTimer = setTimeout(() => {
     saveNow();
     cloudSave();            // Verse8 안이면 30초 스로틀로 올라간다. 밖이면 무동작
+    pushPublic();           // 랭킹·공개 프로필. 아래 규칙대로 대부분은 무동작이다
   }, 400);
+}
+
+/**
+ * 공개 프로필·랭킹 제출.
+ *
+ * **호출 예산이 좁다** — remoteFunction 은 초당 약 10회고, 소환 1회마다 올리면
+ * 10연차에서 즉시 한계다 (ranking.json > rateLimitBudget). 그래서 세 겹으로 막는다:
+ *   60초 debounce · 최소 변화율 0.5% · 하루 30회
+ * net/backend.js 의 submitCp 와 같은 규칙이다 — 그쪽은 서버 판정 이관(2단계)에서
+ * 쓰고, 지금 실제로 도는 경로는 여기다.
+ */
+let _cpSent = 0, _cpAt = 0, _cpDay = 0, _cpToday = 0;
+function pushPublic() {
+  if (!live.liveReady()) return;
+  const now = Date.now(), day = dayIdx(now);
+  if (_cpDay !== day) { _cpDay = day; _cpToday = 0; }
+  if (_cpToday >= 30) return;
+  if (now - _cpAt < 60_000) return;
+  const cp = Math.round(totalCp());
+  if (_cpSent && Math.abs(cp - _cpSent) / _cpSent < 0.005) return;
+  _cpAt = now; _cpSent = cp; _cpToday++;
+  const nick = S.profile?.nick || S.nickname || '단장';
+  // 프로필과 랭킹을 같이 올린다. 랭킹 행은 점수만 갖고 있어서, 프로필이 낡으면
+  // 남의 화면에 뜨는 내 편성·칭호가 옛날 것으로 남는다
+  Promise.all([
+    live.pushProfile(publicProfile()),
+    live.pushCp(cp, nick),
+  ]).catch(e => console.warn('[live] 제출 실패', e));
 }
 
 /**
@@ -777,7 +808,7 @@ function stageLabel(n) {
   const ch = Math.floor((n - 1) / CH_SIZE) + 1;
   const sub = ((n - 1) % CH_SIZE) + 1;
   const zone = D.stages.backgrounds.find(b => n >= b.from && n <= b.to);
-  return { ch, sub, zone: zone ? zone.nameKo : '', text: `일반 ${ch}-${sub}` };
+  return { ch, sub, zone: zone ? zone.nameKo : '', text: `${t('일반')} ${ch}-${sub}` };
 }
 const bgFor = n => {
   const b = D.stages.backgrounds.find(x => n >= x.from && n <= x.to)
@@ -787,6 +818,11 @@ const bgFor = n => {
 
 // 파티 총 DPS. 환산 패시브(DEF/HP → ATK)를 반영한다 —
 // characters.json > statDerivation.conversion 과 같은 식이어야 한다.
+//
+// 장착 패시브의 **상시** 항(공격력·공격 속도 강화)도 여기서 곱한다. 예전에는
+// 패시브가 총 전투력(totalCp)에만 더해졌고 DPS 는 용병 CP 만 봤다 — "공격력 +11%"
+// 스킬을 껴도 실제 타격이 1도 안 늘었다. 발동형(치명타·즉사·이중 공격 등)은
+// 여기 넣지 않는다. 그건 매 타격마다 굴려야 해서 scene 이 쥔다.
 function partyDps() {
   const cls = D.characters.classes;
   const gear = (1 + equipBonus()) * (1 + S.forgeLv * 0.008);
@@ -800,7 +836,7 @@ function partyDps() {
       + (t * c.statRatio.hp / 100) * (p.atkFromHp || 0);
     dps += atk * aps * (1 + (p.atkSpeedAdd || 0));
   }
-  return dps * gear * csDpsMult();
+  return dps * gear * csDpsMult() * passiveAtkMult(passiveAgg(S.skills.passive, D.skills));
 }
 
 // --- 제작대(장비 소환) 레벨 ---
@@ -1182,7 +1218,7 @@ function renderChest() {
   const r = cap ? h / cap : 0;
   // 상자 라벨은 **얼마나 쌓였나(시간)** 다 — 액수는 눌러서 패널에서 본다.
   // 좁은 라벨에 큰 숫자를 넣으면 상자 그림을 덮는다
-  $('#chestT').textContent = h < 1 ? `${Math.floor(h * 60)}분` : `${h.toFixed(1)}시간`;
+  $('#chestT').textContent = h < 1 ? `${Math.floor(h * 60)}${t('분')}` : `${h.toFixed(1)}${t('시간')}`;
   const step = r >= 0.7 ? 3 : r >= 0.3 ? 2 : 1;
   const src = `/assets/ui/CH-0${step}.png`;
   const img = $('#chestImg');
@@ -2614,7 +2650,7 @@ function openEvents() {
   const left = evDaysLeft(D.events.diceBoard.durationDays);
   const over = left <= 0;
   banners.push(`<button class="evb${over ? ' end' : ''}" data-ev="dice"
-      style="--img:url(/assets/ui/EV-01.png)">
+      style="--img:url(/assets/ui/EV-01.webp)">
     <span class="evb-tag">${over ? t('종료') : t('출시 기념')}</span>
     ${over ? '' : `<span class="evb-dday">D-${left}</span>`}
     <b>${t('냥냥 주사위')}</b>
@@ -2625,7 +2661,7 @@ function openEvents() {
   // 무료 1000뽑 — 진행형이라 기간이 없다
   const pendN = f1kPendingN();
   banners.push(`<button class="evb${nx || pendN ? '' : ' end'}" data-ev="free1000"
-      style="--img:url(/assets/ui/EV-02.png)">
+      style="--img:url(/assets/ui/EV-02.webp)">
     <span class="evb-tag">${nx || pendN ? t('진행 중') : t('종료')}</span>
     <b>${t('무료 1000뽑')}</b>
     <span class="evb-sub">${pendN
@@ -3133,7 +3169,7 @@ function dungeonHtml() {
       // 배경으로 떨어뜨리는 이유: 열쇠를 깔면 우측 열쇠 칩과 같은 그림이 두 번 나온다
       const n = dg.keyId.replace('DK-', '');
       return `<div class="dg${open ? '' : ' lock'}" data-id="${dg.id}"
-        style="--dg-art:url(/assets/dungeon/DG-${n}.png),url(/assets/bg/${DG_BG[dg.id] || 'BG-01'}.png)">
+        style="--dg-art:url(/assets/dungeon/DG-${n}.png),url(/assets/bg/${DG_BG[dg.id] || 'BG-01'}.webp)">
         <span class="nm">
           <b>${dg.nameKo}</b>
           <span class="why">${open
@@ -3224,7 +3260,19 @@ const tierOf = score => {
 
 /** 아레나. arena.json > battle.winProbability 로 예상 승률을 보여준다. */
 // ── 연합 게이트 — 미가입이면 생성/가입부터 ─────────────────
-/** 데모 연합 목록 — 서버 연동 전 자리. 날짜 시드라 하루 동안은 같은 목록이다 */
+/**
+ * 연합 목록. 서버가 붙어 있으면 컬렉션(`allianceList`), 아니면 데모다.
+ * 필드 이름을 서버 쪽(`name` / `members` / `weekly` / `__id`)에 맞춰 데모도 같이 낸다 —
+ * 화면이 두 벌이 되지 않게 하는 것이 이 층의 존재 이유다.
+ */
+function allianceRows() {
+  const rows = live.get('alliances');
+  return rows ? rows.map(a => ({
+    id: a.__id, name: a.name, members: a.members || 0, weekly: a.weekly || 0,
+  })) : demoAlliances();
+}
+
+/** 데모 연합 목록 — 서버가 없을 때. 날짜 시드라 하루 동안은 같은 목록이다 */
 function demoAlliances() {
   const day = dayIdx(Date.now());
   const rng = k => { const x = Math.sin(day * 733 + k * 191) * 10000; return x - Math.floor(x); };
@@ -3244,7 +3292,7 @@ function openAllianceGate() {
   const coolLeft = S.allyLeftAt ? Math.max(0, S.allyLeftAt + coolMs - Date.now()) : 0;
   const canJoin = S.maxStage >= need && coolLeft <= 0;
   const cost = A.membership.createCost.diamond;
-  const rows = demoAlliances().map(a => `
+  const rows = allianceRows().map(a => `
     <div class="frow" style="padding:8px 11px;margin-bottom:5px">
       <span><b style="font-size:12px">${a.name}</b>
         <span class="k" style="display:block">${t('단원 {0} / {1}', a.members, A.membership.maxMembers)}
@@ -3273,26 +3321,109 @@ function openAllianceGate() {
     `;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
-  $('#alCreate')?.addEventListener('click', () => {
+  $('#alCreate')?.addEventListener('click', async () => {
     const name = prompt(t('연합 이름 (2~12자)'));
     if (!name) return;
     if (name.length < 2 || name.length > 12) return toast(t('이름은 2~12자입니다'));
     if (S.dia < cost) return toast(t('다이아 부족'));
-    S.dia -= cost;
-    S.ally = { id: 'mine', name, role: 'leader', joinedAt: Date.now() };
+    if (live.liveReady()) {
+      // 다이아는 **서버가 깎는다** (server.js > allianceCreate). 여기서 미리 깎으면
+      // 이름 중복으로 실패했을 때 되돌려 줄 곳이 없다
+      const r = await live.createAlliance(name, S.maxStage || 0, Math.round(totalCp()))
+        .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+      if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '연합을 만들지 못했습니다'));
+      S.ally = { id: r.alliance.__id, name, role: 'leader', joinedAt: Date.now() };
+      live.invalidate('alliances', 'myAlliance', 'boss');
+      await syncSaveFromServer();
+    } else {
+      S.dia -= cost;
+      S.ally = { id: 'mine', name, role: 'leader', joinedAt: Date.now() };
+    }
     save(); renderTop();
     toast(t('연합 [{0}] 창설!', name));
     $('#ov').classList.remove('show');
     alli.open();
   });
   $('#ovb').querySelectorAll('[data-join]').forEach(b =>
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
+      if (live.liveReady()) {
+        const r = await live.joinAlliance(b.dataset.join, S.maxStage || 0, Math.round(totalCp()))
+          .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+        if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '가입하지 못했습니다'));
+        live.invalidate('alliances', 'myAlliance', 'boss');
+      }
       S.ally = { id: b.dataset.join, name: b.dataset.name, role: 'member', joinedAt: Date.now() };
       save();
       toast(t('연합 [{0}] 가입!', b.dataset.name));
       $('#ov').classList.remove('show');
       alli.open();
     }));
+
+  // 목록이 늦게 오면 그때 다시 그린다. 처음 열 때는 캐시(또는 데모)로 즉시 뜬다 —
+  // 빈 화면을 보여 주고 기다리게 하지 않는다
+  live.pullAlliances(() => {
+    if ($('#ov').classList.contains('show') && $('#ovt').textContent === t('연합')) openAllianceGate();
+  });
+}
+
+/** 서버가 돌려주는 실패 사유 → 사람 말. 사유를 그대로 띄우면 유저가 영어를 읽는다 */
+const ALLY_ERR = {
+  stage: '스테이지가 모자랍니다',
+  already: '이미 연합에 속해 있습니다',
+  diamond: '다이아가 부족합니다',
+  gold: '골드가 부족합니다',
+  name_taken: '같은 이름의 연합이 있습니다',
+  full: '정원이 찼습니다',
+  gone: '없어진 연합입니다',
+  cooldown: '탈퇴 대기 시간이 남았습니다',
+  none: '연합에 속해 있지 않습니다',
+  daily: '오늘 기부를 다 했습니다',
+  order: '기부 순서가 어긋났습니다',
+  no_tries: '이번 주 도전을 다 썼습니다',
+  closed: '보스가 닫혀 있습니다',
+};
+
+/**
+ * 연합 소속을 서버 기준으로 맞춘다.
+ *
+ * **소속의 진실은 서버에 있다** (allyMembers 컬렉션). 로컬 `S.ally` 는 화면이
+ * 읽는 사본일 뿐인데, 두 값이 갈리는 경로가 실제로 있다:
+ *   · 다른 기기에서 탈퇴 — 로컬은 아직 소속이라 믿고 연합 화면을 연다
+ *   · 단장이 연합을 해산 — 없어진 연합의 게시판이 계속 열린다
+ *   · 다른 기기에서 가입 — 이 기기는 가입 화면부터 다시 보여 준다
+ * 부팅 때 한 번 맞춰 두면 그 뒤로는 화면이 서버와 같은 것을 본다.
+ */
+function syncAllyFromServer() {
+  const my = live.get('myAlliance');
+  if (my?.alliance) {
+    S.ally = {
+      id: my.alliance.__id,
+      name: my.alliance.name,
+      role: my.me?.role || 'member',
+      joinedAt: my.me?.joinedAt || Date.now(),
+    };
+  } else if (S.ally) {
+    // 서버가 "소속 없음" 이라고 한다. 로컬 기록을 지운다 —
+    // 탈퇴 쿨다운(allyLeftAt)은 서버가 따로 세므로 여기서 새로 찍지 않는다
+    S.ally = null;
+  }
+  save();
+}
+
+/**
+ * 서버가 세이브 안의 재화를 깎은 뒤 클라를 맞춘다.
+ * 연합 창설비·기부처럼 **서버가 깎는** 것들이 있어서(server.js > spendDia),
+ * 이걸 안 하면 화면의 다이아가 낡은 값으로 남고 다음 saveState 가 그걸 되돌려 쓴다.
+ */
+async function syncSaveFromServer() {
+  const sv = (typeof window !== 'undefined' && window.__V8_SERVER) || null;
+  if (!sv) return;
+  try {
+    const cloud = await sv.remoteFunction('loadState', []);
+    if (!cloud?.s) return;
+    // 재화만 가져온다. 진행도까지 통째로 덮으면 방금 전 전투 결과가 날아간다
+    for (const k of ['dia', 'gold']) if (typeof cloud.s[k] === 'number') S[k] = cloud.s[k];
+  } catch (e) { console.warn('[live] 재화 동기화 실패', e); }
 }
 
 // ── 친구 — 선물은 보내는 쪽 코스트가 없다 ──────────────────
@@ -3374,9 +3505,26 @@ function openFriendProfile(i) {
   });
 }
 
+/**
+ * 친구 상태.
+ *
+ * 서버가 붙으면 목록은 서버가 주고(friendList), **선물 주고받기 기록은 로컬**이다 —
+ * 선물은 내 골드만 늘리는 일방 행위라 상대 계정을 만지지 않는다. 서버에 올릴
+ * 이유가 생기는 건 "상대가 보낸 것을 내가 받는다" 로 바꿀 때다.
+ * 그때는 우편(mail)으로 가는 게 맞고, 지금 구조로는 못 한다.
+ */
 function friendState() {
   const day = dayIdx(Date.now());
-  if (!S.friends.list.length) S.friends.list = demoFriends();   // 서버 전 자리
+  const rows = live.get('friends');
+  if (rows) {
+    // id = account. 선물 기록(sent/recv)이 이 id 로 걸려 있어 키를 바꾸면 안 된다
+    S.friends.list = rows.map(x => ({
+      id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
+      stage: x.stage || 1, capCls: x.capCls || 'warrior',
+    }));
+  } else if (!S.friends.list.length && !live.liveReady()) {
+    S.friends.list = demoFriends();   // 서버가 없을 때만
+  }
   if (S.friends.day !== day) {
     S.friends.day = day;
     S.friends.sent = [];      // 오늘 선물 보낸 친구 id
@@ -3386,6 +3534,11 @@ function friendState() {
 }
 const friendGiftReady = () => {
   const f = friendState();
+  const box = live.get('giftBox');
+  // 서버가 붙으면 **받을 게 실제로 있을 때**만 뱃지를 띄운다. 보낼 곳이 남은 것도
+  // 뱃지 사유다 — 보내는 쪽이 공짜라 매일 누를 이유가 그것이다
+  if (box) return (box.inbox || []).length > 0
+    || f.list.some(x => !(box.sent || []).includes(x.id));
   return f.list.some(x => !f.sent.includes(x.id) || !f.recv.includes(x.id));
 };
 
@@ -3397,8 +3550,25 @@ const FR_SURNAME = ['까칠한', '엉덩이', '식빵 굽는', '새벽', '츄르
 const FR_NAME = ['츄르', '탐정', '냥', '야옹', '도둑', '기사', '사냥꾼', '집사',
   '대장', '학자', '나그네', '요리사'];
 
-/** 신청 후보 n 명. seed 가 같으면 같은 목록이다 */
+/**
+ * 신청 후보. 서버가 붙으면 **실제 프로필 표본**(findProfiles) 이고,
+ * 아니면 seed 로 지어낸 얼굴이다. 이미 친구거나 신청을 보낸 계정은 뺀다.
+ */
 function friendCandidates(seed, n = 6) {
+  const rows = live.get('friendCands');
+  if (rows?.length) {
+    const f = friendState();
+    const mine = new Set([...f.list.map(x => x.id), ...(f.req || [])]);
+    return rows.filter(x => !mine.has(x.account)).slice(0, n).map((x, i) => ({
+      id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
+      face: i % 4, frame: i % 4,
+    }));
+  }
+  return demoFriendCandidates(seed, n);
+}
+
+/** 서버가 없을 때의 후보. seed 가 같으면 같은 목록이다 */
+function demoFriendCandidates(seed, n = 6) {
   const rng = k => { const x = Math.sin(seed * 977 + k * 131) * 10000; return x - Math.floor(x); };
   const f = friendState();
   const mine = new Set([...f.list.map(x => x.id), ...(f.req || [])]);
@@ -3418,8 +3588,16 @@ function friendCandidates(seed, n = 6) {
   return out;
 }
 
-/** 나에게 온 신청. 데모라 새로 고칠 때마다 0~2명이 붙는다 */
+/**
+ * 나에게 온 신청. 서버가 붙으면 friendReq 컬렉션이다.
+ * `id` 는 **신청 아이템의 `__id`** 다 — 수락/거절이 그걸로 컬렉션을 지운다.
+ */
 function friendIncoming() {
+  const reqs = live.get('friendReqs');
+  if (reqs) return reqs.map((r, i) => ({
+    id: r.__id, account: r.from, name: r.fromNick || '단장',
+    cp: r.fromCp || 0, face: i % 4, frame: i % 4,
+  }));
   const f = friendState();
   f.inbox = f.inbox || [];
   return f.inbox;
@@ -3433,6 +3611,16 @@ function friendRefresh(force = false) {
   if (!force && left > 0) return Math.ceil(left);
   f.reqAt = now;
   f.seed = (f.seed || 1) + 1;
+  if (live.liveReady()) {
+    // 서버가 있으면 표본을 새로 받는다. 지어낸 신청은 더 이상 안 만든다.
+    // **새로 고침은 캐시를 버리는 것이 곧 새로 고침이다** — 안 버리면 pull 이
+    // 신선하다고 판단해 그대로 돌아온다
+    live.invalidate('friendCands', 'friendReqs');
+    const redraw = () => { if ($('#ov').classList.contains('show')) openFriendRequests(); };
+    live.pullFriendCands(totalCp(), redraw);
+    live.pullFriendReqs(redraw);
+    return 0;
+  }
   // 새로 고치면 이따금 나에게도 신청이 들어와 있다 — 목록이 살아 있다고 읽힌다
   f.inbox = f.inbox || [];
   if (f.list.length < FRIEND_MAX && Math.random() < 0.6) {
@@ -3441,6 +3629,14 @@ function friendRefresh(force = false) {
   }
   return 0;
 }
+
+/** 서버 실패 사유 → 사람 말 */
+const FR_ERR = {
+  already_friend: '이미 친구입니다',
+  already_sent: '이미 신청을 보냈습니다',
+  target: '보낼 수 없는 상대입니다',
+  not_mine: '내게 온 신청이 아닙니다',
+};
 
 /** 친구 목록에 넣는다. 정원을 넘으면 거절한다 */
 function friendAdd(x) {
@@ -3472,6 +3668,15 @@ function openFriendRequests() {
              (f.req || []).includes(x.id) ? t('신청함') : t('친구 신청')}</button>`}
     </div>`;
 
+  // 표본·신청이 늦게 오면 그때 다시 그린다
+  const frRedraw = () => {
+    if ($('#ov').classList.contains('show') && $('#ovt').textContent === t('친구 신청')) {
+      openFriendRequests();
+    }
+  };
+  live.pullFriendCands(totalCp(), frRedraw);
+  live.pullFriendReqs(frRedraw);
+
   $('#ovt').textContent = t('친구 신청');
   setSkin('friend');
   $('#ovh').classList.remove('has-cur');
@@ -3498,7 +3703,14 @@ function openFriendRequests() {
     b.addEventListener('click', () =>
       b.dataset.frtab === 'list' ? openFriends() : openFriendRequests()));
   $('#ovb').querySelectorAll('[data-freq]').forEach(b =>
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
+      if (live.liveReady()) {
+        const r = await live.addFriend(b.dataset.freq)
+          .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+        if (!r?.ok) return toast(t(FR_ERR[r?.reason] || '신청하지 못했습니다'));
+      }
+      // 보낸 신청은 로컬에도 남긴다 — 서버는 "내가 보낸 것" 목록을 안 준다.
+      // 버튼이 [신청함] 으로 굳는 건 이 기록이다
       f.req = f.req || [];
       if (!f.req.includes(b.dataset.freq)) f.req.push(b.dataset.freq);
       save();
@@ -3506,14 +3718,31 @@ function openFriendRequests() {
       openFriendRequests();
     }));
   $('#ovb').querySelectorAll('[data-fyes]').forEach(b =>
-    b.addEventListener('click', () => {
-      const x = f.inbox.find(y => y.id === b.dataset.fyes);
+    b.addEventListener('click', async () => {
+      const x = friendIncoming().find(y => y.id === b.dataset.fyes);
+      if (live.liveReady()) {
+        const r = await live.respondFriend(b.dataset.fyes, true)
+          .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+        if (!r?.ok) return toast(t(FR_ERR[r?.reason] || '수락하지 못했습니다'));
+        if (x) toast(t('{0} 님과 친구가 되었습니다', x.name));
+        live.invalidate('friends', 'friendReqs');
+        live.pullFriends();
+        live.pullFriendReqs(() => { if ($('#ov').classList.contains('show')) openFriendRequests(); });
+        syncNav();
+        return;
+      }
       if (x && friendAdd(x)) toast(t('{0} 님과 친구가 되었습니다', x.name));
       f.inbox = f.inbox.filter(y => y.id !== b.dataset.fyes);
       save(); syncNav(); openFriendRequests();
     }));
   $('#ovb').querySelectorAll('[data-fno]').forEach(b =>
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
+      if (live.liveReady()) {
+        await live.respondFriend(b.dataset.fno, false).catch(() => {});
+        live.invalidate('friendReqs');
+        live.pullFriendReqs(() => { if ($('#ov').classList.contains('show')) openFriendRequests(); });
+        return;
+      }
       f.inbox = f.inbox.filter(y => y.id !== b.dataset.fno);
       save(); openFriendRequests();
     }));
@@ -3533,12 +3762,36 @@ function openFriendRequests() {
   }, 250);
 }
 
+/**
+ * 선물 상태. 서버가 붙으면 **계정을 넘는 진짜 주고받기**다.
+ *   sent  오늘 내가 보낸 상대  — 서버가 센다 (gifts 컬렉션)
+ *   box   나에게 온 선물       — 보낸 사람이 실제로 눌렀을 때만 생긴다
+ *
+ * 예전에는 둘 다 로컬이었다. "선물"은 내 기기에 표시만 남고 "받기"는 상대가
+ * 뭘 보냈든 상관없이 내 골드를 줬다 — 혼자 도는 고리였고, 받는 쪽은 누가
+ * 선물을 보냈는지 영영 알 수 없었다.
+ *
+ * **금액은 여전히 받는 쪽이 정한다** (idleGold). 방치 골드가 받는 사람의
+ * 진행도에 물려 있어(고정액은 후반에 휴지조각) 보내는 쪽 세이브로는 못 잰다.
+ */
+function giftState() {
+  const f = friendState();
+  const box = live.get('giftBox');
+  if (!box) return { sent: f.sent, inbox: null, live: false };
+  return { sent: box.sent || [], inbox: box.inbox || [], live: true };
+}
+
 function openFriends() {
   const f = friendState();
   const gift = idleGold(FRIEND_GIFT_HOURS);
+  const G = giftState();
+  // 서버가 붙으면 **온 선물만** 받을 수 있다. 안 온 칸은 눌러도 줄 게 없다 —
+  // 예전처럼 늘 켜 두면 "받기" 가 그냥 매일 누르는 무료 골드 버튼이 된다
+  const fromOf = new Map((G.inbox || []).map(g => [g.from, g]));
   const rows = f.list.map((x, i) => {
-    const sent = f.sent.includes(x.id);
-    const got = f.recv.includes(x.id);
+    const sent = G.sent.includes(x.id);
+    const pend = G.live ? fromOf.get(x.id) : null;
+    const got = G.live ? !pend : f.recv.includes(x.id);
     return `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px" data-fp="${i}">
       ${friendAvatar(i, 40)}
       <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
@@ -3547,11 +3800,21 @@ function openFriends() {
         <button class="rt-b${sent ? '' : ' go'}" data-fsend="${x.id}"
           ${sent ? 'disabled' : ''}>${sent ? '✓' : t('선물')}</button>
         <button class="rt-b${got ? '' : ' go'}" data-frecv="${x.id}"
+          data-gid="${pend ? pend.id : ''}"
           ${got ? 'disabled' : ''}>${got ? '✓' : t('받기')}</button>
       </span></div>`;
   }).join('');
-  const allLeft = f.list.some(x => !f.sent.includes(x.id)) || f.list.some(x => !f.recv.includes(x.id));
+  const anySend = f.list.some(x => !G.sent.includes(x.id));
+  const anyRecv = G.live ? (G.inbox || []).length > 0
+    : f.list.some(x => !f.recv.includes(x.id));
+  const allLeft = anySend || anyRecv;
 
+  live.pullFriends(() => {
+    if ($('#ov').classList.contains('show') && $('#ovt').textContent === t('친구')) openFriends();
+  });
+  live.pullGiftBox(() => {
+    if ($('#ov').classList.contains('show') && $('#ovt').textContent === t('친구')) openFriends();
+  });
   $('#ovt').textContent = t('친구');
   setSkin('friend');
   $('#ovh').classList.remove('has-cur');
@@ -3567,6 +3830,8 @@ function openFriends() {
     <div class="frow"><span class="k">${t('선물 골드 (1명당)')}</span>
       <span class="v"><img src="/assets/ui/CU-04.png" alt=""
         style="width:12px;height:12px;vertical-align:-2px"> ${num(gift)}</span></div>
+    ${G.live ? `<div class="frow"><span class="k">${t('받을 선물')}</span>
+      <span class="v">${(G.inbox || []).length}</span></div>` : ''}
     <button class="fgbtn" id="frAll" style="margin:8px 0 10px"
       ${allLeft ? '' : 'disabled'}>${allLeft ? t('전체 선물 보내기 + 받기') : t('오늘은 다 주고받았습니다')}</button>
     ${rows}
@@ -3579,6 +3844,16 @@ function openFriends() {
     S.gold += gift;
     return gift;
   };
+  /** 서버 수령 — 행을 지운 **개수만큼** 골드를 넣는다. 없는 선물은 0이다 */
+  const claim = async ids => {
+    const list = ids.filter(Boolean);
+    if (!list.length) return 0;
+    const r = await live.claimGifts(list).catch(() => null);
+    const n = r?.n || 0;
+    if (n) S.gold += gift * n;
+    live.invalidate('giftBox');
+    return gift * n;
+  };
   $('#ovb').querySelectorAll('[data-frtab]').forEach(b =>
     b.addEventListener('click', () =>
       b.dataset.frtab === 'req' ? openFriendRequests() : openFriends()));
@@ -3588,18 +3863,42 @@ function openFriends() {
       openFriendProfile(+r.dataset.fp);
     }));
   $('#ovb').querySelectorAll('[data-fsend]').forEach(b =>
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
+      if (G.live) {
+        const r = await live.sendGift(b.dataset.fsend)
+          .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+        if (!r?.ok) return toast(t(GIFT_ERR[r?.reason] || '선물을 보내지 못했습니다'));
+        live.invalidate('giftBox');
+        live.pullGiftBox(() => { if ($('#ov').classList.contains('show')) openFriends(); });
+        toast(t('선물을 보냈습니다'));
+        return;
+      }
       if (!f.sent.includes(b.dataset.fsend)) f.sent.push(b.dataset.fsend);
       save(); syncNav(); openFriends();
     }));
   $('#ovb').querySelectorAll('[data-frecv]').forEach(b =>
-    b.addEventListener('click', () => {
-      const g = recvOne(b.dataset.frecv);
-      save(); renderTop(); syncNav(); openFriends();
+    b.addEventListener('click', async () => {
+      const g = G.live ? await claim([b.dataset.gid]) : recvOne(b.dataset.frecv);
+      save(); renderTop(); syncNav();
+      if (G.live) live.pullGiftBox(() => { if ($('#ov').classList.contains('show')) openFriends(); });
+      else openFriends();
       if (g) gainToast([['gold', g]]);
     }));
-  $('#frAll').addEventListener('click', () => {
+  $('#frAll').addEventListener('click', async () => {
     let got = 0;
+    if (G.live) {
+      // 보내기는 각자 한 번씩 (서버가 쌍마다 하루 한 번을 센다), 받기는 한 번에
+      for (const x of f.list) {
+        if (G.sent.includes(x.id)) continue;
+        await live.sendGift(x.id).catch(() => {});
+      }
+      got = await claim((G.inbox || []).map(x => x.id));
+      live.invalidate('giftBox');
+      save(); renderTop(); syncNav();
+      live.pullGiftBox(() => { if ($('#ov').classList.contains('show')) openFriends(); });
+      if (got) gainToast([['gold', got]]);
+      return;
+    }
     for (const x of f.list) {
       if (!f.sent.includes(x.id)) f.sent.push(x.id);
       got += recvOne(x.id);
@@ -3607,6 +3906,240 @@ function openFriends() {
     save(); renderTop(); syncNav(); openFriends();
     if (got) gainToast([['gold', got]]);
   });
+}
+
+/** 선물 실패 사유 → 사람 말 */
+const GIFT_ERR = {
+  not_friend: '친구가 아닙니다',
+  already_sent: '오늘 이미 보냈습니다',
+  target: '보낼 수 없는 상대입니다',
+};
+
+// ── 채팅 ───────────────────────────────────────────────────
+//
+// 방은 둘이다. [전체] 는 모두가 쓰고, [연합] 은 소속이 있을 때만 열린다.
+// alliance.json 은 "채팅은 하나만" 이라고 적혀 있었지만 그건 **채팅 입구가**
+// 하나라는 뜻으로 받는다 — 입구는 하단 채팅바 하나고, 그 안에서 탭으로 가른다.
+// 무소속 유저(초반 전원)에게 채팅이 아예 없으면 초반이 텅 빈 게임이 된다.
+//
+// 새 글은 **구독**으로 온다 (net/live.js > subscribeChat). 폴링이 아니라서
+// 화면을 열어 두면 상대가 친 순간 뜬다. 대신 닫을 때 반드시 해제해야 한다 —
+// 방치 게임을 몇 시간 켜 두는 동안 구독이 살아 있으면 트래픽이 계속 흐른다.
+let chatScope = 'world';
+let chatUnsub = null;
+
+/** 구독 해제. 화면을 닫는 모든 경로가 이걸 지난다 */
+function chatDetach() {
+  if (chatUnsub) { try { chatUnsub(); } catch { /* 이미 끊겼다 */ } chatUnsub = null; }
+}
+
+const chatRows = () => live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld') || [];
+const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.account;
+
+/**
+ * 채팅 한 줄. 아바타(단장 직군)가 붙고, 이름·아바타를 누르면 프로필 카드가 뜬다.
+ * account 는 data- 로 싣는다 — 줄 40개에 리스너 40개를 다는 대신 chBody 하나가
+ * 위임으로 받는다 (chatRedraw 마다 리스너를 다시 달지 않아도 된다).
+ */
+const chatLineHtml = m => `<div class="ch-line${chatMine(m) ? ' me' : ''}">
+    <img class="ch-av" src="/assets/captain/captain_${
+      ['warrior', 'archer', 'mage'].includes(m.capCls) ? m.capCls : 'warrior'}.png"
+      alt="" data-chacc="${esc(m.account || '')}" onerror="this.remove()">
+    <b data-chacc="${esc(m.account || '')}">${esc(m.nickname || '단장')}</b>
+    <span>${esc(m.text || '')}</span>
+    <i>${chatTime(m.at)}</i></div>`;
+
+/** 시:분. 초까지 붙이면 한 줄이 시각으로 가득 찬다 */
+const chatTime = at => {
+  const d = new Date(at || 0);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+function openChat(scope) {
+  if (scope) chatScope = scope;
+  const ready = live.liveReady();
+  const rooms = live.get('chatRooms');
+  const hasAlly = !!rooms?.ally;
+  if (chatScope === 'ally' && !hasAlly) chatScope = 'world';
+
+  const rows = ready ? chatRows() : [];
+  const body = !ready
+    // 서버가 없으면 대화 상대가 없다. 빈 말풍선을 띄우느니 이유를 적는다
+    ? `<div class="sh-note">${t('채팅은 서버에 연결된 뒤에 열립니다')}</div>`
+    : rows.length
+      ? rows.map(chatLineHtml).join('')
+      : `<div class="sh-note">${t('아직 아무도 말이 없습니다. 먼저 인사해 보세요')}</div>`;
+
+  $('#ovt').textContent = t('채팅');
+  setSkin('friend');
+  $('#ovh').classList.remove('has-cur');
+  $('#ovinfo').innerHTML = '';
+  $('#ovb').innerHTML = `
+    <div class="fr-tabs">
+      <button class="${chatScope === 'world' ? 'on' : ''}" data-chtab="world">${t('전체')}</button>
+      <button class="${chatScope === 'ally' ? 'on' : ''}" data-chtab="ally"
+        ${hasAlly ? '' : 'disabled'}>${t('연합')}</button>
+    </div>
+    <div id="chBody" class="ch-body">${body}</div>
+    <div class="ch-send">
+      <input id="chIn" maxlength="100" placeholder="${
+        ready ? t('메시지를 입력하세요') : t('연결 대기 중')}" ${ready ? '' : 'disabled'}>
+      <button class="rt-b go" id="chGo" ${ready ? '' : 'disabled'}>${t('보내기')}</button>
+    </div>`;
+  $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+  chatToBottom();
+
+  $('#ovb').querySelectorAll('[data-chtab]').forEach(b =>
+    b.addEventListener('click', () => openChat(b.dataset.chtab)));
+
+  // 방을 옮기면 이전 구독을 반드시 먼저 끊는다. 안 끊으면 탭을 오갈 때마다
+  // 구독이 하나씩 쌓여 같은 줄이 두 번 세 번 그려진다
+  chatDetach();
+  if (ready) {
+    chatUnsub = live.subscribeChat(chatScope, () => {
+      if (!$('#ov').classList.contains('show') || $('#ovt').textContent !== t('채팅')) return;
+      chatRedraw();
+    });
+    // 구독이 안 되는 환경이면(문서에 없는 호스트) 최소한 열 때 한 번은 받아 둔다
+    if (!chatUnsub) live.fetchChat(chatScope).then(r => {
+      if (r) { live.setChat(chatScope, r); chatRedraw(); }
+    }).catch(() => {});
+  }
+
+  const send = async () => {
+    const el = $('#chIn');
+    const text = (el.value || '').trim();
+    if (!text) return;
+    el.value = '';
+    const r = await live.sendChat(chatScope, text)
+      .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+    if (!r?.ok) {
+      el.value = text;                    // 실패하면 쓴 글을 돌려준다
+      return toast(t(CHAT_ERR[r?.reason] || '보내지 못했습니다'));
+    }
+    // 구독이 곧 새 목록을 주지만, 내가 친 줄은 **즉시** 보여야 한다
+    if (!chatUnsub) {
+      const rowsNow = live.fetchChat(chatScope).catch(() => null);
+      rowsNow.then(v => { if (v) { live.setChat(chatScope, v); chatRedraw(); } });
+    }
+  };
+  $('#chGo').addEventListener('click', send);
+  $('#chIn').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+  // 줄마다 리스너를 달지 않는다 — chatRedraw 가 innerHTML 을 갈아치우면
+  // 리스너도 같이 사라져 매번 다시 달아야 한다. 위임 하나면 끝이다
+  $('#chBody').addEventListener('click', e => {
+    const acc = e.target.dataset?.chacc;
+    if (acc) openChatProfile(acc);
+  });
+}
+
+/**
+ * 채팅 프로필 카드. 계정으로 공개 프로필을 그때그때 받아 #smPop 에 띄운다
+ * (아레나 상대 카드 openFoeInfo 와 같은 그릇).
+ *
+ * 캐시하지 않는다 — 채팅에서 만나는 계정은 매번 다르고, 카드 하나가 조회
+ * 한 번이라 예산(초당 10회)에도 안 걸린다. 프로필이 없으면(아직 안 올린 계정)
+ * 채팅 줄이 가진 것(이름·직군)만 그린다.
+ */
+async function openChatProfile(account) {
+  if (!account || !live.liveReady()) return;
+  // 나를 누르면 내 프로필 화면이 낫다 — 남 카드 모양으로 나를 보여 줄 이유가 없다
+  if (account === live.get('myAlliance')?.me?.account) return;
+  const line = chatRows().find(m => m.account === account);
+  const ttl = $('#smTitle'); if (ttl) ttl.textContent = line?.nickname || t('단장');
+  $('#smBody').innerHTML = `<div class="sh-note">${t('불러오는 중…')}</div>`;
+  $('#smPop').classList.add('show');
+
+  const x = await live.fetchProfile(account).catch(() => null);
+  // 기다리는 사이 카드를 닫았거나 다른 카드를 열었으면 그리지 않는다
+  if (!$('#smPop').classList.contains('show')) return;
+  const nick = x?.nickname || line?.nickname || '단장';
+  const cls = ['warrior', 'archer', 'mage'].includes(x?.capCls || line?.capCls)
+    ? (x?.capCls || line?.capCls) : 'warrior';
+  if (ttl) ttl.textContent = nick;
+
+  const f = friendState();
+  const isFriend = f.list.some(y => y.id === account);
+  const asked = (f.req || []).includes(account);
+  $('#smBody').innerHTML = `
+    <div class="af-hero">
+      <img src="/assets/captain/captain_${cls}.png" alt="" onerror="this.remove()">
+      <div>
+        <b>${esc(nick)}</b>
+        <span>${CLASS_KO[cls]} ${t('단장')}${x ? ` · ${t('전투력')} ${num(x.cp || 0)}` : ''}</span>
+        ${x ? `<span>${t('최고 스테이지')} ${num(x.stage || 0)} · ${t('점수')} ${num(x.arenaScore || 0)}</span>` : ''}
+      </div>
+    </div>
+    ${x?.title ? `<div class="frow"><span class="k">${t('칭호')}</span><span class="v">${esc(x.title)}</span></div>` : ''}
+    ${x?.party?.length ? `
+      <div class="lbl" style="margin:8px 0 6px">${t('착용 용병')}</div>
+      <div class="af-party">${x.party.map(c => `
+        <span class="af-m" style="--c:${GC_COL[c.grade] || '#999'}">
+          <img src="/assets/char/${esc(c.id)}.png" alt="" onerror="this.remove()">
+          <b style="color:${GC_COL[c.grade] || '#999'}">${esc(c.grade)}</b>
+        </span>`).join('')}</div>` : ''}
+    ${!x ? `<div class="sh-note">${t('아직 프로필을 올리지 않은 단장입니다')}</div>` : ''}
+    <button class="fgbtn" id="chFr" style="margin-top:8px"
+      ${isFriend || asked ? 'disabled' : ''}>${
+      isFriend ? t('이미 친구입니다') : asked ? t('신청함') : t('친구 신청')}</button>`;
+
+  $('#chFr')?.addEventListener('click', async () => {
+    const r = await live.addFriend(account)
+      .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+    if (!r?.ok) return toast(t(FR_ERR[r?.reason] || '신청하지 못했습니다'));
+    f.req = f.req || [];
+    if (!f.req.includes(account)) f.req.push(account);
+    save();
+    toast(t('친구 신청을 보냈습니다'));
+    $('#chFr').disabled = true;
+    $('#chFr').textContent = t('신청함');
+  });
+}
+
+/** 목록만 다시 그린다. 통째로 다시 그리면 입력 중이던 글자가 날아간다 */
+function chatRedraw() {
+  const el = $('#chBody');
+  if (!el) return;
+  const rows = chatRows();
+  el.innerHTML = rows.length
+    ? rows.map(chatLineHtml).join('')
+    : `<div class="sh-note">${t('아직 아무도 말이 없습니다. 먼저 인사해 보세요')}</div>`;
+  chatToBottom();
+  chatBarSync();
+}
+
+/** 최신이 아래다. 새 줄이 왔는데 위를 보고 있으면 온 줄 모른다 */
+function chatToBottom() {
+  const el = $('#chBody');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+/**
+ * 하단 채팅바 한 줄. 서버가 붙으면 **마지막 대화**를, 아니면 예전처럼 공지를 돈다.
+ * 바 자체가 채팅 입구라 여기 남의 말이 흐르는 것이 곧 "누르면 대화가 있다" 는 신호다.
+ */
+function chatBarSync() {
+  const line = $('#chatline'), who = document.querySelector('#chat .who');
+  if (!line) return;
+  const rows = live.get('chatWorld') || [];
+  const last = rows[rows.length - 1];
+  if (!last) return;
+  if (who) who.textContent = esc(last.nickname || '단장');
+  line.textContent = last.text || '';
+}
+
+/** 채팅 실패 사유 → 사람 말 */
+const CHAT_ERR = {
+  too_fast: '조금 천천히 보내 주세요',
+  no_room: '연합에 속해 있지 않습니다',
+  empty: '내용을 입력하세요',
+};
+
+/** 남이 친 글을 화면에 그린다. **반드시 이스케이프한다** — innerHTML 이다 */
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function arenaState() {
@@ -3648,7 +4181,45 @@ function publicProfile() {
   };
 }
 
+/**
+ * 아레나 상대 셋. 서버가 붙으면 **실제 유저 프로필**(findProfiles) 에서 고르고,
+ * 아니면 날짜 시드 더미다.
+ *
+ * 서버 표본은 내 CP 의 ±40% 대역이라 셋보다 많이 온다. 약간 약한 상대 · 비슷한
+ * 상대 · 약간 센 상대로 **셋만 남긴다** — 목록이 길면 유저가 가장 약한 하나만
+ * 골라 점수를 긁고, 그러면 아레나가 랭킹이 아니라 작업이 된다.
+ */
 function arenaFoes() {
+  const rows = live.get('arenaFoes');
+  if (rows?.length) {
+    const my = totalCp();
+    const sorted = [...rows].sort((a, b) => Math.abs(a.cp - my) - Math.abs(b.cp - my));
+    const weak = [...rows].filter(r => r.cp < my).sort((a, b) => b.cp - a.cp)[0];
+    const strong = [...rows].filter(r => r.cp > my).sort((a, b) => a.cp - b.cp)[0];
+    // 같은 계정이 두 칸에 앉으면 "다른 상대" 로 안 읽힌다.
+    // 겹쳐서 셋이 안 되면 **남은 표본으로 채운다** — 두 칸짜리 아레나는 고장으로 보인다
+    const seen = new Set();
+    const uniq = [];
+    for (const x of [weak, sorted[0], strong, ...sorted]) {
+      if (uniq.length >= 3) break;
+      if (!x || seen.has(x.account)) continue;
+      seen.add(x.account); uniq.push(x);
+    }
+    if (uniq.length) return uniq.map((x, i) => ({
+      i, account: x.account, name: x.nickname || '단장',
+      cp: x.cp || 0, score: x.arenaScore || 0, stage: x.stage || 1,
+      capCls: x.capCls || 'warrior',
+      // 서버가 주는 party 는 { id, grade, level } 이다. 화면은 characters 를
+      // id 로 찾아 그림을 붙인다 — 없는 id 면 조용히 빠진다
+      party: (x.party || []).map(m => D.characters.characters.find(c => c.id === m.id))
+        .filter(Boolean),
+    }));
+  }
+  return demoArenaFoes();
+}
+
+/** 서버가 없을 때의 상대. 날짜 시드라 하루 동안은 같은 얼굴이다 */
+function demoArenaFoes() {
   const my = totalCp();
   const day = dayIdx(Date.now());
   const seed = (S.arena?.foeSeed || 0) * 37;
@@ -3810,6 +4381,10 @@ function openArena(view) {
   const my = totalCp();
   const day = dayIdx(Date.now());
   const foes = arenaFoes();
+  // 표본이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 더미)로 즉시 뜬다
+  live.pullArenaFoes(my, () => {
+    if ($('#ov').classList.contains('show') && $('#ovt').textContent === '아레나') openArena();
+  });
   const winP = cp => 1 / (1 + Math.pow(cp / my, a.battle.winProbability.exponent));
   const left = arenaLeft();
 
@@ -3962,14 +4537,28 @@ function grantMedalItem(id) {
  * 일일 한도는 마을이 "매일 들를 이유"가 되는 선에서 데이터가 정한다.
  */
 /** 연합 레벨 — 기부 코인 누적(allyXp)이 XP 다 (alliance.json > level) */
+/**
+ * 연합 XP. 서버가 붙어 있으면 **단원 전체 합산**이고(alliances.xp), 아니면 내 기부만이다.
+ * 로컬 데모가 못 하던 지점이 정확히 여기다 — 혼자 쌓으면 하루 최대 95,
+ * 30명이면 2,850 이라 곡선(alliance.json > level.curveNote)이 이 값을 전제로 잡혀 있다.
+ */
+const allyXpNow = () => live.get('myAlliance')?.alliance?.xp ?? (S.allyXp || 0);
+
 function allyLevel() {
   const L = D.alliance.level.levels;
   let cur = L[0];
-  for (const l of L) if ((S.allyXp || 0) >= l.xp) cur = l;
+  for (const l of L) if (allyXpNow() >= l.xp) cur = l;
   return cur;
 }
 const allyNextLevel = () =>
-  D.alliance.level.levels.find(l => l.xp > (S.allyXp || 0)) || null;
+  D.alliance.level.levels.find(l => l.xp > allyXpNow()) || null;
+
+/** 단원 목록. 서버가 붙으면 실명단, 아니면 데모 주민이다 */
+function allyMembers() {
+  const my = live.get('myAlliance');
+  if (!my) return null;
+  return [...my.members].sort((a, b) => (b.coin || 0) - (a.coin || 0));
+}
 
 /**
  * 오늘 기부 상태. 하루 5회 **계단**이라 남은 건 "몇 번"이 아니라 "몇 번째"다.
@@ -3987,11 +4576,33 @@ const donateSteps = () => D.alliance.contribution.donate.steps;
 /** 지금 눌러야 할 단계. 다 했으면 null */
 const donateNext = () => donateSteps()[donateState().step] || null;
 
-/** 기부 한 번 = 한 계단. 화면이 다음 계단으로 갈아탄다 */
-function donate() {
+/**
+ * 기부 한 번 = 한 계단. 화면이 다음 계단으로 갈아탄다.
+ *
+ * 서버가 붙어 있으면 **단계 번호만 보낸다** — 비용도 보상도 서버 표에 있다
+ * (server.js > DONATE_STEPS). 클라가 "얼마 냈다"를 보내면 0원 기부가 된다.
+ */
+async function donate() {
   const a = donateState();
   const st = donateNext();
   if (!st) return toast(t('오늘 기부를 다 했습니다'));
+
+  if (live.liveReady()) {
+    const r = await live.donateStep(st.n)
+      .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+    if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '기부하지 못했습니다'));
+    a.step = r.step;
+    S.allyCoin = (S.allyCoin || 0) + r.coin;
+    await syncSaveFromServer();            // 골드·다이아는 서버가 깎았다
+    live.invalidate('myAlliance');
+    live.pullMyAlliance(() => {
+      if ($('#ov').classList.contains('show')) openAlliance('donate');
+    });
+    save(); renderTop(); alli.render();
+    gainToast([['alliance_coin', r.coin]]);
+    return;
+  }
+
   if (st.kind === 'gold') {
     if (S.gold < st.cost) return toast(`골드가 부족합니다 (${num(st.cost)} 필요)`);
     S.gold -= st.cost;
@@ -4046,10 +4657,15 @@ function allyBuy(id) {
 }
 
 /** 연합 탈퇴 — 24시간 재가입 쿨다운 (alliance.json > leaveCooldownHours) */
-function allyLeave() {
+async function allyLeave() {
   if (!S.ally) return;
   const h = D.alliance.membership.leaveCooldownHours;
   if (!confirm(t('연합을 탈퇴하면 {0}시간 동안 다른 연합에 가입할 수 없습니다. 탈퇴할까요?', h))) return;
+  if (live.liveReady()) {
+    const r = await live.leaveAlliance().catch(e => ({ ok: false, reason: String(e) }));
+    if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '탈퇴하지 못했습니다'));
+    live.invalidate('myAlliance', 'boss', 'bossLog', 'alliances');
+  }
   S.ally = null;
   S.allyLeftAt = Date.now();
   save();
@@ -4071,30 +4687,36 @@ function openAlliance(tab = 'home') {
   // 길드 홈의 관례(버섯커·AFK·세나키): 엠블럼 + 이름 + Lv + 인원 + 공지 한 줄,
   // 그 아래 내 요약(코인·오늘 기부). 설계 수치 나열은 유저 화면이 아니다
   const home = () => {
-    const today = new Date().toISOString().slice(0, 10);
+    // 기부는 하루 **5단계 계단**이다. 예전 코드는 {gold, eq} 두 갈래를 세던
+    // 시절의 필드를 그대로 읽어 doneN 이 NaN 이었고, d.gold.dailyLimit 은
+    // 아예 없는 필드라 화면이 터졌다
     const dn = donateState();
     const d = A.contribution.donate;
-    const doneN = dn.gold + dn.eq, capN = d.gold.dailyLimit + d.equip_ticket.dailyLimit;
+    const doneN = dn.step || 0, capN = d.steps.length;
+    const my = live.get('myAlliance');
+    const memberN = my ? my.members.length : ALLY_DEMO.length + 1;
+    const weekly = my ? (my.alliance.weekly || 0) : (S.allyCoin || 0);
     return `<div class="al-hero">
         <img class="al-emblem" src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
         <div class="al-hero-t">
-          <b>${S.ally?.name || '냥냥 용병단'} <i class="al-lv">Lv ${allyLevel().lv}</i></b>
-          <span>단원 ${ALLY_DEMO.length + 1} / ${A.membership.maxMembers} · 주간 기여 ${coin}${num((S.allyCoin || 0))}</span>
-          <em>"매일 기부하고 주말엔 보스! (서버 연동 전 데모)"</em>
+          <b>${my?.alliance?.name || S.ally?.name || '냥냥 용병단'} <i class="al-lv">Lv ${allyLevel().lv}</i></b>
+          <span>단원 ${memberN} / ${A.membership.maxMembers} · 주간 기여 ${coin}${num(weekly)}</span>
+          <em>"${my?.alliance?.notice || (live.liveReady()
+            ? '매일 기부하고 주말엔 보스!' : '매일 기부하고 주말엔 보스! (서버 연동 전 데모)')}"</em>
         </div>
       </div>
       <div class="al-sum">
         <div><span>내 연합 코인</span><b>${coin}${num(S.allyCoin || 0)}</b></div>
         <div><span>오늘 기부</span><b>${doneN} / ${capN}</b></div>
-        <div><span>보스 단계</span><b>${(S.allyBossTier || 0) + 1}단계</b></div>
+        <div><span>보스 단계</span><b>${live.get('boss')?.tier ?? (S.allyBossTier || 0) + 1}단계</b></div>
       </div>
       ${(() => {
         const nx = allyNextLevel();
         if (!nx) return `<div class="al-lvbar"><i style="width:100%"></i><b>${t('최고 레벨')}</b></div>`;
         const prev = allyLevel().xp;
-        const p = ((S.allyXp || 0) - prev) / (nx.xp - prev) * 100;
+        const p = (allyXpNow() - prev) / (nx.xp - prev) * 100;
         return `<div class="al-lvbar"><i style="width:${p}%"></i>
-          <b>Lv ${nx.lv} ${t('까지')} ${num(nx.xp - (S.allyXp || 0))} XP</b></div>`;
+          <b>Lv ${nx.lv} ${t('까지')} ${num(nx.xp - allyXpNow())} XP</b></div>`;
       })()}
       <button class="rt-b go" data-al-go="donate" style="width:100%;margin-top:8px">기부하러 가기</button>`;
   };
@@ -4103,9 +4725,11 @@ function openAlliance(tab = 'home') {
   // HP 계수·배수 표 같은 설계 수치는 유저 화면에서 뺐다
   const boss = () => {
     const B = A.boss;
-    const tier = (S.allyBossTier || 0) + 1;
-    const hpLeft = S.allyBossHp ?? 0.72;         // 데모 진행도. 서버 연동 시 컬렉션 값
-    const tries = S.allyBossTries ?? 0;
+    // 서버가 붙으면 **연합 공유 HP** 다. 없으면 데모 진행도(0.72 고정)
+    const bs = live.get('boss');
+    const tier = bs?.tier ?? (S.allyBossTier || 0) + 1;
+    const hpLeft = bs ? (bs.max ? bs.hp / bs.max : 0) : (S.allyBossHp ?? 0.72);
+    const tries = bs ? B.attemptsPerWeek - bs.triesLeft : (S.allyBossTries ?? 0);
     return `<div class="al-boss">
         <img src="/assets/boss/B-0${Math.min(6, tier)}.png" alt="" onerror="this.remove()">
         <div class="al-boss-t"><b>${tier}단계 심연의 군주</b>
@@ -4118,8 +4742,22 @@ function openAlliance(tab = 'home') {
         <div><span>참가 보상</span><b>${coin}${B.rewards.participation.alliance_coin}</b></div>
         <div><span>처치 보상</span><b>${coin}${B.rewards.clearBonus.alliance_coin}</b></div>
       </div>
-      <button class="rt-b go" data-al-fight style="width:100%;margin-top:9px">도전 (60초 전력전)</button>
+      <button class="rt-b go" data-al-fight style="width:100%;margin-top:9px"
+        ${bs && bs.triesLeft <= 0 ? 'disabled' : ''}>도전 (60초 전력전)</button>
+      ${bossLogRows()}
       <div class="sh-note">${B.rewards.participationNote}</div>`;
+  };
+
+  /** 이번 주 딜 순위. 협동은 보여야 협동이다 — 안 보이면 혼자 치는 것과 같다 */
+  const bossLogRows = () => {
+    const log = live.get('bossLog');
+    if (!log?.length) return '';
+    const me = live.get('myAlliance')?.me?.account;
+    return `<div class="lbl" style="margin:10px 0 6px">${t('이번 주 기여')}</div>`
+      + log.slice(0, 10).map((r, i) => `<div class="al-mem">
+          <span class="al-mem-t"><b>${i + 1}. ${
+            r.account === me ? t('나') : (r.nickname || shortAcc(r.account))}</b></span>
+          <span class="al-mem-c">${num(r.damage)}</span></div>`).join('');
   };
 
   const shop = () => {
@@ -4151,19 +4789,30 @@ function openAlliance(tab = 'home') {
 
   // 단원 리스트 관례: 아바타 + 이름/직위 + 기여도 + 접속 표시.
   // 진짜 명단은 서버 컬렉션이다 — 그때까지 데모 주민으로 화면 문법만 세워 둔다
-  const member = () => home() + `<div class="lbl" style="margin:12px 0 6px">${t('단원')}</div>`
-    + `<div class="al-mem me">
-       <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
-       <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
-       <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
-       <span class="al-on">접속 중</span></div>`
-    + ALLY_DEMO.map(m => `<div class="al-mem">
-       <span class="rk-ava"><img src="/assets/char/${m.ava}.png" alt=""></span>
-       <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
-       <span class="al-mem-c">${coin}${num(m.coin)}</span>
-       <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('')
-    + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`
-;
+  const member = () => {
+    const real = allyMembers();
+    const list = real
+      ? real.map(m => `<div class="al-mem${m.account === live.get('myAlliance')?.me?.account ? ' me' : ''}">
+         <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
+         <span class="al-mem-t"><b>${m.account === live.get('myAlliance')?.me?.account
+           ? (S.profile?.nick || S.nickname || '나')
+           : (m.nickname || shortAcc(m.account))}</b>
+           <i>${ROLE_KO[m.role] || '단원'}</i></span>
+         <span class="al-mem-c">${coin}${num(m.coin || 0)}</span></div>`).join('')
+      // 서버가 없을 때. 화면 문법만 세워 두는 데모 주민이다
+      : `<div class="al-mem me">
+         <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
+         <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
+         <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
+         <span class="al-on">접속 중</span></div>`
+        + ALLY_DEMO.map(m => `<div class="al-mem">
+         <span class="rk-ava"><img src="/assets/char/${m.ava}.png" alt=""></span>
+         <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
+         <span class="al-mem-c">${coin}${num(m.coin)}</span>
+         <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('');
+    return home() + `<div class="lbl" style="margin:12px 0 6px">${t('단원')}</div>` + list
+      + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`;
+  };
 
   /**
    * 기부 — 하루 5회 **계단**. 한 번 누르면 다음 계단으로 화면이 통째로 갈아탄다.
@@ -4236,8 +4885,7 @@ function openAlliance(tab = 'home') {
     b.addEventListener('click', () => donate()));
   $('#ovb').querySelectorAll('[data-al-go]').forEach(b =>
     b.addEventListener('click', () => openAlliance(b.dataset.alGo)));
-  $('#ovb').querySelector('[data-al-fight]')?.addEventListener('click', () =>
-    toast('보스전은 서버 연동 후 열립니다 — 판정이 연합 공유 HP 라 클라 혼자 못 굴린다'));
+  $('#ovb').querySelector('[data-al-fight]')?.addEventListener('click', () => allyBossFight());
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">왜 이렇게 짰나</div>'
     + `<div class="sub" style="line-height:1.6">${A.meta.designNote}</div>`
     + `<div class="sub" style="line-height:1.6;margin-top:8px">
@@ -4245,6 +4893,44 @@ function openAlliance(tab = 'home') {
   $('#ovb').querySelectorAll('[data-al]').forEach(x =>
     x.addEventListener('click', () => openAlliance(x.dataset.al)));
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
+
+  // 서버 값이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 데모)로 즉시 뜬다
+  const redraw = () => { if ($('#ov').classList.contains('show')) openAlliance(tab); };
+  live.pullMyAlliance(redraw);
+  // 보스 단계는 홈 요약에도 뜬다 — 보스 탭에서만 받으면 홈이 늘 1단계로 보인다
+  live.pullBoss(redraw);
+  if (tab === 'boss') live.pullBossLog(redraw);
+}
+
+/** 계정 주소는 길다. 목록에는 앞뒤만 남긴다 — 닉네임은 profiles 에 따로 있다 */
+const shortAcc = a => !a ? '단장'
+  : a.length > 12 ? a.slice(0, 6) + '…' + a.slice(-4) : a;
+const ROLE_KO = { leader: '단장', officer: '부단장', member: '단원' };
+
+/**
+ * 연합 보스 도전. **판정은 서버가 쥔다** — HP 는 연합 공유라 클라가 깎으면
+ * 30명이 서로를 덮어쓴다 (alliance.json > verse8.concurrency).
+ * 그래서 전투는 화면에서 돌리고, **끝난 뒤 딜량 한 번만** 올린다.
+ */
+async function allyBossFight() {
+  if (!live.liveReady()) {
+    return toast('보스전은 서버 연동 후 열립니다 — 판정이 연합 공유 HP 라 클라 혼자 못 굴린다');
+  }
+  const bs = live.get('boss');
+  if (bs && bs.triesLeft <= 0) return toast(t('이번 주 도전을 다 썼습니다'));
+  const cp = Math.round(totalCp());
+  // 시도딜 기준은 파티 CP x 1.723 이다 (sim/alliance-boss.js). 전투 연출을 붙이기 전까지
+  // 그 값을 그대로 낸다 — 서버가 CP x 3.5 로 자르므로 조작 여지는 여기서 안 생긴다
+  const dmg = Math.round(cp * 1.723 * (0.9 + Math.random() * 0.2));
+  const r = await live.bossHit(dmg, cp)
+    .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+  if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '도전하지 못했습니다'));
+  live.invalidate('boss', 'bossLog');
+  toast(r.killed
+    ? t('보스 격파! 다음 단계가 열렸습니다')
+    : t('{0} 피해 · 남은 도전 {1}회', num(r.damage), r.triesLeft));
+  const redraw = () => { if ($('#ov').classList.contains('show')) openAlliance('boss'); };
+  live.pullBoss(redraw); live.pullBossLog(redraw);
 }
 
 /** 보상 표시용 재화 이름. 데이터의 id 를 그대로 띄우면 유저가 못 읽는다. */
@@ -4401,10 +5087,10 @@ function hideDgSign() {
  */
 /** 퀘스트 이름. 던전 퀘스트면 던전 이름을 붙인다 */
 function questLabel(def) {
-  const base = QUEST_TYPE[def.type]?.label || '';
+  const base = t(QUEST_TYPE[def.type]?.label || '');
   if (def.type === 'dungeon_floor' && def.dungeon) {
     const dg = D.dungeons.dungeons.find(x => x.id === def.dungeon);
-    if (dg) return `${dg.nameKo} ${def.target}층`;
+    if (dg) return `${tn(dg.id, dg.nameKo)} ${def.target}${t('층')}`;
   }
   return base;
 }
@@ -4413,12 +5099,13 @@ function renderQuest() {
   const def = questAt(D, S.quest);
   const cur = qProgress(def);
   const done = cur >= def.target;
-  const t = QUEST_TYPE[def.type];
   // 완료하면 카드가 통째로 "받아라"로 바뀐다 — 진행 숫자를 그대로 두면
   // 다 찼는데도 아직 할 일처럼 읽힌다
   // 던전 퀘스트는 **어느 던전**인지가 이름에 들어가야 한다 — "던전 도달" 만
   // 보면 다섯 던전 중 어디를 파야 하는지 알 수 없다
-  $('#qname').textContent = done ? `Q${def.q} 완료` : `Q${def.q} ${questLabel(def)}`;
+  // ⚠ 이 함수 안에 `t` 라는 지역 변수를 만들지 말 것 — i18n 의 t() 를 가려서
+  //   퀘스트가 완료되는 순간 TypeError 로 게임이 통째로 멈췄다 (2026-08-25 실사고)
+  $('#qname').textContent = done ? `Q${def.q} ${t('완료')}` : `Q${def.q} ${questLabel(def)}`;
   $('#qprog').textContent = done ? '보상 받기' : `${num(cur)}/${num(def.target)}`;
   $('#qfill').style.width = Math.min(100, cur / def.target * 100) + '%';
   // 보상 미리보기 — 담을 자리가 있는 재화만 (QUEST_CUR). 없는 키를 그리면
@@ -4581,7 +5268,7 @@ function eqBandNow(lv = S.forgeLv) {
 }
 
 /** 확률창에서 보고 있는 구간. null 이면 내 레벨 구간부터 연다 */
-let fgRateIdx = null;
+// (제거됨 2026-08-25) fgRateIdx — 확률표가 밴드 탐색에서 현재/다음 두 열 비교로 바뀌었다
 // 표의 원본은 소수점 넷째 자리까지다(합이 정확히 100 이 되게). 화면에는 줄인다 —
 // 1% 미만은 자릿수가 곧 정보라 세 자리, 그 위는 두 자리
 const fgPct = v => (v < 1 ? +v.toFixed(3) : +v.toFixed(2));
@@ -4591,58 +5278,55 @@ const fgPct = v => (v < 1 ? +v.toFixed(3) : +v.toFixed(2));
  * 15개 구간을 한 번에 펴면 스크롤만 길고 정작 지금 확률이 안 읽힌다.
  * 확률은 공시 의무 대상이라 전 구간에 닿을 수 있어야 하고, 그 통로가 화살표다.
  */
-function openForgeRates(idx) {
+function openForgeRates() {
+  // **현재 레벨과 다음 레벨을 두 열로 나란히** 놓는다 (버섯커의 램프 Lv업 표).
+  // 예전에는 화살표로 60개 밴드를 넘기는 탐색이었는데, 유저가 실제로 궁금한 것은
+  // "지금 뭐가 나오고, 한 레벨 올리면 뭐가 좋아지나" 딱 하나다 — 탐색은 답을
+  // 60번 넘겨서 찾게 만드는 UI 였다.
   const bands = D.gacha.equipmentRateBands.bands;
-  const mine = Math.max(0, bands.findIndex(b => S.forgeLv >= b.minLevel && S.forgeLv <= b.maxLevel));
-  fgRateIdx = Math.max(0, Math.min(bands.length - 1, idx ?? mine));
-  const b = bands[fgRateIdx];
-  const now = fgRateIdx === mine;
+  const bandAt = lv => bands.find(b => lv >= b.minLevel && lv <= b.maxLevel);
+  const cur = bandAt(S.forgeLv);
+  const maxLv = bands[bands.length - 1].maxLevel;
+  const nextB = S.forgeLv < maxLv ? bandAt(S.forgeLv + 1) : null;
+  if (!cur) return;
+
+  // 전 등급을 다 그린다 — 0% 도 자물쇠로 보여야 "언젠가 저게 나온다" 는
+  // 사다리가 보인다. 사진의 골든/영원 자물쇠 줄과 같은 역할이다.
+  const rows = D.equipment.grades.map(g => {
+    const a = cur.rates[g.tier] || 0;
+    const b = nextB ? (nextB.rates[g.tier] || 0) : null;
+    const locked = a === 0 && (!nextB || b === 0);
+    const up = nextB && b > a;          // 다음 레벨에서 오르는 등급 — 레벨업의 이유다
+    const down = nextB && b < a;
+    return `<div class="fr2-row${locked ? ' locked' : ''}" style="--c:${g.color}">
+      <i class="fr2-bar"></i>
+      <b>${locked ? '<img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="">' : ''}${g.nameKo}</b>
+      <span class="fr2-a">${fgPct(a)}%</span>
+      ${nextB ? `<span class="fr2-b${up ? ' up' : down ? ' down' : ''}">${fgPct(b)}%</span>` : ''}
+    </div>`;
+  }).join('');
+
   const nSlots = D.equipment.slots.length;
-  // 레벨당 1행이라 화살표만 두면 다음 해금까지 수십 번을 눌러야 한다
-  const ji = bands.findIndex((x, i) => i > fgRateIdx && x.unlocks);
-  const jump = ji >= 0 ? { i: ji, b: bands[ji] } : null;
-  // 낮은 등급이 위다. 표를 읽는 사람은 "내가 주로 받는 것"부터 보고
-  // 아래로 내려가며 희귀도가 오르는 순서를 기대한다
-  const rows = Object.entries(b.rates)
-    .filter(([, v]) => v > 0)
-    .sort((x, y) => +x[0] - +y[0])
-    .map(([t, v]) => {
-      const g = D.equipment.grades[+t - 1];
-      // 부위는 균등 추첨이므로 개별 확률 = 등급 확률 / 부위 수
-      const per = v / nSlots;
-      return `<div class="sm-g"><i style="background:${g.color}"></i>
-        <b style="color:${g.color}">${g.nameKo}</b>
-        <span class="sm-p">${fgPct(v)}%</span>
-        <span class="sm-e">부위당 ${fgPct(per)}%</span></div>`;
-    }).join('');
+  const unlockNext = nextB?.unlocks
+    ? `<div class="fr-unlock" style="--c:${D.equipment.grades[nextB.unlocks - 1].color}">
+         Lv ${S.forgeLv + 1} — <b>${D.equipment.grades[nextB.unlocks - 1].nameKo}</b> ${t('등급이 새로 열립니다')}</div>`
+    : '';
 
   const ttl = $('#smTitle');
-  if (ttl) ttl.textContent = '제작대 확률';
+  if (ttl) ttl.textContent = t('제작대 확률');
   $('#smBody').innerHTML = `
-    <div class="fr-nav">
-      <button class="fr-a" data-d="-1" ${fgRateIdx === 0 ? 'disabled' : ''}
-        aria-label="이전 구간">‹</button>
-      <span class="fr-lv"><b>Lv ${b.minLevel === b.maxLevel
-        ? b.minLevel : `${b.minLevel}~${b.maxLevel}`}</b>
-        ${now ? '<i>현재</i>' : ''}</span>
-      <button class="fr-a" data-d="1" ${fgRateIdx === bands.length - 1 ? 'disabled' : ''}
-        aria-label="다음 구간">›</button>
+    <div class="fr2-head">
+      <span class="fr2-now">${t('현재')} Lv ${S.forgeLv}</span>
+      ${nextB ? `<i>»</i><span class="fr2-next">${t('다음')} Lv ${S.forgeLv + 1}</span>`
+              : `<span class="fr2-next">${t('최대 레벨')}</span>`}
     </div>
-    ${b.unlocks ? `<div class="fr-unlock" style="--c:${D.equipment.grades[b.unlocks - 1].color}">
-        <b>${D.equipment.grades[b.unlocks - 1].nameKo}</b> 등급이 이 레벨에서 열린다</div>` : ''}
-    <div class="sm-now fr-rows">${rows}</div>
-    ${jump ? `<button class="fr-jump" data-j="${jump.i}">
-        다음 해금 <b style="color:${D.equipment.grades[jump.b.unlocks - 1].color}">${
-          D.equipment.grades[jump.b.unlocks - 1].nameKo}</b> · Lv ${jump.b.minLevel} 로</button>` : ''}
-    ${now ? '' : `<button class="fr-jump" data-j="${mine}">내 제작대 Lv ${S.forgeLv} 로</button>`}
+    <div class="fr-rows">${rows}</div>
+    ${unlockNext}
     <div class="sh-note">${D.gacha.perItemRateFormula.legalRequirement}<br>
-      부위 확률 = 등급 확률 ÷ 부위 ${nSlots}종 (부위는 균등 추첨)</div>`;
-  $('#smBody').querySelectorAll('.fr-a').forEach(el => el.addEventListener('click',
-    () => openForgeRates(fgRateIdx + +el.dataset.d)));
-  $('#smBody').querySelectorAll('.fr-jump').forEach(el => el.addEventListener('click',
-    () => openForgeRates(+el.dataset.j)));
+      ${t('부위 확률 = 등급 확률 ÷ 부위 {0}종 (부위는 균등 추첨)', nSlots)}</div>`;
   $('#smPop').classList.add('show');
 }
+
 
 /**
  * 패널 스킨 지정. 인라인 --ov-img 를 **반드시 지운다** — 제작대가 단계 그림으로
@@ -4734,7 +5418,17 @@ function openForge() {
   $('#ovcard').style.setProperty('--ov-img', `url(/assets/ui/FG-0${stageNo}.png)`);
   // 모래시계는 이 화면에서만 쓰는 재화다. 헤더에 두면 본문이 안 밀린다.
   $('#ovh').classList.add('has-cur');
-  $('#ovcur').innerHTML = `${cur('CU-10')}<b>${num(S.hourglass || 0)}</b>`;
+  // + 를 누르면 상점 교환 탭(모래시계 묶음)으로 간다 — 부족을 확인한 그 자리가
+  // 지갑을 여는 자리다. 다이아/골드의 +와 같은 문법 (top 의 diaPlus/goldPlus)
+  $('#ovcur').innerHTML = `${cur('CU-10')}<b>${num(S.hourglass || 0)}</b>
+    <button id="fgHgPlus" class="cur-plus" aria-label="모래시계 구매">+</button>`;
+  $('#fgHgPlus')?.addEventListener('click', e => {
+    e.stopPropagation();
+    $('#ov').classList.remove('show');
+    shop.open('exchange');
+    // 모래시계 칸까지 스크롤 — 탭만 열어 주면 골드 상품이 먼저 보여 헤맨다
+    setTimeout(() => document.querySelector('#shHg')?.scrollIntoView({ block: 'start' }), 60);
+  });
   $('#ovb').innerHTML = h.join('');
   $('#ovinfo').innerHTML = '<div class="lbl" style="margin-bottom:6px">해금 현황</div>'
     + D.equipment.summon.progression.map(p => {
@@ -5142,18 +5836,20 @@ function hideTapHint() {
   $('#tapHint')?.classList.remove('show');
 }
 
-function questGoto(t) {
+// 파라미터 이름을 t 로 두지 않는다 — i18n 의 t() 를 가리면 나중에 번역을
+// 넣는 손이 그대로 지뢰를 밟는다 (renderQuest 에서 실제로 터졌다)
+function questGoto(qt) {
   // 목적지가 없으면 아무것도 안 한다. 전투 화면에서 '전투하세요' 는 소음이다.
-  if (!t || !t.goto) return;
-  if (t.goto === 'shop') shop.open(t.track);
-  else if (t.goto === 'forge') openForge();
-  else if (t.goto === 'dungeon') openDungeons();
-  else if (t.goto === 'tower') tower.open();
+  if (!qt || !qt.goto) return;
+  if (qt.goto === 'shop') shop.open(qt.track);
+  else if (qt.goto === 'forge') openForge();
+  else if (qt.goto === 'dungeon') openDungeons();
+  else if (qt.goto === 'tower') tower.open();
   // 도크의 모루는 이미 화면에 있다 — 열 것이 없고, 덮고 있는 패널만 걷는다
-  else if (t.goto === 'forgeDock') { $('#ov').classList.remove('show', 'forced'); roster.close(); }
-  else if (t.goto === 'training') openTraining();
+  else if (qt.goto === 'forgeDock') { $('#ov').classList.remove('show', 'forced'); roster.close(); }
+  else if (qt.goto === 'training') openTraining();
   // 화면이 뜬 **다음** 프레임에 좌표를 잡는다. 열기 전에 재면 아직 0 이다
-  const target = TAP_TARGET[t.goto];
+  const target = TAP_TARGET[qt.goto];
   if (target) requestAnimationFrame(() => setTimeout(() => showTapHint(target), 120));
 }
 
@@ -5180,8 +5876,8 @@ function maybeOnboardHint() {
   // Q1 을 다 깨고 나서도 손이 모루 위에서 계속 두드렸다 — 그 시점에 눌러야 할
   // 것은 제작이 아니라 [보상 받기] 다
   if (qProgress(def) >= def.target) return showTapHint('#quest', 0);
-  const t = QUEST_TYPE[def.type];
-  const sel = TAP_TARGET[t?.goto];
+  const qt = QUEST_TYPE[def.type];
+  const sel = TAP_TARGET[qt?.goto];
   // 목적지 화면이 이미 열려 있을 때만. 안 열려 있으면 가리킬 것이 화면에 없다
   if (!sel || !document.querySelector(sel)?.getBoundingClientRect().width) return hideTapHint();
   // 이 퀘스트에서 이미 한 번 눌렀으면 그만 — 어디를 눌러야 하는지는 배웠다
@@ -5470,6 +6166,7 @@ function bootTapToStart() {
   // localStorage 라 동기이고, loadData 보다 앞서도 안전하다
   load();
   await bootLangPick();
+  watchDom();     // 외국어면 이후 붙는 모든 화면 글자를 사전으로 치환한다 (ko 는 no-op)
   await loadData('/data');
   $('#cap').src = '/assets/captain/captain_warrior.png';
 
@@ -5553,6 +6250,14 @@ function bootTapToStart() {
       gainToast([['equip_ticket', count]]);
       return true;
     },
+    buyHourglass: (count, dia) => {
+      if (S.dia < dia) { toast(`다이아 ${num(dia - S.dia)} 부족`); return false; }
+      S.dia -= dia;
+      S.hourglass = (S.hourglass || 0) + count;
+      save(); renderTop();
+      gainToast([['speedup_5m', count]]);
+      return true;
+    },
     buyGold: (hours, dia) => {
       if (S.dia < dia) { toast(`다이아 ${num(dia - S.dia)} 부족`); return false; }
       S.dia -= dia;
@@ -5584,7 +6289,10 @@ function bootTapToStart() {
   window.__wall = showWallHint;   // 디버그용 — 벽 안내를 손으로 띄워 본다
   // 던전·아레나는 열쇠·입장 횟수를 태워야 볼 수 있어서 손으로 검사하기 번거롭다.
   // 콘솔에서 바로 걸어 볼 수 있게 열어 둔다 (window.__scene 과 같은 성격)
-  window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes };
+  // 서버 없이 live 경로를 시험할 수 있게 열어 둔다 —
+  // __dbg.live.initLive(mockServer) 로 붙였다 떼었다 할 수 있다
+  window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live,
+    openAllianceGate, openAlliance, openArena, openFriends, openChat };
   await scene.init();
   bootStep(82);
 
@@ -5791,6 +6499,7 @@ function bootTapToStart() {
   });
   $('#ovx').addEventListener('click', () => {
     if ($('#ov').classList.contains('forced')) return;
+    chatDetach();                 // 화면을 떠나면 구독을 끊는다
     $('#ov').classList.remove('show', 'over-alli');
     $('#ovinfo').classList.remove('show');
     $('#ovi').classList.remove('on');
@@ -5805,13 +6514,18 @@ function bootTapToStart() {
     if (e.target.id === 'ov' && !$('#ov').classList.contains('forced')) $('#ovx').click();
   });
 
+  // 하단 채팅바 = 채팅 입구. 서버가 없으면 예전처럼 공지가 돈다
+  $('#chat').addEventListener('click', () => openChat());
   const CHAT = [
-    '단장님, 오늘도 잘 부탁드립니다!', '수정 동굴이 열렸다는 소문이 있어요.',
-    '보물 창고에서 열쇠를 모으는 게 빠릅니다.', '제작대를 올리면 소환이 편해집니다.',
-    '보스는 시간 안에 못 잡으면 실패입니다.',
+    t('단장님, 오늘도 잘 부탁드립니다!'), t('수정 동굴이 열렸다는 소문이 있어요.'),
+    t('보물 창고에서 열쇠를 모으는 게 빠릅니다.'), t('제작대를 올리면 소환이 편해집니다.'),
+    t('보스는 시간 안에 못 잡으면 실패입니다.'),
   ];
   let chatI = 0;
   setInterval(() => {
+    // 진짜 대화가 있으면 공지를 돌리지 않는다 — 남의 말이 6초마다 공지로
+    // 덮이면 채팅이 있다는 것을 알아챌 수 없다
+    if ((live.get('chatWorld') || []).length) return chatBarSync();
     chatI = (chatI + 1) % CHAT.length;
     $('#chatline').textContent = CHAT[chatI];
   }, 6000);
@@ -5850,6 +6564,26 @@ function bootTapToStart() {
       return;
     }
   } catch (e) { console.warn('[cloud] 초기화 실패 — 로컬로 계속', e); }
+
+  // ── 서버 연동 마무리 ──────────────────────────────────
+  // 붙어 있으면 **로딩이 끝나기 전에 전부 끝낸다.** 화면을 열 때 받으면 유저가
+  // 데모를 한 번 보고 진짜 값으로 갈리는 것을 본다 — 목록이 눈앞에서 바뀌면
+  // 고장으로 읽힌다. 실패해도 게임은 그대로 돈다 (전부 데모로 떨어진다).
+  if (live.initLive()) {
+    bootStep(88, t('용병단 명부를 맞추는 중…'));
+    try {
+      // 프로필이 **먼저**다. 남이 나를 볼 수 있는 것은 이것뿐이고
+      // (server.js > submitProfile), 이게 없으면 남의 아레나 상대·친구 목록에
+      // 내가 아예 안 나온다. 예열이 이 값을 되읽으므로 순서가 중요하다
+      await live.pushProfile(publicProfile());
+    } catch (e) { console.warn('[live] 프로필 제출 실패', e); }
+    try {
+      await live.warmup(Math.round(totalCp()));
+      syncAllyFromServer();
+      chatBarSync();
+    } catch (e) { console.warn('[live] 예열 실패 — 화면마다 다시 받는다', e); }
+    bootStep(95);
+  }
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));

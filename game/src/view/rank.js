@@ -10,6 +10,7 @@
 
 import { cpNum, num } from '../core/fmt.js';
 import { LANGS } from '../core/i18n.js';
+import * as live from '../net/live.js';
 
 
 const NAMES = ['냥냥단장', '불꽃여우', '별빛기사', '해태단', '구미호', '판다현자', '백호',
@@ -39,7 +40,12 @@ export class RankScreen {
     this.el.querySelector('.sh-back').addEventListener('click', () => this.close());
   }
 
-  open() { this.el.classList.add('show'); this.render(); }
+  open() {
+    this.el.classList.add('show');
+    this.render();
+    // 서버 값이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 더미)로 즉시 뜬다
+    live.pullRank(() => { if (this.el.classList.contains('show')) this.render(); });
+  }
   close() { this.el.classList.remove('show'); }
 
   myScore(board) {
@@ -50,11 +56,33 @@ export class RankScreen {
   }
 
   /**
-   * 내 점수 주변으로 더미 순위를 만든다.
-   * 실제 데이터는 getTopRankings() — **인자 없이 상위 20명 고정**이다.
-   * 100명을 원하면 $global.getCollectionItems('rankings', {orderBy, limit:100}) 로 직접 조회한다.
+   * 순위 20행.
+   *
+   * 서버가 붙으면 `getTopRankings(20)` 이 준다 — 다만 **rankings 컬렉션은 CP 하나뿐**이다
+   * (server.js > submitCp). 스테이지·아레나 보드는 아직 보드별 컬렉션이 없어 더미로
+   * 남는다. 보드마다 컬렉션을 파면 조회가 유일한 전역 공유 자원인 rankings 를 세 배로
+   * 때린다 — 시즌 컬렉션(rankings_s1…)을 설계할 때 같이 정하는 게 맞다.
    */
   rows(board) {
+    if (board === 'power') {
+      const top = live.get('rankTop');
+      if (top?.length) {
+        const P = this.api.data.profile;
+        return top.map((r, i) => ({
+          rank: i + 1,
+          name: r.nickname || '단장',
+          merc: FEATURED[i % FEATURED.length],
+          title: '',
+          frame: P.profileFrame.unlocks[Math.max(0, 3 - Math.floor(i / 6))]?.color || '#9E9E9E',
+          score: r.score || 0,
+        }));
+      }
+    }
+    return this.dummyRows(board);
+  }
+
+  /** 서버가 없거나 보드에 컬렉션이 없을 때. 내 점수 주변으로 지어낸다 */
+  dummyRows(board) {
     const mine = this.myScore(board);
     const out = [];
     for (let i = 0; i < 20; i++) {
@@ -89,7 +117,11 @@ export class RankScreen {
       : this.tab === 'power' ? cpNum(v)
       : `${num(v)}<i>점</i>`;
     const rows = this.rows(this.tab);
-    const myRank = 47;                  // 실제로는 getMyBestRank()
+    // 내 등수. 전투력 보드만 서버가 실제로 안다 (getMyBestRank).
+    // 나머지는 아직 컬렉션이 없어 표시용 상수다 — 숫자가 진짜인 척하지 않도록
+    // 보드별로 갈라 둔다
+    const myRank = (this.tab === 'power' && live.get('myRank')?.rank > 0)
+      ? live.get('myRank').rank : 47;
 
     let head = '';
     if (this.tab === 'score') {

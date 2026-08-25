@@ -96,6 +96,126 @@ function validate(payload) {
   return payload;
 }
 
+
+// -- 2단계: 랭킹·친구·연합·결제 -----------------------------
+//
+// 여기부터는 **여러 계정이 같이 만지는 것**만 다룬다. 개인 진행(스테이지·소환·
+// 강화)은 여전히 클라가 판정하고 saveState 로 통짜 저장한다 - 반만 옮기면
+// 클라·서버가 서로 다른 규칙으로 굴러 세이브가 갈라진다(파일 상단 참조).
+//
+// 공유 자원은 전부 컬렉션이다. $global.updateMyState 는 계정 하나만 만질 수 있어
+// 연합처럼 "여러 계정이 같은 값을 더한다" 를 담을 수 없다.
+//   rankings     CP 랭킹 (best-only)
+//   profiles     공개 프로필 - 아레나 상대·친구 목록·랭킹 행이 전부 여기서 읽는다
+//   friendReq    친구 신청 (수락하면 지운다)
+//   friends      성립한 친구. **양방향 2행**으로 넣는다 - 한 행이면 내 친구를
+//                찾을 때 from/to 두 번 조회해야 하고, 조회는 컬렉션이 가장 아픈 축이다
+//   alliances    연합 본체 (레벨·XP·보스 HP)
+//   allyMembers  단원. 연합 아이템 안에 배열로 넣지 않는다 - 30명이 동시에
+//                기부하면 읽고-쓰기가 서로를 덮는다 (alliance.json > verse8.concurrency)
+//   allyBossLog  보스 딜 기록 (주간)
+//   gifts        친구 선물. **계정을 넘는 유일한 우호 행위다** - 이게 없으면
+//                "선물 보내기" 는 내 기기에만 표시가 남고 상대는 아무것도 모른다
+//   chatWorld    전체 채팅
+//   chatAlly_<연합id>  연합 채팅. **연합마다 컬렉션을 판다** - 구독
+//                (subscribeGlobalCollection) 이 컬렉션 단위라 한 컬렉션에 담고
+//                필터로 가르면 남의 연합 대화까지 전부 받아 버린다
+
+const MAX_MEMBERS = 30;              // alliance.json > membership.maxMembers
+const JOIN_MIN_STAGE = 30;           // membership.joinRequirement.minStage
+const LEAVE_COOLDOWN_MS = 24 * 3600e3;
+const CREATE_COST_DIA = 1000;
+const DAILY_COIN_CAP = 95;           // contribution.dailyCoinCap (5단계 합)
+const BOSS_ATTEMPTS = 3;             // boss.attemptsPerWeek
+const BOSS_TIERS = [1, 1.35, 1.8, 2.4, 3.2];
+const BOSS_HP_COEF = 0.5;
+
+// 기부 5단계. **비용도 서버가 안다** - 클라가 "얼마 냈다"를 보내면 0원 기부가 된다
+const DONATE_STEPS = [
+  { n: 1, kind: 'free',    cost: 0,       coin: 5 },
+  { n: 2, kind: 'gold',    cost: 2000000, coin: 10 },
+  { n: 3, kind: 'gold',    cost: 5000000, coin: 15 },
+  { n: 4, kind: 'diamond', cost: 100,     coin: 25 },
+  { n: 5, kind: 'diamond', cost: 250,     coin: 40 },
+];
+
+// VXShop 상품 -> 지급량. economy.json > diamondPackages 와 같아야 한다.
+// **여기 없는 productId 는 지급하지 않는다.** 상점에 없는 id 로 결제 웹훅이 들어오면
+// 그건 우리 상품이 아니다
+const PRODUCTS = {
+  first_buy: { dia: 3000, once: true },
+  pack_s:    { dia: 8000 },
+  pack_m:    { dia: 17000 },
+  pack_l:    { dia: 55000 },
+  pack_xl:   { dia: 100000 },
+  pack_xxl:  { dia: 220000 },
+  speed3_unlock: { dia: 0, unlock: 'speed3', once: true },
+  starter_pack: { dia: 4800, mercTicket: 30, skillTicket: 20, eqTicket: 100, once: true },
+};
+
+const CHAT_WORLD = 'chatWorld';
+const CHAT_ALLY = 'chatAlly_';
+const CHAT_MAX_LEN = 100;
+const CHAT_MIN_GAP_MS = 1000;      // 초당 한 줄. 도배 방어의 1차선
+// 방에 남기는 줄 수. 채팅은 **개수로 자라는 컬렉션**이라 상한이 없으면
+// 조회가 점점 무거워지고 Firestore 인덱스 엔트리도 같이 늘어난다
+const CHAT_KEEP = 120;
+
+const KST = 9 * 3600e3;
+/** KST 기준 날짜 번호. 일일 상한은 서버 시각으로만 센다 - 클라 시계는 못 믿는다 */
+function dayIdx(t) { return Math.floor((t + KST) / 86400e3); }
+/** 주 번호. 리셋은 월요일 05:00 KST (alliance.json > boss.resetAt) */
+function weekIdx(t) { return Math.floor((t + KST - 5 * 3600e3 - 4 * 86400e3) / (7 * 86400e3)); }
+
+/** 서버가 쥐는 계정 부가 상태. 게임 세이브(save)와 섞지 않는다 -
+ *  섞으면 클라가 통짜로 덮어쓸 때 서버 카운터까지 같이 날아간다 */
+async function srvState() {
+  const cur = await $global.getMyState();
+  return (cur && cur.srv) || {};
+}
+async function srvPatch(patch) {
+  const srv = await srvState();
+  await $global.updateMyState({ srv: { ...srv, ...patch } });
+  return { ...srv, ...patch };
+}
+
+/** scope -> 컬렉션 이름. 연합 방은 소속이 있어야 존재한다 */
+async function chatRoomOf(scope) {
+  if (scope === 'world') return CHAT_WORLD;
+  if (scope !== 'ally') return null;
+  const mem = await oneByAccount('allyMembers', $sender.account);
+  return mem ? CHAT_ALLY + mem.allianceId : null;
+}
+
+/**
+ * 오래된 줄 지우기. **매번 다 세지 않는다** - 보낼 때마다 count + 정렬 조회를
+ * 돌리면 채팅 한 줄이 쿼리 세 번이 된다. 여유분(CHAT_KEEP 의 1.5배)을 넘겼을 때만
+ * 한 번에 잘라 낸다.
+ */
+async function pruneChat(room) {
+  const n = await $global.countCollectionItems(room, {});
+  if (n <= CHAT_KEEP * 1.5) return;
+  const old = await $global.getCollectionItems(room, {
+    orderBy: [{ field: 'at', direction: 'asc' }],
+    limit: n - CHAT_KEEP,
+  });
+  for (const r of old) await $global.deleteCollectionItem(room, r.__id);
+}
+
+/** 계정의 표시 이름. 공개 프로필이 단일 소스다 (submitProfile) */
+async function nickOf(account) {
+  const p = await oneByAccount('profiles', account);
+  return p ? String(p.nickname || '').slice(0, 15) : '';
+}
+
+async function oneByAccount(collection, account) {
+  const rows = await $global.getCollectionItems(collection, {
+    filters: [{ field: 'account', operator: '==', value: account }],
+    limit: 1,
+  });
+  return rows[0] || null;
+}
+
 class Server {
   /** 세이브 저장. force 는 진행 후퇴 가드를 넘을 때만 — 클라가 유저에게
    *  "서버 저장이 더 앞서 있다. 정말 덮어쓰나?" 를 물은 뒤에 준다. */
@@ -130,7 +250,10 @@ class Server {
     });
     for (const it of mine) {
       if (it.score >= score) return it;
-      await $global.deleteCollectionItem('rankings', it.id);
+      // 컬렉션 아이템의 식별자는 **`__id`** 다 (globalCollection 문서의 채팅 예제).
+      // `it.id` 로 지우면 undefined 가 넘어가 삭제가 조용히 실패하고, 계정마다
+      // 낡은 기록이 계속 쌓여 best-only 가 아니게 된다
+      await $global.deleteCollectionItem('rankings', it.__id);
     }
     return $global.addCollectionItem('rankings', {
       account: $sender.account, score, nickname, createdAt: Date.now(),
@@ -171,7 +294,7 @@ class Server {
     const mine = await $global.getCollectionItems('profiles', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
-    for (const it of mine) await $global.deleteCollectionItem('profiles', it.id);
+    for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
     return $global.addCollectionItem('profiles', item);
   }
 
@@ -190,4 +313,575 @@ class Server {
     // 본인은 뺀다 — 자기 자신과 싸우거나 친구 신청하게 되면 안 된다
     return rows.filter(r => r.account !== $sender.account);
   }
+
+  // -- 랭킹 조회 --------------------------------------------
+  // leaderboard 문서의 옵션 형태 그대로: orderBy [{field, direction}] · limit · filters.
+  // 상위 100 은 안 준다 - 조회는 컬렉션에서 가장 비싼 축이고, 화면이 실제로
+  // 보여 주는 것은 20행 + 내 순위 하나다 (ranking.json 정정: getTopRankings 는 20 고정)
+  async getTopRankings(limit) {
+    return $global.getCollectionItems('rankings', {
+      orderBy: [{ field: 'score', direction: 'desc' }],
+      limit: Math.min(50, Math.max(1, limit | 0 || 20)),
+    });
+  }
+
+  /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
+  async getMyBestRank() {
+    const mine = await $global.getCollectionItems('rankings', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account }],
+    });
+    if (!mine.length) return { bestEntry: null, rank: -1 };
+    const best = mine.sort((a, b) => b.score - a.score)[0];
+    const above = await $global.countCollectionItems('rankings', {
+      filters: [{ field: 'score', operator: '>', value: best.score }],
+    });
+    return { bestEntry: best, rank: above + 1 };
+  }
+
+  // -- 친구 --------------------------------------------------
+  /** 닉네임으로 찾기. 완전 일치만 본다 - 부분 일치는 컬렉션 인덱스로 못 건다 */
+  async findByNickname(nickname) {
+    if (!nickname || typeof nickname !== 'string') return [];
+    const rows = await $global.getCollectionItems('profiles', {
+      filters: [{ field: 'nickname', operator: '==', value: nickname.slice(0, 15) }],
+      limit: 10,
+    });
+    return rows.filter(r => r.account !== $sender.account);
+  }
+
+  /** 친구 신청. 중복 신청·이미 친구·자기 자신을 막는다 */
+  async friendRequest(toAccount) {
+    if (!toAccount || toAccount === $sender.account) throw new Error('target');
+    const already = await $global.getCollectionItems('friends', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account },
+                { field: 'friend', operator: '==', value: toAccount }],
+      limit: 1,
+    });
+    if (already.length) return { ok: false, reason: 'already_friend' };
+    const dup = await $global.getCollectionItems('friendReq', {
+      filters: [{ field: 'from', operator: '==', value: $sender.account },
+                { field: 'to', operator: '==', value: toAccount }],
+      limit: 1,
+    });
+    if (dup.length) return { ok: false, reason: 'already_sent' };
+    const me = await oneByAccount('profiles', $sender.account);
+    await $global.addCollectionItem('friendReq', {
+      from: $sender.account, to: toAccount,
+      fromNick: me ? me.nickname : '단장', fromCp: me ? me.cp : 0,
+      createdAt: Date.now(),
+    });
+    return { ok: true };
+  }
+
+  /** 나에게 온 신청 목록 */
+  async friendRequests() {
+    return $global.getCollectionItems('friendReq', {
+      filters: [{ field: 'to', operator: '==', value: $sender.account }],
+      limit: 30,
+    });
+  }
+
+  /**
+   * 수락/거절. 수락하면 **양방향 2행**을 넣는다 - 목록 조회가 한 번으로 끝난다.
+   * 신청 아이템은 어느 쪽이든 지운다 (남겨 두면 목록에 계속 뜬다)
+   */
+  async friendRespond(reqId, accept) {
+    const req = await $global.getCollectionItem('friendReq', reqId);
+    if (!req || req.to !== $sender.account) throw new Error('not_mine');
+    await $global.deleteCollectionItem('friendReq', reqId);
+    if (!accept) return { ok: true, accepted: false };
+    const me = await oneByAccount('profiles', $sender.account);
+    const now = Date.now();
+    await $global.addCollectionItem('friends',
+      { account: $sender.account, friend: req.from, nick: req.fromNick, since: now });
+    await $global.addCollectionItem('friends',
+      { account: req.from, friend: $sender.account, nick: me ? me.nickname : '단장', since: now });
+    return { ok: true, accepted: true };
+  }
+
+  /**
+   * 친구 목록. 저장해 둔 nick 이 아니라 **프로필을 다시 읽어** 돌려준다 -
+   * 상대가 닉네임·전투력을 바꿔도 목록이 낡지 않는다
+   */
+  async friendList() {
+    const edges = await $global.getCollectionItems('friends', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account }],
+      limit: 60,
+    });
+    const out = [];
+    for (const e of edges) {
+      const prof = await oneByAccount('profiles', e.friend);
+      out.push(prof
+        ? { ...prof, since: e.since }
+        : { account: e.friend, nickname: e.nick, cp: 0, since: e.since });
+    }
+    return out;
+  }
+
+  /** 친구 끊기 - 양쪽 행을 다 지운다. 한쪽만 지우면 상대 목록에 유령이 남는다 */
+  async friendRemove(account) {
+    for (const pair of [[$sender.account, account], [account, $sender.account]]) {
+      const rows = await $global.getCollectionItems('friends', {
+        filters: [{ field: 'account', operator: '==', value: pair[0] },
+                  { field: 'friend', operator: '==', value: pair[1] }],
+        limit: 2,
+      });
+      for (const r of rows) await $global.deleteCollectionItem('friends', r.__id);
+    }
+    return { ok: true };
+  }
+
+  // -- 연합 --------------------------------------------------
+  /** 목록. 정원이 찬 연합도 보여 준다 - 안 보이면 "왜 안 뜨지" 가 된다 */
+  async allianceList(limit) {
+    return $global.getCollectionItems('alliances', {
+      orderBy: [{ field: 'weekly', direction: 'desc' }],
+      limit: Math.min(30, Math.max(1, limit | 0 || 20)),
+    });
+  }
+
+  /** 내 소속. 없으면 null */
+  async allianceMy() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return null;
+    const al = await $global.getCollectionItem('alliances', mem.allianceId);
+    if (!al || !al.__id) return null;
+    const members = await $global.getCollectionItems('allyMembers', {
+      filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+      limit: MAX_MEMBERS,
+    });
+    return { alliance: al, me: mem, members };
+  }
+
+  async allianceCreate(name, myStage, myCp) {
+    if (!name || name.length < 2 || name.length > 12) throw new Error('name');
+    if ((myStage | 0) < JOIN_MIN_STAGE) return { ok: false, reason: 'stage' };
+    if (await oneByAccount('allyMembers', $sender.account)) return { ok: false, reason: 'already' };
+    const dup = await $global.getCollectionItems('alliances', {
+      filters: [{ field: 'name', operator: '==', value: name }], limit: 1,
+    });
+    if (dup.length) return { ok: false, reason: 'name_taken' };
+    // 창설 비용은 **서버가 깎는다**. 클라가 깎고 보내면 0 다이아 창설이 된다.
+    // 이름 중복 검사를 **먼저** 한다 - 깎고 나서 실패하면 환불 경로가 생기고,
+    // 환불은 실패할 수 있는 또 하나의 쓰기다
+    if (!(await spendDia($sender.account, CREATE_COST_DIA))) return { ok: false, reason: 'diamond' };
+    const al = await $global.addCollectionItem('alliances', {
+      name, leader: $sender.account, level: 1, xp: 0, members: 1, weekly: 0,
+      bossTier: 1, bossHp: 0, bossMax: 0, bossWeek: weekIdx(Date.now()),
+      notice: '', createdAt: Date.now(),
+    });
+    await $global.addCollectionItem('allyMembers', {
+      allianceId: al.__id, account: $sender.account, role: 'leader',
+      // 닉네임은 **프로필에서 읽는다**. 클라가 보내면 남의 이름을 사칭할 수 있고,
+      // 안 담아 두면 단원 목록이 지갑 주소 나열이 된다
+      nickname: await nickOf($sender.account),
+      cp: Math.max(0, myCp | 0), coin: 0, weekly: 0, joinedAt: Date.now(),
+    });
+    return { ok: true, alliance: al };
+  }
+
+  async allianceJoin(allianceId, myStage, myCp) {
+    if ((myStage | 0) < JOIN_MIN_STAGE) return { ok: false, reason: 'stage' };
+    if (await oneByAccount('allyMembers', $sender.account)) return { ok: false, reason: 'already' };
+    const srv = await srvState();
+    if (srv.allyLeftAt && Date.now() - srv.allyLeftAt < LEAVE_COOLDOWN_MS) {
+      return { ok: false, reason: 'cooldown', until: srv.allyLeftAt + LEAVE_COOLDOWN_MS };
+    }
+    const al = await $global.getCollectionItem('alliances', allianceId);
+    if (!al || !al.__id) return { ok: false, reason: 'gone' };
+    // 정원은 **행을 세어서** 판단한다. alliances.members 는 표시용 캐시라
+    // 동시 가입에서 어긋날 수 있다
+    const n = await $global.countCollectionItems('allyMembers', {
+      filters: [{ field: 'allianceId', operator: '==', value: allianceId }],
+    });
+    if (n >= MAX_MEMBERS) return { ok: false, reason: 'full' };
+    await $global.addCollectionItem('allyMembers', {
+      allianceId, account: $sender.account, role: 'member',
+      nickname: await nickOf($sender.account),
+      cp: Math.max(0, myCp | 0), coin: 0, weekly: 0, joinedAt: Date.now(),
+    });
+    await $global.updateCollectionItem('alliances', { ...al, members: n + 1 });
+    return { ok: true, alliance: al };
+  }
+
+  async allianceLeave() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return { ok: false, reason: 'none' };
+    await $global.deleteCollectionItem('allyMembers', mem.__id);
+    const al = await $global.getCollectionItem('alliances', mem.allianceId);
+    if (al && al.__id) {
+      const n = await $global.countCollectionItems('allyMembers', {
+        filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+      });
+      // 마지막 한 명이 나가면 연합을 지운다 - 빈 연합이 목록을 채우면
+      // 신규 유저가 들어갈 곳을 못 찾는다
+      if (n <= 0) {
+        await $global.deleteCollectionItem('alliances', al.__id);
+      } else {
+        const patch = { ...al, members: n };
+        if (al.leader === $sender.account) {
+          const rest = await $global.getCollectionItems('allyMembers', {
+            filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+            limit: MAX_MEMBERS,
+          });
+          // 단장이 나가면 가장 오래 있은 사람이 잇는다. 빈 단장 자리를 두면
+          // 공지·추방이 영영 안 된다
+          const heir = rest.sort((a, b) => a.joinedAt - b.joinedAt)[0];
+          if (heir) {
+            patch.leader = heir.account;
+            await $global.updateCollectionItem('allyMembers', { ...heir, role: 'leader' });
+          }
+        }
+        await $global.updateCollectionItem('alliances', patch);
+      }
+    }
+    await srvPatch({ allyLeftAt: Date.now() });
+    return { ok: true };
+  }
+
+  /**
+   * 기부. **단계 번호만 받는다** - 비용과 보상은 서버 표(DONATE_STEPS)에서 읽는다.
+   * 하루 5단계 고정이라 순서를 건너뛰지 못한다. 코인 1 = 연합 XP 1 이고
+   * XP 는 연합 아이템에 누적된다 (단원 전체 합산 - 로컬 데모가 못 하던 지점이다)
+   */
+  async allianceDonate(stepN) {
+    const step = DONATE_STEPS.find(x => x.n === (stepN | 0));
+    if (!step) throw new Error('step');
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return { ok: false, reason: 'none' };
+    const srv = await srvState();
+    const today = dayIdx(Date.now());
+    const done = srv.donateDay === today ? (srv.donateDone || 0) : 0;
+    if (done >= DONATE_STEPS.length) return { ok: false, reason: 'daily' };
+    if (step.n !== done + 1) return { ok: false, reason: 'order', next: done + 1 };
+
+    if (step.kind === 'gold' && !(await spendGold($sender.account, step.cost))) {
+      return { ok: false, reason: 'gold' };
+    }
+    if (step.kind === 'diamond' && !(await spendDia($sender.account, step.cost))) {
+      return { ok: false, reason: 'diamond' };
+    }
+    // 상한은 5단계 합(95)이라 순서 검사만 통과하면 저절로 지켜진다.
+    // 그래도 한 번 더 자른다 - 표를 고칠 때 상한을 같이 못 고치는 사고를 막는다
+    const coin = Math.min(step.coin, DAILY_COIN_CAP);
+    await srvPatch({ donateDay: today, donateDone: step.n });
+    await $global.updateCollectionItem('allyMembers',
+      { ...mem, coin: (mem.coin || 0) + coin, weekly: (mem.weekly || 0) + coin });
+    const al = await $global.getCollectionItem('alliances', mem.allianceId);
+    if (al && al.__id) {
+      await $global.updateCollectionItem('alliances',
+        { ...al, xp: (al.xp || 0) + coin, weekly: (al.weekly || 0) + coin });
+    }
+    return { ok: true, coin, step: step.n };
+  }
+
+  /**
+   * 연합 보스 상태. HP 는 **단원 CP 합 x 0.5 x 단계배수** 다
+   * (alliance.json > boss.hp.formula). 주가 바뀌면 새로 연다.
+   */
+  async allianceBoss() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return null;
+    let al = await $global.getCollectionItem('alliances', mem.allianceId);
+    if (!al || !al.__id) return null;
+    const wk = weekIdx(Date.now());
+    if (al.bossWeek !== wk || !al.bossMax) {
+      const rows = await $global.getCollectionItems('allyMembers', {
+        filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+        limit: MAX_MEMBERS,
+      });
+      const sumCp = rows.reduce((a, r) => a + (r.cp || 0), 0);
+      const tier = al.bossWeek === wk ? (al.bossTier || 1) : 1;   // 주가 바뀌면 1단계로
+      const max = Math.max(1, Math.round(sumCp * BOSS_HP_COEF * BOSS_TIERS[tier - 1]));
+      al = { ...al, bossWeek: wk, bossTier: tier, bossMax: max, bossHp: max,
+             weekly: al.bossWeek === wk ? al.weekly : 0 };
+      await $global.updateCollectionItem('alliances', al);
+    }
+    const srv = await srvState();
+    const used = srv.bossWeek === wk ? (srv.bossTries || 0) : 0;
+    return { hp: al.bossHp, max: al.bossMax, tier: al.bossTier, triesLeft: BOSS_ATTEMPTS - used };
+  }
+
+  /**
+   * 보스 딜 제출. **전투가 끝난 뒤 1회만** 부른다 (alliance.json > verse8.rateLimit -
+   * 30명이 실시간으로 밀어 넣으면 초당 10회를 넘긴다).
+   *
+   * 딜량은 클라가 계산해서 보낸다. 1단계 통짜 저장과 같은 신뢰 모델이라 이게 상한이고,
+   * 대신 **파티 CP 의 배수로 자른다** - 시도딜 기준이 파티 CP x 1.723 이므로
+   * (sim/alliance-boss.js) 3.5배면 정상 편차는 다 통과하고 조작만 걸린다.
+   */
+  async allianceBossHit(damage, myCp) {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return { ok: false, reason: 'none' };
+    const wk = weekIdx(Date.now());
+    const srv = await srvState();
+    const used = srv.bossWeek === wk ? (srv.bossTries || 0) : 0;
+    if (used >= BOSS_ATTEMPTS) return { ok: false, reason: 'no_tries' };
+    if (typeof damage !== 'number' || !Number.isFinite(damage) || damage < 0) throw new Error('damage');
+
+    const al = await $global.getCollectionItem('alliances', mem.allianceId);
+    if (!al || !al.__id || al.bossWeek !== wk) return { ok: false, reason: 'closed' };
+    // 죽어서 다음 개장을 기다리는 보스(bossMax 0 또는 HP 0)는 못 때린다.
+    // killed 판정이 hp<=0 이라, 막지 않으면 시체를 때릴 때마다 "처치" 가 되어
+    // 단계가 공짜로 오른다 — 테스트에서 실제로 tier 1 -> 5 로 뛰었다.
+    // 클라는 allianceBoss() 를 먼저 불러 새 단계를 개장한 뒤 도전한다.
+    if (!al.bossMax || (al.bossHp || 0) <= 0) return { ok: false, reason: 'closed' };
+    const cap = Math.max(0, myCp | 0) * 3.5;
+    const dmg = Math.min(damage, cap);
+    const hp = Math.max(0, (al.bossHp || 0) - dmg);
+    const killed = hp <= 0;
+    const next = { ...al, bossHp: hp };
+    if (killed) {
+      // 잡으면 다음 단계가 바로 열린다. HP 는 다음 allianceBoss() 호출이 다시 잰다
+      next.bossTier = Math.min(BOSS_TIERS.length, (al.bossTier || 1) + 1);
+      next.bossMax = 0;
+    }
+    await $global.updateCollectionItem('alliances', next);
+    await srvPatch({ bossWeek: wk, bossTries: used + 1 });
+    await $global.addCollectionItem('allyBossLog', {
+      allianceId: mem.allianceId, account: $sender.account,
+      week: wk, tier: al.bossTier || 1, damage: Math.round(dmg), at: Date.now(),
+    });
+    await $global.updateCollectionItem('allyMembers',
+      { ...mem, cp: Math.max(mem.cp || 0, myCp | 0) });
+    return { ok: true, damage: Math.round(dmg), hp, killed, triesLeft: BOSS_ATTEMPTS - used - 1 };
+  }
+
+    // -- 친구 선물 ---------------------------------------------
+  /**
+   * 선물 보내기. **보내는 쪽은 아무 비용도 안 낸다** - 서로 보내면 서로 이득이라
+   * 매일 누를 이유가 생긴다. 그래서 서버가 막아야 하는 것은 딱 둘이다:
+   * 친구가 맞는가, 오늘 이미 보냈는가.
+   *
+   * 금액은 **받는 쪽이 정한다**. 방치 골드 공식이 받는 사람의 진행도에 물려 있어
+   * (고정액은 후반에 휴지조각이다) 보내는 사람의 세이브로는 계산할 수 없다.
+   * 그래서 이 행은 "누가 누구에게 오늘 보냈다" 는 사실만 담는다.
+   */
+  async friendGift(toAccount) {
+    if (!toAccount || toAccount === $sender.account) throw new Error('target');
+    const pair = await $global.getCollectionItems('friends', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account },
+                { field: 'friend', operator: '==', value: toAccount }],
+      limit: 1,
+    });
+    if (!pair.length) return { ok: false, reason: 'not_friend' };
+    const day = dayIdx(Date.now());
+    const dup = await $global.getCollectionItems('gifts', {
+      filters: [{ field: 'from', operator: '==', value: $sender.account },
+                { field: 'to', operator: '==', value: toAccount },
+                { field: 'day', operator: '==', value: day }],
+      limit: 1,
+    });
+    if (dup.length) return { ok: false, reason: 'already_sent' };
+    await $global.addCollectionItem('gifts', {
+      from: $sender.account, to: toAccount,
+      fromNick: await nickOf($sender.account), day, at: Date.now(),
+    });
+    return { ok: true };
+  }
+
+  /**
+   * 선물함. 오늘 내가 보낸 목록과 나에게 온 목록을 같이 준다 -
+   * 화면이 [선물]/[받기] 두 버튼을 한 줄에 그리므로 한 번에 와야 한다.
+   *
+   * **이틀 지난 것은 읽으면서 지운다.** 안 받고 쌓이면 컬렉션이 개수로만 자라고,
+   * 어제 선물을 오늘 받는 것은 어차피 규칙이 아니다 (하루 한 번이 리듬이다).
+   */
+  async friendGiftBox() {
+    const day = dayIdx(Date.now());
+    const [mine, inbox] = await Promise.all([
+      $global.getCollectionItems('gifts', {
+        filters: [{ field: 'from', operator: '==', value: $sender.account },
+                  { field: 'day', operator: '==', value: day }],
+        limit: 60,
+      }),
+      $global.getCollectionItems('gifts', {
+        filters: [{ field: 'to', operator: '==', value: $sender.account }],
+        limit: 60,
+      }),
+    ]);
+    const fresh = [];
+    for (const g of inbox) {
+      if (g.day < day - 1) await $global.deleteCollectionItem('gifts', g.__id);
+      else fresh.push(g);
+    }
+    return {
+      sent: mine.map(g => g.to),
+      inbox: fresh.map(g => ({ id: g.__id, from: g.from, fromNick: g.fromNick, day: g.day })),
+    };
+  }
+
+  /** 수령 - 행을 지운다. 골드는 클라가 자기 진행도로 계산해 넣는다 */
+  async friendGiftClaim(ids) {
+    if (!Array.isArray(ids) || !ids.length) return { ok: true, n: 0 };
+    let n = 0;
+    for (const id of ids.slice(0, 60)) {
+      const g = await $global.getCollectionItem('gifts', id);
+      // 남의 선물함을 비우지 못하게 한다. id 만 알면 지울 수 있으면 안 된다
+      if (g && g.to === $sender.account) {
+        await $global.deleteCollectionItem('gifts', g.__id);
+        n++;
+      }
+    }
+    return { ok: true, n };
+  }
+
+  // -- 채팅 --------------------------------------------------
+  /**
+   * 보내기. scope 는 'world' 또는 'ally'.
+   *
+   * 컬렉션을 갈라 두는 이유는 **구독이 컬렉션 단위**이기 때문이다
+   * (globalCollection 문서 > subscribeGlobalCollection). 한 컬렉션에 담고
+   * allianceId 로 거르면 클라가 남의 연합 대화까지 전부 받아 놓고 버리게 된다.
+   *
+   * 도배는 **초당 한 줄**로 막는다. remoteFunction 자체가 유저당 초당 10회라
+   * 그것만으로는 한 사람이 채팅방을 혼자 채울 수 있다.
+   */
+  async sendChat(scope, text) {
+    const body = String(text == null ? '' : text).trim().slice(0, CHAT_MAX_LEN);
+    if (!body) throw new Error('empty');
+    const room = await chatRoomOf(scope);
+    if (!room) return { ok: false, reason: 'no_room' };
+
+    const now = Date.now();
+    const srv = await srvState();
+    if (srv.chatAt && now - srv.chatAt < CHAT_MIN_GAP_MS) {
+      return { ok: false, reason: 'too_fast' };
+    }
+    await srvPatch({ chatAt: now });
+
+    // 아바타를 그리려면 직군이 줄마다 있어야 한다. 프로필을 계정마다 다시
+    // 조회하게 두면 채팅 40줄 = 조회 40번이다 — 보낼 때 한 번 굳혀 담는다.
+    // 개명·전직이 지난 줄에 반영 안 되는 것은 채팅의 관행이다 (로그는 과거다)
+    const me = await oneByAccount('profiles', $sender.account);
+    const item = await $global.addCollectionItem(room, {
+      account: $sender.account,
+      nickname: me ? String(me.nickname || '').slice(0, 15) : '',
+      capCls: me && ['warrior', 'archer', 'mage'].includes(me.capCls) ? me.capCls : 'warrior',
+      text: body, at: now,
+    });
+    await pruneChat(room);
+    return { ok: true, item };
+  }
+
+  /** 최근 대화. 오래된 것이 위로 오게 뒤집어 준다 - 화면은 아래가 최신이다 */
+  async getChat(scope, limit) {
+    const room = await chatRoomOf(scope);
+    if (!room) return [];
+    const rows = await $global.getCollectionItems(room, {
+      orderBy: [{ field: 'at', direction: 'desc' }],
+      limit: Math.min(CHAT_KEEP, Math.max(1, limit | 0 || 40)),
+    });
+    return rows.reverse();
+  }
+
+  /**
+   * 계정 하나의 공개 프로필. 채팅 줄을 눌렀을 때 뜨는 카드가 읽는다.
+   * findProfiles 는 CP 대역 조회라 특정 계정을 집어 못 가져온다 — 그래서 따로 둔다.
+   * 없으면 null — 프로필을 아직 안 올린 계정이다 (카드는 이름·직군만 그린다).
+   */
+  async getProfile(account) {
+    if (!account || typeof account !== 'string') return null;
+    return oneByAccount('profiles', account);
+  }
+
+  /**
+   * 구독할 컬렉션 이름. 클라가 `subscribeGlobalCollection` 에 넣는다.
+   * 이름을 클라가 조립하게 두지 않는다 - 규칙이 두 곳에 생기면 반드시 어긋난다.
+   */
+  async chatRooms() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    return { world: CHAT_WORLD, ally: mem ? CHAT_ALLY + mem.allianceId : null };
+  }
+
+  /** 이번 주 딜 순위 - 누가 얼마나 쳤나. 협동은 보여야 협동이다 */
+  async allianceBossLog() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return [];
+    const rows = await $global.getCollectionItems('allyBossLog', {
+      filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId },
+                { field: 'week', operator: '==', value: weekIdx(Date.now()) }],
+      limit: MAX_MEMBERS * BOSS_ATTEMPTS,
+    });
+    const byAcc = new Map();
+    for (const r of rows) byAcc.set(r.account, (byAcc.get(r.account) || 0) + r.damage);
+    // 이름은 단원 행에서 가져온다 — 딜 로그마다 닉네임을 복사해 두면 개명이
+    // 반영되지 않고, leaf 수만 늘어난다
+    const members = await $global.getCollectionItems('allyMembers', {
+      filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+      limit: MAX_MEMBERS,
+    });
+    const nameOf = new Map(members.map(m => [m.account, m.nickname]));
+    return [...byAcc]
+      .map(pair => ({ account: pair[0], nickname: nameOf.get(pair[0]) || '', damage: pair[1] }))
+      .sort((a, b) => b.damage - a.damage);
+  }
+}
+
+// -- 세이브 안의 재화를 서버가 직접 만진다 --------------------
+//
+// 1단계는 통짜 저장이라 재화의 진실도 세이브 안에 있다. 연합 창설비·기부처럼
+// **서버가 깎아야 하는** 것만 여기를 지난다 - 클라가 깎고 결과만 보내면
+// 0원 기부가 된다. 개인 진행(소환·강화)은 여전히 클라 몫이다.
+//
+// 주의: 클라의 다음 saveState 가 이 변경을 덮을 수 있다. 그래서 서버가 깎은
+// 직후 클라는 loadState 로 받아 가야 한다 (core/cloudsave.js 의 규칙과 같다).
+async function spendDia(account, cost) {
+  if (!cost) return true;
+  const cur = await $global.getUserState(account);
+  const s = cur && cur.save && cur.save.s;
+  if (!s || (s.dia || 0) < cost) return false;
+  s.dia -= cost;
+  await $global.updateUserState(account, { save: { ...cur.save, s, savedAt: Date.now() } });
+  return true;
+}
+async function spendGold(account, cost) {
+  if (!cost) return true;
+  const cur = await $global.getUserState(account);
+  const s = cur && cur.save && cur.save.s;
+  if (!s || (s.gold || 0) < cost) return false;
+  s.gold -= cost;
+  await $global.updateUserState(account, { save: { ...cur.save, s, savedAt: Date.now() } });
+  return true;
+}
+
+/**
+ * VXShop 결제 완료. 플랫폼이 부른다 - 클라는 이 경로에 못 끼어든다.
+ *
+ * **멱등이어야 한다.** 같은 purchaseId 가 두 번 오면(재시도·중복 웹훅) 두 번
+ * 지급된다. 지급한 id 를 계정 상태에 남겨 두 번째는 무시한다.
+ * 목록이 무한정 자라지 않도록 최근 50건만 남긴다 - Firestore 는 개수로도 죽는다
+ * (파일 상단 MAX_LEAVES 참조).
+ */
+async function $onItemPurchased(data) {
+  const account = data && data.account;
+  const purchaseId = data && data.purchaseId;
+  const productId = data && data.productId;
+  if (!account || !purchaseId || !productId) return;
+  const p = PRODUCTS[productId];
+  if (!p) return;                                  // 우리 상품이 아니다
+
+  const cur = await $global.getUserState(account);
+  const srv = (cur && cur.srv) || {};
+  const done = srv.purchases || [];
+  if (done.includes(purchaseId)) return;           // 이미 지급했다
+  if (p.once && (srv.onceBought || []).includes(productId)) return;
+
+  const s = cur && cur.save && cur.save.s;
+  if (!s) return;                                  // 세이브가 없다 - 접속 전이다
+  const n = Math.max(1, (data.quantity | 0) || 1);
+  if (p.dia) s.dia = (s.dia || 0) + p.dia * n;
+  if (p.mercTicket) s.mercTicket = (s.mercTicket || 0) + p.mercTicket * n;
+  if (p.skillTicket) s.skillTicket = (s.skillTicket || 0) + p.skillTicket * n;
+  if (p.eqTicket) s.eqTicket = (s.eqTicket || 0) + p.eqTicket * n;
+  if (p.unlock === 'speed3') s.speed3 = true;
+
+  await $global.updateUserState(account, {
+    save: { ...cur.save, s, savedAt: Date.now() },
+    srv: {
+      ...srv,
+      purchases: [...done, purchaseId].slice(-50),
+      onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
+    },
+  });
 }

@@ -9,6 +9,7 @@
 // 시스템 전체를 한 바퀴 돌게 된다.
 
 import { num } from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 const CUR_ICON = {
   diamond: 'CU-01', gold: 'CU-04', speedup_5m: 'CU-10',
   merc_ticket: 'CU-05', skill_ticket: 'CU-06', equip_ticket: 'CU-07',
@@ -36,17 +37,22 @@ const CUR_NAME = {
  * 'tower' 는 무한의 탑이다. 입장권이 없어 하루에 여러 층을 오를 수 있으니,
  * 열쇠를 기다려야 하는 던전 사이에 끼워 진행이 멈추지 않게 한다.
  */
+// 자동 사이클의 던전 칸은 N ≡ 5 (mod 7) 이다: k4→Q26 부터 (Q1~24 는 explicitQuests).
+// k1~k3 칸은 명시 퀘스트(Q7·Q11·Q17·Q23)가 대신 서 있고, 이 표의 앞 세 줄은
+// dungeonNth(재방문 횟수) 계산에만 쓰인다.
+// 해금(dungeons.json > unlockQuest)은 각 칸 직전이다: furnace Q39→칸 Q40,
+// crystal_cave Q53→Q54, trial_tower Q67→Q68 — tools/validate.mjs 가 정합을 검사한다.
 export const DUNGEON_BY_CYCLE = [
-  'gold_mine',       // k1  Q5   해금 Q5
-  'gold_mine',       // k2  Q11
-  'treasure_vault',  // k3  Q17  해금 Q17
-  'gold_mine',       // k4  Q23
-  'tower',           // k5  Q29
-  'furnace',         // k6  Q35  해금 Q35
-  'tower',           // k7  Q41
-  'crystal_cave',    // k8  Q47  해금 Q47
-  'tower',           // k9  Q53
-  'trial_tower',     // k10 Q59  해금 Q59
+  'gold_mine',       // k1  (explicit Q7·Q11 구간)
+  'gold_mine',       // k2
+  'treasure_vault',  // k3  (explicit Q17)
+  'gold_mine',       // k4  Q26
+  'tower',           // k5  Q33
+  'furnace',         // k6  Q40  해금 Q39
+  'tower',           // k7  Q47
+  'crystal_cave',    // k8  Q54  해금 Q53
+  'tower',           // k9  Q61
+  'trial_tower',     // k10 Q68  해금 Q67
 ];
 
 /** 이 사이클이 그 던전(또는 탑)을 몇 번째로 요구하는가 (1부터) */
@@ -199,28 +205,30 @@ export class QuestScreen {
     const def = questAt(D, n);
     const cur = this.api.progress(def);
     const done = cur >= def.target;
-    const t = QUEST_TYPE[def.type];
+    // 지역 이름을 t 로 두지 않는다 — i18n 의 t() 를 가려 렌더가 통째로 죽는다
+    // (main.js renderQuest 에서 실제로 터진 사고와 같은 패턴)
+    const qt = QUEST_TYPE[def.type];
     const nextDef = questAt(D, n + 1);
     const nextT = QUEST_TYPE[nextDef.type];
 
     this.el.querySelector('#qsBody').innerHTML = `
       <div class="q-hero">
         <div class="q-no">Q${n}</div>
-        <div class="q-name">${t.label}</div>
+        <div class="q-name">${t(qt.label)}</div>
         <div class="q-prog">${fmt(cur)} <span>/ ${fmt(def.target)}</span></div>
         <div class="q-bar"><i style="width:${Math.min(100, cur / def.target * 100)}%"></i></div>
         <div class="q-rewards">${rewardHtml(def.rewards)}</div>
         <button class="q-go ${done ? 'done' : ''}" id="qsGo">
-          ${done ? '보상 수령' : t.verb + ' 이동'}</button>
+          ${done ? t('보상 수령') : t(qt.verb) + ' ' + t('이동')}</button>
       </div>
 
       <div class="sh-h2">다음 퀘스트</div>
       <div class="frow">
-        <span class="k">Q${n + 1} · ${nextT.label} ${fmt(nextDef.target)}</span>
+        <span class="k">Q${n + 1} · ${t(nextT.label)} ${fmt(nextDef.target)}</span>
         <span class="v" style="gap:6px">${rewardHtml(nextDef.rewards)}</span>
       </div>
       <div class="sh-note">
-        퀘스트는 6칸이 순환한다 — 스테이지 → 용병 소환 → 스킬 소환 → 제작대 → 던전 → 전투력.<br>
+        퀘스트는 7칸이 순환한다 — 스테이지 → 용병 소환 → 스킬 소환 → 제작대 → 던전 → 훈련소 → 전투력.<br>
         각 칸의 보상이 <b>다음 칸에 필요한 재화</b>다. 그래서 따라가면 시스템 전체를 한 바퀴 돈다.
       </div>
       <div class="sh-note">

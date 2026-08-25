@@ -2,9 +2,17 @@
 
 // 만/억 이 한국 관행이지만 이 게임은 전투력을 k/m 으로 쓴다.
 // 재화만 만/억이면 같은 화면에 두 체계가 섞여 읽는 속도가 떨어진다.
+// 단위는 **앞 단위가 10만에 닿을 때** 넘어간다 (99999k -> 1m). 1e3 마다 넘기면
+// 같은 화면에서 단위 글자만 계속 바뀌어 크기 비교가 안 된다 — 1834k 와 2.1m 중
+// 어느 쪽이 큰지 한 번 더 생각하게 된다. 자릿수를 길게 두는 편이 읽기 쉽다.
+// [나눌 값, 글자, 이 값부터 이 단위를 쓴다]
 const UNITS = [
-  [1e12, 't'], [1e9, 'b'], [1e6, 'm'], [1e3, 'k'],
+  [1e12, 't', 1e14], [1e9, 'b', 1e11], [1e6, 'm', 1e8], [1e3, 'k', 1e5],
 ];
+
+// 10만 미만은 **자릿수를 그대로 보여 준다**. 1e3 부터 접으면 8,317 이 "8.32k" 가 되어
+// 초반 재화·전투력이 전부 뭉개진 소수점으로만 보인다 — 성장이 눈에 안 띄었다.
+const RAW_BELOW = UNITS[UNITS.length - 1][2];
 
 /** 소수점 뒤의 잉여 0 만 턴다. "20.0"→"20", "1.50"→"1.5", "300"→"300" */
 const trimZero = s => s.includes('.')
@@ -15,10 +23,13 @@ const trimZero = s => s.includes('.')
 export function num(n) {
   if (n == null || !isFinite(n)) return '0';
   const neg = n < 0; n = Math.abs(n);
-  for (const [v, u] of UNITS) {
-    if (n >= v) {
+  if (n < RAW_BELOW) return (neg ? '-' : '') + Math.floor(n).toString();
+  for (const [v, u, from] of UNITS) {
+    if (n >= from) {
       const x = n / v;
-      const s = x >= 100 ? Math.round(x) : x.toFixed(x >= 10 ? 1 : 2);
+      // 세 자리 구간은 **내림**이다. 반올림하면 999,999 가 "1000k" 가 되어
+      // 한 단계 위(1m)를 두고도 네 자리 단위 표기가 나온다.
+      const s = x >= 100 ? Math.floor(x) : x.toFixed(x >= 10 ? 1 : 2);
       // 소수점 **뒤**의 0 만 턴다. `/\.?0+$/` 로 하면 정수의 0 까지 먹어서
       // 300000 이 "3k", 150000000 이 "15m" 으로 나온다. 실제로 그랬다.
       return (neg ? '-' : '') + trimZero(String(s)) + u;
@@ -51,13 +62,15 @@ export function dur(sec) {
   return h ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
 }
 
-// 방치 보상처럼 길이가 큰 것
+// 방치 보상처럼 길이가 큰 것. 단위 글자는 사전을 지난다 — "1.6시간" 같은
+// 조합 문자열은 DOM 번역기(원문 전체 매칭)가 못 잡아서 여기서 바꿔야 한다
+import { t } from './i18n.js';
 export function durLong(sec) {
   sec = Math.max(0, Math.floor(sec));
   const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
-  if (h >= 1) return m ? `${h}시간 ${m}분` : `${h}시간`;
-  if (m >= 1) return `${m}분`;
-  return `${sec}초`;
+  if (h >= 1) return m ? `${h}${t('시간')} ${m}${t('분')}` : `${h}${t('시간')}`;
+  if (m >= 1) return `${m}${t('분')}`;
+  return `${sec}${t('초')}`;
 }
 
 export const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;

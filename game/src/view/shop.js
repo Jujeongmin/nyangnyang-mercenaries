@@ -128,6 +128,10 @@ export class ShopScreen {
       const o = (this.api.data.shop.quickGold || [])[+b.dataset.goldbuy];
       if (o && this.api.buyGold(o.hours, o.diamond)) this.render();
     }));
+    body.querySelectorAll('[data-hgbuy]').forEach(b => b.addEventListener('click', () => {
+      const o = (this.api.data.shop.quickHourglass || [])[+b.dataset.hgbuy];
+      if (o && this.api.buyHourglass(o.count, o.diamond)) this.render();
+    }));
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       // 3배속만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
       if (b.dataset.buy === 'speed3_unlock' && this.api.buySpeed3) return this.api.buySpeed3();
@@ -367,7 +371,16 @@ export class ShopScreen {
           <img src="/assets/ui/CU-01.png" alt=""
             style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
       </div>`).join('');
+    const qh = (this.api.data.shop.quickHourglass || []).map((o, i) => `<div class="sh-card">
+        <b><img src="/assets/ui/CU-10.png" alt=""
+          style="width:14px;height:14px;vertical-align:-3px"> ${o.count}개</b>
+        <span class="sh-desc">제작 ${o.count * 5}분 단축 · 개당 ${(o.diamond / o.count).toFixed(1)}</span>
+        <button class="sh-price" data-hgbuy="${i}">
+          <img src="/assets/ui/CU-01.png" alt=""
+            style="width:12px;height:12px;vertical-align:-2px"> ${num(o.diamond)}</button>
+      </div>`).join('');
     return `<div class="sh-h2">골드 구매</div>${qg}
-      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}`;
+      <div class="sh-h2" style="margin-top:12px">장비 소환권</div>${qe}
+      <div class="sh-h2" style="margin-top:12px" id="shHg">모래시계</div>${qh}`;
   }
 }

@@ -48,9 +48,73 @@ export function tn(id, nameKo) {
   return (DICT.data && DICT.data[id]) || nameKo;
 }
 
+/**
+ * DOM 번역기 — t() 를 안 거친 화면 글자를 사전으로 치환한다.
+ *
+ * 이 게임 화면은 innerHTML 재조립이 수백 곳이라, 전부 `${t('…')}` 로 감싸는 것은
+ * 한 번에 끝나지 않고 새 화면을 만들 때마다 빠뜨리게 된다. 대신 **원문=키** 체계를
+ * 그대로 이용한다: 문서에 새로 붙는 텍스트 노드의 한국어가 사전에 있으면 바꾼다.
+ *
+ *   · 한국어면 아무것도 안 한다 (observer 자체를 안 단다 — 비용 0)
+ *   · 사전에 없는 문장은 그대로 둔다 (t() 와 같은 폴백)
+ *   · 숫자가 낀 동적 문장은 못 잡는다 — 그런 곳만 t('… {0}', v) 로 감싼다
+ *   · placeholder · title 속성도 본다
+ *
+ * 전투는 canvas(PIXI)라 DOM 변이는 화면을 열 때뿐이다 — 프레임 비용이 아니다.
+ */
+export function watchDom(root = document.body) {
+  if (LANG === 'ko' || typeof MutationObserver === 'undefined') return;
+  // 번역이 원문보다 길어 칸을 넘칠 수 있다 (영어가 특히 길다).
+  // 치환한 요소를 모아 두고 프레임 끝에 한 번만 잰다 — 치환마다 재면
+  // 레이아웃 계산이 문장 수만큼 반복된다
+  const dirty = new Set();
+  let raf = 0;
+  const queueFit = el => {
+    if (!el || el.nodeType !== 1) return;
+    dirty.add(el);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; for (const e of dirty) fit(e); dirty.clear(); });
+  };
+  /** 넘치면 글자를 줄인다. 9px 아래로는 안 간다 — 그건 읽기를 포기한 크기다 */
+  const fit = el => {
+    if (!el.isConnected || el.children.length > 3) return;   // 컨테이너 통째는 건드리지 않는다
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    if (!size) return;
+    let guard = 6;
+    while (guard-- > 0 && size > 9 && el.scrollWidth > el.clientWidth + 1) {
+      size -= 1;
+      el.style.fontSize = size + 'px';
+    }
+  };
+  const xl = node => {
+    if (node.nodeType === 3) {                     // 텍스트
+      const raw = node.nodeValue, k = raw.trim();
+      if (k && DICT.ui && DICT.ui[k]) {
+        node.nodeValue = raw.replace(k, DICT.ui[k]);
+        queueFit(node.parentElement);
+      }
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    for (const a of ['placeholder', 'title']) {
+      const v = node.getAttribute?.(a);
+      if (v && DICT.ui && DICT.ui[v]) node.setAttribute(a, DICT.ui[v]);
+    }
+    for (const c of node.childNodes) xl(c);
+  };
+  xl(root);                                        // 정적 마크업(index.html) 1회
+  new MutationObserver(muts => {
+    for (const m of muts) {
+      if (m.type === 'characterData') xl(m.target);
+      else for (const n of m.addedNodes) xl(n);
+    }
+  }).observe(root, { childList: true, subtree: true, characterData: true });
+}
+
 /** 언어 선택 화면에 쓸 목록. 여기 추가하면 부트 화면에도 자동으로 뜬다 */
 export const LANGS = [
   { id: 'ko', label: '한국어' },
   { id: 'en', label: 'English' },
   { id: 'ja', label: '日本語' },
+  { id: 'zh-Hans', label: '简体中文' },
+  { id: 'zh-Hant', label: '繁體中文' },
 ];

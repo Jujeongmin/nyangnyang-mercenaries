@@ -1,0 +1,208 @@
+// 서버가 쥔 것들(연합·친구·아레나 상대·랭킹)을 화면에 대는 얇은 층.
+//
+// 왜 캐시인가 — 화면 렌더 함수들은 전부 **동기**다. 서버 호출은 비동기라
+// 렌더 안에서 await 하려면 화면 코드 전체를 async 로 바꿔야 하고, 그러면
+// 스크롤 위치·포커스가 매 프레임 날아가는 흔한 사고가 따라온다.
+// 그래서 규칙을 하나로 잡는다:
+//
+//   1. 화면을 열 때 pull() 을 쏘고 **캐시로 즉시 그린다** (없으면 데모)
+//   2. 응답이 오면 캐시를 갈고 onDone 으로 **다시 그린다**
+//
+// 서버가 없으면(로컬 dev) 모든 pull 이 즉시 no-op 이라 화면은 데모 그대로다.
+// 이게 이 파일의 핵심 계약이다 — **붙든 안 붙든 화면 코드는 한 벌이다.**
+//
+// 접속점은 core/cloudsave.js 와 같다: window.__V8_SERVER 또는 주입.
+// Verse8 의 비-React 접속법이 문서에 없어 추측하지 않는다 (net/verse8.js 원칙).
+
+let server = null;
+
+const cache = {
+  alliances: null,     // 가입할 수 있는 연합 목록
+  myAlliance: null,    // { alliance, me, members }
+  boss: null,          // { hp, max, tier, triesLeft }
+  bossLog: null,       // [{ account, damage }]
+  friends: null,       // publicProfile 모양 + since
+  friendReqs: null,    // 받은 신청
+  arenaFoes: null,     // 상대 표본
+  friendCands: null,   // 친구 추천 표본 (아레나보다 넓은 대역)
+  rankTop: null,       // 상위 20
+  myRank: null,        // { bestEntry, rank }
+  giftBox: null,       // { sent:[account], inbox:[{id, from, fromNick, day}] }
+  chatRooms: null,     // { world, ally } 구독할 컬렉션 이름
+  chatWorld: null,     // 최근 대화 (전체)
+  chatAlly: null,      // 최근 대화 (연합)
+};
+
+/** 마지막으로 성공한 시각. 같은 화면을 다시 열 때 과하게 다시 안 쏘려고 본다 */
+const at = {};
+const FRESH_MS = 20_000;
+
+export function initLive(injected) {
+  server = injected
+    || (typeof window !== 'undefined' && window.__V8_SERVER) || null;
+  if (!server || typeof server.remoteFunction !== 'function') server = null;
+  return !!server;
+}
+
+export const liveReady = () => !!server;
+
+/** 캐시 읽기. 서버가 없거나 아직 안 왔으면 null — 부르는 쪽이 데모로 떨어진다 */
+export const get = key => cache[key];
+
+const call = (name, args = []) => server.remoteFunction(name, args);
+
+/**
+ * 어떤 값을 받아 캐시에 넣고 onDone 을 부른다.
+ * 실패는 **조용히 삼킨다** — 연합 목록이 안 온다고 게임이 멈추면 안 된다.
+ * 대신 캐시를 안 건드려서 화면은 직전 값(또는 데모)을 유지한다.
+ */
+async function pull(key, fn, onDone, force = false) {
+  if (!server) return null;
+  if (!force && at[key] && Date.now() - at[key] < FRESH_MS && cache[key] != null) {
+    return cache[key];
+  }
+  try {
+    const v = await fn();
+    cache[key] = v;
+    at[key] = Date.now();
+    onDone?.(v);
+    return v;
+  } catch (e) {
+    console.warn('[live] ' + key + ' 실패', e);
+    return null;
+  }
+}
+
+// **force 를 쓰지 않는다.** 화면은 "pull -> 응답 -> 다시 그리기 -> 또 pull" 로 도는데
+// 매번 강제로 받으면 그 고리가 끊기지 않는다 (요청 무한 루프). 캐시가 신선하면
+// pull 이 onDone 을 부르지 않고 조용히 끝나서 두 번째 바퀴에서 멈춘다.
+// 방금 바꾼 값을 꼭 다시 받아야 하는 곳은 invalidate() 를 먼저 부른다.
+export const pullAlliances = onDone => pull('alliances', () => call('allianceList', [20]), onDone);
+export const pullMyAlliance = onDone => pull('myAlliance', () => call('allianceMy'), onDone);
+export const pullBoss = onDone => pull('boss', () => call('allianceBoss'), onDone);
+export const pullBossLog = onDone => pull('bossLog', () => call('allianceBossLog'), onDone);
+export const pullFriends = onDone => pull('friends', () => call('friendList'), onDone);
+export const pullFriendReqs = onDone => pull('friendReqs', () => call('friendRequests'), onDone);
+export const pullGiftBox = onDone => pull('giftBox', () => call('friendGiftBox'), onDone);
+export const pullRank = onDone => {
+  pull('rankTop', () => call('getTopRankings', [20]), onDone);
+  pull('myRank', () => call('getMyBestRank'), onDone);
+};
+
+/**
+ * 아레나 상대. 내 CP 의 ±40% 대역에서 표본을 받는다 — 정교한 매칭이 아니라
+ * **표본**이다 (server.js > findProfiles). 대역이 비면 화면은 데모로 떨어진다.
+ */
+export const pullArenaFoes = (myCp, onDone) => pull('arenaFoes',
+  () => call('findProfiles', [{
+    minCp: Math.floor(myCp * 0.6), maxCp: Math.ceil(myCp * 1.4), limit: 12,
+  }]), onDone);
+
+// ── 상태를 바꾸는 것 ──────────────────────────────────────
+// 전부 **서버 판정**이다. 클라는 요청만 하고 결과를 받는다.
+// 실패는 삼키지 않는다 — 부르는 쪽이 토스트를 띄워야 한다.
+
+export const pushProfile = p => server ? call('submitProfile', [p]) : null;
+export const pushCp = (score, nickname) => server ? call('submitCp', [score, nickname]) : null;
+
+export const createAlliance = (name, stage, cp) => call('allianceCreate', [name, stage, cp]);
+export const joinAlliance = (id, stage, cp) => call('allianceJoin', [id, stage, cp]);
+export const leaveAlliance = () => call('allianceLeave');
+export const donateStep = n => call('allianceDonate', [n]);
+export const bossHit = (damage, cp) => call('allianceBossHit', [damage, cp]);
+
+export const sendGift = account => call('friendGift', [account]);
+export const claimGifts = ids => call('friendGiftClaim', [ids]);
+
+export const sendChat = (scope, text) => call('sendChat', [scope, text]);
+export const fetchChat = (scope, limit = 40) => call('getChat', [scope, limit]);
+
+/**
+ * 채팅 구독. 새 글이 즉시 온다 (globalCollection > subscribeGlobalCollection).
+ *
+ * **해제 함수를 반드시 돌려준다.** 화면을 닫아도 구독이 살아 있으면 방치 게임을
+ * 몇 시간 켜 두는 동안 트래픽이 계속 흐르고, 같은 화면을 다시 열 때마다 구독이
+ * 하나씩 겹쳐 같은 줄이 두 번 세 번 그려진다.
+ *
+ * 콜백 인자는 문서 예제와 같은 `{ items, changes }` 다. items 전체가 오므로
+ * 화면은 매번 통째로 다시 그린다 - 채팅은 40줄이라 부분 갱신이 이득이 아니다.
+ */
+export function subscribeChat(scope, cb) {
+  const rooms = cache.chatRooms;
+  const room = scope === 'ally' ? rooms?.ally : rooms?.world;
+  if (!server || !room || typeof server.subscribeGlobalCollection !== 'function') return null;
+  try {
+    return server.subscribeGlobalCollection(room, ({ items }) => {
+      const rows = [...(items || [])].sort((a, b) => (a.at || 0) - (b.at || 0));
+      cache[scope === 'ally' ? 'chatAlly' : 'chatWorld'] = rows;
+      cb?.(rows);
+    });
+  } catch (e) {
+    console.warn('[live] 채팅 구독 실패 - 폴링 없이 수동 새로 고침만 된다', e);
+    return null;
+  }
+}
+
+/** 구독이 없는 환경에서 화면이 받아 온 목록을 캐시에 꽂는다 */
+export const setChat = (scope, rows) => {
+  cache[scope === 'ally' ? 'chatAlly' : 'chatWorld'] = rows;
+};
+
+/** 계정 하나의 공개 프로필 — 채팅 프로필 카드가 쓴다. 캐시 없이 그때그때 */
+export const fetchProfile = account => server ? call('getProfile', [account]) : null;
+
+export const searchNick = nick => call('findByNickname', [nick]);
+export const addFriend = account => call('friendRequest', [account]);
+export const respondFriend = (reqId, accept) => call('friendRespond', [reqId, accept]);
+export const removeFriend = account => call('friendRemove', [account]);
+
+/**
+ * 부팅 예열. **서버가 붙어 있으면 로딩이 끝나기 전에 다 받아 둔다.**
+ *
+ * 왜 부트에서 하나 — 화면을 열 때 받으면 유저가 데모를 한 번 보고 0.3초 뒤에
+ * 진짜 값으로 갈리는 것을 본다. 목록이 눈앞에서 바뀌는 화면은 고장으로 읽힌다.
+ * 로딩 막대는 어차피 기다리는 시간이니 거기서 끝내는 게 맞다.
+ *
+ * 전부 **동시에** 쏜다. 하나씩 await 하면 10회 왕복이 직렬로 쌓여 로딩이 그만큼 늘어난다.
+ * remoteFunction 은 유저당 초당 약 10회라 10개는 한 번에 나갈 수 있는 한계선이다 —
+ * 여기서 더 늘릴 일이 생기면 화면 진입 시점으로 미루는 쪽이 낫다.
+ *
+ * 하나가 실패해도 나머지는 그대로 간다 (pull 이 각자 삼킨다). 못 받은 것은
+ * 해당 화면이 열릴 때 다시 받고, 그때까지는 데모가 자리를 지킨다.
+ */
+export async function warmup(myCp = 0) {
+  if (!server) return false;
+  await Promise.all([
+    pull('alliances', () => call('allianceList', [20])),
+    pull('myAlliance', () => call('allianceMy')),
+    pull('boss', () => call('allianceBoss')),
+    pull('bossLog', () => call('allianceBossLog')),
+    pull('friends', () => call('friendList')),
+    pull('friendReqs', () => call('friendRequests')),
+    pull('rankTop', () => call('getTopRankings', [20])),
+    pull('myRank', () => call('getMyBestRank')),
+    pull('arenaFoes', () => call('findProfiles', [{
+      minCp: Math.floor(myCp * 0.6), maxCp: Math.ceil(myCp * 1.4), limit: 12 }])),
+    pull('friendCands', () => call('findProfiles', [{
+      minCp: Math.floor(myCp * 0.2), maxCp: Math.ceil(myCp * 5), limit: 12 }])),
+    pull('giftBox', () => call('friendGiftBox')),
+    pull('chatRooms', () => call('chatRooms')),
+    pull('chatWorld', () => call('getChat', ['world', 40])),
+    pull('chatAlly', () => call('getChat', ['ally', 40])),
+  ]);
+  return true;
+}
+
+/**
+ * 친구 추천. 아레나보다 **훨씬 넓은 대역**을 본다 — 친구는 이겨야 하는 상대가
+ * 아니라 매일 선물을 주고받을 사람이라 CP 가 비슷할 이유가 없다.
+ */
+export const pullFriendCands = (myCp, onDone) => pull('friendCands',
+  () => call('findProfiles', [{
+    minCp: Math.floor(myCp * 0.2), maxCp: Math.ceil(myCp * 5), limit: 12,
+  }]), onDone);
+
+/** 화면을 떠나거나 편성이 크게 바뀌면 캐시를 버린다 */
+export function invalidate(...keys) {
+  for (const k of keys.length ? keys : Object.keys(cache)) { cache[k] = null; delete at[k]; }
+}

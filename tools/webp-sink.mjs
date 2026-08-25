@@ -28,7 +28,7 @@ import { resolve, basename } from 'node:path';
 
 // 어느 에셋 폴더로 떨어뜨릴지는 ?dir= 로 받는다. 목록에 없는 폴더는 거부한다
 const ROOT = resolve(import.meta.dirname, '../game/public/assets');
-const DIRS = ['ui', 'boss', 'enemy', 'char', 'captain', 'bg', 'fx', 'skill', 'equip', 'dungeon', 'alliance', 'art'];
+const DIRS = ['ui', 'boss', 'enemy', 'char', 'captain', 'bg', 'fx', 'skill', 'equip', 'dungeon', 'alliance', 'art', 'cur', 'ui/9s'];
 const PORT = 5199;
 
 createServer(async (req, res) => {
@@ -38,6 +38,23 @@ createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return res.end();
 
   const url = new URL(req.url, 'http://x');
+  // 변환 대상 목록 — 브라우저 쪽 스크립트가 이걸 받아 순회한다.
+  // 대응 .webp 가 이미 있는 png 는 뺀다 (재실행해도 한 일은 안 되풀이한다)
+  if (req.method === 'GET' && url.pathname === '/list') {
+    const { readdirSync, existsSync } = await import('node:fs');
+    const out = [];
+    for (const d of DIRS.concat(['ui/9s'])) {
+      const full = resolve(ROOT, d);
+      if (!existsSync(full)) continue;
+      for (const f of readdirSync(full)) {
+        if (!f.endsWith('.png')) continue;
+        if (existsSync(resolve(full, f.replace(/[.]png$/, '.webp')))) continue;
+        out.push(d + '/' + f);
+      }
+    }
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify(out));
+  }
   if (req.method !== 'POST' || url.pathname !== '/save') {
     res.writeHead(404); return res.end('POST /save?name=<파일명>');
   }

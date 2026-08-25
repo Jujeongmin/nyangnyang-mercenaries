@@ -7,8 +7,8 @@
  },
  "cycle": {
   "length": 7,
-  "slotFormula": "slot = ((N - 1) mod 6) + 1",
-  "cycleFormula": "k = ceil(N / 6)",
+  "slotFormula": "slot = ((N - 1) mod 7) + 1",
+  "cycleFormula": "k = ceil(N / 7)",
   "slots": [
    {
     "slot": 1,
@@ -23,22 +23,24 @@
    {
     "slot": 2,
     "type": "mercenary_summon",
-    "targetFormula": "10 * k^1.6",
+    "targetFormula": "10 (고정)",
     "needs": "다이아 / 용병 소환권",
     "prevRewardShouldGive": [
      "merc_ticket",
      "diamond"
-    ]
+    ],
+    "targetNote": "바로 앞 퀘스트가 소환권 10장을 주므로 \"받은 만큼 쓰면 끝난다\". 예전 10*k^1.6 은 사이클마다 목표가 늘어 그 성립이 깨졌다."
    },
    {
     "slot": 3,
     "type": "skill_summon",
-    "targetFormula": "8 * k^1.6",
+    "targetFormula": "10 (고정)",
     "needs": "다이아 / 스킬 소환권",
     "prevRewardShouldGive": [
      "skill_ticket",
      "diamond"
-    ]
+    ],
+    "targetNote": "바로 앞 퀘스트가 소환권 10장을 주므로 \"받은 만큼 쓰면 끝난다\". 예전 10*k^1.6 은 사이클마다 목표가 늘어 그 성립이 깨졌다."
    },
    {
     "slot": 4,
@@ -52,13 +54,14 @@
    {
     "slot": 5,
     "type": "dungeon_floor",
-    "targetFormula": "3 * k",
+    "targetFormula": "2 * dungeonNth(k) — 새 던전이면 2층, 재방문마다 +2층",
     "needs": "CP + 입장 횟수",
     "prevRewardShouldGive": [
      "gold",
      "golden_key",
      "dungeon_entry"
-    ]
+    ],
+    "targetNote": "탑 차례(DUNGEON_BY_CYCLE)면 tower_floor 로 바뀌어 5*n 층. 열쇠가 하루 3개라 3*k 는 사이클 7에 21층 = 며칠짜리였다."
    },
    {
     "slot": 6,
@@ -73,15 +76,17 @@
    {
     "slot": 7,
     "type": "power_reach",
-    "targetFormula": "권장CP * 1.1",
+    "targetFormula": "2000 * 1.9^(k-2)",
     "needs": "모든 성장 재화",
     "prevRewardShouldGive": [
      "diamond",
      "ticket_mixed"
-    ]
+    ],
+    "targetNote": "숫자 스케일 축소(2026-08-24, CP/400) 반영. 권장CP*1.1 이던 시절 문자열은 낡았다."
    }
   ],
-  "lengthNote": "6 → 7 (2026-08-24). 훈련소 칸을 정식으로 넣었다."
+  "lengthNote": "6 → 7 (2026-08-24). 훈련소 칸을 정식으로 넣었다.",
+  "formulaNote": "2026-08-25 정정. 훈련소 칸이 들어와 7칸이 됐는데 공식 문자열이 6칸 시절 것이었다. 실제 판정은 view/quest.js > questAt 이 cycle.length 를 읽으므로 게임은 처음부터 7칸으로 돌았다 — 이 문자열은 문서다."
  },
  "supplyRate": {
   "formula": "reward(N) = requiredAmount(N+1) * supplyRate(k)",

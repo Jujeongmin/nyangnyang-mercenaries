@@ -14,6 +14,7 @@ import { DamageNumbers } from './numbers.js';
 import { motionForClass } from './motions.js';
 import { loadCutout } from './cutout.js';
 import { FxLayer, HIT_BY_MOTION, skillFx, SKILL_FX, PASSIVE_FX } from './fx.js';
+import { passiveAgg, EMPTY_PASSIVES, passiveTakenMult } from '../../core/passives.js';
 
 const PIXI = () => window.PIXI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -43,6 +44,11 @@ const MOB_MOTION = { charge: 'pounce', thrust: 'thrust', projectile: 'cast' };
  * 이 값이 커지면 "누구를 뽑았는가" 보다 "단장" 이 세지는 게임이 된다.
  */
 const CAPTAIN_SHARE = 0.15;
+
+// 치명타 바탕값. 패시브(SK-P04 치명타율 / SK-P12 치명타 피해)가 여기에 얹힌다 —
+// 툴팁이 "+9%" 라고 적으므로 바탕이 어딘가에 이름을 갖고 있어야 한다
+const CRIT_BASE = 0.15;
+const CRIT_MULT = 2;
 
 const FOE_LANE = [
   { dx: -0.10, dy: 0.20, sc: 1.05, z: 16 },
@@ -163,7 +169,8 @@ export class BattleScene {
   async setBackground(id) {
     if (this.bgId === id) return;
     const P = PIXI();
-    const t = await this.load(`/assets/bg/${id}.png`);
+    // webp 우선 — 배경은 사진풍이라 webp 절감이 가장 큰 폴더다 (png 는 배포에서 뺐다)
+    const { tex: t } = await this.loadSprite(`/assets/bg/${id}`);
     if (!t) return;
     this.bgId = id;
 
@@ -420,6 +427,7 @@ export class BattleScene {
     this.timeLeft = null;
     // 파티 체력. 요구 CP 에 비례해 잡는다 — 스테이지가 오르면 같이 오른다.
     this.partyMaxHp = Math.max(1, this.requiredCp * 1.6);
+    this.killStacks = 0;          // 처치 중첩은 전투마다 새로 센다
     this.partyHp = this.partyMaxHp;
     this.onEvent({ type: 'stage', stage, encounter: 0 });
     await this.nextEncounter();
@@ -731,7 +739,10 @@ export class BattleScene {
       foe.hp -= this.partyDps * this.pas.thorns;
       if (foe.hp <= 0) this.killFoe?.(foe);
     }
-    let raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15);
+    // 방어력·체력 강화 패시브. 파티 최대 체력은 요구 CP 로 정해져 있어(난이도 기준선)
+    // 늘릴 수 없다 — 대신 **받는 피해**를 줄여 같은 뜻으로 만든다
+    let raw = this.partyMaxHp * 0.035 * scale * rnd(0.85, 1.15)
+      * passiveTakenMult(this.pas || EMPTY_PASSIVES);
     // 보호막이 있으면 **먼저** 깎인다 — 이게 없으면 party_shield 는 시전 모션뿐인
     // 장식이 된다 (실제로 그랬다)
     if (this.shield > 0) {
@@ -844,27 +855,12 @@ export class BattleScene {
   /**
    * 장착한 패시브의 수치를 모은다. 매 타격마다 배열을 훑으면 프레임마다
    * 같은 계산을 반복한다 — 편성이 바뀔 때(syncPassiveAura) 한 번만 잰다.
-   *   openPct  전투 시작 N 초 공격력 배수 (선제)
-   *   thorns   적 타격마다 파티 공격력의 N 배 되돌림 (가시 오라)
-   *   ragePS   초당 피해 증가율 / rageMax 상한 (투지)
-   *   vigorAtk 체력이 가득 찼을 때 공격력 배수 (활력)
-   *   lifeAtk  흡혈이 얹는 공격력 배수
+   * 합산식은 core/passives.js 하나뿐이다. main 의 파티 DPS 도 같은 것을 읽는다 —
+   * 두 곳이 각자 재면 툴팁·DPS·전투가 서로 다른 수치로 굴러간다.
    */
   calcPassives() {
-    const P = { openPct: 0, openSec: 0, thorns: 0, ragePS: 0, rageMax: 0,
-      vigorAtk: 0, regenPS: 0, lifeAtk: 0, lifePct: 0 };
-    for (const sk of this.passiveSkills || []) {
-      const e = this.D.skills.skills.find(k => k.id === sk.id)?.effect;
-      if (!e) continue;
-      // 스킬 레벨은 피해와 같은 식으로 성장한다 (skillDmg 와 맞춘다)
-      const lv = 1 + (sk.level || 0) * 0.06;
-      if (e.kind === 'opening_burst') { P.openPct += e.pct * lv; P.openSec = Math.max(P.openSec, e.sec); }
-      if (e.kind === 'thorns_aura') P.thorns += e.atkPct * lv;
-      if (e.kind === 'rage_ramp') { P.ragePS += e.pctPerSec * lv; P.rageMax += e.maxPct * lv; }
-      if (e.kind === 'vigor') { P.vigorAtk += e.fullHpAtkPct * lv; P.regenPS += e.maxHpRatioPerSec * lv; }
-      if (e.kind === 'lifesteal') { P.lifePct += e.pct; P.lifeAtk += (e.atkPct || 0) * lv; }
-    }
-    this.pas = P;
+    this.pas = passiveAgg(this.passiveSkills || [], this.D.skills);
+    this.killStacks = 0;      // 처치 중첩(응징의 오라)은 편성이 바뀌면 리셋
   }
 
   /**
@@ -1099,7 +1095,10 @@ export class BattleScene {
     // 패배·웨이브 전환의 clearFoes 뒤에 늦게 도착한 공격 콜백이 파괴된 rig 를
     // 만지면 null.x 로 터지고, 그 예외가 틱 루프를 세운다 — 실제로 그랬다.
     if (!foe || foe.hp <= 0 || !foe.rig?.view || foe.rig.view.destroyed) return;
-    const crit = Math.random() < 0.15;
+    // 패시브는 **여기서 실제로 판정된다**. 예전에는 치명타율이 0.15 고정이라
+    // "치명타 확률 +9%" 툴팁이 전투와 아무 관계가 없었다
+    const P = this.pas || EMPTY_PASSIVES;
+    const crit = Math.random() < CRIT_BASE + (P.critAdd || 0);
     // 파티 총 DPS 를 공격 1회분으로 환산 — 실제 판정은 서버가 한다
     const perFull = this.partyDps / Math.max(1, this.units.length) * from.cdMax;
     // 단장 몫. **총량은 그대로다** — 단장이 가져가는 만큼 용병들의 평타가 줄고,
@@ -1127,7 +1126,6 @@ export class BattleScene {
     // 패시브 곱 — 선제(전투 시작 몇 초) · 투지(전투가 길수록) · 활력(만피) ·
     // 흡혈(고정 공격력). 넷 다 **스테이지 진행에 기여**해야 해서 CP 가 아니라
     // 여기서 실제로 곱해진다 (skills.json > survivalRedesignNote)
-    const P = this.pas || {};
     let pasMul = 1;
     if (P.openPct && this.fightT < (P.openSec || 0)) pasMul += P.openPct;
     if (P.ragePS) pasMul += Math.min(P.rageMax, P.ragePS * (this.fightT || 0));
@@ -1135,15 +1133,31 @@ export class BattleScene {
       pasMul += P.vigorAtk;
     }
     if (P.lifeAtk) pasMul += P.lifeAtk;
+    // 관통력 — 전투 모델에 적 DEF 가 없다(스테이지는 DPS 체크다).
+    // "방어력 N% 무시" 를 같은 뜻의 피해 증가로 환산한다
+    if (P.pierce) pasMul += P.pierce;
+    // 응징의 오라 — 이 전투에서 처치한 수만큼 (killFoe 가 쌓는다)
+    if (P.killAtk) pasMul += Math.min(this.killStacks || 0, P.killMax) * P.killAtk;
     // 스킬 몫은 **단장 배분 전 값(perFull)** 으로 잰다. 스킬은 용병이 쓰는
     // 것이고 단장 몫과 무관한데, per 에 얹으면 단장이 가져간 만큼 스킬까지
     // 같이 줄어든다 — 툴팁의 "공격력의 240%" 와 실제가 또 어긋난다
-    const dmg = (per + (sd ? perFull * sd.mult : 0)) * (crit ? 2 : 1) * rnd(0.9, 1.1)
-      * bossMul * pasMul;
+    // 심판(damage_amplify) — 확률로 피해를 통째로 곱한다. 크리티컬과 곱해진다:
+    // 둘은 별개 판정이라 겹치는 순간이 있어야 "터졌다" 는 맛이 난다
+    const amp = P.ampChance && Math.random() < P.ampChance ? P.ampMult : 1;
+    const critMul = crit ? CRIT_MULT + (P.critDmgAdd || 0) : 1;
+    const dmg = (per + (sd ? perFull * sd.mult : 0)) * critMul * rnd(0.9, 1.1)
+      * bossMul * pasMul * amp;
     // 아레나는 **체력을 여기서 안 깎는다.** 승패와 HP 곡선은 arenaStep 이 쥐고
     // 있고 여기 타격은 그림일 뿐이다. 깎게 두면 arenaStep 이 매 프레임 되돌려
     // 놓는 줄다리기가 되고, 운 나쁘면 그 사이 killFoe 가 먼저 터진다
     if (this.mode !== 'arena') foe.hp -= dmg;
+    // 즉사 — 체력이 문턱 아래로 떨어진 적을 확률로 끝낸다. 남은 피가 적을수록
+    // 판정이 자주 열리므로 **피해를 넣은 뒤에** 본다
+    if (this.mode !== 'arena' && P.execChance && foe.hp > 0
+        && foe.hp < foe.maxHp * P.execHp && Math.random() < P.execChance) {
+      foe.hp = 0;
+      this.passiveFxAt('hit', foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.5, foe.rig.h);
+    }
     // 흡혈 — 넣은 피해의 일부를 파티 체력으로. 보스전에서 실제로 버틴다
     if (this.pas?.lifePct && this.partyHp != null && this.partyHp < this.partyMaxHp) {
       this.partyHp = Math.min(this.partyMaxHp,
@@ -1153,9 +1167,14 @@ export class BattleScene {
     this.passiveFxAt('hit', foe.rig.view.x, foe.rig.view.y - foe.rig.h * 0.45, foe.rig.h);
     // 폭풍 연사(3차 궁수) — 평타가 한 번 더 때린다. 확률은 main 이 준다.
     // 스킬 타격에는 안 걸린다 — 평타의 스킬이니까
-    if (!skill && this.doubleHitChance && Math.random() < this.doubleHitChance
-        && foe.hp > 0) {
-      const d2 = per * rnd(0.9, 1.1) * bossMul;
+    // 전직(폭풍 연사)과 패시브(이중 공격)가 같은 판정을 쓴다. 따로 굴리면
+    // 둘 다 낀 편성에서 한 프레임에 추가 타격이 두 번 떠 숫자가 겹쳐 안 읽힌다.
+    const dblChance = (this.doubleHitChance || 0) + (P.dblChance || 0);
+    const dblRatio = dblChance > 0
+      ? ((this.doubleHitChance || 0) * 1 + (P.dblChance || 0) * (P.dblRatio || 0)) / dblChance
+      : 0;
+    if (!skill && dblChance && Math.random() < dblChance && foe.hp > 0) {
+      const d2 = per * dblRatio * rnd(0.9, 1.1) * bossMul;
       if (this.mode !== 'arena') foe.hp -= d2;
       setTimeout(() => {
         if (foe.rig?.view && !foe.rig.view.destroyed) {
@@ -1249,6 +1268,8 @@ export class BattleScene {
     const x = foe.rig.view.x, y = foe.rig.view.y - foe.rig.h * 0.5;
     this.fx.play('HIT-08', x, y, { size: this.fxSize(foe.rig.h * 0.95, 0.30), dur: 560, from: 0.5, to: 1.3, hold: 0.3 });
     this.passiveFxAt('kill', x, y, foe.rig.h);
+    // 응징의 오라 — 처치마다 공격력이 쌓인다. 상한은 hitFoe 가 건다
+    this.killStacks = (this.killStacks || 0) + 1;
     this.fx.motes(x, y, 14, { spread: foe.rig.w * 0.4 });
     if (this.foes.every(f => f.hp <= 0)) this.onWaveClear();
   }
@@ -1303,6 +1324,7 @@ export class BattleScene {
     this.bossFight = true;
     this.bossPending = true;
     this.partyMaxHp = Math.max(1, requiredCp * 1.6);
+    this.killStacks = 0;          // 처치 중첩은 전투마다 새로 센다
     this.partyHp = this.partyMaxHp;
     this.clearFoes();
 
@@ -1343,6 +1365,7 @@ export class BattleScene {
     this.bossFight = true;
     this.bossPending = true;
     this.partyMaxHp = Math.max(1, o.requiredCp * 1.6);
+    this.killStacks = 0;          // 처치 중첩은 전투마다 새로 센다
     this.partyHp = this.partyMaxHp;
     this.shield = 0;
     this.clearFoes();

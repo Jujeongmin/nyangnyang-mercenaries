@@ -10,8 +10,13 @@
 //          $sender.account                                   요청자 식별
 //          $global.addCollectionItem(name, item)
 //          $global.getCollectionItems(name, { orderBy, filters })
+//          $global.getCollectionItem(name, itemId)          없으면 {} 를 돌려준다
+//          $global.updateCollectionItem(name, item)         item.__id 로 찾는다
 //          $global.deleteCollectionItem(name, itemId)
-//          $global.countCollectionItems(name, filters)
+//          $global.countCollectionItems(name, options)
+//          컬렉션 아이템의 식별자 필드는 **`__id`** 다 (globalCollection 문서 예제).
+//          options 형태: { orderBy: [{field, direction}], filters: [{field, operator, value}], limit }
+//          결제:  $onItemPurchased(data)  — data { account, purchaseId, productId, quantity, metadata }
 //   클라:  subscribeGlobalMyState() / useGlobalMyState()
 //   랭킹:  submitScore(score, nickname)   nickname 1~15자, score >= 0
 //          getTopRankings()               **파라미터 없음. 상위 20명 고정**
@@ -68,6 +73,39 @@ export function create(opts = {}) {
      * 실제 debounce 는 net/backend.js 가 이미 걸고 있다.
      */
     submitCp: op('submitCp'),
+
+    // --- 2단계: 여러 계정이 같이 만지는 것 (server/server.js) ---
+    // 개인 진행은 여전히 saveState 통짜 저장이다. 여기 있는 것만 서버가 판정한다.
+    submitProfile: op('submitProfile'),      // 공개 프로필 갱신 — 남이 보는 건 이것뿐이다
+    findProfiles: op('findProfiles'),        // 아레나 상대 표본 (arenaFoes 자리)
+    findByNickname: op('findByNickname'),
+    getTopRankings: op('getTopRankings'),
+    getMyBestRank: op('getMyBestRank'),
+
+    friendRequest: op('friendRequest'),
+    friendRequests: op('friendRequests'),
+    friendRespond: op('friendRespond'),
+    friendList: op('friendList'),
+    friendRemove: op('friendRemove'),
+
+    allianceList: op('allianceList'),
+    allianceMy: op('allianceMy'),
+    allianceCreate: op('allianceCreate'),
+    allianceJoin: op('allianceJoin'),
+    allianceLeave: op('allianceLeave'),
+    allianceDonate: op('allianceDonate'),    // 단계 번호만 보낸다 — 비용은 서버 표에 있다
+    allianceBoss: op('allianceBoss'),
+    allianceBossHit: op('allianceBossHit'),  // 전투가 끝난 뒤 **1회만**
+    allianceBossLog: op('allianceBossLog'),
+
+    friendGift: op('friendGift'),            // 선물 — 계정을 넘는 유일한 우호 행위
+    friendGiftBox: op('friendGiftBox'),
+    friendGiftClaim: op('friendGiftClaim'),
+
+    sendChat: op('sendChat'),                // scope: 'world' | 'ally'
+    getChat: op('getChat'),
+    chatRooms: op('chatRooms'),              // 구독할 컬렉션 이름 — 클라가 조립하지 않는다
+    getProfile: op('getProfile'),            // 계정 하나의 공개 프로필 (채팅 카드)
   };
 }
 

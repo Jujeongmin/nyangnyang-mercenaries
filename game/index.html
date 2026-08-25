@@ -210,7 +210,7 @@
     /* 두 장을 겹쳐 깐다 — **위 칸이 404 면 아래 칸이 그대로 보인다.**
        타이틀 전용 그림(TT-BG)이 없던 시절의 화면(BG-01)이 폴백이다 */
     background:url(/assets/ui/TT-BG.webp) center/cover,
-               url(/assets/bg/BG-01.png) center/cover}
+               url(/assets/bg/BG-01.webp) center/cover}
   /* 비네트. TT-BG 는 아래쪽이 이미 어둡게 그려져 있어(21-2 의 가림 표)
      예전만큼 덮을 필요가 없다 — 덮으면 하늘색이 죽는다 */
   #boot::before{content:"";position:absolute;inset:0;
@@ -519,8 +519,8 @@
      배경은 월드에 깐다 — 카메라와 같이 움직여야 마을이 "넓다"로 읽힌다 */
   /* AL-BG 가 세로형(1024x1536)이라 월드도 세로로 길다. cover 로 꽉 채운다 */
   #alWorld{position:absolute;left:0;top:0;width:150%;height:175%;
-    background:url(/assets/alliance/AL-BG.png) center/cover,
-      url(/assets/bg/BG-01.png) center/cover;will-change:transform}
+    background:url(/assets/alliance/AL-BG.webp) center/cover,
+      url(/assets/bg/BG-01.webp) center/cover;will-change:transform}
   /* 하늘과 땅을 가르는 어둑한 그라데 — 건물·글자가 배경에서 분리된다 */
   #alField::before{content:"";position:absolute;inset:0;
     background:linear-gradient(#150f0b77 0%, #0000 30%, #0000 62%, #150f0baa 100%)}
@@ -1087,6 +1087,53 @@
   #chat .who{flex:0 0 auto;color:var(--gold);font-weight:800;font-size:12px;
     background:#332921;border:1px solid var(--line);border-radius:7px;padding:3px 8px}
   #chat #chatline{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}
+  #chat{cursor:pointer}
+
+  /* 제작대 확률 — 현재/다음 두 열 비교 (버섯커 램프 표 문법) */
+  .fr2-head{display:flex;align-items:center;justify-content:center;gap:9px;
+    margin:2px 0 9px;font-size:12px;font-weight:800}
+  .fr2-head .fr2-now{color:var(--gold)}
+  .fr2-head .fr2-next{color:#8fd18f}
+  .fr2-head i{font-style:normal;color:var(--dim)}
+  .fr2-row{display:flex;align-items:center;gap:7px;padding:4px 8px;margin-bottom:3px;
+    background:var(--ink);border:1px solid var(--line);border-radius:8px;font-size:11px}
+  .fr2-row .fr2-bar{flex:0 0 4px;height:14px;border-radius:2px;background:var(--c)}
+  .fr2-row b{flex:1 1 auto;min-width:0;color:var(--c);display:flex;align-items:center;gap:4px}
+  .fr2-row .lockIc{width:10px;height:10px}
+  .fr2-row .fr2-a{flex:0 0 64px;text-align:right;color:#dcc8b9}
+  .fr2-row .fr2-b{flex:0 0 64px;text-align:right;color:#8b7a6c}
+  .fr2-row .fr2-b.up{color:#8fd18f;font-weight:800}
+  .fr2-row .fr2-b.down{color:#c98a7a}
+  .fr2-row.locked{opacity:.55}
+
+  /* 오버레이 헤더 재화 옆 + — 상단바 diaPlus 와 같은 문법 */
+  .cur-plus{width:17px;height:17px;margin-left:2px;border-radius:50%;
+    border:1px solid var(--gold);background:#3a2d1f;color:var(--gold);
+    font-size:12px;font-weight:800;line-height:1;cursor:pointer;padding:0}
+
+  /* 채팅 화면 — 오버레이 안. 말풍선이 아니라 **한 줄 로그**다.
+     방치 게임의 채팅은 흘려보는 것이라, 말풍선을 키우면 대화 열 줄에
+     화면이 다 찬다. 이름 + 말 + 시각을 한 줄에 눕힌다. */
+  .ch-body{height:44vh;max-height:340px;overflow-y:auto;
+    background:var(--ink);border:1px solid var(--line);border-radius:11px;
+    padding:8px 9px;margin:8px 0;display:flex;flex-direction:column;gap:5px}
+  .ch-line{display:flex;align-items:baseline;gap:6px;font-size:12px;line-height:1.45;
+    color:#dcc8b9;word-break:break-word}
+  .ch-av{flex:0 0 auto;width:22px;height:22px;border-radius:50%;object-fit:cover;
+    object-position:top;border:1px solid var(--line);background:#332921;
+    align-self:center;cursor:pointer}
+  .ch-line b{flex:0 0 auto;color:var(--gold);font-weight:800;font-size:11px;
+    max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .ch-line span{flex:1 1 auto;min-width:0}
+  .ch-line i{flex:0 0 auto;font-style:normal;font-size:10px;color:#8b7a6c}
+  /* 내 줄은 이름 색을 바꾼다 — 배경을 칠하면 로그의 결이 끊긴다 */
+  .ch-line.me b{color:#8fd18f}
+  .ch-send{display:flex;gap:6px;align-items:center}
+  .ch-send input{flex:1 1 auto;min-width:0;background:var(--ink);
+    border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+    color:#e8dccf;font-size:13px;font-family:inherit}
+  .ch-send input:disabled{opacity:.5}
+  .ch-send button{flex:0 0 auto}
   /* 퀘스트 — 제작대 왼쪽. 전투 영역의 얇은 띠가 아니라 **카드**다.
      세로로 [이름/진행] → [게이지] → [보상] 을 쌓아 한눈에 읽힌다 */
   /* 제작대(가운데 104px) 왼쪽 여백. 카드 안에 [이름] [진행] [게이지] [보상]이
@@ -1567,7 +1614,7 @@
   #dcBoard{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);
     gap:4px;aspect-ratio:1;max-width:340px;margin:0 auto;padding:10px;border-radius:16px;
     /* 판 에셋(EV-BOARD)이 깔린다. 없으면 배경색만 — 칸은 어차피 코드가 그린다 */
-    background:url(/assets/ui/EV-BOARD.png) center/cover no-repeat, var(--ink)}
+    background:url(/assets/ui/EV-BOARD.webp) center/cover no-repeat, var(--ink)}
   #dcBoard .dc-cell{background:#33261bd8;backdrop-filter:none}
   .dc-cell{position:relative;background:var(--card);border:2px solid var(--line);
     border-radius:11px;display:flex;flex-direction:column;align-items:center;
@@ -2015,7 +2062,7 @@
   .sh-card.speed3{position:relative;min-height:118px;padding:12px 14px;
     display:flex;flex-direction:column;justify-content:flex-end;gap:3px;
     background-image:linear-gradient(90deg,#150f0bee 0%,#150f0bbb 46%,#150f0b44 100%),
-      url(/assets/ui/SHOP-SPEED.png);
+      url(/assets/ui/SHOP-SPEED.webp);
     background-size:cover;background-position:center;border-color:var(--gold)}
   .sh-card.speed3 b{font-size:15px;text-shadow:0 1px 4px #000}
   .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000}
@@ -2054,7 +2101,7 @@
   .sh-card.deal{border-left:3px solid var(--gold)}
   /* 3배속 해금 — 다이아 탭에서 유일한 "성능" 상품이라 눈에 띄게 */
   .sh-card.speed3{border:1px solid var(--gold);position:relative;overflow:hidden;
-    background:linear-gradient(90deg,#17100dcc,#17100d55),url(/assets/ui/SHOP-SPEED.png) center/cover no-repeat}
+    background:linear-gradient(90deg,#17100dcc,#17100d55),url(/assets/ui/SHOP-SPEED.webp) center/cover no-repeat}
   .sh-card.speed3.owned{border-color:var(--line);background:var(--card)}
 
   .sh-hero{position:relative;background:linear-gradient(120deg,#3b2a6b,#524236);
@@ -2500,7 +2547,7 @@
     --f-head:url(/assets/ui/9s/UI-HEADER.png);
     --f-btn:url(/assets/ui/9s/UI-BTN.png);
     --f-go:url(/assets/ui/9s/UI-BTN-GO.png);
-    --f-off:url(/assets/ui/9s/UI-BTN-OFF.png);
+    --f-off:url(/assets/ui/9s/UI-BTN-OFF.webp);
     --f-nav:url(/assets/ui/9s/UI-NAV.png);
     --f-navon:url(/assets/ui/9s/UI-NAV-ON.png);
     --f-slot:url(/assets/ui/9s/UI-SLOT.png);
@@ -2869,17 +2916,17 @@
   #ovh,#ovinfo,#ovb{position:relative;z-index:1}
   /* 바탕색(--ov-bg)은 톤과 같은 계열의 **아주 어두운** 값이다. 채도를 올리면
      그림과 글자가 다 죽는다 — 화면이 갈렸다는 것만 읽히면 된다 */
-  #ovcard[data-skin="attend"]  {--ov-tone:#2e7d3288;--ov-bg:#16251a;--ov-img:url(/assets/ui/PN-ATTEND.png)}
-  #ovcard[data-skin="pass"]    {--ov-bg:#2b2110;--ov-tone:#b8860b88;--ov-img:url(/assets/ui/PN-PASS.png)}
-  #ovcard[data-skin="arena"]   {--ov-bg:#2a1414;--ov-tone:#c6282888;--ov-img:url(/assets/ui/PN-ARENA.png)}
-  #ovcard[data-skin="training"]{--ov-bg:#241a12;--ov-tone:#8d6e6388;--ov-img:url(/assets/ui/FG-01.png)}
-  #ovcard[data-skin="alliance"]{--ov-bg:#201628;--ov-tone:#6a1b9a88;--ov-img:url(/assets/alliance/AL-BG.png);--ov-pos:12%}
-  #ovcard[data-skin="forge"]   {--ov-bg:#2a1a10;--ov-tone:#ff8c4288;--ov-img:url(/assets/ui/PN-FORGE.png)}
-  #ovcard[data-skin="equip"]   {--ov-bg:#1b1a2e;--ov-tone:#7e6bff88;--ov-img:url(/assets/ui/ALT-03.png);--ov-pos:30%}
-  #ovcard[data-skin="quest"]   {--ov-bg:#131e2a;--ov-tone:#3f7dd888;--ov-img:url(/assets/ui/PN-QUEST.png)}
-  #ovcard[data-skin="event"]   {--ov-bg:#2a1620;--ov-tone:#ff5da288;--ov-img:url(/assets/ui/PN-EVENT.png)}
+  #ovcard[data-skin="attend"]  {--ov-tone:#2e7d3288;--ov-bg:#16251a;--ov-img:url(/assets/ui/PN-ATTEND.webp)}
+  #ovcard[data-skin="pass"]    {--ov-bg:#2b2110;--ov-tone:#b8860b88;--ov-img:url(/assets/ui/PN-PASS.webp)}
+  #ovcard[data-skin="arena"]   {--ov-bg:#2a1414;--ov-tone:#c6282888;--ov-img:url(/assets/ui/PN-ARENA.webp)}
+  #ovcard[data-skin="training"]{--ov-bg:#241a12;--ov-tone:#8d6e6388;--ov-img:url(/assets/ui/FG-01.webp)}
+  #ovcard[data-skin="alliance"]{--ov-bg:#201628;--ov-tone:#6a1b9a88;--ov-img:url(/assets/alliance/AL-BG.webp);--ov-pos:12%}
+  #ovcard[data-skin="forge"]   {--ov-bg:#2a1a10;--ov-tone:#ff8c4288;--ov-img:url(/assets/ui/PN-FORGE.webp)}
+  #ovcard[data-skin="equip"]   {--ov-bg:#1b1a2e;--ov-tone:#7e6bff88;--ov-img:url(/assets/ui/ALT-03.webp);--ov-pos:30%}
+  #ovcard[data-skin="quest"]   {--ov-bg:#131e2a;--ov-tone:#3f7dd888;--ov-img:url(/assets/ui/PN-QUEST.webp)}
+  #ovcard[data-skin="event"]   {--ov-bg:#2a1620;--ov-tone:#ff5da288;--ov-img:url(/assets/ui/PN-EVENT.webp)}
   #ovcard[data-skin="promo"]   {--ov-bg:#2a2411;--ov-tone:#ffd75e88;--ov-img:url(/assets/captain/PR-warrior-3.png);--ov-pos:20%}
-  #ovcard[data-skin="friend"]  {--ov-bg:#2a2014;--ov-tone:#ffb64888;--ov-img:url(/assets/ui/PN-FRIEND.png)}
+  #ovcard[data-skin="friend"]  {--ov-bg:#2a2014;--ov-tone:#ffb64888;--ov-img:url(/assets/ui/PN-FRIEND.webp)}
   #ovcard[data-skin] #ovt{text-shadow:0 1px 3px #000, 0 0 14px var(--ov-tone)}
 
   /* 별도 전체화면 패널도 전용 PN 헤더를 사용한다. */
@@ -2899,9 +2946,9 @@
     background:linear-gradient(180deg,#150f0bcc,#0000)}
   #shop .sh-head>*,#rank .sh-head>*,#mail .sh-head>*{position:relative;z-index:1}
   /* 시상대 위 고양이 셋이 그림의 아래쪽 절반에 있다 */
-  #rank .sh-head{background-image:url(/assets/ui/PN-RANK.png);--pn-y:40%}
-  #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.png);--pn-y:34%}
-  #mail .sh-head{background-image:url(/assets/ui/PN-MAIL.png);--pn-y:52%}
+  #rank .sh-head{background-image:url(/assets/ui/PN-RANK.webp);--pn-y:40%}
+  #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.webp);--pn-y:34%}
+  #mail .sh-head{background-image:url(/assets/ui/PN-MAIL.webp);--pn-y:52%}
 
   /* ── 친구 — 아바타(단장 표정 + 프로필 링) ── */
   .fr-av{position:relative;display:inline-block;flex:none}
@@ -3539,7 +3586,7 @@
          그림(UI-PAW)이 없으면 .nopaw 로 떨어져 링만 두드린다 (main.js showTapHint) -->
     <div id="tapHint" aria-hidden="true">
       <i class="th-ring"></i>
-      <img src="/assets/ui/UI-PAW.png" alt=""
+      <img src="/assets/ui/UI-PAW.webp" alt=""
         onerror="this.closest('#tapHint').classList.add('nopaw');this.remove()">
     </div>
     <!-- 던전 포기. 간판이 떠 있는 동안(=던전 전투 중)에만 보인다.
@@ -3734,7 +3781,7 @@
     <!-- 간판 — 제목은 그림 **안쪽 나무판 위**에 앉는다. 그림이 안 뜨면
          .nologo 로 떨어져서 제목만 글자로 남는다 (이름이 사라지면 안 된다) -->
     <div id="bootSign">
-      <img id="bootLogo" src="/assets/ui/GT-LOGO.png" alt=""
+      <img id="bootLogo" src="/assets/ui/GT-LOGO.webp" alt=""
         onerror="this.parentElement.classList.add('nologo');this.remove()">
       <b id="bootTitle">냥냥 용병단</b>
     </div>
