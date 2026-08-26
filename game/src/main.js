@@ -1115,10 +1115,11 @@ function payForge() {
   if (S.forgePaid >= c.parts) {
     S.forgePaid = 0;
     S.forgeStart = Date.now(); S.forgeTarget = next; S.forgeCut = 0;
-    toast(`Lv ${next} 제작 시작 · ${dur(c.sec)}`);
-  } else {
-    toast(`${S.forgePaid}/${c.parts} 투입 · 골드 -${num(c.per)}`);
   }
+  // **토스트를 띄우지 않는다** (단장 지시 2026-08-26).
+  // 골드를 넣을 때마다 검은 알약이 떠서 화면을 가렸는데, 같은 정보가 이미 두
+  // 군데 있다 — 패널의 투입 칸(●●○○)과 제작대 뱃지의 남은 시간. 누를 때마다
+  // 뜨는 알약은 겹말이었다. 날아가는 골드 숫자(fg-fly)는 그대로 둔다.
   save(); renderTop(); renderForgeDock();
   if ($('#ov').classList.contains('show')) openForge();
 }
@@ -4340,9 +4341,10 @@ function openChat(scope) {
   const body = !ready
     // 서버가 없으면 대화 상대가 없다. 빈 말풍선을 띄우느니 이유를 적는다
     ? `<div class="sh-note">${t('채팅은 서버에 연결된 뒤에 열립니다')}</div>`
-    : rows.length
-      ? rows.map(chatLineHtml).join('')
-      : `<div class="sh-note">${t('아직 아무도 말이 없습니다. 먼저 인사해 보세요')}</div>`;
+    // 비어 있으면 **아무것도 안 띄운다** (단장 지시 2026-08-26).
+    // "아직 아무도 말이 없습니다" 는 빈 화면을 설명할 뿐 유저가 할 일을 안
+    // 바꾼다 — 입력창이 이미 아래에 열려 있다.
+    : rows.map(chatLineHtml).join('');
 
   $('#ovt').textContent = t('채팅');
   setSkin('friend');
@@ -4497,7 +4499,9 @@ function chatBarSync() {
   if (!line) return;
   const rows = live.get('chatWorld') || [];
   const last = rows[rows.length - 1];
-  if (!last) return;
+  // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
+  // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다
+  if (!last) { if (who) who.textContent = ''; line.textContent = ''; return; }
   if (who) who.textContent = esc(last.nickname || '단장');
   line.textContent = last.text || '';
 }
@@ -7360,21 +7364,12 @@ function bootTapToStart() {
     if (e.target.id === 'ov' && !$('#ov').classList.contains('forced')) $('#ovx').click();
   });
 
-  // 하단 채팅바 = 채팅 입구. 서버가 없으면 예전처럼 공지가 돈다
+  // 하단 채팅바 = 채팅 입구. **가짜 공지를 돌리지 않는다** (단장 지시 2026-08-26).
+  // 예전에는 대화가 없으면 미리 적어 둔 문장 다섯 개를 6초마다 돌렸는데,
+  // 남의 말처럼 보이지만 아무도 한 적 없는 말이라 채팅이 있는지 없는지를
+  // 오히려 흐렸다. 이제 진짜 대화만 띄우고, 없으면 비워 둔다.
   $('#chat').addEventListener('click', () => openChat());
-  const CHAT = [
-    t('단장님, 오늘도 잘 부탁드립니다!'), t('수정 동굴이 열렸다는 소문이 있어요.'),
-    t('보물 창고에서 열쇠를 모으는 게 빠릅니다.'), t('제작대를 올리면 소환이 편해집니다.'),
-    t('보스는 시간 안에 못 잡으면 실패입니다.'),
-  ];
-  let chatI = 0;
-  setInterval(() => {
-    // 진짜 대화가 있으면 공지를 돌리지 않는다 — 남의 말이 6초마다 공지로
-    // 덮이면 채팅이 있다는 것을 알아챌 수 없다
-    if ((live.get('chatWorld') || []).length) return chatBarSync();
-    chatI = (chatI + 1) % CHAT.length;
-    $('#chatline').textContent = CHAT[chatI];
-  }, 6000);
+  setInterval(chatBarSync, 6000);
 
   setInterval(() => {
     // 제작대 타이머

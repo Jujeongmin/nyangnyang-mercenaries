@@ -203,7 +203,7 @@
      사이드 열·보물상자와 계속 자리를 다퉜다 — 좁은 화면마다 left/right/top 을
      따로 잡아 주는 규칙이 셋이나 붙어 있었다. 재화 줄에 흐름으로 넣으면
      그 다툼이 통째로 사라지고, 상시 노출이라는 성격도 재화와 같다 */
-  #timer{margin-top:34px;font-size:22px;font-weight:900;letter-spacing:1px}
+  #timer{margin-top:18px;font-size:22px;font-weight:900;letter-spacing:1px}
   #timer.low{color:var(--warn)}
   #hudBot{display:flex;justify-content:space-between;align-items:flex-end}
   /* 재화 줄의 남은 자리를 전부 밀어 오른쪽 끝에 붙는다 */
@@ -932,7 +932,7 @@
   /* 사이드 아이콘 — 전투 화면 좌우에 세로로 뜬다 (ui.json > topBar.sideIcons) */
   /* 좌측 열은 상단 UI 에 바로 붙인다. 우측은 배속(1x2x3x) 줄이 있어 그 아래서 시작 */
   .side{position:absolute;top:4px;z-index:18;display:flex;flex-direction:column;gap:4px}
-  #sideR{top:74px}
+  #sideR{top:56px}
   #sideL{left:6px}
   #sideR{right:6px}
   /* 사이드 열도 화면 폭을 따라간다 — 38px 고정이면 PC(앱 720px)에서 혼자
@@ -3522,9 +3522,15 @@
     background:#000000a8;border-radius:3px;overflow:hidden}
   .cx-cell .cx-g i{display:block;height:100%;width:0;border-radius:3px;
     background:linear-gradient(90deg,#3f8a4f,var(--up))}
-  .cx-cell .cx-g b{position:absolute;inset:0;font-size:9px;line-height:11px;
+  /* 숫자는 **채워진 막대 위에** 떠야 한다. z-index 없이 두면 초록 채움과
+     같은 층이라 밝은 초록 위에서 흰 글자가 묻힌다 — "게이지가 1/4 를 가린다"
+     로 보였다 (단장 지적 2026-08-26). 층을 올리고 어두운 테두리를 둘러
+     채움 색이 무엇이든 읽히게 한다 */
+  .cx-cell .cx-g b{position:absolute;inset:0;z-index:2;font-size:9px;line-height:11px;
     text-align:center;color:#fff;font-weight:400;
-    font-family:"Black Han Sans","Jua",system-ui,sans-serif;text-shadow:0 0 3px #000}
+    font-family:"Black Han Sans","Jua",system-ui,sans-serif;
+    -webkit-text-stroke:2px #000; paint-order:stroke fill;
+    text-shadow:0 1px 2px #000, 0 0 4px #000}
   .cx-cell .cx-f{position:relative;z-index:4;width:100%;text-align:center;
     font-size:9px;font-weight:800;padding:2px 1px;
     background:linear-gradient(#0000,var(--ink) 45%);
@@ -3778,8 +3784,8 @@
        필요 없어졌다 */
     .side{top:3px;gap:2px}
     /* 우측은 배속(4)·타이머(34~56) 아래서 시작해야 한다 */
-    #sideR{top:60px}
-    #timer{position:absolute;top:32px;right:8px;font-size:17px;
+    #sideR{top:44px}
+    #timer{position:absolute;top:18px;right:8px;font-size:17px;
       margin:var(--bleed) 0 0}   /* 상단 패널 뒤로 파고든 몫만큼 내린다 */
     .side button{width:26px;height:26px}
     /* 글자는 **안 접는다.** 아이콘만 남으면 무슨 버튼인지 그림으로만 알아야 하고,
@@ -3903,7 +3909,7 @@
        우측 30px 폭은 통째로 비어 있다. 28px 이면 열이 125~221 로 내려앉아
        상자(237~279)와 16px, 스킬바(286~)와 7px 를 띄운다.
        **타이머 밑**이 하한이다 — 더 올리면 시:분 글자와 부딪힌다 */
-    #sideR{top:28px}
+    #sideR{top:16px}
     /* 퀘스트·상자를 사이드 안쪽으로 더 밀고 낮춘다 */
     /* 전투 영역 **우측 하단 모서리**, 스킬바 바로 위. 예전 값(right 40 · bottom 100)은
        사이드 열도 스킬바도 아닌 허공에 떠 있어 어디에 속한 물건인지 안 읽혔다 */
@@ -4152,7 +4158,9 @@
   </div>
 
   <!-- 채팅 — 제작대 패널 밖. 가로로 길게 한 줄 -->
-  <div id="chat"><span class="who">공지</span><span id="chatline">냥냥 용병단에 오신 걸 환영합니다.</span></div>
+  <!-- 처음엔 비어 있다. 진짜 대화가 들어오면 chatBarSync 가 채운다 —
+       가짜 공지를 돌리던 것을 걷어냈다 (단장 지시 2026-08-26) -->
+  <div id="chat"><span class="who"></span><span id="chatline"></span></div>
 
 
   <div id="nav">
