@@ -143,6 +143,7 @@ const DONATE_STEPS = [
 // **여기 없는 productId 는 지급하지 않는다.** 상점에 없는 id 로 결제 웹훅이 들어오면
 // 그건 우리 상품이 아니다
 const PRODUCTS = {
+  pack_xs:   { dia: 1500 },
   pack_s:    { dia: 8000 },
   pack_m:    { dia: 17000 },
   pack_l:    { dia: 55000 },

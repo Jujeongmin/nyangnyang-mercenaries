@@ -433,29 +433,40 @@
   "exchangeRate": "약 1890 다이아 = $1 (VX 환산은 VXShop 등록 시 확정)",
   "packages": [
    {
+    "id": "pack_xs",
+    "diamond": 1500,
+    "vx": 100,
+    "img": "SHOP-D1"
+   },
+   {
     "id": "pack_s",
     "diamond": 8000,
-    "vx": 500
+    "vx": 500,
+    "img": "SHOP-D2"
    },
    {
     "id": "pack_m",
     "diamond": 17000,
-    "vx": 1000
+    "vx": 1000,
+    "img": "SHOP-D3"
    },
    {
     "id": "pack_l",
     "diamond": 55000,
-    "vx": 3000
+    "vx": 3000,
+    "img": "SHOP-D4"
    },
    {
     "id": "pack_xl",
     "diamond": 100000,
-    "vx": 5000
+    "vx": 5000,
+    "img": "SHOP-D5"
    },
    {
     "id": "pack_xxl",
     "diamond": 220000,
-    "vx": 10000
+    "vx": 10000,
+    "img": "SHOP-D6"
    }
   ],
   "gapVerification": {
@@ -467,7 +478,9 @@
   },
   "vxshop": "https://docs.verse8.io/ko/docs/vxshop/prerequisites",
   "firstBuyRemovedNote": "first_buy(1500+1500, 첫 결제 2배)는 뺐다 (단장 지시 2026-08-26). exchangeRate 문구도 상점 화면에서 뺐다 — VX 환산이 확정되지 않은 숫자를 상점에 박아 두면 나중에 약속이 된다.",
-  "vxNote": "vx 는 **폴백 표시값**이다. 실제 가격의 주인은 VX 대시보드고, 게임은 VXShop 목록이 오면 그 값으로 다시 그린다 (net/vxshop.js > vxPrice). 대시보드에서 가격을 바꾸면 여기도 같이 맞춰 두는 게 좋다 — 목록이 도착하기 전 한순간 이 값이 보인다."
+  "vxNote": "vx 는 **폴백 표시값**이다. 실제 가격의 주인은 VX 대시보드고, 게임은 VXShop 목록이 오면 그 값으로 다시 그린다 (net/vxshop.js > vxPrice). 대시보드에서 가격을 바꾸면 여기도 같이 맞춰 두는 게 좋다 — 목록이 도착하기 전 한순간 이 값이 보인다.",
+  "xsNote": "pack_xs(1,500 다이아 / 100 VX) 는 **진입 상품**이다. 단가가 15 다이아/VX 로 pack_s(16) 보다 살짝 나쁜데, 묶음이 클수록 유리해야 큰 묶음을 살 이유가 생긴다. 구 first_buy(1500+1500 첫 결제 2배)와는 다른 상품이다 — 보너스 없는 상시 판매다.",
+  "imgNote": "그림은 id 로 지정한다. 예전에는 배열 순서(SHOP-D{i+1})로 골랐는데, 상품을 중간에 하나 끼우면 아래 상품들의 그림이 통째로 밀렸다 (pack_xs 추가 2026-08-26)."
  },
  "faucetDistribution": {
   "perCurrency": true,

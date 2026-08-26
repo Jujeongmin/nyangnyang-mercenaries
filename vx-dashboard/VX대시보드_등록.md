@@ -9,10 +9,11 @@
 
 가격은 데이터에 티어(소액/중액)만 있고 **실가격 미정** — 아래 VX 가격은 제안값이니 대시보드에 넣기 전에 확정할 것. **100 VX = $1** 기준.
 
-### 다이아 묶음 (5종)
+### 다이아 묶음 (6종)
 
 | Product ID | 상품명 | 내용 | 가격(제안) | 이미지 |
 |---|---|---|---|---|
+| `pack_xs` | 다이아 1,500 | 다이아 1,500 | **100 VX ($1)** | pack_xs.png |
 | `pack_s` | 다이아 8,000 | 다이아 8,000 | 500 VX ($5) | pack_s.png |
 | `pack_m` | 다이아 17,000 | 다이아 17,000 | 1,000 VX ($10) | pack_m.png |
 | `pack_l` | 다이아 55,000 | 다이아 55,000 | 3,000 VX ($30) | pack_l.png |
@@ -49,7 +50,7 @@
 
 | 상품 | Lifetime Limit | 그 밖 |
 |---|---|---|
-| `pack_s` ~ `pack_xxl` | 없음 | 반복 구매 상품 |
+| `pack_xs` ~ `pack_xxl` | 없음 | 반복 구매 상품 |
 | `premium_pack` | **1** | 영구 해금이라 두 번 사면 두 번째는 효과 없이 돈만 나간다 |
 | `starter_pack` | **1** | "생성 후 7일"은 계정마다 기준이 달라 대시보드의 Time-Limited(고정 날짜)로 못 건다 — 클라가 노출을 막는다 |
 | `growth_pack_50` / `_100` / `_150` | **각 1** | 상시 판매라 다른 제약 불필요 |
@@ -67,7 +68,7 @@ Period Limit(일/주/월)은 어느 상품에도 쓰지 않는다 — 유일하�
 
 ### 이미지 상태
 
-- `pack_s`~`pack_xxl`: 기존 SHOP-D1~D5 그대로 (검수 완료 아트).
+- `pack_xs`~`pack_xxl`: 기존 SHOP-D1~D6 그대로 (검수 완료 아트). 게임도 같은 그림을 쓰고, 어느 상품이 어느 그림인지는 `economy.json > diamondPackages[].img` 가 정한다.
 - `premium_pack` · `pass_premium` · `starter_pack` · `growth_pack_50/100/150`:
   **전용 아트 완료 (2026-08-26).** 같은 그림을 게임 안에서도 쓴다 —
   `game/public/assets/ui/SHOP-PREMIUM · SHOP-PASS · SHOP-STARTER ·

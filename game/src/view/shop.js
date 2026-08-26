@@ -406,15 +406,12 @@ export class ShopScreen {
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.premiumCard() + this.packageGrid() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
-      const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
-      // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
-      // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)
+    return this.premiumCard() + this.packageGrid() + `<div class="sh-grid3">` + p.packages.map(x => {
+      // 첫 결제 2배 리본·보너스(+1500) 표시는 뺐다 — 실제로 더 주는 코드가
+      // 없어서 화면에만 있는 약속이었다 (단장 확정 2026-08-25 · 2026-08-26)
       return `<div class="sh-pack">
-        ${''}
-        <img src="/assets/ui/SHOP-D${i + 1}.png" alt="">
+        <img src="/assets/ui/${x.img || 'SHOP-D1'}.png" alt="">
         <b>${num(x.diamond)}</b>
-        ${bonus ? `<span class="sh-bonus">${bonus}</span>` : ''}
         <button class="sh-price" data-buy="${x.id}">${priceLabel(this.api, x.id, x.vx)}</button>
       </div>`;
     }).join('') + `</div>
