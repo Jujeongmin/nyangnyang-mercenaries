@@ -4476,10 +4476,9 @@ async function openChatProfile(account) {
 function chatRedraw() {
   const el = $('#chBody');
   if (!el) return;
-  const rows = chatRows();
-  el.innerHTML = rows.length
-    ? rows.map(chatLineHtml).join('')
-    : `<div class="sh-note">${t('아직 아무도 말이 없습니다. 먼저 인사해 보세요')}</div>`;
+  // 비어 있으면 아무것도 안 띄운다 — openChat 과 같은 규칙이다.
+  // 두 곳에 같은 문장이 있어서 한쪽만 지웠다가 그대로 남았다 (2026-08-26)
+  el.innerHTML = chatRows().map(chatLineHtml).join('');
   chatToBottom();
   chatBarSync();
 }
