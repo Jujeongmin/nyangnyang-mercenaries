@@ -434,23 +434,28 @@
   "packages": [
    {
     "id": "pack_s",
-    "diamond": 8000
+    "diamond": 8000,
+    "vx": 500
    },
    {
     "id": "pack_m",
-    "diamond": 17000
+    "diamond": 17000,
+    "vx": 1000
    },
    {
     "id": "pack_l",
-    "diamond": 55000
+    "diamond": 55000,
+    "vx": 3000
    },
    {
     "id": "pack_xl",
-    "diamond": 100000
+    "diamond": 100000,
+    "vx": 5000
    },
    {
     "id": "pack_xxl",
-    "diamond": 220000
+    "diamond": 220000,
+    "vx": 10000
    }
   ],
   "gapVerification": {
@@ -461,7 +466,8 @@
    "result": "3배속 성립"
   },
   "vxshop": "https://docs.verse8.io/ko/docs/vxshop/prerequisites",
-  "firstBuyRemovedNote": "first_buy(1500+1500, 첫 결제 2배)는 뺐다 (단장 지시 2026-08-26). exchangeRate 문구도 상점 화면에서 뺐다 — VX 환산이 확정되지 않은 숫자를 상점에 박아 두면 나중에 약속이 된다."
+  "firstBuyRemovedNote": "first_buy(1500+1500, 첫 결제 2배)는 뺐다 (단장 지시 2026-08-26). exchangeRate 문구도 상점 화면에서 뺐다 — VX 환산이 확정되지 않은 숫자를 상점에 박아 두면 나중에 약속이 된다.",
+  "vxNote": "vx 는 **폴백 표시값**이다. 실제 가격의 주인은 VX 대시보드고, 게임은 VXShop 목록이 오면 그 값으로 다시 그린다 (net/vxshop.js > vxPrice). 대시보드에서 가격을 바꾸면 여기도 같이 맞춰 두는 게 좋다 — 목록이 도착하기 전 한순간 이 값이 보인다."
  },
  "faucetDistribution": {
   "perCurrency": true,

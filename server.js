@@ -143,14 +143,20 @@ const DONATE_STEPS = [
 // **여기 없는 productId 는 지급하지 않는다.** 상점에 없는 id 로 결제 웹훅이 들어오면
 // 그건 우리 상품이 아니다
 const PRODUCTS = {
-  first_buy: { dia: 3000, once: true },
   pack_s:    { dia: 8000 },
   pack_m:    { dia: 17000 },
   pack_l:    { dia: 55000 },
   pack_xl:   { dia: 100000 },
   pack_xxl:  { dia: 220000 },
-  speed3_unlock: { dia: 0, unlock: 'speed3', once: true },
+  // 프리미엄 = 3배속 + 광고 제거 (구 speed3_unlock · adfree_pack 을 합친 상품)
+  premium_pack: { unlock: 'premium', once: true },
   starter_pack: { dia: 4800, mercTicket: 30, skillTicket: 20, eqTicket: 100, once: true },
+  growth_pack_50:  { dia: 3000, eqTicket: 200, once: true },
+  growth_pack_100: { dia: 6000, eqTicket: 500, hourglass: 50, once: true },
+  growth_pack_150: { dia: 12000, eqTicket: 1200, hourglass: 100, once: true },
+  // 시즌 패스는 시즌마다 새 SKU 다 (pass_premium_s1, s2 …) — once 는 SKU 단위라
+  // 새 시즌 상품이 등록되면 그 시즌에 다시 한 번 살 수 있다
+  pass_premium_s1: { unlock: 'pass', once: true },
 };
 
 const CHAT_WORLD = 'chatWorld';
@@ -869,12 +875,40 @@ async function $onItemPurchased(data) {
 
   const s = cur && cur.save && cur.save.s;
   if (!s) return;                                  // 세이브가 없다 - 접속 전이다
+
+  // ── 이중 지급 방어 (2026-08-26) ──────────────────────────
+  // **지금은 클라가 지급한다** (main.js > onVxPurchased). 세이브가 클라 판정
+  // 통짜 저장이라(1단계) 서버가 여기서 같은 상품을 또 얹으면, 클라 지급분과
+  // 합쳐져 두 배가 되거나 - 클라가 통짜로 덮어써 서버 지급분이 사라지거나 -
+  // 둘 중 하나다. 어느 쪽이든 사고고, 어느 쪽이 이길지는 저장 순서가 정한다.
+  //
+  // 그래서 **접속 중인 계정에는 서버가 지급하지 않고 영수증만 남긴다.**
+  // 클라가 못 받은 경우(결제 직후 앱이 죽었다·다른 기기다)를 위해 미지급
+  // 목록에 쌓아 두고, 클라가 다음 로드에서 그것을 받아 간다.
+  //
+  // 2단계(서버 판정)로 옮기면 이 분기를 지우고 위의 지급 코드만 남긴다 -
+  // 그때는 클라의 onVxPurchased 지급을 걷어내는 것이 같은 작업의 반대쪽이다.
+  const pending = [...(srv.pendingGrants || []), { purchaseId, productId, at: Date.now() }].slice(-20);
+  await $global.updateUserState(account, {
+    srv: {
+      ...srv,
+      pendingGrants: pending,
+      purchases: [...done, purchaseId].slice(-50),
+      onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
+    },
+  });
+  return;
+
+  /* eslint-disable no-unreachable -- 2단계에서 되살릴 지급 코드 */
   const n = Math.max(1, (data.quantity | 0) || 1);
   if (p.dia) s.dia = (s.dia || 0) + p.dia * n;
   if (p.mercTicket) s.mercTicket = (s.mercTicket || 0) + p.mercTicket * n;
   if (p.skillTicket) s.skillTicket = (s.skillTicket || 0) + p.skillTicket * n;
   if (p.eqTicket) s.eqTicket = (s.eqTicket || 0) + p.eqTicket * n;
-  if (p.unlock === 'speed3') s.speed3 = true;
+  if (p.hourglass) s.hourglass = (s.hourglass || 0) + p.hourglass * n;
+  // 해금형 상품 — 수량과 무관하게 플래그다
+  if (p.unlock === 'premium') { s.speed3 = true; s.adFree = true; }
+  if (p.unlock === 'pass') { s.pass = { ...(s.pass || {}), bought: true }; }
 
   await $global.updateUserState(account, {
     save: { ...cur.save, s, savedAt: Date.now() },
@@ -884,4 +918,5 @@ async function $onItemPurchased(data) {
       onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
     },
   });
+  /* eslint-enable no-unreachable */
 }

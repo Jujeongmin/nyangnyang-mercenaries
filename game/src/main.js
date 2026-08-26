@@ -28,6 +28,7 @@ import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
 import { AllianceVillage } from './view/alliance.js';
 import { t, tn, loadLang, LANGS, watchDom } from './core/i18n.js';
+import { initVXShop, vxBuy, vxLive, vxPrice } from './net/vxshop.js';
 import { showRewarded, initAds, setAdSdk, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM,
   AD_ARENA_ENTRIES, AD_DUNGEON_KEYS } from './net/ads.js';
 
@@ -296,13 +297,21 @@ function speedMax() {
  */
 function buyPremium() {
   if (S.speed3 && S.adFree) return toast(t('이미 구매했습니다'));
-  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  // 실결제. 결제창이 뜨면 지급은 성사 뒤(onVxPurchased)에 한다
+  if (vxBuy('premium_pack')) return;
+  // 호스트 밖 — 개발 빌드에서만 테스트용으로 즉시 지급한다
+  if (!import.meta.env.DEV) return toast(t('지금은 결제할 수 없습니다'));
+  grantPremium();
+  toast('[개발 빌드] 프리미엄 적용 — 3배속 + 광고 제거');
+}
+
+/** 프리미엄 지급 — 결제 성사(또는 개발 빌드)에서만 부른다 */
+function grantPremium() {
   S.speed3 = true;
   S.adFree = true;
   S.speed = 3;
   if (scene) scene.speed = 3;
   save(); syncSpeedBtns(); shop.render();
-  toast('[개발 빌드] 프리미엄 적용 — 3배속 + 광고 제거');
 }
 
 /**
@@ -342,16 +351,33 @@ function starterLeft() {
 function buyStarter() {
   if (S.starterBought) return toast(t('이미 구매했습니다'));
   if (starterLeft() <= 0) return toast(t('판매 기간이 지났습니다'));
-  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  if (vxBuy('starter_pack')) return;
+  if (!import.meta.env.DEV) return toast(t('지금은 결제할 수 없습니다'));
+  grantStarter();
+}
+
+function grantStarter() {
   const pk = (D.shop.packages || []).find(x => x.id === 'starter_pack');
-  const bag = { diamond: 'dia', merc_ticket: 'mercTicket', skill_ticket: 'skillTicket', equip_ticket: 'eqTicket' };
-  const got = [];
-  for (const [k, v] of Object.entries(pk.grant || {})) {
-    if (bag[k]) { S[bag[k]] += v; got.push([k, v]); }
-  }
+  if (!pk || S.starterBought) return;
   S.starterBought = true;
+  gainToast(grantBag(pk.grant));
   save(); renderTop(); shop.render();
-  gainToast(got);
+}
+
+/**
+ * 상품 구성(grant)을 세이브에 넣고 [종류, 수량] 목록을 돌려준다.
+ * 지급 경로가 상품마다 흩어지면 새 상품을 더할 때마다 같은 표를 다시 쓰게 된다.
+ */
+function grantBag(grant) {
+  const BAG = {
+    diamond: 'dia', gold: 'gold', merc_ticket: 'mercTicket',
+    skill_ticket: 'skillTicket', equip_ticket: 'eqTicket', speedup_5m: 'hourglass',
+  };
+  const got = [];
+  for (const [k, v] of Object.entries(grant || {})) {
+    if (BAG[k]) { S[BAG[k]] += v; got.push([k, v]); }
+  }
+  return got;
 }
 
 /**
@@ -364,16 +390,69 @@ function buyGrowth(id) {
   if (!pk) return;
   S.growthBought = S.growthBought || [];
   if (S.growthBought.includes(id)) return toast(t('이미 구매했습니다'));
-  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
-  const bag = { diamond: 'dia', speedup_5m: 'hourglass', equip_ticket: 'eqTicket' };
-  const got = [];
-  for (const [k, v] of Object.entries(pk.grant || {})) {
-    if (bag[k]) { S[bag[k]] += v; got.push([k, v]); }
-  }
-  S.growthBought.push(id);
-  save(); renderTop(); shop.render();
-  gainToast(got);
+  if (vxBuy(id)) return;
+  if (!import.meta.env.DEV) return toast(t('지금은 결제할 수 없습니다'));
+  grantGrowth(id);
 }
+
+function grantGrowth(id) {
+  const pk = (D.shop.packages || []).find(x => x.id === id && /^growth_pack_/.test(x.id));
+  if (!pk) return;
+  S.growthBought = S.growthBought || [];
+  if (S.growthBought.includes(id)) return;
+  S.growthBought.push(id);
+  gainToast(grantBag(pk.grant));
+  save(); renderTop(); shop.render();
+}
+
+/**
+ * 다이아 묶음 — **반복 구매 상품이라 플래그가 없다.** 중복 지급을 막는 것은
+ * 결제창이 성사 1회당 onClose 를 한 번만 보낸다는 사실뿐이다 (economy.json >
+ * diamondPackages). 서버 지급으로 옮기면 purchaseId 로 멱등해진다.
+ */
+function buyDiaPack(id) {
+  const pk = (D.economy.diamondPackages.packages || []).find(x => x.id === id);
+  if (!pk) return;
+  if (vxBuy(id)) return;
+  if (!import.meta.env.DEV) return toast(t('지금은 결제할 수 없습니다'));
+  grantDiaPack(id);
+}
+
+function grantDiaPack(id) {
+  const pk = (D.economy.diamondPackages.packages || []).find(x => x.id === id);
+  if (!pk) return;
+  const n = (pk.diamond || 0) + (pk.bonusDiamond || 0);
+  S.dia += n;
+  save(); renderTop(); shop.render();
+  gainToast([['diamond', n]]);
+}
+
+/**
+ * 결제 성사 — **VXShop 이 productId 로 알려 준다** (net/vxshop.js > onClose).
+ * 지급 판정을 여기 한 곳에 모아 둔다: 상품이 늘어도 여기만 보면 무엇을 주는지
+ * 전부 읽힌다. 서버 2단계에서는 server.js 의 $onItemPurchased 가 같은 표를 쥔다.
+ */
+function onVxPurchased(productId) {
+  if (productId === 'premium_pack') { grantPremium(); return toast(t('프리미엄이 적용되었습니다')); }
+  if (productId === 'starter_pack') return grantStarter();
+  if (/^growth_pack_/.test(productId)) return grantGrowth(productId);
+  if (/^pack_/.test(productId)) return grantDiaPack(productId);
+  if (/^pass_premium/.test(productId)) {
+    S.pass.bought = true;
+    save(); openPass();
+    return toast(t('시즌 패스 프리미엄이 열렸습니다'));
+  }
+  console.warn('모르는 상품이 결제되었다', productId);
+}
+
+/**
+ * 시즌 패스 상품 id. **시즌마다 새 SKU** 다 (pass.json > tracks.paid.productId).
+ * 대시보드에서 Lifetime Limit 1 을 걸 수 있는 유일한 방법이고, 그래야 한 시즌에
+ * 두 번 팔리지 않는다 — 클라의 "보유 중" 표시는 세이브를 지우면 되살아난다.
+ */
+const passProductId = () =>
+  (D.pass.tracks.paid.productId || 'pass_premium_s{seasonId}')
+    .replace('{seasonId}', D.pass.season.id);
 
 /** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
 function speedHint(mult) {
@@ -2015,7 +2094,8 @@ function openPass() {
       <button class="mdBuy" id="psAll">${t('전부 받기')}</button>
       ${S.pass.bought
         ? `<span class="ps-own">${t('프리미엄 보유 중')}</span>`
-        : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0} VX', numExact(P.tracks.paid.price.vx))}</button>`}
+        : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0} VX',
+             numExact(vxPrice(passProductId(), P.tracks.paid.price.vx)))}</button>`}
       </div>`
     + `<div class="ps-head"><span></span><span>${t('무료')}</span><span>${t('프리미엄')}</span></div>`
     + Array.from({ length: P.progress.maxTier }, (_, i) => row(i + 1)).join('');
@@ -2027,7 +2107,8 @@ function openPass() {
         <b>시즌 ${P.season.durationDays}일.</b> ${P.season.resetPolicy}</div>`;
 
   $('#psBuy')?.addEventListener('click', () => {
-    toast('결제 연동 전 — VXShop 등록 후 붙는다');
+    if (vxBuy(passProductId())) return;
+    toast(t('지금은 결제할 수 없습니다'));
   });
   $('#psAll')?.addEventListener('click', passClaimAll);
   $('#ovb').querySelectorAll('.ps-cell').forEach(x => x.addEventListener('click',
@@ -6801,6 +6882,8 @@ function bootTapToStart() {
   // 광고 SDK 는 데이터 로드보다 먼저 건다 — 호스트 메시지 리스너를 일찍 걸수록
   // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
   initAds();
+  // 결제 창구. 지급은 onVxPurchased 한 곳에서만 한다
+  initVXShop(onVxPurchased, () => shop?.render());
   bootSparks();
 
   bootStep(12);
@@ -6960,7 +7043,7 @@ function bootTapToStart() {
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
-    buyPremium, buyStarter, starterLeft, buyGrowth,
+    buyPremium, buyStarter, starterLeft, buyGrowth, buyDiaPack, vxLive, vxPrice,
   });
   watchTapHintCover();
   // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십

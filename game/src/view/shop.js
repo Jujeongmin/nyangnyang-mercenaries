@@ -17,6 +17,17 @@ import { t } from '../core/i18n.js';
  * 그림이 없는 상품은 빈 문자열이라 카드가 그냥 단색으로 뜬다 (안전한 폴백).
  */
 const pimg = pk => (pk.img ? ` style="--pimg:url(/assets/ui/${pk.img}.png)"` : '');
+
+/**
+ * 구매 버튼 글자. **가격의 진짜 주인은 VX 대시보드다** — 거기서 값을 바꾸면
+ * 게임도 같이 바뀌어야 한다 (단장 확인 2026-08-26). 데이터의 vx 값은 목록이
+ * 도착하기 전과 호스트 밖에서만 쓰는 폴백이고, 둘 다 없으면 그냥 "구매" 다.
+ * @param api  shop 의 api (vxPrice 를 갖고 있다)
+ */
+function priceLabel(api, productId, fallback) {
+  const v = api.vxPrice ? api.vxPrice(productId, fallback) : fallback;
+  return typeof v === 'number' && v > 0 ? t('{0} VX', num(v)) : t('구매');
+}
 const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 /** 소환 레벨 진행 — gacha.json > tracks[].levelRequirement */
@@ -146,10 +157,13 @@ export class ShopScreen {
     }));
     body.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
       // 프리미엄만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
-      if (b.dataset.buy === 'premium_pack' && this.api.buyPremium) return this.api.buyPremium();
-      if (b.dataset.buy === 'starter_pack' && this.api.buyStarter) return this.api.buyStarter();
-      if (/^growth_pack_/.test(b.dataset.buy) && this.api.buyGrowth) return this.api.buyGrowth(b.dataset.buy);
-      this.api.toast('결제 연동 전 — VXShop 등록 후 붙는다');
+      const id = b.dataset.buy;
+      if (id === 'premium_pack' && this.api.buyPremium) return this.api.buyPremium();
+      if (id === 'starter_pack' && this.api.buyStarter) return this.api.buyStarter();
+      if (/^growth_pack_/.test(id) && this.api.buyGrowth) return this.api.buyGrowth(id);
+      // 다이아 묶음 (pack_s ~ pack_xxl) — economy.json 의 id 가 곧 VXShop 상품 id 다
+      if (/^pack_/.test(id) && this.api.buyDiaPack) return this.api.buyDiaPack(id);
+      this.api.toast(t('지금은 결제할 수 없습니다'));
     }));
 
   }
@@ -337,7 +351,7 @@ export class ShopScreen {
     return `<div class="sh-card speed3">
       <b>${t(pk.nameKo)}</b>
       <span class="sh-desc">${t('전투·방치 3배속 영구 해금 · 광고 버튼이 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급', daily)}</span>
-      <button class="sh-price" data-buy="premium_pack">${t('구매')}</button>
+      <button class="sh-price" data-buy="premium_pack">${priceLabel(this.api, 'premium_pack', pk.vx)}</button>
     </div>`;
   }
 
@@ -359,7 +373,7 @@ export class ShopScreen {
       <span>${t('다이아 {0} · 용병권 {1} · 스킬권 {2} · 장비권 {3}',
         num(g.diamond || 0), g.merc_ticket || 0, g.skill_ticket || 0, g.equip_ticket || 0)}<br>
         ${d > 0 ? t('{0}일 {1}시간 남음', d, h) : t('{0}시간 남음', h)}</span>
-      <button class="sh-price" data-buy="starter_pack">${t('구매')}</button>
+      <button class="sh-price" data-buy="starter_pack">${priceLabel(this.api, 'starter_pack', pk.vx)}</button>
     </div>`;
   }
 
@@ -379,7 +393,7 @@ export class ShopScreen {
         <b>${t(pk.nameKo)}</b>
         <span>${Object.entries(pk.grant || {})
           .map(([k, v]) => `${t(CUR[k] || k)} ${num(v)}`).join(' · ')}</span>
-        <button class="sh-price" data-buy="${pk.id}">${t('구매')}</button>
+        <button class="sh-price" data-buy="${pk.id}">${priceLabel(this.api, pk.id, pk.vx)}</button>
       </div>`).join('');
   }
 
@@ -401,12 +415,11 @@ export class ShopScreen {
         <img src="/assets/ui/SHOP-D${i + 1}.png" alt="">
         <b>${num(x.diamond)}</b>
         ${bonus ? `<span class="sh-bonus">${bonus}</span>` : ''}
-        <button class="sh-price" data-buy="${x.id}">${t('구매')}</button>
+        <button class="sh-price" data-buy="${x.id}">${priceLabel(this.api, x.id, x.vx)}</button>
       </div>`;
     }).join('') + `</div>
       <!-- 환산 문구(약 1890 다이아 = $1)는 뺐다 (단장 지시 2026-08-26).
-           확정 전 숫자를 상점에 박아 두면 나중에 약속이 된다 -->
-      <div class="sh-note">${t('실결제는 VXShop 등록 후 연동된다.')}</div>`;
+           확정 전 숫자를 상점에 박아 두면 나중에 약속이 된다 -->`;
   }
 
   // ── 교환 ──
