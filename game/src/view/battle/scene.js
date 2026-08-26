@@ -49,16 +49,16 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // 단장 공격 시트의 프레임 수. **시트마다 다르다** — 칸 폭이 시트 폭÷프레임 수라
 // 이 숫자가 틀리면 프레임이 어긋나게 잘려 캐릭터가 반씩 잘린 채 재생된다.
 //   warrior  1732x329, 433px 칸 4장
-//   archer   2712x389, 339px 칸 8장
-//   mage     2652x579, 663px 칸 4장
-// (셋 다 2026-08-26 에 정리 스크립트로 새로 구운 것이다 — 칸 크기가 제각각인
-//  것은 원화 비율이 달라서다. 프레임 수와 트림을 시트마다 따로 잰다)
+//   archer   2048x512, 512px 칸 4장
+//   mage     2048x512, 512px 칸 4장
+// (archer·mage 는 512 정사각 칸, warrior 만 433x329 다. 칸이 다른 것은 원화
+//  비율이 달라서다 — 그래서 프레임 수와 트림을 시트마다 따로 잰다)
 // 시트를 갈면 이 표를 같이 고친다.
 //
 // warrior 는 원래 9장(IDLE·WINDUP·DASH·LEAP·SLASH1~3·IMPACT·RECOVERY)이었는데
 // 제자리 공격에 DASH·LEAP·IMPACT·RECOVERY 는 안 맞아서 네 장만 남겼다:
 // IDLE -> WINDUP -> SLASH1 -> SLASH2 (단장 확정 2026-08-26).
-const ATTACK_FRAMES = { warrior: 4, archer: 8, mage: 4 };
+const ATTACK_FRAMES = { warrior: 4, archer: 4, mage: 4 };
 
 // 칸 안에서 캐릭터가 차지하는 영역. 칸에는 위아래 여백이 있어서, 이걸 안 주면
 // 캐릭터가 여백만큼 작아지고 발이 뜬다 (rig.js 의 attackTrim 설명 참고).
@@ -68,8 +68,8 @@ const ATTACK_FRAMES = { warrior: 4, archer: 8, mage: 4 };
 // 캐릭터가 작아지거나 발이 뜬다.
 const ATTACK_TRIM = {
   warrior: { h: 266, footY: 305 },
-  archer: { h: 341, footY: 365 },
-  mage: { h: 531, footY: 555 },
+  archer: { h: 420, footY: 487 },
+  mage: { h: 457, footY: 487 },
 };
 
 // 걷기 시트 — 몹을 다 잡고 다음 무리로 이동하는 구간(phase === 'walk')에 돈다.
@@ -80,8 +80,8 @@ const ATTACK_TRIM = {
 const WALK_FRAMES = { warrior: 8, archer: 8, mage: 8 };
 const WALK_TRIM = {
   warrior: { h: 357, footY: 381 },
-  archer: { h: 354, footY: 378 },
-  mage: { h: 389, footY: 413 },
+  archer: { h: 464, footY: 487 },
+  mage: { h: 464, footY: 487 },
 };
 const WALK_FPS = 12;              // 8프레임이면 한 걸음 주기 약 0.67초
 
