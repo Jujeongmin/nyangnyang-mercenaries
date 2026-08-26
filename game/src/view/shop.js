@@ -141,6 +141,7 @@ export class ShopScreen {
       // 프리미엄만 창구가 따로 있다. 실결제는 아직 없고, 개발 빌드에서만 즉시 해금된다
       if (b.dataset.buy === 'premium_pack' && this.api.buyPremium) return this.api.buyPremium();
       if (b.dataset.buy === 'starter_pack' && this.api.buyStarter) return this.api.buyStarter();
+      if (/^growth_pack_/.test(b.dataset.buy) && this.api.buyGrowth) return this.api.buyGrowth(b.dataset.buy);
       this.api.toast('결제 연동 전 — VXShop 등록 후 붙는다');
     }));
 
@@ -354,10 +355,29 @@ export class ShopScreen {
     </div>`;
   }
 
+  /**
+   * 성장 지원 3종 — 스타터 아래 상시 노출 (단장 확정 2026-08-26). 산 것은
+   * 사라진다. 셋을 한 카드 폭에 각각 두면 다이아 묶음보다 위가 너무 길어져
+   * 한 줄 요약 카드로 짧게 간다.
+   */
+  growthCards() {
+    const D = this.api.data, S = this.api.state;
+    const bought = S.growthBought || [];
+    const CUR = { diamond: '다이아', speedup_5m: '모래시계', equip_ticket: '장비권' };
+    return (D.shop.packages || [])
+      .filter(x => /^growth_pack_/.test(x.id) && !bought.includes(x.id))
+      .map(pk => `<div class="sh-card speed3">
+        <b>${t(pk.nameKo)}</b>
+        <span class="sh-desc">${Object.entries(pk.grant || {})
+          .map(([k, v]) => `${t(CUR[k] || k)} ${num(v)}`).join(' · ')}</span>
+        <button class="sh-price" data-buy="${pk.id}">${t('구매')}</button>
+      </div>`).join('');
+  }
+
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.premiumCard() + this.starterCard() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
+    return this.premiumCard() + this.starterCard() + this.growthCards() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
       // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)

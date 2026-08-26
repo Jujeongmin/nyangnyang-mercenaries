@@ -295,6 +295,7 @@
   "adFreeMailAt": "프리미엄 일일 다이아 우편을 마지막으로 배달한 날짜 (YYYY-MM-DD)",
   "accountAt": "계정 생성 시각 (epoch ms). 스타터 팩 7일 창의 기준점",
   "starterBought": "스타터 팩 구매 여부 (bool). 서버 권한",
+  "growthBought": "구매한 성장 지원 SKU id 배열 (growth_pack_50/100/150). 서버 권한",
   "fields": [
    "CP 총합",
    "용병·스킬 개별 CP",

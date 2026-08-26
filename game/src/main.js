@@ -101,6 +101,7 @@ const S = {
   adFreeMailAt: null,                      // 프리미엄 일일 다이아 우편 마지막 배달일
   accountAt: null,                         // 계정 생성 시각 — 스타터 팩 7일 창의 기준점
   starterBought: false,                    // 스타터 팩 구매 여부. 서버 권한 (premium 과 동일)
+  growthBought: [],                        // 구매한 성장 지원 SKU id 목록. 서버 권한
   lang: null,                              // 언어. 첫 부팅 로딩 화면에서 고른다
   // 출석 — dailies.json > attendance. day = 7일 주기 위치(0~6, 다음에 받을 칸),
   // monthDays = 이번 달 누적 출석일, cumClaimed = 수령한 누적 마일스톤(days 값들)
@@ -346,6 +347,27 @@ function buyStarter() {
     if (bag[k]) { S[bag[k]] += v; got.push([k, v]); }
   }
   S.starterBought = true;
+  save(); renderTop(); shop.render();
+  gainToast(got);
+}
+
+/**
+ * 성장 지원 패키지 3종 — 처음부터 상시 노출, 각 1회 (단장 확정 2026-08-26.
+ * 구상이던 스테이지 도달 트리거·3일 한정은 뺐다). 구매 판정은 premium 과
+ * 같은 임시 구현 — 개발 빌드 즉시 지급, 실결제는 VXShop 등록 후.
+ */
+function buyGrowth(id) {
+  const pk = (D.shop.packages || []).find(x => x.id === id && /^growth_pack_/.test(x.id));
+  if (!pk) return;
+  S.growthBought = S.growthBought || [];
+  if (S.growthBought.includes(id)) return toast(t('이미 구매했습니다'));
+  if (!import.meta.env.DEV) return toast('결제 연동 전 — VXShop 등록 후 붙는다');
+  const bag = { diamond: 'dia', speedup_5m: 'hourglass', equip_ticket: 'eqTicket' };
+  const got = [];
+  for (const [k, v] of Object.entries(pk.grant || {})) {
+    if (bag[k]) { S[bag[k]] += v; got.push([k, v]); }
+  }
+  S.growthBought.push(id);
   save(); renderTop(); shop.render();
   gainToast(got);
 }
@@ -6896,7 +6918,7 @@ function bootTapToStart() {
     pull: (trackId, n) => pull(trackId, n),
     pullCost: (trackId, n) => pullCost(trackId, n),
     tellSlotLock: (kind, idx) => tellSlotLock(kind, idx),
-    buyPremium, buyStarter, starterLeft,
+    buyPremium, buyStarter, starterLeft, buyGrowth,
   });
   watchTapHintCover();
   // 버튼 탭음 — **버튼마다 걸지 않고 여기서 한 번에 위임한다.** 화면이 수십
