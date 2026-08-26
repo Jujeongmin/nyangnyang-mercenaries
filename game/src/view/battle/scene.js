@@ -1641,13 +1641,21 @@ export class BattleScene {
       const alive = this.foes.filter(f => !f.dead);
       const u = this.units[(Math.random() * this.units.length) | 0];
       if (u && alive.length) this.launchAttack(u, alive[(Math.random() * alive.length) | 0], false);
-      // **파티가 비어 있으면 단장이 휘두른다.** 초기화 직후처럼 편성이 0명일 때
-      // 아무도 안 움직여서 "전투가 안 일어난다" 로 읽혔다 (단장 보고 2026-08-26).
-      // 판정은 어차피 CP 확률이라 그림만 있으면 된다
-      else if (!u && alive.length && this.captain) this.captain.attack?.();
       // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다
       const f = alive[(Math.random() * alive.length) | 0];
-      if (f && this.units.length) f.rig.attack?.();
+      if (f) f.rig.attack?.();
+    }
+
+    // **단장은 자기 박자로 휘두른다.**
+    // 예전에는 편성이 0명일 때만 공격했다 — 용병이 하나라도 있으면 단장은
+    // 가만히 서 있었고, 아레나에서 "공격 모션이 안 나온다" 로 보였다
+    // (단장 지적 2026-08-26). 단장은 전투 판정에 안 들어가지만(characters.json >
+    // combatParticipation:false) 화면에서는 맨 앞에 서 있어서 제일 눈에 띈다.
+    // 용병과 다른 주기로 돌려야 둘이 겹쳐 한 박자로 굳지 않는다.
+    a.capCd = (a.capCd ?? 0.6) - s;
+    if (a.capCd <= 0) {
+      a.capCd = 0.62 + Math.random() * 0.3;
+      if (this.captain && this.foes.some(f => !f.dead)) this.captain.attack?.();
     }
 
     this.onEvent({ type: 'arenaHp', my: a.myHp, foe: a.foeHp });
