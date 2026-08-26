@@ -334,7 +334,7 @@ export class ShopScreen {
     const pk = (D.shop.packages || []).find(x => x.id === 'premium_pack');
     if (!pk || (S.speed3 && S.adFree)) return '';
     const daily = pk.dailyGrant?.diamond ?? 0;
-    return `<div class="sh-card speed3"${pimg(pk)}>
+    return `<div class="sh-card speed3">
       <b>${t(pk.nameKo)}</b>
       <span class="sh-desc">${t('전투·방치 3배속 영구 해금 · 광고 버튼이 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급', daily)}</span>
       <button class="sh-price" data-buy="premium_pack">${t('구매')}</button>
@@ -353,11 +353,12 @@ export class ShopScreen {
     if (!pk || left <= 0) return '';
     const d = Math.floor(left / 86400e3), h = Math.floor(left % 86400e3 / 3600e3);
     const g = pk.grant || {};
-    return `<div class="sh-card speed3"${pimg(pk)}>
+    return `<div class="sh-pk"${pimg(pk)}>
+      <i></i>
       <b>${t(pk.nameKo)}</b>
-      <span class="sh-desc">${t('다이아 {0} · 용병권 {1} · 스킬권 {2} · 장비권 {3}',
-        num(g.diamond || 0), g.merc_ticket || 0, g.skill_ticket || 0, g.equip_ticket || 0)}
-        · ${d > 0 ? t('{0}일 {1}시간 남음', d, h) : t('{0}시간 남음', h)}</span>
+      <span>${t('다이아 {0} · 용병권 {1} · 스킬권 {2} · 장비권 {3}',
+        num(g.diamond || 0), g.merc_ticket || 0, g.skill_ticket || 0, g.equip_ticket || 0)}<br>
+        ${d > 0 ? t('{0}일 {1}시간 남음', d, h) : t('{0}시간 남음', h)}</span>
       <button class="sh-price" data-buy="starter_pack">${t('구매')}</button>
     </div>`;
   }
@@ -373,18 +374,25 @@ export class ShopScreen {
     const CUR = { diamond: '다이아', speedup_5m: '모래시계', equip_ticket: '장비권' };
     return (D.shop.packages || [])
       .filter(x => /^growth_pack_/.test(x.id) && !bought.includes(x.id))
-      .map(pk => `<div class="sh-card speed3"${pimg(pk)}>
+      .map(pk => `<div class="sh-pk"${pimg(pk)}>
+        <i></i>
         <b>${t(pk.nameKo)}</b>
-        <span class="sh-desc">${Object.entries(pk.grant || {})
+        <span>${Object.entries(pk.grant || {})
           .map(([k, v]) => `${t(CUR[k] || k)} ${num(v)}`).join(' · ')}</span>
         <button class="sh-price" data-buy="${pk.id}">${t('구매')}</button>
       </div>`).join('');
   }
 
+  /** 스타터 + 성장 지원을 한 격자에 담는다 — 둘 다 "한 번만 사는 묶음" 이다 */
+  packageGrid() {
+    const inner = this.starterCard() + this.growthCards();
+    return inner ? `<div class="sh-pkgrid">${inner}</div>` : '';
+  }
+
   // ── 다이아 ──
   diamondTab() {
     const p = this.api.data.economy.diamondPackages;
-    return this.premiumCard() + this.starterCard() + this.growthCards() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
+    return this.premiumCard() + this.packageGrid() + `<div class="sh-grid3">` + p.packages.map((x, i) => {
       const bonus = x.bonusDiamond ? `+${num(x.bonusDiamond)}` : '';
       // 첫 결제 2배 리본은 뺐다 — 실제로 2배를 주는 코드가 없어서 화면에만
       // 있는 약속이었다. 결제를 붙일 때 같이 설계한다 (단장 확정 2026-08-25)

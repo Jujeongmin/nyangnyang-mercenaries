@@ -2255,30 +2255,39 @@
   /* 유료 상품 카드 — 상품 그림은 **512 정사각 아트**다 (VX 대시보드와 같은
      그림). 배경으로 깔면 가로로 잘려 소재가 날아가므로, 오른쪽에 통째로
      세우고 왼쪽으로 녹여서 글자가 그 위를 지나가게 한다 (단장 확정 2026-08-26) */
+  /* 프리미엄 — 이 탭의 대표 상품 하나만 **가로 배너**를 쓴다 (단장 확정
+     2026-08-26). 나머지 패키지는 아래 2열 격자라, 배너가 하나뿐이어야
+     "제일 위 큰 것" 이 눈에 먼저 온다 */
   .sh-card.speed3{position:relative;overflow:hidden;min-height:118px;padding:12px 14px;
     display:flex;flex-direction:column;justify-content:flex-end;gap:3px;
     /* .sh-card 의 align-items:center 를 되돌린다 — 안 그러면 세로 배치에서
        제목·설명만 가운데로 서고 [구매] 버튼(align-self)만 왼쪽에 남는다 */
     align-items:flex-start;
-    background:linear-gradient(90deg,#150f0b,#221810);border-color:var(--gold)}
-  .sh-card.speed3::after{content:"";position:absolute;right:-4px;top:0;bottom:0;
-    width:132px;background-image:var(--pimg,none);background-size:contain;
-    background-position:center right;background-repeat:no-repeat;pointer-events:none;
-    /* 네 변을 다 녹인다. 왼쪽만 녹이면 아트의 어두운 정사각 배경이 카드 위에
-       네모로 얹혀 "붙여넣은 그림"으로 보인다 (실사용 확인 2026-08-26) */
-    -webkit-mask-image:linear-gradient(90deg,#0000,#000 46%),
-      linear-gradient(#0000,#000 14%,#000 86%,#0000);
-    -webkit-mask-composite:source-in;
-    mask-image:linear-gradient(90deg,#0000,#000 46%),
-      linear-gradient(#0000,#000 14%,#000 86%,#0000);
-    mask-composite:intersect}
-  /* 글자는 그림 위에 선다 — ::after 가 뒤에 그려지므로 본문에 z-index 를 준다 */
+    background-image:linear-gradient(90deg,#150f0bee 0%,#150f0bbb 46%,#150f0b44 100%),
+      url(/assets/ui/SHOP-SPEED.webp);
+    background-size:cover;background-position:center;border-color:var(--gold)}
   .sh-card.speed3 > *{position:relative;z-index:1}
   .sh-card.speed3 b{font-size:15px;text-shadow:0 1px 4px #000}
-  /* 오른쪽 그림 자리를 비운다. 안 비우면 긴 설명이 그림 위로 올라가 둘 다 안 읽힌다 */
-  .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000;max-width:66%}
+  .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000;max-width:74%}
   .sh-card.speed3 .sh-price{align-self:flex-start;margin-top:4px}
   .sh-card.speed3.owned{border-color:var(--line)}
+
+  /* 패키지 격자 — 스타터·성장 지원. 한 줄에 둘 (단장 확정 2026-08-26).
+     세로로 쌓으면 다이아 묶음이 화면 밖으로 밀려 "무엇을 파는 탭인지"가 안 보인다 */
+  .sh-pkgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .sh-pk{display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:var(--card);border:1px solid var(--gold);border-radius:11px;
+    padding:9px 8px 8px;text-align:center}
+  /* 상품 그림 — 512 정사각 아트를 그대로 위에 얹는다. 격자 칸은 폭이 좁아
+     배너처럼 잘라 쓰면 소재가 안 보인다 */
+  .sh-pk i{display:block;width:100%;aspect-ratio:1/1;max-height:76px;
+    background-image:var(--pimg,none);background-size:contain;
+    background-position:center;background-repeat:no-repeat}
+  .sh-pk b{font-size:12px;font-weight:900;line-height:1.2}
+  .sh-pk span{font-size:10px;color:var(--dim);line-height:1.35;
+    /* 구성이 길어도 카드 높이가 서로 안 어긋나게 세 줄에서 자른다 */
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .sh-pk .sh-price{width:100%;margin-top:auto;padding:6px 0;font-size:11px}
 
   .sh-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
   /* 다이아 상품 — 한 줄에 셋. 두 줄일 때는 카드가 커서 세 개만 보고도 스크롤이
@@ -2862,6 +2871,24 @@
   /* 특가 카드의 금색 왼쪽 띠는 프레임과 겹쳐 지저분해진다. 제목을 금색으로 대신 */
   .sh-card.deal{border-left-width:11px}
   .sh-card.deal b{color:var(--gold)}
+  /* 프리미엄 배너는 **여기서 다시 깐다.** 바로 위 킷 규칙이 .sh-card 의
+     background 를 none 으로 지우기 때문이다 — 위쪽 블록에만 써 두면 배너가
+     통째로 사라진다 (2026-08-26 실사용 확인). 패딩도 킷이 2px 로 줄여서
+     배너 카드만 되돌린다 */
+  /* 9슬라이스 `fill` 은 가운데 조각으로 **요소 배경을 덮는다** — 배너를
+     background 로 깔면 프레임 그림에 가려 안 보인다 (다이아 묶음은 <img> 라
+     보였던 것). 배너는 프레임 안쪽 레이어(::before)에 깐다 (2026-08-26) */
+  .sh-card.speed3{padding:12px 14px}
+  .sh-card.speed3::before{content:"";position:absolute;inset:-11px;z-index:0;
+    background-image:linear-gradient(90deg,#150f0bee 0%,#150f0bbb 46%,#150f0b44 100%),
+      url(/assets/ui/SHOP-SPEED.webp);
+    background-size:cover;background-position:center;pointer-events:none}
+  /* 패키지 격자 칸도 킷 프레임을 입는다 — 옆의 다이아 묶음과 같은 나무틀이라야
+     한 탭 안에서 따로 논다는 느낌이 없다 */
+  .sh-pk{background:none;border-style:solid;border-width:11px;border-radius:0;
+    border-image:var(--f-card) 122 fill stretch;padding:4px 6px 6px}
+  /* 킷의 .sh-price 는 padding:1px 6px 이라 격자 칸에서 글자가 왼쪽에 붙는다 */
+  .sh-pk .sh-price{text-align:center;padding:4px 6px}
 
   /* ── 제목 띠 ──
      뿔 장식(62px)과 위아래 레일(22px)을 slice 로 지킨다. border-width 는 렌더 높이에
