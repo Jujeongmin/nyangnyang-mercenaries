@@ -15,6 +15,9 @@ const FILES = [
   'sfx-manifest',
 ];
 
+// 빌드 표식 (vite.config.js > define). 테스트 등 define 이 없는 환경도 있다
+const BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
+
 export const D = Object.create(null);
 
 let loaded = false;
@@ -23,7 +26,12 @@ export async function loadData(base = '/data') {
   if (loaded) return D;
   const got = await Promise.all(
     FILES.map(async n => {
-      const res = await fetch(`${base}/${n}.json`);
+      // **빌드 표식을 쿼리로 붙인다.** data/*.json 은 번들에 안 들어가고
+      // 런타임 fetch 라, JS 는 새 해시로 갱신돼도 JSON 만 옛것이 캐시에
+      // 남는다 — 그러면 "코드는 새 판, 규칙은 옛 판" 인 반쪽 상태가 된다
+      // (배포본에서 실제로 그랬다: 상점 탭 이름·상품 목록이 옛 데이터라
+      //  프리미엄·성장 지원이 통째로 안 보였다 — 단장 보고 2026-08-26)
+      const res = await fetch(`${base}/${n}.json?v=${BUILD}`);
       if (!res.ok) throw new Error(`data/${n}.json 로드 실패 (${res.status})`);
       return [n, await res.json()];
     })
