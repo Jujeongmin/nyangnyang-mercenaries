@@ -119,6 +119,63 @@ export class UnitRig {
     // --- 팔 파트 (선택) ---
     this.arm = null;
     if (opt.arm?.texture) this.attachArm(opt.arm);
+    // 단장 전용 공격 스프라이트 시트(선택). 로드 실패 시 기존 리그 모션을 쓴다.
+    this.attackSprite = null;
+    this.attackFrames = [];
+    if (opt.attackSheet && opt.attackFrameCount) {
+      const count = opt.attackFrameCount;
+      const fw = opt.attackSheet.width / count;
+      for (let i = 0; i < count; i++) {
+        this.attackFrames.push(new PIXI.Texture({
+          source: opt.attackSheet.source,
+          frame: new PIXI.Rectangle(i * fw, 0, fw, opt.attackSheet.height),
+        }));
+      }
+      this.attackSprite = new PIXI.Sprite(this.attackFrames[0]);
+
+      // 시트 칸은 캐릭터보다 크다 — 위아래에 여백이 있다. 그걸 모르고
+      // **칸**을 this.h 에 맞추면 두 가지가 어긋난다 (단장 지적 2026-08-26):
+      //   · 크기 — 여백만큼 캐릭터가 작아진다 (여백 15%면 15% 작다)
+      //   · 위치 — 앵커가 칸 바닥이라 발이 여백만큼 떠 보인다
+      // 그래서 **칸이 아니라 캐릭터**를 기준으로 잡는다. 기본 리그가 trim 으로
+      // 하는 것과 같은 계산이다.
+      const ch = opt.attackSheet.height;
+      const t = opt.attackTrim;                       // { h, footY } — 칸 안 캐릭터 영역
+      const charH = t?.h || ch;                       // 없으면 칸 전체가 캐릭터라고 본다
+      const footY = t?.footY ?? ch;                   // 칸 안에서 발이 닿는 y
+      this.attackSprite.anchor.set(0.5, footY / ch);  // 발을 기준점으로
+      this.attackSprite.height = this.h * (ch / charH);
+      this.attackSprite.width = this.attackSprite.height * (fw / ch);
+      this.attackSprite.visible = false;
+      this.view.addChild(this.attackSprite);
+    }
+
+    // 걷기 시트(선택). 공격과 같은 구조지만 쓰임새가 다르다 —
+    // 공격은 때리는 순간 한 번 훑고 끝나므로 리그가 스스로 재생하지만,
+    // 걷기는 이동 구간 내내 도는 루프라 **켜고 끄는 것을 scene 이 쥔다**
+    // (scene.js 의 phase === 'walk').
+    this.walkSprite = null;
+    this.walkFrames = [];
+    if (opt.walkSheet && opt.walkFrameCount) {
+      const n = opt.walkFrameCount;
+      const wfw = opt.walkSheet.width / n;
+      for (let i = 0; i < n; i++) {
+        this.walkFrames.push(new PIXI.Texture({
+          source: opt.walkSheet.source,
+          frame: new PIXI.Rectangle(i * wfw, 0, wfw, opt.walkSheet.height),
+        }));
+      }
+      const wch = opt.walkSheet.height;
+      const wt = opt.walkTrim;
+      const wCharH = wt?.h || wch;
+      const wFootY = wt?.footY ?? wch;
+      this.walkSprite = new PIXI.Sprite(this.walkFrames[0]);
+      this.walkSprite.anchor.set(0.5, wFootY / wch);
+      this.walkSprite.height = this.h * (wch / wCharH);
+      this.walkSprite.width = this.walkSprite.height * (wfw / wch);
+      this.walkSprite.visible = false;
+      this.view.addChild(this.walkSprite);
+    }
 
     this.t = 0;
     this.phase = Math.random() * Math.PI * 2;
@@ -210,11 +267,41 @@ export class UnitRig {
     };
   }
 
+  setAttackSpriteVisible(visible) {
+    if (!this.attackSprite) return;
+    this.attackSprite.visible = visible;
+    this.rigRoot.visible = !visible;
+  }
+
+  /**
+   * 걷기 시트 재생. 이동 구간 동안 scene 이 매 프레임 부른다.
+   * @param on 켤지 끌지
+   * @param t  이동 구간 경과 초 — 이걸로 프레임을 고른다
+   * @param fps 초당 프레임. 8프레임 12fps = 한 걸음 주기 약 0.67초
+   * @returns 실제로 시트가 재생 중인가 (시트가 없으면 false — 부르는 쪽이 예전
+   *          위아래 튀기로 떨어진다)
+   */
+  playWalk(on, t = 0, fps = 12) {
+    if (!this.walkSprite) return false;
+    if (on) {
+      const i = Math.floor(t * fps) % this.walkFrames.length;
+      this.walkSprite.texture = this.walkFrames[i];
+      this.walkSprite.visible = true;
+      this.rigRoot.visible = false;
+      return true;
+    }
+    this.walkSprite.visible = false;
+    // 공격 시트가 떠 있는 중이면 리그를 도로 켜면 안 된다 — 둘이 겹쳐 보인다
+    if (!this.attackSprite?.visible) this.rigRoot.visible = true;
+    return false;
+  }
+
   // --- 동작 ---
 
   /** @param name 모션 이름. 생략하면 이 유닛의 기본 모션 */
   attack(onImpact, name) {
     if (this.dead) return;
+    this.setAttackSpriteVisible(false);
     const key = name ?? this.motion;
     const m = MOTIONS[key] ?? MOTIONS.slash;
     this.act = { m, t: 0, fired: false, onImpact, kind: 'attack' };
@@ -237,6 +324,7 @@ export class UnitRig {
    * @param scale 길이 배율. 보스는 1.6
    */
   die(scale = 1) {
+    this.setAttackSpriteVisible(false);
     this.dead = true;
     this.act = { kind: 'die', t: 0, dur: 420 * scale };
   }
@@ -247,16 +335,19 @@ export class UnitRig {
    */
   down() {
     if (this.downed) return;
+    this.setAttackSpriteVisible(false);
     this.downed = true;
     this.act = { kind: 'down', t: 0, dur: 320 };
   }
 
   rise() {
+    this.setAttackSpriteVisible(false);
     this.downed = false;
     this.act = { kind: 'rise', t: 0, dur: 280 };
   }
 
   revive() {
+    this.setAttackSpriteVisible(false);
     this.dead = false; this.downed = false; this.finished = false;
     this.act = null; this.downAmt = 0;
     this.view.visible = true;
@@ -282,9 +373,17 @@ export class UnitRig {
 
       if (a.kind === 'attack') {
         const p = Math.min(1, a.t / a.m.dur);
-        pose = a.m.pose(p);
+        if (this.attackSprite) {
+          const frame = Math.min(this.attackFrames.length - 1,
+            Math.floor(p * this.attackFrames.length));
+          this.attackSprite.texture = this.attackFrames[frame];
+          this.setAttackSpriteVisible(true);
+        } else pose = a.m.pose(p);
         if (!a.fired && p >= a.m.impactAt) { a.fired = true; a.onImpact?.(this); }
-        if (p >= 1) this.act = null;
+        if (p >= 1) {
+          this.act = null;
+          this.setAttackSpriteVisible(false);
+        }
       } else if (a.kind === 'die') {
         // 사라지기만 한다. 살짝 떠오르며 줄어드는 정도만 붙인다.
         const p = Math.min(1, a.t / a.dur);

@@ -46,6 +46,33 @@ import { passiveAgg, EMPTY_PASSIVES, passiveTakenMult } from '../../core/passive
 const PIXI = () => window.PIXI;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+// 단장 공격 시트의 프레임 수. **시트마다 다르다** — 칸 폭이 시트 폭÷프레임 수라
+// 이 숫자가 틀리면 프레임이 어긋나게 잘려 캐릭터가 반씩 잘린 채 재생된다.
+//   warrior  1732x329, 433px 칸 4장 (2026-08-26 교체분)
+//   archer   4096x512, 512px 칸 8장
+//   mage     4096x512, 512px 칸 8장
+// 시트를 갈면 이 표를 같이 고친다.
+//
+// warrior 는 원래 9장(IDLE·WINDUP·DASH·LEAP·SLASH1~3·IMPACT·RECOVERY)이었는데
+// 제자리 공격에 DASH·LEAP·IMPACT·RECOVERY 는 안 맞아서 네 장만 남겼다:
+// IDLE -> WINDUP -> SLASH1 -> SLASH2 (단장 확정 2026-08-26).
+const ATTACK_FRAMES = { warrior: 4, archer: 8, mage: 8 };
+
+// 칸 안에서 캐릭터가 차지하는 영역. 칸에는 위아래 여백이 있어서, 이걸 안 주면
+// 캐릭터가 여백만큼 작아지고 발이 뜬다 (rig.js 의 attackTrim 설명 참고).
+//   h     칸 안 캐릭터 높이 (가장 큰 프레임 기준)
+//   footY 칸 안에서 발이 닿는 y
+// warrior: 329px 칸, 여백 24, 캐릭터 281 -> 발은 329-24 = 305
+// archer·mage 는 옛 512² 시트라 여백을 모른다. 빼 두면 칸 전체를 쓴다(종전 동작).
+const ATTACK_TRIM = { warrior: { h: 266, footY: 305 } };
+
+// 걷기 시트 — 몹을 다 잡고 다음 무리로 이동하는 구간(phase === 'walk')에 돈다.
+//   warrior  3336x405, 417px 칸 8장, 캐릭터 최대 357, 발 381
+// 시트가 없는 직업은 예전처럼 제자리에서 위아래로 튄다.
+const WALK_FRAMES = { warrior: 8 };
+const WALK_TRIM = { warrior: { h: 357, footY: 381 } };
+const WALK_FPS = 12;              // 8프레임이면 한 걸음 주기 약 0.67초
+
 // 아군 5인 "(" 대형 — 앞(아래)일수록 크고 늦게 그린다
 // 용병 5명 — 단장 뒤로 '(' 호. 양 끝이 앞(오른쪽)으로 나오고 가운데가 뒤로 부푼다.
 // dy 가 위로 갈수록 멀리 선 것이므로 sc 를 줄이고 z 를 낮춘다 — 겹쳐도 앞뒤가 읽힌다.
@@ -305,13 +332,33 @@ export class BattleScene {
     // 공격 모션도 직업 모션이다 — 궁수 단장이 검을 휘두르면 전직이 안 읽힌다
     const capCls = this.captainClass || 'warrior';
     const capId = `captain_${capCls}`;
-    const { tex: capTex, src: capSrc } = await this.loadSprite(`/assets/captain/${capId}`);
+    // 대기 자세는 **공격 시트와 같은 세대의 그림**을 쓴다.
+    // 예전 원화(captain_warrior.png)와 시트는 다른 모델이 그린 것이라 선 굵기와
+    // 음영이 달랐고, 공격이 시작되는 순간 질감이 확 바뀌어 부자연스러웠다
+    // (단장 지적 2026-08-26). _idle 은 시트의 1번 프레임을 그대로 떼어낸 것이다.
+    //
+    // 원본 captain_warrior.png 는 **그대로 둔다** — UI 초상(명부·프로필)이 정사각
+    // 1024² 를 전제로 배치돼 있고, 무기 팔 컷아웃도 그 좌표계다.
+    const idle = await this.loadSprite(`/assets/captain/${capId}_idle`);
+    const base = idle.tex ? idle : await this.loadSprite(`/assets/captain/${capId}`);
+    const { tex: capTex, src: capSrc } = base;
+    const baseId = idle.tex ? `${capId}_idle` : capId;
+    const { tex: capAttackTex } = await this.loadSprite(`/assets/captain/${capId}_attack`);
+    const { tex: capWalkTex } = await this.loadSprite(`/assets/captain/${capId}_walk`);
     if (capTex) {
-      const arm = await this.cutoutFor(capId, capSrc);
+      // 팔 컷아웃은 1024² 원화 좌표라 _idle 그림에는 안 맞는다 — 엉뚱한 데를
+      // 떼어 낸다. _idle 을 쓰는 동안에는 몸통 리그만 쓴다.
+      const arm = idle.tex ? null : await this.cutoutFor(capId, capSrc);
       this.captain = new UnitRig(PIXI(), capTex, {
         size: this.allySize() * 1.0, facing: 1, grid: [5, 9],
         motion: motionForClass(capCls), arm,
-        trim: TR[capId] || TR.captain_warrior,
+        trim: TR[baseId] || TR[capId] || TR.captain_warrior,
+        attackSheet: capAttackTex,
+        attackFrameCount: ATTACK_FRAMES[capCls] ?? 8,
+        attackTrim: ATTACK_TRIM[capCls],
+        walkSheet: capWalkTex,
+        walkFrameCount: WALK_FRAMES[capCls],
+        walkTrim: WALK_TRIM[capCls],
       });
       this.captain.capCls = capCls;
       // 자리를 잡기 전에는 숨긴다 — 아래 편성 루프가 그림을 기다리는 동안
@@ -603,14 +650,21 @@ export class BattleScene {
         u.rig.base.y = u.by - Math.abs(Math.sin(this.phaseT * 10 + i * 0.7)) * u.rig.h * 0.04;
       }
       if (this.captain && this.capBy != null) {
-        this.captain.base.y = this.capBy - Math.abs(Math.sin(this.phaseT * 10 + 2.2)) * this.captain.h * 0.04;
+        // 걷기 시트가 있으면 그걸 돌린다. 시트가 진짜 걸음을 그리므로 위아래
+        // 튀기는 빼야 한다 — 둘을 겹치면 캐릭터가 통통 튄다.
+        const sheet = this.captain.playWalk(true, this.phaseT, WALK_FPS);
+        this.captain.base.y = sheet ? this.capBy
+          : this.capBy - Math.abs(Math.sin(this.phaseT * 10 + 2.2)) * this.captain.h * 0.04;
       }
       if (this.phaseT >= dur) {
         this.phase = 'fight';
         this.fightT = 0;              // 선제(전투 시작 N초)·투지(길수록)의 기준점
         for (const f of this.foes) { f.rig.setBase(f.bx, f.by); f.rig.view.alpha = 1; }
         for (const u of this.units) if (u.by != null) u.rig.base.y = u.by;
-        if (this.captain && this.capBy != null) this.captain.base.y = this.capBy;
+        if (this.captain && this.capBy != null) {
+          this.captain.playWalk(false);      // 걷기 끄고 리그로 돌아간다
+          this.captain.base.y = this.capBy;
+        }
       }
     } else if (this.phase === 'fight') {
       // 아레나는 **판정을 하지 않는다** — 정해진 결과로 HP 를 끌고 갈 뿐이다.
@@ -838,10 +892,14 @@ export class BattleScene {
    * 경계는 매 프레임 바뀌므로 매번 읽는다. 유닛 10개 안팎이라 비용은 무시할 만하다.
    */
   headTop(rig) {
-    const b = rig.view.getBounds();
-    const w = b.width || rig.w;
-    const cx = b.x + w / 2;
-    const p = this.ui.toLocal({ x: cx, y: b.y });
+    // **리그 자체 치수로 잰다. getBounds() 를 쓰면 안 된다.**
+    // getBounds() 는 지금 켜져 있는 것의 경계다 — 단장이 공격 시트로 바뀌면
+    // 그 칸이 리그보다 넓고(불꽃 호까지 뻗는다) 경계가 확 커진다. 그러면
+    // 머리 폭에 매달린 체력바가 공격할 때마다 쭉 늘어난다 (단장 지적 2026-08-26).
+    // view.x/y 는 발 위치, w/h 는 캐릭터 치수라 무엇이 보이든 변하지 않는다.
+    const w = rig.w || rig.view.getBounds().width;
+    const h = rig.h ?? 0;
+    const p = this.ui.toLocal({ x: rig.view.x, y: rig.view.y - h });
     return { cx: p.x, top: p.y, w };
   }
 
