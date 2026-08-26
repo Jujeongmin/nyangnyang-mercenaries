@@ -1941,6 +1941,8 @@ function refreshParty() {
   scene.passiveSkills = S.skills.passive.filter(Boolean);
   scene.syncPassiveAura?.();
   scene.captainClass = S.promoClass || 'warrior';
+  // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
+  scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
   scene.skillDmgMult = csSkillMult();
   // 3차 전직 스킬 — 각자 다른 축으로 전투에 꽂힌다
   const s2 = cs2Mine();
@@ -3294,6 +3296,8 @@ function resetPromotion() {
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
 function applyCaptainClass() {
   scene.captainClass = S.promoClass || 'warrior';
+  // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
+  scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
   scene.setParty(S.party);
 }
 
@@ -4769,6 +4773,8 @@ async function playArenaMatch(foe, win, myCp) {
 
   await scene.setBackground('BG-03');
   scene.captainClass = S.promoClass || 'warrior';
+  // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
+  scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
   await scene.setParty(S.party);
   scene.activeSkills = S.skills.active.filter(Boolean);
   scene.passiveSkills = S.skills.passive.filter(Boolean);
@@ -5574,6 +5580,8 @@ async function runDungeon(dg) {
 
   await scene.setBackground(DG_BG[dg.id] || 'BG-01');
   scene.captainClass = S.promoClass || 'warrior';
+  // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
+  scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
   await scene.setParty(S.party);
   scene.activeSkills = S.skills.active.filter(Boolean);
   scene.passiveSkills = S.skills.passive.filter(Boolean);
@@ -6379,6 +6387,8 @@ async function runStage() {
   const bgId = bgFor(S.stage);
   await scene.setBackground(bgId);
   scene.captainClass = S.promoClass || 'warrior';
+  // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
+  scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
   await scene.setParty(S.party);
   const lb = stageLabel(S.stage);
   $('#stg').innerHTML = `${lb.text}<i>${lb.zone}</i>`;

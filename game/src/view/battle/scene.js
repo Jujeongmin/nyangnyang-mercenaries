@@ -58,31 +58,41 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // warrior 는 원래 9장(IDLE·WINDUP·DASH·LEAP·SLASH1~3·IMPACT·RECOVERY)이었는데
 // 제자리 공격에 DASH·LEAP·IMPACT·RECOVERY 는 안 맞아서 네 장만 남겼다:
 // IDLE -> WINDUP -> SLASH1 -> SLASH2 (단장 확정 2026-08-26).
-const ATTACK_FRAMES = { warrior: 4, archer: 4, mage: 4 };
+// 단장 시트 표. **에셋 이름 하나가 열쇠다** — 직군과 전직 단계를 합친 이름이다.
+//   1단계   captain_warrior / captain_archer / captain_mage
+//   2·3단계 PR-<직군>-<단계>            (전직 UI 가 쓰던 이름 그대로)
+//
+// atk / walk 는 { n: 프레임 수, h: 칸 안 캐릭터 높이, foot: 발이 닿는 y }.
+//
+// **n 이 틀리면** 프레임이 어긋나게 잘려 캐릭터가 반씩 잘린 채 재생된다.
+// **h 가 틀리면** 크기가 어긋난다 — 스프라이트 높이가 (칸높이 ÷ h) 배수라
+// h 를 크게 잡으면 캐릭터가 그만큼 작아진다. 실제로 archer 를 464 로 잡아 뒀다가
+// 모바일에서 10% 작게 나왔다 (단장 지적 2026-08-26). 실측은 420 이었다.
+// **foot 이 틀리면** 발이 뜨거나 파묻힌다.
+//
+// 값은 전부 정리 스크립트가 시트를 재서 뱉은 것이다. 눈대중 금지.
+const SHEET = {
+  captain_warrior: { atk: { n: 4, h: 266, foot: 305 }, walk: { n: 8, h: 357, foot: 381 } },
+  captain_archer:  { atk: { n: 4, h: 420, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  captain_mage:    { atk: { n: 4, h: 457, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
 
-// 칸 안에서 캐릭터가 차지하는 영역. 칸에는 위아래 여백이 있어서, 이걸 안 주면
-// 캐릭터가 여백만큼 작아지고 발이 뜬다 (rig.js 의 attackTrim 설명 참고).
-//   h     칸 안 캐릭터 높이 (가장 큰 프레임 기준)
-//   footY 칸 안에서 발이 닿는 y
-// 값은 정리 스크립트가 시트를 구운 뒤 실측해 뱉은 것이다 — 눈대중으로 넣으면
-// 캐릭터가 작아지거나 발이 뜬다.
-const ATTACK_TRIM = {
-  warrior: { h: 266, footY: 305 },
-  archer: { h: 420, footY: 487 },
-  mage: { h: 457, footY: 487 },
+  'PR-warrior-2': { atk: { n: 4, h: 458, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 363 }, walk: { n: 8, h: 461, foot: 487 } },
+  'PR-archer-3':  { atk: { n: 4, h: 413, foot: 487 }, walk: { n: 8, h: 399, foot: 427 } },
+  'PR-mage-2':    { atk: { n: 4, h: 464, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  'PR-mage-3':    { atk: { n: 4, h: 464, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
 };
 
-// 걷기 시트 — 몹을 다 잡고 다음 무리로 이동하는 구간(phase === 'walk')에 돈다.
-//   warrior  3336x405, 417px 칸 8장
-//   archer   2872x402, 359px 칸 8장
-//   mage     2896x437, 362px 칸 8장
-// 시트가 없는 직업은 예전처럼 제자리에서 위아래로 튄다.
-const WALK_FRAMES = { warrior: 8, archer: 8, mage: 8 };
-const WALK_TRIM = {
-  warrior: { h: 357, footY: 381 },
-  archer: { h: 464, footY: 487 },
-  mage: { h: 464, footY: 487 },
-};
+/**
+ * 이 직군·단계가 쓸 에셋 이름. 단계 시트가 없으면 직군 기본으로 내려온다 —
+ * 승급했는데 시트를 아직 안 그린 단계에서 화면이 비면 안 된다.
+ */
+function captainAsset(cls, tier) {
+  const pr = `PR-${cls}-${tier}`;
+  return tier > 1 && SHEET[pr] ? pr : `captain_${cls}`;
+}
+
 const WALK_FPS = 12;              // 8프레임이면 한 걸음 주기 약 0.67초
 
 // 아군 5인 "(" 대형 — 앞(아래)일수록 크고 늦게 그린다
@@ -343,7 +353,10 @@ export class BattleScene {
     // 단장 모습은 전직 직업을 따른다 (main 이 setCaptainClass 로 준다).
     // 공격 모션도 직업 모션이다 — 궁수 단장이 검을 휘두르면 전직이 안 읽힌다
     const capCls = this.captainClass || 'warrior';
-    const capId = `captain_${capCls}`;
+    // **전직 단계도 외형에 반영한다** (단장 확정 2026-08-26). 예전에는 직군만
+    // 봐서, 정예로 승급해도 전투에서는 1단계 모습 그대로였다. 단계 시트가 아직
+    // 없는 조합은 captainAsset 이 직군 기본으로 내려 준다.
+    const capId = captainAsset(capCls, this.captainTier || 1);
     // 대기 자세는 **공격 시트와 같은 세대의 그림**을 쓴다.
     // 예전 원화(captain_warrior.png)와 시트는 다른 모델이 그린 것이라 선 굵기와
     // 음영이 달랐고, 공격이 시작되는 순간 질감이 확 바뀌어 부자연스러웠다
@@ -361,16 +374,17 @@ export class BattleScene {
       // 팔 컷아웃은 1024² 원화 좌표라 _idle 그림에는 안 맞는다 — 엉뚱한 데를
       // 떼어 낸다. _idle 을 쓰는 동안에는 몸통 리그만 쓴다.
       const arm = idle.tex ? null : await this.cutoutFor(capId, capSrc);
+      const sh = SHEET[capId] || SHEET[`captain_${capCls}`] || {};
       this.captain = new UnitRig(PIXI(), capTex, {
         size: this.allySize() * 1.0, facing: 1, grid: [5, 9],
         motion: motionForClass(capCls), arm,
         trim: TR[baseId] || TR[capId] || TR.captain_warrior,
         attackSheet: capAttackTex,
-        attackFrameCount: ATTACK_FRAMES[capCls] ?? 8,
-        attackTrim: ATTACK_TRIM[capCls],
+        attackFrameCount: sh.atk?.n,
+        attackTrim: sh.atk && { h: sh.atk.h, footY: sh.atk.foot },
         walkSheet: capWalkTex,
-        walkFrameCount: WALK_FRAMES[capCls],
-        walkTrim: WALK_TRIM[capCls],
+        walkFrameCount: sh.walk?.n,
+        walkTrim: sh.walk && { h: sh.walk.h, footY: sh.walk.foot },
       });
       this.captain.capCls = capCls;
       // 자리를 잡기 전에는 숨긴다 — 아래 편성 루프가 그림을 기다리는 동안

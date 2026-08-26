@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 2;
+const SERVER_REV = 3;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -220,18 +220,44 @@ async function chatRoomOf(scope) {
 }
 
 /**
+ * 컬렉션 행 수를 **숫자로** 뽑는다.
+ *
+ * countCollectionItems 가 숫자가 아니라 객체를 돌려준다 (배포본에서 확인,
+ * 2026-08-26). 그걸 그대로 비교하면 `객체 <= 180` 이 false 라 "넘쳤다" 로
+ * 읽히고, 이어지는 뺄셈은 NaN 이 된다. 그 결과 pruneChat 이 **방금 쓴 줄을
+ * 곧바로 지웠다** — "채팅을 쳐도 바로 사라진다" 의 진짜 원인이었다.
+ *
+ * 모양을 못 알아보면 **-1 을 준다.** 모르는 채로 지우느니 안 지우는 게 낫다.
+ */
+function countOf(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (Array.isArray(v)) return v.length;
+  if (v && typeof v === 'object') {
+    for (const k of ['count', 'total', 'n', 'size', 'length']) {
+      if (typeof v[k] === 'number' && Number.isFinite(v[k])) return v[k];
+    }
+  }
+  return -1;
+}
+
+/**
  * 오래된 줄 지우기. **매번 다 세지 않는다** - 보낼 때마다 count + 정렬 조회를
  * 돌리면 채팅 한 줄이 쿼리 세 번이 된다. 여유분(CHAT_KEEP 의 1.5배)을 넘겼을 때만
  * 한 번에 잘라 낸다.
  */
 async function pruneChat(room) {
-  const n = await $global.countCollectionItems(room, {});
-  if (n <= CHAT_KEEP * 1.5) return;
-  const old = await $global.getCollectionItems(room, {
-    orderBy: [{ field: 'at', direction: 'asc' }],
-    limit: n - CHAT_KEEP,
-  });
-  for (const r of old) await $global.deleteCollectionItem(room, r.__id);
+  const n = countOf(await $global.countCollectionItems(room, {}));
+  // 셀 수 없으면 **아무것도 지우지 않는다.** 모르는 채로 삭제하면 대화가 통째로
+  // 날아간다 — 실제로 그랬다
+  if (n < 0 || n <= CHAT_KEEP * 1.5) return;
+  const cut = Math.max(0, Math.min(n - CHAT_KEEP, CHAT_KEEP));   // 한 번에 과하게 안 지운다
+  if (!cut) return;
+  // 오래된 것부터. 정렬 조회를 못 믿으므로 받아서 여기서 고른다 (sortedTop 설명)
+  const rows = (await $global.getCollectionItems(room, {})) || [];
+  rows.sort((a, b) => (a.at || 0) - (b.at || 0));
+  for (const r of rows.slice(0, cut)) {
+    if (r && r.__id) await $global.deleteCollectionItem(room, r.__id);
+  }
 }
 
 /** 계정의 표시 이름. 공개 프로필이 단일 소스다 (submitProfile) */
@@ -264,7 +290,10 @@ class Server {
       chatWorld: CHAT_WORLD,
       // 지금 이 컬렉션에 몇 줄이 있나 — 조회가 비는 게 "없어서"인지
       // "못 읽어서"인지 가른다
-      chatCount: await $global.countCollectionItems(CHAT_WORLD, {}).catch(() => -1),
+      chatCount: countOf(await $global.countCollectionItems(CHAT_WORLD, {}).catch(() => -1)),
+      // 원본 모양도 같이 준다 — countOf 가 못 알아보는 새 모양이 오면 여기서 보인다
+      chatCountRaw: await $global.countCollectionItems(CHAT_WORLD, {}).catch(e => String(e)),
+      chatRows: ((await $global.getCollectionItems(CHAT_WORLD, {})) || []).length,
       account: $sender.account,
     };
   }
