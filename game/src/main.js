@@ -28,7 +28,8 @@ import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
 import { AllianceVillage } from './view/alliance.js';
 import { t, tn, loadLang, LANGS, watchDom } from './core/i18n.js';
-import { showRewarded, initAds, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM } from './net/ads.js';
+import { showRewarded, initAds, setAdSdk, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM,
+  AD_ARENA_ENTRIES, AD_DUNGEON_KEYS } from './net/ads.js';
 
 const $ = s => document.querySelector(s);
 const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
@@ -81,6 +82,8 @@ const S = {
   questBase: { merc: 0, skill: 0, eq: 0, kills: 0 },
   // 던전 열쇠 — 던전별로 따로 센다. 매일 05:00 KST 에 3개로 채워진다.
   dgKeys: {}, dgKeyDay: 0,
+  // 던전별 오늘 광고 열쇠 충전 횟수. 날짜 리셋은 dgKeyRefill 이 같이 한다
+  dgKeyAd: {},
   // 무한의 탑 — 입장 제한 없음, 직전에 뚫은 층 다음부터
   tower: { floor: 1, best: 0 },
   dg: {}, arenaScore: 1000, medal: 0,      // 훈장은 아레나에서만 벌고 아레나에서만 쓴다
@@ -3359,12 +3362,40 @@ function dgKeyRefill() {
   const day = dayIdx(Date.now());
   if (S.dgKeyDay === day) return;
   S.dgKeyDay = day;
+  S.dgKeyAd = {};              // 광고 충전 횟수도 같은 시각(05:00)에 풀린다
   const n = D.dungeons.entry.dailyKeyGrant;
   for (const dg of D.dungeons.dungeons) {
     S.dgKeys[dg.id] = Math.max(S.dgKeys[dg.id] ?? 0, n);
   }
 }
 const dgKeysOf = id => (S.dgKeys[id] ?? 0);
+
+/** 이 던전에서 오늘 광고로 더 채울 수 있는 횟수 */
+function dgAdLeft(id) {
+  const a = D.dungeons.entry.adBonus;
+  if (!a || !a.entries) return 0;
+  return Math.max(0, (a.dailyLimit || 0) - ((S.dgKeyAd || {})[id] || 0));
+}
+
+/**
+ * 광고 보고 열쇠 충전. **열쇠가 0 일 때만** 버튼이 뜬다 (dungeons.json >
+ * entry.adBonusNote). 횟수는 광고를 끝까지 본 뒤에 깎는다 — 먼저 깎으면
+ * 중간에 닫았을 때 보상도 없이 기회만 사라진다 (claimInstant 와 같은 규칙).
+ */
+async function dgKeyAd(id) {
+  dgKeyRefill();
+  const dg = D.dungeons.dungeons.find(x => x.id === id);
+  if (!dg) return;
+  if (dgAdLeft(id) < 1) return toast(t('오늘 광고 충전을 모두 사용했습니다'));
+  if (!await playAd(AD_DUNGEON_KEYS)) return;
+  const n = D.dungeons.entry.adBonus.entries;
+  S.dgKeyAd = S.dgKeyAd || {};
+  S.dgKeyAd[id] = (S.dgKeyAd[id] || 0) + 1;
+  S.dgKeys[id] = dgKeysOf(id) + n;
+  save(); renderTop();
+  openDungeons();
+  toast(`${t(dg.nameKo)} ${t('열쇠 +{0}', n)}`);
+}
 
 /**
  * 던전 목록 — 용병·스킬과 같은 바텀시트에 담는다 (view/roster.js 의 'dungeon' 모드).
@@ -3408,15 +3439,23 @@ function dungeonHtml() {
         ${open
           ? `${sweepBtnHtml(dg, st)}
              <span class="ent">${t('{0}층', st.floor)}</span>
-             <span class="keys"><img src="/assets/ui/${dg.keyId}.png" alt="열쇠"
-               ><b>${dgKeysOf(dg.id)}<i>/${entries}</i></b></span>`
+             ${dgKeysOf(dg.id) > 0 || !dgAdLeft(dg.id)
+               ? `<span class="keys"><img src="/assets/ui/${dg.keyId}.png" alt="열쇠"
+                   ><b>${dgKeysOf(dg.id)}<i>/${entries}</i></b></span>`
+               // 열쇠를 다 쓰면 그 자리가 충전 버튼이 된다 — 빈 칸에 0/3 을
+               // 띄워 두면 "오늘은 끝" 으로 읽혀 그냥 나간다 (단장 확정 2026-08-26)
+               : `<button class="keys dg-ad" data-dgad="${dg.id}"
+                   title="${t('광고 보고 열쇠 +{0}', D.dungeons.entry.adBonus.entries)}"
+                   ><i class="adTag">AD</i><img src="/assets/ui/${dg.keyId}.png" alt=""
+                   ><b>+${D.dungeons.entry.adBonus.entries}</b></button>`}`
           : `<span class="ent lockv"><img class="lockIc" src="/assets/ui/IC-LOCK-S.png" alt="잠김"
              ><i>${t('퀘스트 {0}', dg.unlockQuest)}</i></span>`}
       </div>`;
     }).join('')
     + '</div>'
-    + `<div class="sh-note">${t('열쇠는 매일 {0}개로 채워진다 (광고 +{1}).',
-        entries, D.dungeons.entry.adBonus.entries)} ${t(D.dungeons.entry.failureCost)}</div>`;
+    + `<div class="sh-note">${t('열쇠는 매일 {0}개로 채워진다. 다 쓰면 광고로 {1}개씩 하루 {2}번까지 충전.',
+        entries, D.dungeons.entry.adBonus.entries, D.dungeons.entry.adBonus.dailyLimit)}
+        ${t(D.dungeons.entry.failureCost)}</div>`;
 }
 
 /**
@@ -3474,6 +3513,9 @@ function bindDungeons(root) {
       e.stopPropagation();
       sweepDungeon(D.dungeons.dungeons.find(d => d.id === b.dataset.sweep));
     }));
+  // 열쇠 충전도 줄 안에 있다 — 전파를 막아야 입장이 같이 일어나지 않는다
+  root.querySelectorAll('[data-dgad]').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); dgKeyAd(b.dataset.dgad); }));
 }
 
 function openDungeons() { roster.open('dungeon'); }
@@ -4430,7 +4472,7 @@ function openEntryShop() {
         <span style="flex:1">${t('광고 보고 +{0}', a.entries.adBonus.entries)}
           <span class="k" style="display:block">${t('하루 {0}회', a.entries.adBonus.dailyLimit)}</span></span>
         <button class="ar-shopb" id="tkAd" ${arenaState().adUsed ? 'disabled' : ''}>
-          ${arenaState().adUsed ? t('받았습니다') : t('광고')}</button></div>`
+          ${arenaState().adUsed ? t('받았습니다') : `<i class="adTag">AD</i>${t('광고')}`}</button></div>`
     + `<div class="frow" style="padding:10px 12px">
         <span style="flex:1">${t('입장권 1장')}
           <span class="k" style="display:block">${t('상한 없음')}</span></span>
@@ -4696,7 +4738,7 @@ function claimArenaDaily() {
 async function arenaAd() {
   const a = arenaState();
   if (a.adUsed) return toast(t('오늘 광고 입장은 받았습니다'));
-  if (!(await playAd('arena_entries'))) return;
+  if (!(await playAd(AD_ARENA_ENTRIES))) return;
   a.adUsed = 1;
   save(); openArena();
 }
@@ -6996,6 +7038,10 @@ function bootTapToStart() {
   // 콘솔에서 바로 걸어 볼 수 있게 열어 둔다 (window.__scene 과 같은 성격)
   // 서버 없이 live 경로를 시험할 수 있게 열어 둔다 —
   // __dbg.live.initLive(mockServer) 로 붙였다 떼었다 할 수 있다
+  // 광고 SDK 주입구 — 개발 빌드에서 rewarded/dismissed 시나리오를 직접 먹여
+  // 보상 지급 경로를 검증한다 (호스트 밖에서는 실제 광고가 unsupported 라
+  // 이걸 안 열면 확인할 길이 없다)
+  if (import.meta.env.DEV) window.__setAdSdk = setAdSdk;
   window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live,
     openAllianceGate, openAlliance, openArena, openFriends, openChat };
   await scene.init();

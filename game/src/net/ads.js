@@ -24,6 +24,8 @@ export const AD_UNAVAILABLE = 'unavailable';
  */
 export const AD_IDLE_DOUBLE = 'idle_double';    // 방치 보상 2배 수령
 export const AD_INSTANT_CLAIM = 'instant_claim'; // 2시간분 즉시 수령
+export const AD_ARENA_ENTRIES = 'arena_entries'; // 아레나 입장권 +3
+export const AD_DUNGEON_KEYS = 'dungeon_keys';   // 던전 열쇠 +1 (열쇠를 다 썼을 때)
 
 /**
  * 테스트·대체 구현 주입구. `{ showRewarded({placementId}) }` 모양이면 된다.
