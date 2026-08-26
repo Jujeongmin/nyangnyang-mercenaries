@@ -1184,21 +1184,28 @@
   .dg .keys i{font-style:normal;font-size:10px;font-weight:700;color:var(--dim)}
   /* 열쇠를 다 썼을 때 그 자리에 서는 충전 단추. 같은 알약 모양을 유지하되
      초록(광고=공짜로 더 받는 것)으로 갈아 열쇠 칩과 구분한다 */
-  .dg button.keys{cursor:pointer;font-family:inherit;padding-left:5px;
-    background:linear-gradient(#2f7a44,#215c33);border-color:#59d17a}
-  .dg button.keys b{color:#eafff0}
+  .dg button.keys{cursor:pointer;font-family:inherit;padding-left:6px}
   .dg button.keys:active{transform:scale(.95)}
-  /* **AD 배지.** 초록색만으로는 "광고를 보면 준다"가 안 읽힌다 (단장 지적
-     2026-08-26). 광고로 받는 자리는 전부 이 배지를 단다 — 누르기 전에
-     광고가 뜬다는 것을 알아야 오탭이 배신으로 느껴지지 않는다.
-     글자는 번역하지 않는다: AD 는 이 자리에서 만국 공통 기호다 */
-  .adTag{display:inline-flex;align-items:center;justify-content:center;
-    flex:0 0 auto;height:14px;padding:0 4px;border-radius:4px;
-    background:#ffd54a;color:#3a2a00;font-size:9px;font-weight:900;
-    line-height:1;letter-spacing:.5px;text-shadow:none}
-  /* 방치 보상 창·아레나 입장권 창의 광고 단추에도 같은 배지를 단다 */
-  .id-btns .ad,.id-alt button.ad,#tkAd{display:inline-flex;align-items:center;
-    justify-content:center;gap:5px}
+  /* **AD 배지.** 광고를 봐야 준다는 걸 누르기 전에 알려야 오탭이 배신으로
+     느껴지지 않는다 (단장 지적 2026-08-26). 초록 버튼 + 노란 사각 배지는
+     게임의 나무·금색 톤에서 혼자 튀어서, 어두운 나무 알약에 금테를 두르고
+     재생 삼각형을 붙이는 쪽으로 바꿨다 (2차 지적).
+     글자는 번역하지 않는다 — AD 는 이 자리에서 만국 공통 기호다 */
+  .adTag{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;
+    height:15px;padding:0 5px 0 4px;border-radius:8px;
+    background:linear-gradient(#241a10,#150f08);
+    border:1px solid var(--gold);box-shadow:inset 0 1px 0 #ffffff14;
+    color:var(--gold);font-size:8px;font-weight:900;
+    line-height:1;letter-spacing:.6px;text-shadow:none}
+  /* ▶ — 영상이 뜬다는 표시. 글자 하나로는 "광고 상품" 처럼 읽힌다 */
+  .adTag::before{content:"";width:0;height:0;border-style:solid;
+    border-width:3.5px 0 3.5px 5px;border-color:transparent transparent transparent var(--gold)}
+  /* 광고 단추는 전부 같은 얼굴이다 — 킷 나무 버튼(--f-btn)에 금색 AD 배지.
+     초록은 이 게임에 그 색을 쓰는 자리가 여기밖에 없어서 겉돌았다 */
+  .id-btns .ad,.id-alt button.ad,#tkAd,.dg button.keys{
+    display:inline-flex;align-items:center;justify-content:center;gap:5px;
+    background:none;border-style:solid;border-width:10px;border-radius:0;
+    border-image:var(--f-btn) 120 fill stretch;color:var(--txt)}
   /* 잠긴 줄은 그림도 죽인다. 투명도만 낮추면 배너가 여전히 화려해 열린 줄과 안 갈린다 */
   /* 소탕 — 줄 안의 단추다. 입장(줄 전체)과 나란히 있으므로 **눌리는 영역이
      또렷해야** 한다: 테두리 있는 알약 모양에 최소 44px 폭 */
@@ -2396,7 +2403,6 @@
   .id-btns button{border-radius:10px;padding:11px 4px;font-size:12px;font-weight:800;
     cursor:pointer;font-family:inherit;border:1px solid var(--line);
     background:var(--panel2);color:var(--txt)}
-  .id-btns .ad{background:linear-gradient(#3f8a4f,#2c6a3c);border-color:#5ad86a}
 
   /* 단장 프로필 — 레벨 + 경험치 바 */
   #capbox{position:relative;flex:0 0 auto}
@@ -2659,7 +2665,6 @@
   .id-alt button{margin-left:auto;border-radius:9px;padding:8px 13px;font-size:11px;
     font-weight:800;cursor:pointer;font-family:inherit;border:1px solid var(--line);
     background:var(--panel2);color:var(--txt);flex:0 0 auto}
-  .id-alt button.ad{background:linear-gradient(#3f8a4f,#2c6a3c);border-color:#5ad86a}
   .id-alt button:disabled{opacity:.35;cursor:default}
 
   /* 보스 도전 버튼 — 진행도 바로 아래 */
