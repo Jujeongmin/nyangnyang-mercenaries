@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@verse8/ads": "^0.5.0",
-    "@verse8/platform": "^2.1.0"
+    "@verse8/platform": "^2.1.0",
+    "@verse8/react-client": "^1.0.32"
   }
 }
