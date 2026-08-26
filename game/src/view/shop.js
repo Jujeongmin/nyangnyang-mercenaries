@@ -348,7 +348,7 @@ export class ShopScreen {
     const pk = (D.shop.packages || []).find(x => x.id === 'premium_pack');
     if (!pk || (S.speed3 && S.adFree)) return '';
     const daily = pk.dailyGrant?.diamond ?? 0;
-    return `<div class="sh-card speed3"${pimg(pk)}>
+    return `<div class="sh-card speed3">
       <b>${t(pk.nameKo)}</b>
       <span class="sh-desc">${t('전투·방치 3배속 영구 해금 · 광고 버튼이 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급', daily)}</span>
       <button class="sh-price" data-buy="premium_pack">${priceLabel(this.api, 'premium_pack', pk.vx)}</button>

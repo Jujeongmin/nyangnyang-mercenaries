@@ -2288,9 +2288,9 @@
     /* .sh-card 의 align-items:center 를 되돌린다 — 안 그러면 세로 배치에서
        제목·설명만 가운데로 서고 [구매] 버튼(align-self)만 왼쪽에 남는다 */
     align-items:flex-start;
-    /* 판때기 색은 상품 아트의 배경색이다 (SHOP-PREMIUM 의 (36,9,0)) — 아래
-       격자 칸과 같은 처리로, 그림이 얹힌 자리에 네모 경계가 안 생긴다 */
-    background:#240900;border-color:var(--gold)}
+    /* 판때기 색은 배너(SHOP-SPEED) 가장자리색이다 — 배너가 덮지 못한 자리가
+       같은 색이라 경계가 안 생긴다 */
+    background:#130600;border-color:var(--gold)}
   .sh-card.speed3 > *{position:relative;z-index:1}
   .sh-card.speed3 b{font-size:15px;text-shadow:0 1px 4px #000}
   .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000;max-width:74%}
@@ -2915,15 +2915,17 @@
   /* 9슬라이스 `fill` 은 가운데 조각으로 **요소 배경을 덮는다** — 배너를
      background 로 깔면 프레임 그림에 가려 안 보인다 (다이아 묶음은 <img> 라
      보였던 것). 배너는 프레임 안쪽 레이어(::before)에 깐다 (2026-08-26) */
-  /* 프리미엄 카드도 판때기를 아트 배경색으로 맞춘다 (단장 확정 2026-08-26).
-     킷이 .sh-card 의 background 를 none 으로 지우므로 여기서 다시 깐다.
-     상품 그림은 ::before 로 **오른쪽에** 세운다 — 예전처럼 배너를 cover 로
-     깔면 512 정사각 아트가 가로로 잘려 소재가 날아간다 */
-  .sh-card.speed3{padding:12px 14px;background:#240900}
-  .sh-card.speed3::before{content:"";position:absolute;top:-11px;bottom:-11px;
-    right:-11px;width:44%;z-index:0;pointer-events:none;
-    background-image:var(--pimg,url(/assets/ui/SHOP-PREMIUM.png));
-    background-size:contain;background-position:center right;background-repeat:no-repeat}
+  /* 프리미엄은 **원래 쓰던 가로 배너(SHOP-SPEED)** 다 (단장 확정 2026-08-26).
+     구분선이 생기던 이유는 킷의 나무 프레임(border-image) 때문이다 — 프레임
+     그림과 배너가 서로 다른 색이라 그 경계가 선으로 보였다. 프레임을 걷고
+     판때기를 배너 가장자리색으로 맞춰서 경계가 생길 자리를 없앤다 */
+  .sh-card.speed3{padding:12px 14px;background:#130600;
+    border:1px solid var(--gold);border-radius:12px;border-image:none}
+  .sh-card.speed3::before{content:"";position:absolute;inset:0;z-index:0;
+    pointer-events:none;border-radius:11px;
+    background-image:linear-gradient(90deg,#130600ee 0%,#130600bb 46%,#13060044 100%),
+      url(/assets/ui/SHOP-SPEED.webp);
+    background-size:cover;background-position:center}
   /* 패키지 격자 칸도 킷 프레임을 입는다 — 옆의 다이아 묶음과 같은 나무틀이라야
      한 탭 안에서 따로 논다는 느낌이 없다 */
   /* **칸 판때기를 아트 배경색으로 맞춘다.** 상품 그림이 불투명한 정사각이라
