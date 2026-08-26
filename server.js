@@ -160,6 +160,10 @@ const PRODUCTS = {
   pass_premium_s1: { unlock: 'pass', once: true },
 };
 
+// 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
+// serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
+const SERVER_REV = 2;
+
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
 const CHAT_MAX_LEN = 100;
@@ -245,6 +249,26 @@ async function oneByAccount(collection, account) {
 }
 
 class Server {
+  /**
+   * **지금 어느 server.js 가 도는가.** 배포가 반영됐는지 1초에 확인하는 용도다.
+   *
+   * 필요해진 이유: 채팅이 저장은 되는데(sendChat ok) 읽히지 않아서(getChat [])
+   * 서버 코드를 고쳤는데, 고친 게 실제로 배포됐는지 알 방법이 없었다.
+   * 코드를 고칠 때마다 아래 SERVER_REV 를 올린다.
+   *
+   * 클라에서:  __dbg.live.raw('serverInfo').then(console.log)
+   */
+  async serverInfo() {
+    return {
+      rev: SERVER_REV,
+      chatWorld: CHAT_WORLD,
+      // 지금 이 컬렉션에 몇 줄이 있나 — 조회가 비는 게 "없어서"인지
+      // "못 읽어서"인지 가른다
+      chatCount: await $global.countCollectionItems(CHAT_WORLD, {}).catch(() => -1),
+      account: $sender.account,
+    };
+  }
+
   /** 세이브 저장. force 는 진행 후퇴 가드를 넘을 때만 — 클라가 유저에게
    *  "서버 저장이 더 앞서 있다. 정말 덮어쓰나?" 를 물은 뒤에 준다. */
   async saveState(payload, force) {

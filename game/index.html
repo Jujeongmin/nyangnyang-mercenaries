@@ -957,17 +957,25 @@
   #skillbar #skills{pointer-events:auto}
   #dpsInfo{font-size:10px;color:#f2e5db;text-shadow:0 1px 3px #000,0 0 6px #000}
   #skills{max-width:calc(100cqw - 62px);display:flex;justify-content:center;gap:6px}
-  /* 칸 폭 = (쓸 수 있는 폭 - AUTO 한 칸 - 간격) / 8.
+  /* 칸 폭 = (쓸 수 있는 폭 - 칸 사이 간격) / 칸 수.
      **쓸 수 있는 폭은 좌우 사이드 열을 뺀 값이다** — 그걸 안 빼면 넓은 화면에서
      줄이 사이드 아이콘 밑으로 파고든다 (단장 지적 2026-08-25).
      사이드 한 쪽이 최대 58px + 바깥 여백이라 좌우로 넉넉히 150px 을 뺀다.
-     칸이 9개(AUTO 포함)이므로 9로 나눈다 */
-  #skRow{--sk-cell:clamp(30px,calc((100cqw - 150px - 8*6px)/9),64px)}
+
+     **칸 수를 박아 두지 않는다.** 예전에는 9(AUTO + 액티브4 + 패시브4)로
+     나눴는데, 단장 스킬처럼 칸이 하나라도 늘면 폭 계산이 어긋나 줄이 화면
+     밖으로 나갔다 (단장 지적 2026-08-26). renderSkills 가 실제 칸 수를
+     --sk-n 으로 넣어 주고, 여기서는 그 값으로 나눈다. */
+  #skRow{--sk-n:9;--sk-gap:6px;
+    --sk-cell:clamp(22px,calc((100cqw - 150px - (var(--sk-n) - 1) * var(--sk-gap))/var(--sk-n)),64px)}
+  #skills{gap:var(--sk-gap)}
   .sk{position:relative;width:var(--sk-cell);aspect-ratio:1;
     height:auto;border-radius:50%;overflow:hidden;
     background:radial-gradient(circle at 50% 35%,#2b3650cc,#1c1612cc);
     border:2px solid #0009;box-shadow:0 2px 6px #0008;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    /* 계산이 어긋나도 **줄어들지언정 넘치지는 않게** 한다 — 마지막 안전판이다 */
+    flex:0 1 var(--sk-cell);min-width:0}
   .sk img{width:100%;height:100%;object-fit:cover}
   .sk.lock{background:#1c1612cc}
   /* 이모지 자물쇠는 기기마다 모양·색이 달라 화면 톤이 깨진다. 에셋으로 통일 */

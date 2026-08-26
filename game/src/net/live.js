@@ -96,6 +96,18 @@ export const get = key => cache[key];
 const call = (name, args = []) => server.remoteFunction(name, args);
 
 /**
+ * 서버 함수를 이름으로 직접 부른다. **진단 전용이다.**
+ * 화면 코드는 위의 이름 붙은 함수들을 쓴다 — 여기로 부르면 어디서 무엇을
+ * 부르는지 추적이 안 된다.
+ *
+ * 이게 있는 이유: 배포본에서 "서버가 무엇을 돌려주나" 를 볼 때마다 클라
+ * 코드를 고쳐 배포할 수는 없다. 콘솔에서 바로 찔러 본다.
+ *   __dbg.live.raw('serverInfo').then(console.log)
+ */
+export const raw = (name, args = []) => (server ? call(name, args)
+  : Promise.reject(new Error('서버에 안 붙어 있다')));
+
+/**
  * 어떤 값을 받아 캐시에 넣고 onDone 을 부른다.
  * 실패는 **조용히 삼킨다** — 연합 목록이 안 온다고 게임이 멈추면 안 된다.
  * 대신 캐시를 안 건드려서 화면은 직전 값(또는 데모)을 유지한다.

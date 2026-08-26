@@ -2457,6 +2457,30 @@ function renderCsChip() {
   };
   set($('#csChip'), csMine(), S.promoSkillLv, csVal());
   set($('#csChip2'), cs2Mine(), S.promoSkillLv2, cs2Val());
+  syncSkRowCount();
+}
+
+/**
+ * 스킬 줄의 **실제 칸 수**를 CSS 에 알린다.
+ *
+ * 칸 폭이 (쓸 수 있는 폭 ÷ 칸 수) 로 정해지는데, 예전에는 그 9 가 CSS 에
+ * 박혀 있었다. 전직 스킬(csChip·csChip2)이 열리면 칸이 10~11개가 되면서
+ * 줄이 화면 밖으로 밀려났다 (단장 지적 2026-08-26).
+ *
+ * 세는 것은 **지금 보이는 것만**이다 — hidden 인 전직 칩은 자리를 안 차지한다.
+ * 액티브와 패시브 사이의 간격(.skgap)도 한 칸 몫으로 친다.
+ */
+function syncSkRowCount() {
+  const row = $('#skRow');
+  if (!row) return;
+  const vis = el => el && !el.hidden && el.offsetParent !== null;
+  let n = 0;
+  if (vis($('#skAuto'))) n++;
+  n += document.querySelectorAll('#skills .sk').length;
+  if (document.querySelector('#skills .skgap')) n += 1;   // 간격도 폭을 먹는다
+  if (vis($('#csChip'))) n++;
+  if (vis($('#csChip2'))) n++;
+  row.style.setProperty('--sk-n', Math.max(1, n));
 }
 
 function missionState() {
