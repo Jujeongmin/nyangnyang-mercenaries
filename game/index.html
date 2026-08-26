@@ -1191,12 +1191,11 @@
      게임의 나무·금색 톤에서 혼자 튀어서, 어두운 나무 알약에 금테를 두르고
      재생 삼각형을 붙이는 쪽으로 바꿨다 (2차 지적).
      글자는 번역하지 않는다 — AD 는 이 자리에서 만국 공통 기호다 */
+  /* 캡슐(테두리+판)은 뺐다 — 이미 버튼 자체가 나무 프레임이라 액자 안에
+     액자였다 (단장 지적 2026-08-26). ▶ 와 글자만 금색으로 남긴다 */
   .adTag{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;
-    height:15px;padding:0 5px 0 4px;border-radius:8px;
-    background:linear-gradient(#241a10,#150f08);
-    border:1px solid var(--gold);box-shadow:inset 0 1px 0 #ffffff14;
-    color:var(--gold);font-size:8px;font-weight:900;
-    line-height:1;letter-spacing:.6px;text-shadow:none}
+    color:var(--gold);font-size:9px;font-weight:900;
+    line-height:1;letter-spacing:.6px;text-shadow:0 1px 2px #000}
   /* ▶ — 영상이 뜬다는 표시. 글자 하나로는 "광고 상품" 처럼 읽힌다 */
   .adTag::before{content:"";width:0;height:0;border-style:solid;
     border-width:3.5px 0 3.5px 5px;border-color:transparent transparent transparent var(--gold)}
