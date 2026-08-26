@@ -48,29 +48,41 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 // 단장 공격 시트의 프레임 수. **시트마다 다르다** — 칸 폭이 시트 폭÷프레임 수라
 // 이 숫자가 틀리면 프레임이 어긋나게 잘려 캐릭터가 반씩 잘린 채 재생된다.
-//   warrior  1732x329, 433px 칸 4장 (2026-08-26 교체분)
-//   archer   4096x512, 512px 칸 8장
-//   mage     4096x512, 512px 칸 8장
+//   warrior  1732x329, 433px 칸 4장
+//   archer   2712x389, 339px 칸 8장
+//   mage     2652x579, 663px 칸 4장
+// (셋 다 2026-08-26 에 정리 스크립트로 새로 구운 것이다 — 칸 크기가 제각각인
+//  것은 원화 비율이 달라서다. 프레임 수와 트림을 시트마다 따로 잰다)
 // 시트를 갈면 이 표를 같이 고친다.
 //
 // warrior 는 원래 9장(IDLE·WINDUP·DASH·LEAP·SLASH1~3·IMPACT·RECOVERY)이었는데
 // 제자리 공격에 DASH·LEAP·IMPACT·RECOVERY 는 안 맞아서 네 장만 남겼다:
 // IDLE -> WINDUP -> SLASH1 -> SLASH2 (단장 확정 2026-08-26).
-const ATTACK_FRAMES = { warrior: 4, archer: 8, mage: 8 };
+const ATTACK_FRAMES = { warrior: 4, archer: 8, mage: 4 };
 
 // 칸 안에서 캐릭터가 차지하는 영역. 칸에는 위아래 여백이 있어서, 이걸 안 주면
 // 캐릭터가 여백만큼 작아지고 발이 뜬다 (rig.js 의 attackTrim 설명 참고).
 //   h     칸 안 캐릭터 높이 (가장 큰 프레임 기준)
 //   footY 칸 안에서 발이 닿는 y
-// warrior: 329px 칸, 여백 24, 캐릭터 281 -> 발은 329-24 = 305
-// archer·mage 는 옛 512² 시트라 여백을 모른다. 빼 두면 칸 전체를 쓴다(종전 동작).
-const ATTACK_TRIM = { warrior: { h: 266, footY: 305 } };
+// 값은 정리 스크립트가 시트를 구운 뒤 실측해 뱉은 것이다 — 눈대중으로 넣으면
+// 캐릭터가 작아지거나 발이 뜬다.
+const ATTACK_TRIM = {
+  warrior: { h: 266, footY: 305 },
+  archer: { h: 341, footY: 365 },
+  mage: { h: 531, footY: 555 },
+};
 
 // 걷기 시트 — 몹을 다 잡고 다음 무리로 이동하는 구간(phase === 'walk')에 돈다.
-//   warrior  3336x405, 417px 칸 8장, 캐릭터 최대 357, 발 381
+//   warrior  3336x405, 417px 칸 8장
+//   archer   2872x402, 359px 칸 8장
+//   mage     2896x437, 362px 칸 8장
 // 시트가 없는 직업은 예전처럼 제자리에서 위아래로 튄다.
-const WALK_FRAMES = { warrior: 8 };
-const WALK_TRIM = { warrior: { h: 357, footY: 381 } };
+const WALK_FRAMES = { warrior: 8, archer: 8, mage: 8 };
+const WALK_TRIM = {
+  warrior: { h: 357, footY: 381 },
+  archer: { h: 354, footY: 378 },
+  mage: { h: 389, footY: 413 },
+};
 const WALK_FPS = 12;              // 8프레임이면 한 걸음 주기 약 0.67초
 
 // 아군 5인 "(" 대형 — 앞(아래)일수록 크고 늦게 그린다
@@ -481,7 +493,10 @@ export class BattleScene {
     if (!this.app) return 110;
     const H = this.app.screen.height, W = this.app.screen.width;
     // 아군 5 + 단장 1 + 적 4 = 10유닛. 크게 잡으면 서로 가려 아무것도 안 읽힌다.
-    return Math.min(H * 0.245, W * 0.19);
+    // **이 함수 하나가 전투의 모든 크기 기준이다** — 단장·아군·잡몹·보스·
+    // 아레나 상대와 배치 간격까지 전부 여기서 파생된다. 그래서 전체를 줄일 때는
+    // 여기만 곱한다 (단장 지시로 0.7배, 2026-08-26).
+    return Math.min(H * 0.245, W * 0.19) * 0.7;
   }
 
   layout() {
