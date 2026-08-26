@@ -2252,15 +2252,31 @@
     font-size:9px;font-weight:900;padding:2px 6px;border-radius:8px}
 
   /* 패키지 */
-  /* 3배속 — 전용 배너(SHOP-SPEED)를 깔고 글자가 그 위에 앉는다.
-     한 줄짜리 카드였을 때는 이 상품만 그림이 없어 혼자 초라했다 */
-  .sh-card.speed3{position:relative;min-height:118px;padding:12px 14px;
+  /* 유료 상품 카드 — 상품 그림은 **512 정사각 아트**다 (VX 대시보드와 같은
+     그림). 배경으로 깔면 가로로 잘려 소재가 날아가므로, 오른쪽에 통째로
+     세우고 왼쪽으로 녹여서 글자가 그 위를 지나가게 한다 (단장 확정 2026-08-26) */
+  .sh-card.speed3{position:relative;overflow:hidden;min-height:118px;padding:12px 14px;
     display:flex;flex-direction:column;justify-content:flex-end;gap:3px;
-    background-image:linear-gradient(90deg,#150f0bee 0%,#150f0bbb 46%,#150f0b44 100%),
-      url(/assets/ui/SHOP-SPEED.webp);
-    background-size:cover;background-position:center;border-color:var(--gold)}
+    /* .sh-card 의 align-items:center 를 되돌린다 — 안 그러면 세로 배치에서
+       제목·설명만 가운데로 서고 [구매] 버튼(align-self)만 왼쪽에 남는다 */
+    align-items:flex-start;
+    background:linear-gradient(90deg,#150f0b,#221810);border-color:var(--gold)}
+  .sh-card.speed3::after{content:"";position:absolute;right:-4px;top:0;bottom:0;
+    width:132px;background-image:var(--pimg,none);background-size:contain;
+    background-position:center right;background-repeat:no-repeat;pointer-events:none;
+    /* 네 변을 다 녹인다. 왼쪽만 녹이면 아트의 어두운 정사각 배경이 카드 위에
+       네모로 얹혀 "붙여넣은 그림"으로 보인다 (실사용 확인 2026-08-26) */
+    -webkit-mask-image:linear-gradient(90deg,#0000,#000 46%),
+      linear-gradient(#0000,#000 14%,#000 86%,#0000);
+    -webkit-mask-composite:source-in;
+    mask-image:linear-gradient(90deg,#0000,#000 46%),
+      linear-gradient(#0000,#000 14%,#000 86%,#0000);
+    mask-composite:intersect}
+  /* 글자는 그림 위에 선다 — ::after 가 뒤에 그려지므로 본문에 z-index 를 준다 */
+  .sh-card.speed3 > *{position:relative;z-index:1}
   .sh-card.speed3 b{font-size:15px;text-shadow:0 1px 4px #000}
-  .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000}
+  /* 오른쪽 그림 자리를 비운다. 안 비우면 긴 설명이 그림 위로 올라가 둘 다 안 읽힌다 */
+  .sh-card.speed3 .sh-desc{text-shadow:0 1px 3px #000;max-width:66%}
   .sh-card.speed3 .sh-price{align-self:flex-start;margin-top:4px}
   .sh-card.speed3.owned{border-color:var(--line)}
 
@@ -2295,9 +2311,12 @@
   .sh-card .sh-desc{flex:1;margin:0}
   .sh-card.deal{border-left:3px solid var(--gold)}
   /* 3배속 해금 — 다이아 탭에서 유일한 "성능" 상품이라 눈에 띄게 */
-  .sh-card.speed3{border:1px solid var(--gold);position:relative;overflow:hidden;
-    background:linear-gradient(90deg,#17100dcc,#17100d55),url(/assets/ui/SHOP-SPEED.webp) center/cover no-repeat}
+  /* 유료 상품 카드의 본체 규칙은 **위쪽 블록**이다 (SHOP-* 정사각 아트를
+     ::after 로 오른쪽에 세우는 구조). 여기서 background 를 다시 깔면 이 줄이
+     뒤에 있어서 이깁니다 — 예전 SHOP-SPEED 배너를 깔던 자리였고, 그것 때문에
+     상품마다 다른 그림이 전부 3배속 배너로 덮여 있었다 (2026-08-26 수정) */
   .sh-card.speed3.owned{border-color:var(--line);background:var(--card)}
+  .sh-card.speed3.owned::after{opacity:.45}
 
   .sh-hero{position:relative;background:linear-gradient(120deg,#3b2a6b,#524236);
     border:1px solid #6a5ac0;border-radius:14px;padding:16px;text-align:center;

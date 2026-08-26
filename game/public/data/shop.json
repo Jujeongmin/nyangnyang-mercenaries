@@ -36,7 +36,8 @@
    },
    "priceTier": "소액",
    "note": "천장이 없는 구조라 초반 이탈 위험이 크다. SSR 선택권을 저가에 붙여 첫 7일을 넘기게 하는 것이 목적. gacha.json > onboardingGuarantees 와 같은 방어선.",
-   "vx": 500
+   "vx": 500,
+   "img": "SHOP-STARTER"
   },
   {
    "id": "premium_pack",
@@ -55,7 +56,8 @@
    "history": "구 speed3_unlock(3배속+일일 다이아 상점 수령) 과 adfree_pack 을 합쳤다. 일일 다이아는 우편 쪽으로 통일 — 카드가 사라진 뒤 받을 자리가 우편뿐이다.",
    "budgetNote": "일일 100 = 월 3,000. 과금자 월 구매량 132,000 의 2.3% — 구 speed3 budgetNote 논리 유지.",
    "vx": 1000,
-   "vxNote": "100 VX = $1. VX대시보드 등록값과 같게 유지 (단장 확정 2026-08-26)"
+   "vxNote": "100 VX = $1. VX대시보드 등록값과 같게 유지 (단장 확정 2026-08-26)",
+   "img": "SHOP-PREMIUM"
   },
   {
    "id": "growth_pack_50",
@@ -65,7 +67,8 @@
    "grant": {
     "diamond": 3000,
     "equip_ticket": 200
-   }
+   },
+   "img": "SHOP-GROWTH1"
   },
   {
    "id": "growth_pack_100",
@@ -76,7 +79,8 @@
     "diamond": 6000,
     "speedup_5m": 50,
     "equip_ticket": 500
-   }
+   },
+   "img": "SHOP-GROWTH2"
   },
   {
    "id": "growth_pack_150",
@@ -87,7 +91,8 @@
     "diamond": 12000,
     "speedup_5m": 100,
     "equip_ticket": 1200
-   }
+   },
+   "img": "SHOP-GROWTH3"
   }
  ],
  "subscription": {
@@ -178,5 +183,6 @@
   }
  ],
  "quickHourglassNote": "개당 10 다이아 균일 (단장 확정 2026-08-26). 구 100/300/1000 은 개당 8.3~6.7 로 묶음이 쌌는데, 단가를 올리며 할인도 없앴다 — 모래시계가 주 과금처라 할인이 곧 매출 할인이다.",
- "growthPackNote": "2026-08-26 단장 확정: 스테이지 도달 트리거·3일 한정을 없애고 처음부터 상점 상시 노출, 각 1회 구매. 구 growth_pack(마일스톤 팝업형)은 폐기 — 결제 연동 시 대시보드 Lifetime Limit 1 로 등록."
+ "growthPackNote": "2026-08-26 단장 확정: 스테이지 도달 트리거·3일 한정을 없애고 처음부터 상점 상시 노출, 각 1회 구매. 구 growth_pack(마일스톤 팝업형)은 폐기 — 결제 연동 시 대시보드 Lifetime Limit 1 로 등록.",
+ "imgNote": "상품 그림 (assets/ui/<img>.png). VX 대시보드 등록 이미지와 같은 아트다 — 한 곳에서 그려 두 곳이 같은 얼굴을 쓴다 (단장 확정 2026-08-26)"
 }

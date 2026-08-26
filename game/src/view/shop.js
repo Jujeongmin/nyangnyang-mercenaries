@@ -10,6 +10,13 @@
 
 import { num, mdb } from '../core/fmt.js';
 import { t } from '../core/i18n.js';
+
+/**
+ * 상품 그림 인라인 변수. `shop.json > packages[].img` 가 파일명을 준다 —
+ * VX 대시보드에 올리는 아트와 같은 그림이라, 한 곳에서 그리면 두 곳이 같이 바뀐다.
+ * 그림이 없는 상품은 빈 문자열이라 카드가 그냥 단색으로 뜬다 (안전한 폴백).
+ */
+const pimg = pk => (pk.img ? ` style="--pimg:url(/assets/ui/${pk.img}.png)"` : '');
 const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
 
 /** 소환 레벨 진행 — gacha.json > tracks[].levelRequirement */
@@ -327,7 +334,7 @@ export class ShopScreen {
     const pk = (D.shop.packages || []).find(x => x.id === 'premium_pack');
     if (!pk || (S.speed3 && S.adFree)) return '';
     const daily = pk.dailyGrant?.diamond ?? 0;
-    return `<div class="sh-card speed3">
+    return `<div class="sh-card speed3"${pimg(pk)}>
       <b>${t(pk.nameKo)}</b>
       <span class="sh-desc">${t('전투·방치 3배속 영구 해금 · 광고 버튼이 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급', daily)}</span>
       <button class="sh-price" data-buy="premium_pack">${t('구매')}</button>
@@ -346,7 +353,7 @@ export class ShopScreen {
     if (!pk || left <= 0) return '';
     const d = Math.floor(left / 86400e3), h = Math.floor(left % 86400e3 / 3600e3);
     const g = pk.grant || {};
-    return `<div class="sh-card speed3">
+    return `<div class="sh-card speed3"${pimg(pk)}>
       <b>${t(pk.nameKo)}</b>
       <span class="sh-desc">${t('다이아 {0} · 용병권 {1} · 스킬권 {2} · 장비권 {3}',
         num(g.diamond || 0), g.merc_ticket || 0, g.skill_ticket || 0, g.equip_ticket || 0)}
@@ -366,7 +373,7 @@ export class ShopScreen {
     const CUR = { diamond: '다이아', speedup_5m: '모래시계', equip_ticket: '장비권' };
     return (D.shop.packages || [])
       .filter(x => /^growth_pack_/.test(x.id) && !bought.includes(x.id))
-      .map(pk => `<div class="sh-card speed3">
+      .map(pk => `<div class="sh-card speed3"${pimg(pk)}>
         <b>${t(pk.nameKo)}</b>
         <span class="sh-desc">${Object.entries(pk.grant || {})
           .map(([k, v]) => `${t(CUR[k] || k)} ${num(v)}`).join(' · ')}</span>

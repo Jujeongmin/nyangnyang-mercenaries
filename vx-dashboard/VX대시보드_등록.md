@@ -43,11 +43,11 @@
 ### 이미지 상태
 
 - `pack_s`~`pack_xxl`: 기존 SHOP-D1~D5 그대로 (검수 완료 아트).
-- `premium_pack`: SHOP-SPEED.webp 를 512×512 로 패딩한 것(구 speed3_unlock.png 를 이름만 바꿈) — 광고 제거 요소가 안 보이니 전용 아트 권장.
-- `pass_premium`: **미제작** — 황금 티켓 계열(PN-PASS 톤) 아트 필요.
-- `starter_pack`: **SHOP-D6 임시 유용** — 전용 아트 필요.
-- `growth_pack`: CU-04+CU-01 임시 합성 — 전용 아트 필요.
-- `adfree_pack`: AD 금지 표지 임시 제작 — 전용 아트 필요.
+- `premium_pack` · `pass_premium` · `starter_pack` · `growth_pack_50/100/150`:
+  **전용 아트 완료 (2026-08-26).** 같은 그림을 게임 안에서도 쓴다 —
+  `game/public/assets/ui/SHOP-PREMIUM · SHOP-PASS · SHOP-STARTER ·
+  SHOP-GROWTH1~3 .png` (256색 양자화본). 상품 그림의 단일 소스는
+  `shop.json > packages[].img` 다.
 
 ---
 
