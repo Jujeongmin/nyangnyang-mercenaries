@@ -4472,7 +4472,7 @@ function openEntryShop() {
         <span style="flex:1">${t('광고 보고 +{0}', a.entries.adBonus.entries)}
           <span class="k" style="display:block">${t('하루 {0}회', a.entries.adBonus.dailyLimit)}</span></span>
         <button class="ar-shopb" id="tkAd" ${arenaState().adUsed ? 'disabled' : ''}>
-          ${arenaState().adUsed ? t('받았습니다') : `<i class="adTag">AD</i>${t('광고')}`}</button></div>`
+          ${arenaState().adUsed ? t('받았습니다') : t('광고')}</button></div>`
     + `<div class="frow" style="padding:10px 12px">
         <span style="flex:1">${t('입장권 1장')}
           <span class="k" style="display:block">${t('상한 없음')}</span></span>

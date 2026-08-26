@@ -1200,8 +1200,10 @@
   /* ▶ — 영상이 뜬다는 표시. 글자 하나로는 "광고 상품" 처럼 읽힌다 */
   .adTag::before{content:"";width:0;height:0;border-style:solid;
     border-width:3.5px 0 3.5px 5px;border-color:transparent transparent transparent var(--gold)}
-  /* 광고 단추는 전부 같은 얼굴이다 — 킷 나무 버튼(--f-btn)에 금색 AD 배지.
-     초록은 이 게임에 그 색을 쓰는 자리가 여기밖에 없어서 겉돌았다 */
+  /* 배지는 **글자로 광고라고 안 쓰는 자리에만** 단다 — 방치 보상 패널은
+     버튼에 이미 "광고 보고 2배"·"광고" 라고 적혀 있어 배지가 겹말이다
+     (단장 지적 2026-08-26). 던전 열쇠·아레나 입장권처럼 아이콘과 수량만
+     있는 자리가 배지가 필요한 자리다 */
   .id-btns .ad,.id-alt button.ad,#tkAd,.dg button.keys{
     display:inline-flex;align-items:center;justify-content:center;gap:5px;
     background:none;border-style:solid;border-width:10px;border-radius:0;
@@ -4229,7 +4231,7 @@
     <div class="id-row"><img src="/assets/ui/CU-04.png" alt=""><b id="idGold">0</b></div>
     <div class="id-btns">
       <button id="idOk">수령</button>
-      <button id="idAd" class="ad"><i class="adTag">AD</i>광고 보고 2배</button>
+      <button id="idAd" class="ad">광고 보고 2배</button>
     </div>
     <div class="id-alt">
       <span><b>2시간 보상 즉시 수령</b><span id="idFreeN"></span></span>
@@ -4237,7 +4239,7 @@
     </div>
     <div class="id-alt">
       <span><b>광고 보고 2시간 더</b><span id="idAdN"></span></span>
-      <button id="idAdInstant" class="ad"><i class="adTag">AD</i>광고</button>
+      <button id="idAdInstant" class="ad">광고</button>
     </div>
     <button id="idClose" style="margin-top:10px;width:100%;background:none;border:none;
       color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit">닫기</button>
