@@ -187,6 +187,27 @@ async function srvPatch(patch) {
 }
 
 /** scope -> 컬렉션 이름. 연합 방은 소속이 있어야 존재한다 */
+/**
+ * 정렬 상위 N개. **orderBy 를 믿지 않는다.**
+ *
+ * 백엔드가 orderBy 에 색인을 요구하고, 없으면 오류가 아니라 **빈 배열**을 준다.
+ * 그래서 "저장은 ok 인데 목록이 늘 비어 있다" 가 된다 — 채팅에서 실제로 그랬다
+ * (sendChat 은 {ok:true} 인데 getChat 은 [] 였다, 단장 확인 2026-08-26).
+ * 랭킹·연합 목록도 같은 방식이라 같은 병을 앓는다.
+ *
+ * 정렬 조회를 먼저 시도하고, 비면 통째로 받아 여기서 정렬한다. 이 컬렉션들은
+ * 상한이 작아서(채팅 CHAT_KEEP, 랭킹·연합 수십) 통째로 받아도 부담이 없다.
+ */
+async function sortedTop(collection, opts, field, n) {
+  let rows = await $global.getCollectionItems(collection, {
+    ...opts, orderBy: [{ field, direction: 'desc' }], limit: n,
+  });
+  if (rows && rows.length) return rows;
+  rows = (await $global.getCollectionItems(collection, opts)) || [];
+  rows.sort((a, b) => (b[field] || 0) - (a[field] || 0));
+  return rows.slice(0, n);
+}
+
 async function chatRoomOf(scope) {
   if (scope === 'world') return CHAT_WORLD;
   if (scope !== 'ally') return null;
@@ -326,10 +347,8 @@ class Server {
   // 상위 100 은 안 준다 - 조회는 컬렉션에서 가장 비싼 축이고, 화면이 실제로
   // 보여 주는 것은 20행 + 내 순위 하나다 (ranking.json 정정: getTopRankings 는 20 고정)
   async getTopRankings(limit) {
-    return $global.getCollectionItems('rankings', {
-      orderBy: [{ field: 'score', direction: 'desc' }],
-      limit: Math.min(50, Math.max(1, limit | 0 || 20)),
-    });
+    const n = Math.min(50, Math.max(1, limit | 0 || 20));
+    return sortedTop('rankings', {}, 'score', n);
   }
 
   /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
@@ -441,10 +460,8 @@ class Server {
   // -- 연합 --------------------------------------------------
   /** 목록. 정원이 찬 연합도 보여 준다 - 안 보이면 "왜 안 뜨지" 가 된다 */
   async allianceList(limit) {
-    return $global.getCollectionItems('alliances', {
-      orderBy: [{ field: 'weekly', direction: 'desc' }],
-      limit: Math.min(30, Math.max(1, limit | 0 || 20)),
-    });
+    const n = Math.min(30, Math.max(1, limit | 0 || 20));
+    return sortedTop('alliances', {}, 'weekly', n);
   }
 
   /** 내 소속. 없으면 null */
@@ -775,10 +792,10 @@ class Server {
   async getChat(scope, limit) {
     const room = await chatRoomOf(scope);
     if (!room) return [];
-    const rows = await $global.getCollectionItems(room, {
-      orderBy: [{ field: 'at', direction: 'desc' }],
-      limit: Math.min(CHAT_KEEP, Math.max(1, limit | 0 || 40)),
-    });
+    const n = Math.min(CHAT_KEEP, Math.max(1, limit | 0 || 40));
+    // 최신이 먼저 오게 받아서 뒤집는다 — 화면은 아래가 최신이다.
+    // orderBy 를 못 믿는 이유는 sortedTop 설명 참고
+    const rows = await sortedTop(room, {}, 'at', n);
     return rows.reverse();
   }
 
