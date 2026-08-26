@@ -7429,9 +7429,21 @@ function bootTapToStart() {
     }
 
     // 자동 소환 — 배치를 초당 1회로 묶는다 (Verse8 호출 제한 10회/초)
-    if (S.autoSummon && autoUnlocked() && S.eqTicket > 0) {
-      const n = Math.min(S.eqTicket, S.autoBatch || batchSize());
-      if (n > 0) summonEquip(n, true);
+    if (S.autoSummon && autoUnlocked()) {
+      if (S.eqTicket < 1) {
+        // **소환권이 떨어지면 스스로 끈다** (단장 지시 2026-08-26).
+        // 예전에는 여기 조건이 거짓이 되어 틱만 조용히 넘어갔다 — 상태는 켜진
+        // 채라 제작대는 "자동 소환 중" 이라고 말하는데 아무 일도 안 일어났고,
+        // 나중에 소환권이 생기면 유저 모르게 다시 돌기 시작했다.
+        // stopAuto 를 안 쓰는 이유: 그쪽은 "자동 소환 정지" 를 띄우는데,
+        // 여기서는 **왜 멈췄는지**가 정보다. 토스트가 둘 뜨면 안 된다
+        S.autoWanted = false; S.autoSummon = false;
+        save(); renderForgeDock();
+        toast(t('소환권이 떨어져 자동 소환을 멈춥니다'));
+      } else {
+        const n = Math.min(S.eqTicket, S.autoBatch || batchSize());
+        if (n > 0) summonEquip(n, true);
+      }
     }
     renderTop();
     renderChest();
