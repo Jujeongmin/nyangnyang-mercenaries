@@ -338,7 +338,14 @@
     animation:ttBob 3.4s ease-in-out infinite}
   /* 3px 이면 충분하다. 더 흔들면 간판이 아니라 풍선이 된다 */
   @keyframes ttBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-  #bootLogo{display:block;width:100%;filter:drop-shadow(0 12px 30px #000c)}
+  /* **filter 를 쓰지 않는다.** drop-shadow 를 걸면 크롬이 이 그림을 별도
+     합성 레이어로 굽는데, 그 레이어 사각형이 하늘 위에 뿌옇게 비친다 —
+     간판 주위로 네모난 얼룩이 보인다 (단장 지적 2026-08-26).
+     언어 선택 화면에서 특히 눈에 띈다: 그때 간판이 300px 로 작아져
+     매끈한 하늘 한가운데 놓이기 때문이다.
+     will-change·translateZ(0)·isolation 다 시험했지만 안 없어졌고,
+     filter 를 빼는 것만이 확실했다. 그림자는 버린다 (단장 확인). */
+  #bootLogo{display:block;width:100%}
   /* 나무판 안쪽 — GT-LOGO.png(512²) 실측 좌 92 우 420 상 222 하 332 을
      비율로 옮긴 값이다. 그림을 갈면 이 네 숫자를 다시 잰다 */
   /* **줄바꿈은 코드가 정한다** (main.js > fitBootTitle). nowrap 이라 브라우저가
@@ -3511,11 +3518,11 @@
   .cx-cell .cx-lv.max{color:var(--gold)}
   /* 재료 — **하단 게이지**. 다음 레벨까지 얼마나 모였나를 길이로 본다.
      중복 1개 = 1레벨이라(cascade.twoStepRule) 게이지는 "쌓인 중복 / 남은 레벨"이다 */
-  .cx-cell .cx-g{position:absolute;left:4px;right:4px;bottom:4px;z-index:5;height:5px;
+  .cx-cell .cx-g{position:absolute;left:4px;right:4px;bottom:4px;z-index:5;height:11px;
     background:#000000a8;border-radius:3px;overflow:hidden}
   .cx-cell .cx-g i{display:block;height:100%;width:0;border-radius:3px;
     background:linear-gradient(90deg,#3f8a4f,var(--up))}
-  .cx-cell .cx-g b{position:absolute;inset:0;font-size:7px;line-height:5px;
+  .cx-cell .cx-g b{position:absolute;inset:0;font-size:9px;line-height:11px;
     text-align:center;color:#fff;font-weight:400;
     font-family:"Black Han Sans","Jua",system-ui,sans-serif;text-shadow:0 0 3px #000}
   .cx-cell .cx-f{position:relative;z-index:4;width:100%;text-align:center;

@@ -141,22 +141,22 @@ function renderList() {
   const rows = allFiles.filter(f => !q || (f.cat + '/' + f.id).toLowerCase().includes(q));
   $('#files').innerHTML = rows.map(f =>
     `<div class="fi${cur && cur.cat === f.cat && cur.id === f.id ? ' on' : ''}${
-      edited.has(f.cat + '/' + f.id) ? ' edited' : ''}" data-cat="${f.cat}" data-id="${f.id}">
+      edited.has(f.cat + '/' + f.id) ? ' edited' : ''}" data-cat="${f.cat}" data-id="${f.id}" data-ext="${f.ext || '.png'}">
        <span>${f.id}</span><small>${f.cat}</small></div>`).join('');
 }
 $('#q').addEventListener('input', renderList);
 $('#files').addEventListener('click', e => {
   const el = e.target.closest('.fi');
-  if (el) open(el.dataset.cat, el.dataset.id);
+  if (el) open(el.dataset.cat, el.dataset.id, el.dataset.ext || '.png');
 });
 
 // ── 열기 ────────────────────────────────────────────────
-async function open(cat, id) {
+async function open(cat, id, ext = '.png') {
   const im = new Image();
   // 저장 직후 다시 열 때 캐시가 옛 그림을 주지 않게 한다
-  im.src = `/assets/${cat}/${id}.png?t=${Date.now()}`;
+  im.src = `/assets/${cat}/${id}${ext}?t=${Date.now()}`;
   await im.decode();
-  cur = { cat, id };
+  cur = { cat, id, ext };
   W = im.naturalWidth; H = im.naturalHeight;
   off.width = view.width = W; off.height = view.height = H;
   octx.clearRect(0, 0, W, H);
@@ -164,7 +164,7 @@ async function open(cat, id) {
   src = octx.getImageData(0, 0, W, H);
   sel = new Uint8Array(W * H);
   hist = [];
-  $('#file').textContent = `${cat}/${id}.png  ${W}×${H}`;
+  $('#file').textContent = `${cat}/${id}${ext}  ${W}×${H}`;
   msg('');
   renderList();
   fit();
@@ -349,8 +349,12 @@ $('#save').addEventListener('click', async () => {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   cv.getContext('2d').putImageData(out, 0, 0);
-  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-  const r = await fetch(`/__bgedit/save?cat=${cur.cat}&id=${cur.id}`,
+  // webp 는 품질 0.92. 1(거의 무손실)로 구우면 원본보다 5배 넘게 커진다 —
+  // GT-LOGO 가 39KB 에서 223KB 가 됐다 (2026-08-26). 원본 자체가 손실 압축이라
+  // 0.92 로도 눈에 띄는 차이가 없다. png 는 무손실이라 품질 인자를 안 받는다.
+  const blob = await new Promise(r => cv.toBlob(
+    r, cur.ext === '.webp' ? 'image/webp' : 'image/png', 0.92));
+  const r = await fetch(`/__bgedit/save?cat=${cur.cat}&id=${cur.id}&ext=${encodeURIComponent(cur.ext)}`,
     { method: 'POST', body: blob });
   const j = await r.json();
   if (!r.ok) return msg(j.error || '저장 실패', true);
@@ -363,12 +367,12 @@ $('#save').addEventListener('click', async () => {
 
 $('#revert').addEventListener('click', async () => {
   if (!cur) return;
-  const r = await fetch(`/__bgedit/revert?cat=${cur.cat}&id=${cur.id}`, { method: 'POST' });
+  const r = await fetch(`/__bgedit/revert?cat=${cur.cat}&id=${cur.id}&ext=${encodeURIComponent(cur.ext)}`, { method: 'POST' });
   const j = await r.json();
   if (!r.ok) return msg(j.error || '복구 실패', true);
   // open() 이 msg('') 로 지우므로 **연 다음에** 알린다
   edited.delete(cur.cat + '/' + cur.id);
-  await open(cur.cat, cur.id);
+  await open(cur.cat, cur.id, cur.ext);
   msg(`복구함 ← ${j.from}`);
 });
 
