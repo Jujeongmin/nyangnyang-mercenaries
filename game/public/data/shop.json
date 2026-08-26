@@ -8,9 +8,10 @@
  "tabs": [
   {
    "id": "diamond",
-   "nameKo": "다이아",
+   "nameKo": "프리미엄",
    "currency": "VX (실결제)",
-   "source": "economy.json > diamondPackages"
+   "source": "economy.json > diamondPackages",
+   "nameNote": "탭 이름 '다이아' → '프리미엄' (단장 확정 2026-08-26). 다이아 묶음만 있던 탭이 아니라 프리미엄·스타터·성장 지원 패키지가 앞에 서게 되면서 이름이 내용과 어긋났다. 탭 id 는 'diamond' 유지 — 코드·세이브가 참조한다"
   },
   {
    "id": "exchange",

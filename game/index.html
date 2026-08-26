@@ -3193,15 +3193,15 @@
   /* 전체화면 헤더 배너. 그림은 2:1 인데 띠는 5:1 이라 세로로 60% 가 잘린다 —
      어디를 남길지 그림마다 정해야 머리가 안 잘린다(--pn-y). 아래쪽은 본문
      색으로 녹여서 자른 자리가 선으로 안 보이게 한다. */
-  #shop .sh-head,#rank .sh-head,#mail .sh-head{min-height:128px;border:none;
+  #shop .sh-head,#rank .sh-head,#mail .sh-head,#tower-scr .sh-head{min-height:128px;border:none;
     padding:12px;align-items:flex-start;
     background-position:center var(--pn-y,50%);background-size:cover;
     background-repeat:no-repeat;position:relative;overflow:hidden}
-  #shop .sh-head::after,#rank .sh-head::after,#mail .sh-head::after{content:"";
+  #shop .sh-head::after,#rank .sh-head::after,#mail .sh-head::after,#tower-scr .sh-head::after{content:"";
     position:absolute;left:0;right:0;bottom:0;height:56%;pointer-events:none;
     background:linear-gradient(180deg,#0000,var(--bg) 92%)}
   /* 제목·뒤로가기는 배너 위에 뜬다 — 위쪽에만 어둠을 깔아 읽히게 */
-  #shop .sh-head::before,#rank .sh-head::before,#mail .sh-head::before{content:"";
+  #shop .sh-head::before,#rank .sh-head::before,#mail .sh-head::before,#tower-scr .sh-head::before{content:"";
     position:absolute;left:0;right:0;top:0;height:46px;pointer-events:none;
     background:linear-gradient(180deg,#150f0bcc,#0000)}
   #shop .sh-head>*,#rank .sh-head>*,#mail .sh-head>*{position:relative;z-index:1}
@@ -3225,6 +3225,8 @@
   #rank .sh-head{background-image:url(/assets/ui/PN-RANK.webp);--pn-y:40%}
   #shop .sh-head{background-image:url(/assets/ui/PN-SHOP.webp);--pn-y:34%}
   #mail .sh-head{background-image:url(/assets/ui/PN-MAIL.webp);--pn-y:52%}
+  /* 탑이 세로로 긴 그림이라 위쪽(꼭대기·구름)을 잡는다 */
+  #tower-scr .sh-head{background-image:url(/assets/ui/PN-TOWER.webp);--pn-y:30%}
 
   /* ── 친구 — 아바타(단장 표정 + 프로필 링) ── */
   .fr-av{position:relative;display:inline-block;flex:none}
