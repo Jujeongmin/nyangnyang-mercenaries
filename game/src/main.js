@@ -4340,7 +4340,9 @@ const chatRows = () => live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld')
 const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.account;
 
 /**
- * 채팅 한 줄. 아바타(단장 직군)가 붙고, 이름·아바타를 누르면 프로필 카드가 뜬다.
+ * 채팅 한 줄. **프로필 카드는 아바타를 눌러야 뜬다** (단장 확정 2026-08-26).
+ * 예전에는 이름에도 data-chacc 를 달아 이름을 눌러도 카드가 떴는데, 이름은
+ * 글자라 드래그·복사하려다 카드가 뜨는 일이 생긴다. 누를 것은 그림 하나다.
  * account 는 data- 로 싣는다 — 줄 40개에 리스너 40개를 다는 대신 chBody 하나가
  * 위임으로 받는다 (chatRedraw 마다 리스너를 다시 달지 않아도 된다).
  */
@@ -4348,7 +4350,7 @@ const chatLineHtml = m => `<div class="ch-line${chatMine(m) ? ' me' : ''}">
     <img class="ch-av" src="/assets/captain/captain_${
       ['warrior', 'archer', 'mage'].includes(m.capCls) ? m.capCls : 'warrior'}.png"
       alt="" data-chacc="${esc(m.account || '')}" onerror="this.remove()">
-    <b data-chacc="${esc(m.account || '')}">${esc(m.nickname || '단장')}</b>
+    <b>${esc(m.nickname || '단장')}</b>
     <span>${esc(m.text || '')}</span>
     <i>${chatTime(m.at)}</i></div>`;
 
@@ -4399,6 +4401,11 @@ function openChat(scope) {
   // 방을 옮기면 이전 구독을 반드시 먼저 끊는다. 안 끊으면 탭을 오갈 때마다
   // 구독이 하나씩 쌓여 같은 줄이 두 번 세 번 그려진다
   chatDetach();
+  // **내 프로필을 먼저 올린다.** 서버는 보낼 때 profiles 컬렉션에서 닉네임을
+  // 꺼내 줄에 굳혀 담는다 (server.js > sendChat). 그게 비어 있으면 내가 친 말이
+  // 전부 "단장" 으로 뜬다 (단장 지적 2026-08-26). 개명·전직도 여기서 따라온다.
+  // 실패해도 채팅은 열려야 하므로 조용히 삼킨다.
+  if (ready) Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
   if (ready) {
     chatUnsub = live.subscribeChat(chatScope, () => {
       if (!$('#ov').classList.contains('show') || $('#ovt').textContent !== t('채팅')) return;
