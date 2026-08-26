@@ -72,17 +72,18 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 //
 // 값은 전부 정리 스크립트가 시트를 재서 뱉은 것이다. 눈대중 금지.
 const SHEET = {
-  captain_warrior: { atk: { n: 4, h: 266, foot: 305 }, walk: { n: 8, h: 357, foot: 381 } },
-  captain_archer:  { atk: { n: 4, h: 420, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
-  captain_mage:    { atk: { n: 4, h: 457, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  captain_warrior: { atk: { n: 4, h: 266, foot: 286 }, walk: { n: 8, h: 357, foot: 377 } },
+  captain_archer:  { atk: { n: 4, h: 420, foot: 440 }, walk: { n: 8, h: 464, foot: 484 } },
+  captain_mage:    { atk: { n: 4, h: 457, foot: 477 }, walk: { n: 8, h: 464, foot: 484 } },
 
-  'PR-warrior-2': { atk: { n: 4, h: 458, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
-  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
-  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 363 }, walk: { n: 8, h: 461, foot: 487 } },
-  'PR-archer-3':  { atk: { n: 4, h: 413, foot: 487 }, walk: { n: 8, h: 399, foot: 427 } },
-  'PR-mage-2':    { atk: { n: 4, h: 464, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
-  'PR-mage-3':    { atk: { n: 4, h: 464, foot: 487 }, walk: { n: 8, h: 464, foot: 487 } },
+  'PR-warrior-2': { atk: { n: 4, h: 458, foot: 478 }, walk: { n: 8, h: 464, foot: 484 } },
+  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 359, foot: 379 } },
+  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360 }, walk: { n: 8, h: 461, foot: 481 } },
+  'PR-archer-3':  { atk: { n: 4, h: 413, foot: 433 }, walk: { n: 8, h: 399, foot: 419 } },
+  'PR-mage-2':    { atk: { n: 4, h: 464, foot: 484 }, walk: { n: 8, h: 464, foot: 484 } },
+  'PR-mage-3':    { atk: { n: 4, h: 464, foot: 484 }, walk: { n: 8, h: 464, foot: 484 } },
 };
+
 
 /**
  * 이 직군·단계가 쓸 에셋 이름. 단계 시트가 없으면 직군 기본으로 내려온다 —
@@ -92,6 +93,19 @@ function captainAsset(cls, tier) {
   const pr = `PR-${cls}-${tier}`;
   return tier > 1 && SHEET[pr] ? pr : `captain_${cls}`;
 }
+
+/**
+ * 시트 파일 경로. **구분자가 두 벌이라 여기서 흡수한다.**
+ *   captain_warrior_idle.png   1단계는 밑줄  (captain_<직군>_<종류>)
+ *   PR-warrior-2-idle.png      2·3단계는 붙임표 (PR-<직군>-<단계>-<종류>)
+ * 전직 UI 가 쓰던 PR- 이름을 그대로 물려받아서 이렇게 됐다.
+ *
+ * 이걸 몰라서 2단계로 승급하면 `PR-warrior-2_idle` 을 찾다 전부 실패했고,
+ * 그림이 하나도 없어 단장이 아예 안 만들어졌다 — **전직하면 게임이 멈췄다**
+ * (단장 지적 2026-08-26).
+ */
+const capFile = (id, kind) =>
+  `/assets/captain/${id}${id.startsWith('PR-') ? '-' : '_'}${kind}`;
 
 const WALK_FPS = 12;              // 8프레임이면 한 걸음 주기 약 0.67초
 
@@ -364,12 +378,13 @@ export class BattleScene {
     //
     // 원본 captain_warrior.png 는 **그대로 둔다** — UI 초상(명부·프로필)이 정사각
     // 1024² 를 전제로 배치돼 있고, 무기 팔 컷아웃도 그 좌표계다.
-    const idle = await this.loadSprite(`/assets/captain/${capId}_idle`);
+    const idle = await this.loadSprite(capFile(capId, 'idle'));
     const base = idle.tex ? idle : await this.loadSprite(`/assets/captain/${capId}`);
     const { tex: capTex, src: capSrc } = base;
-    const baseId = idle.tex ? `${capId}_idle` : capId;
-    const { tex: capAttackTex } = await this.loadSprite(`/assets/captain/${capId}_attack`);
-    const { tex: capWalkTex } = await this.loadSprite(`/assets/captain/${capId}_walk`);
+    const idleId = capId + (capId.startsWith('PR-') ? '-' : '_') + 'idle';
+    const baseId = idle.tex ? idleId : capId;
+    const { tex: capAttackTex } = await this.loadSprite(capFile(capId, 'attack'));
+    const { tex: capWalkTex } = await this.loadSprite(capFile(capId, 'walk'));
     if (capTex) {
       // 팔 컷아웃은 1024² 원화 좌표라 _idle 그림에는 안 맞는다 — 엉뚱한 데를
       // 떼어 낸다. _idle 을 쓰는 동안에는 몸통 리그만 쓴다.

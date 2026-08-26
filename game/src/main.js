@@ -4677,7 +4677,10 @@ function arenaFoes() {
         .filter(Boolean),
     }));
   }
-  return demoArenaFoes();
+  // **배포본에서는 지어낸 상대를 세우지 않는다** (단장 지시 2026-08-26).
+  // 서버가 아직 다른 계정을 못 찾으면 빈 채로 둔다 — 가짜 상대와 싸워 오른
+  // 점수는 순위표에서 진짜 점수와 섞이고, 그러면 순위 자체가 거짓이 된다.
+  return DEMO_SOCIAL ? demoArenaFoes() : [];
 }
 
 /** 서버가 없을 때의 상대. 날짜 시드라 하루 동안은 같은 얼굴이다 */
@@ -5345,11 +5348,14 @@ function openAlliance(tab = 'home') {
          <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
          <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
          <span class="al-on">접속 중</span></div>`
-        + ALLY_DEMO.map(m => `<div class="al-mem">
+        // **데모 주민은 개발 빌드에서만** (단장 지시 2026-08-26).
+        // 배포본에서 지어낸 단원이 서 있으면 유저는 그게 진짜인 줄 안다.
+        // 아무도 없으면 나 혼자 서 있는 게 사실이고, 그게 맞는 화면이다.
+        + (DEMO_SOCIAL ? ALLY_DEMO.map(m => `<div class="al-mem">
          <span class="rk-ava"><img src="/assets/char/${m.ava}.webp" alt=""></span>
          <span class="al-mem-t"><b>${m.name}</b><i>${m.role}</i></span>
          <span class="al-mem-c">${coin}${num(m.coin)}</span>
-         <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('');
+         <span class="al-on${m.on ? '' : ' off'}">${m.on ? '접속 중' : m.last}</span></div>`).join('') : '');
     return home() + `<div class="lbl" style="margin:12px 0 6px">${t('단원')}</div>` + list
       + `<button class="st-danger" data-al-leave style="margin-top:8px">${t('연합 탈퇴')}</button>`;
   };
@@ -6996,7 +7002,10 @@ function bootTapToStart() {
   });
   rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp,
     // 스테이지 번호를 화면에서 쓰는 표기(일반 2-6)로 바꿔 준다
-    stageText: n => stageLabel(n).text });
+    stageText: n => stageLabel(n).text,
+    // 순위 아바타를 누르면 뜨는 카드. 채팅이 쓰는 것과 **같은 함수**다 —
+    // 카드 문법이 두 벌이 되면 반드시 어긋난다
+    openProfile: acc => openChatProfile(acc) });
   mail = new MailScreen($('#app'), {
     state: S, data: D,
     claim: i => claimMail(i),

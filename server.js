@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 3;
+const SERVER_REV = 4;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -402,6 +402,27 @@ class Server {
   async getTopRankings(limit) {
     const n = Math.min(50, Math.max(1, limit | 0 || 20));
     return sortedTop('rankings', {}, 'score', n);
+  }
+
+  /**
+   * 보드별 순위를 **profiles 에서** 뽑는다.
+   *
+   * rankings 컬렉션은 CP 하나뿐이라, 스테이지·아레나 보드는 화면이 더미를
+   * 지어내고 있었다 (단장 지적 2026-08-26). 보드마다 컬렉션을 새로 파면
+   * 조회가 유일한 전역 공유 자원을 세 배로 때린다.
+   *
+   * profiles 에는 이미 cp·stage·arenaScore 가 다 들어 있다 (submitProfile).
+   * 게다가 party·title·frame 까지 있어서 **순위 행이 곧 프로필 카드**가 된다 —
+   * 등수를 누르면 그 사람 편성을 볼 수 있다.
+   */
+  async topProfiles(board, limit) {
+    const FIELD = { power: 'cp', stage: 'stage', arena: 'arenaScore' };
+    const f = FIELD[board] || 'cp';
+    const n = Math.min(50, Math.max(1, limit | 0 || 20));
+    const rows = await sortedTop('profiles', {}, f, n);
+    // 그 보드 점수가 0 인 사람은 아직 순위에 낄 자격이 없다 — 스테이지 0,
+    // 아레나 무기록이 상위에 섞이면 표가 거짓이 된다
+    return rows.filter(r => (r[f] || 0) > 0).map(r => ({ ...r, score: r[f] || 0 }));
   }
 
   /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */

@@ -12,6 +12,11 @@ import { cpNum, num } from '../core/fmt.js';
 import { LANGS, t } from '../core/i18n.js';
 import * as live from '../net/live.js';
 
+// 지어낸 순위표는 **개발 빌드에서만**. 배포본에서 가짜 등수가 서 있으면
+// 유저는 그걸 진짜로 믿는다 — 아무도 없으면 빈 표가 사실이다
+// (main.js 의 DEMO_SOCIAL 과 같은 원칙, 단장 지시 2026-08-26)
+const DEMO_RANK = !import.meta.env.PROD;
+
 
 // 더미 순위표의 이름. **닉네임은 고유명사라 번역하지 않는다** — 다만 한국어
 // 이름만 늘어놓으면 외국어 화면에서 이 표만 한글 덩어리가 된다. 로마자를 같이 둔다
@@ -40,13 +45,22 @@ export class RankScreen {
       <div id="rkMine"></div>`;
     root.appendChild(this.el);
     this.el.querySelector('.sh-back').addEventListener('click', () => this.close());
+    // 순위 아바타를 누르면 그 사람 프로필 카드. 채팅과 같은 규칙이다 —
+    // **그림을 누른다**, 이름이나 점수 글자가 아니라.
+    // 20행에 리스너 20개를 다는 대신 한 곳이 위임으로 받는다
+    this.el.addEventListener('click', e => {
+      const acc = e.target.closest?.('[data-rkacc]')?.dataset.rkacc;
+      if (acc) this.api.openProfile?.(acc);
+    });
   }
 
   open() {
     this.el.classList.add('show');
     this.render();
     // 서버 값이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 더미)로 즉시 뜬다
-    live.pullRank(() => { if (this.el.classList.contains('show')) this.render(); });
+    const again = () => { if (this.el.classList.contains('show')) this.render(); };
+    live.pullRank(again);
+    live.pullTop(this.tab || 'power', again);
   }
   close() { this.el.classList.remove('show'); }
 
@@ -66,21 +80,32 @@ export class RankScreen {
    * 때린다 — 시즌 컬렉션(rankings_s1…)을 설계할 때 같이 정하는 게 맞다.
    */
   rows(board) {
-    if (board === 'power') {
-      const top = live.get('rankTop');
-      if (top?.length) {
-        const P = this.api.data.profile;
-        return top.map((r, i) => ({
-          rank: i + 1,
-          name: r.nickname || '단장',
-          merc: FEATURED[i % FEATURED.length],
-          title: '',
-          frame: P.profileFrame.unlocks[Math.max(0, 3 - Math.floor(i / 6))]?.color || '#9E9E9E',
-          score: r.score || 0,
-        }));
-      }
+    // **세 보드 다 profiles 에서 온다** (단장 지시 2026-08-26).
+    // 예전에는 power 만 rankings 컬렉션을 쓰고 stage·arena 는 더미를 지어냈다.
+    // profiles 에는 cp·stage·arenaScore 가 다 있고 party·title·frame 까지 딸려
+    // 와서, 행이 그대로 프로필 카드가 된다 — 눌러서 남의 편성을 볼 수 있다.
+    const top = live.getTop(board);
+    if (top?.length) {
+      const P = this.api.data.profile;
+      const D = this.api.data;
+      return top.map((r, i) => ({
+        rank: i + 1,
+        name: r.nickname || '단장',
+        // 대표 용병은 **그 사람 편성의 첫 자리**다. 예전에는 등수로 고른
+        // 장식이라 남의 조합과 아무 상관이 없었다
+        merc: (r.party || []).map(m => m.id)
+          .find(id => D.characters.characters.some(c => c.id === id))
+          || FEATURED[i % FEATURED.length],
+        title: r.title || '',
+        frame: P.profileFrame.unlocks.find(f => f.id === r.frame)?.color
+          || P.profileFrame.unlocks[Math.max(0, 3 - Math.floor(i / 6))]?.color || '#9E9E9E',
+        score: r.score || 0,
+        account: r.account || '',       // 눌렀을 때 카드를 띄우는 열쇠
+      }));
     }
-    return this.dummyRows(board);
+    // 서버에 아직 아무도 없으면 **개발 빌드에서만** 더미를 세운다.
+    // 배포본에서 지어낸 순위표는 유저가 진짜로 믿는다
+    return DEMO_RANK ? this.dummyRows(board) : [];
   }
 
   /** 서버가 없거나 보드에 컬렉션이 없을 때. 내 점수 주변으로 지어낸다 */
@@ -148,7 +173,8 @@ export class RankScreen {
     this.el.querySelector('#rkBody').innerHTML = head + rows.map(r => `
       <div class="rk-row${r.rank <= 3 ? ' top' : ''}">
         <span class="rk-n rk-${r.rank <= 3 ? r.rank : 'x'}">${r.rank}</span>
-        <span class="rk-ava" style="border-color:${r.frame}">
+        <span class="rk-ava" style="border-color:${r.frame}"${
+          r.account ? ` data-rkacc="${r.account}"` : ''}>
           <img src="/assets/char/${r.merc}.webp" alt="">
         </span>
         <span class="rk-who">

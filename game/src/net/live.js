@@ -25,7 +25,12 @@ const cache = {
   friendReqs: null,    // 받은 신청
   arenaFoes: null,     // 상대 표본
   friendCands: null,   // 친구 추천 표본 (아레나보다 넓은 대역)
-  rankTop: null,       // 상위 20
+  rankTop: null,       // 상위 20 (CP — rankings 컬렉션)
+  // 보드별 순위. profiles 에서 뽑으므로 party·title·frame 까지 들어 있다 —
+  // 순위 행이 곧 프로필 카드다
+  topPower: null,
+  topStage: null,
+  topArena: null,
   myRank: null,        // { bestEntry, rank }
   giftBox: null,       // { sent:[account], inbox:[{id, from, fromNick, day}] }
   chatRooms: null,     // { world, ally } 구독할 컬렉션 이름
@@ -144,6 +149,18 @@ export const pullRank = onDone => {
   pull('rankTop', () => call('getTopRankings', [20]), onDone);
   pull('myRank', () => call('getMyBestRank'), onDone);
 };
+
+/**
+ * 보드별 순위. **profiles 에서 뽑는다** — cp·stage·arenaScore 가 다 거기 있고,
+ * party·title·frame 까지 딸려 와서 순위 행을 그대로 프로필 카드로 쓸 수 있다.
+ * 예전에는 rankings 컬렉션에 CP 하나뿐이라 스테이지·아레나 보드가 더미였다.
+ */
+const TOP_KEY = { power: 'topPower', stage: 'topStage', arena: 'topArena' };
+export const pullTop = (board, onDone) => {
+  const key = TOP_KEY[board];
+  if (key) pull(key, () => call('topProfiles', [board, 20]), onDone);
+};
+export const getTop = board => cache[TOP_KEY[board]] || null;
 
 /**
  * 아레나 상대. 내 CP 의 ±40% 대역에서 표본을 받는다 — 정교한 매칭이 아니라
