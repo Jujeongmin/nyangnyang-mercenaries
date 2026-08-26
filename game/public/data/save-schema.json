@@ -244,7 +244,7 @@
   },
   "settings": {
    "autoSummonEnabled": "bool",
-   "autoSummonEnabledNote": "유저가 자동을 켜 둔 상태(autoWanted). 좋은 장비가 나와 잠깐 서 있는 동안에도 참이다 — 클라의 autoSummon(지금 도는 중)과 다르다. 저장은 이 값만 하면 되고, 복원 시 도는 상태는 여기서 파생된다.",
+   "autoSummonEnabledNote": "유저가 자동을 켜 둔 상태(autoWanted). 좋은 장비가 나와 잠깐 서 있는 동안에도 참이다 — 클라의 autoSummon(지금 도는 중)과 다르다. **세션 안에서만 산다.** 접속을 끊으면 false 로 내려간다 — 켜 둔 채 종료하고 다시 켰을 때 유저가 화면을 보기도 전에 소환권이 녹기 때문이다 (단장 지적 2026-08-26). 복원 직후 도는 상태는 항상 꺼짐이고, AUTO 를 다시 눌러야 돈다.",
    "summonFilter": {
     "minTier": "int",
     "minCpContribution": "int",

@@ -17,6 +17,7 @@ import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
 import * as live from './net/live.js';
+import { connectGameServer } from './net/gameserver.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
 import { ShopScreen, summonProgress, levelRewardPending } from './view/shop.js';
@@ -934,6 +935,13 @@ function load() {
     const j = JSON.parse(raw);
     if (j.v !== 1) return null;
     Object.assign(S, j.s);
+    // 자동 소환은 **세션을 넘기지 않는다.** 켜 둔 채로 게임을 끄면 다시 켰을 때
+    // 부팅 틱(setInterval)이 곧바로 배치를 돌려, 유저가 화면을 보기도 전에
+    // 소환권이 녹는다. 다시 켰을 때는 멈춰 있어야 하고 AUTO 를 다시 눌러야 돈다
+    // (단장 지적 2026-08-26).
+    // eqPending 은 건드리지 않는다 — 그건 유저 판단을 기다리는 진짜 결과다.
+    S.autoWanted = false;
+    S.autoSummon = false;
     // 보유함·대기열은 나중에 생긴 필드다. 옛 세이브에는 없으므로 채워 준다.
     S.own = { mercenary: [], skill: [], ...(S.own || {}) };
     S.pend = { mercenary: [], skill: [], ...(S.pend || {}) };
@@ -7125,7 +7133,7 @@ function bootTapToStart() {
   // 보상 지급 경로를 검증한다 (호스트 밖에서는 실제 광고가 unsupported 라
   // 이걸 안 열면 확인할 길이 없다)
   if (import.meta.env.DEV) window.__setAdSdk = setAdSdk;
-  window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live,
+  window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live, connectGameServer,
     openAllianceGate, openAlliance, openArena, openFriends, openChat };
   await scene.init();
   bootStep(82);
@@ -7388,11 +7396,17 @@ function bootTapToStart() {
     save();
   }, 1000);
 
+  // 게임서버에 붙는다. **여기 한 번만 붙고 그 객체를 아래 둘에 꽂는다** —
+  // 클라우드 세이브와 live 가 각자 찾으면 한쪽만 붙는 어긋남이 난다
+  // (세이브는 되는데 채팅은 안 되는 식). 실패하면 null 이고 둘 다 데모로 떨어진다.
+  bootStep(85);
+  const gs = await connectGameServer();
+
   // 클라우드 세이브 — Verse8 호스트 안에서만 산다. 클라우드가 로컬보다
   // 앞서 있으면 그쪽을 채택하고 재부팅한다 (반쯤 섞인 상태가 최악이라
   // 필드 단위 병합은 안 한다 — 세이브는 통짜가 원칙이다)
   try {
-    const adopted = await initCloud(() => S);
+    const adopted = await initCloud(() => S, gs);
     if (adopted) {
       localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: adopted }));
       location.reload();
@@ -7404,7 +7418,7 @@ function bootTapToStart() {
   // 붙어 있으면 **로딩이 끝나기 전에 전부 끝낸다.** 화면을 열 때 받으면 유저가
   // 데모를 한 번 보고 진짜 값으로 갈리는 것을 본다 — 목록이 눈앞에서 바뀌면
   // 고장으로 읽힌다. 실패해도 게임은 그대로 돈다 (전부 데모로 떨어진다).
-  if (live.initLive()) {
+  if (live.initLive(gs)) {
     bootStep(88, t('용병단 명부를 맞추는 중…'));
     try {
       // 프로필이 **먼저**다. 남이 나를 볼 수 있는 것은 이것뿐이고
