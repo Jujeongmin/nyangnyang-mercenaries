@@ -4653,13 +4653,20 @@ function arenaFoes() {
   if (rows?.length) {
     const my = totalCp();
     const sorted = [...rows].sort((a, b) => Math.abs(a.cp - my) - Math.abs(b.cp - my));
-    const weak = [...rows].filter(r => r.cp < my).sort((a, b) => b.cp - a.cp)[0];
-    const strong = [...rows].filter(r => r.cp > my).sort((a, b) => a.cp - b.cp)[0];
+    // **새로 고침이 서버 표본에서도 먹혀야 한다** (단장 지적 2026-08-27).
+    // 예전에는 세 바구니의 맨 앞만 집어서, 표본 12명이 그대로면 눌러도 늘 같은
+    // 셋이 나왔다 — foeSeed 는 데모 경로에서만 쓰이는 값이었다. 이제 바구니마다
+    // 시드만큼 돌려 집는다. 서버를 다시 부르지 않고도 얼굴이 바뀐다
+    const k = S.arena?.foeSeed || 0;
+    // 이름을 rotate 로 둔다 — 모듈 위쪽의 pick(무작위 하나) 과 가리면 헷갈린다
+    const rotate = (arr, i) => (arr.length ? arr[i % arr.length] : undefined);
+    const weak = rotate([...rows].filter(r => r.cp < my).sort((a, b) => b.cp - a.cp), k);
+    const strong = rotate([...rows].filter(r => r.cp > my).sort((a, b) => a.cp - b.cp), k);
     // 같은 계정이 두 칸에 앉으면 "다른 상대" 로 안 읽힌다.
     // 겹쳐서 셋이 안 되면 **남은 표본으로 채운다** — 두 칸짜리 아레나는 고장으로 보인다
     const seen = new Set();
     const uniq = [];
-    for (const x of [weak, sorted[0], strong, ...sorted]) {
+    for (const x of [weak, rotate(sorted, k), strong, ...sorted]) {
       if (uniq.length >= 3) break;
       if (!x || seen.has(x.account)) continue;
       seen.add(x.account); uniq.push(x);
@@ -4867,6 +4874,29 @@ function claimArenaDaily() {
   gainToast(got.pairs);
 }
 
+/**
+ * 상대 새로 고침 쿨타임. **광고도 일일 제한도 없다** (단장 확정 2026-08-27).
+ * 공짜로 몇 번이든 돌리되 10초 간격만 둔다 — 막고 싶은 것은 횟수가 아니라
+ * 연타다. arena.json > battle.matchmaking.refresh 가 같은 값을 들고 있다.
+ *
+ * **세이브에 안 넣는다.** 연타 방지용 화면 스로틀이라 새로고침으로 풀려도
+ * 손해가 없고, 넣으면 save-schema 가 한 칸 늘어난다.
+ */
+let arReAt = 0;
+let arReTimer = 0;
+
+/** 새로 고침 버튼의 잠금·라벨을 남은 쿨타임에 맞춘다 */
+function arReSync() {
+  const b = $('#aRe');
+  // 화면을 닫았으면 타이머도 같이 끈다 — 안 끄면 아레나를 나가도 계속 돈다
+  if (!b) { clearInterval(arReTimer); arReTimer = 0; return; }
+  const left = Math.ceil((arReAt - Date.now()) / 1000);
+  if (left > 0) { b.disabled = true; b.textContent = `⟳ ${left}s`; return; }
+  b.disabled = false;
+  b.textContent = `⟳ ${t('새로 고침')}`;
+  clearInterval(arReTimer); arReTimer = 0;
+}
+
 async function arenaAd() {
   const a = arenaState();
   if (a.adUsed) return toast(t('오늘 광고 입장은 받았습니다'));
@@ -4967,6 +4997,8 @@ function openArena(view) {
     }));
   $('#aShop').addEventListener('click', () => openArena('shop'));
   $('#aRe').addEventListener('click', () => {
+    if (Date.now() < arReAt) return;          // 쿨타임 중 — 버튼도 잠겨 있다
+    arReAt = Date.now() + D.arena.battle.matchmaking.refresh.cooldownMs;
     S.arena.foeSeed = (S.arena.foeSeed || 0) + 1;
     save(); openArena();
   });
@@ -4983,6 +5015,9 @@ function openArena(view) {
   // 행을 누르면 편성이 보인다 — 도전 버튼과 분리 (버튼은 stopPropagation)
   $('#ovb').querySelectorAll('[data-afinfo]').forEach(el =>
     el.addEventListener('click', () => openFoeInfo(+el.dataset.afinfo)));
+  // 다시 그릴 때마다 버튼이 새로 만들어지므로 잠금 상태를 다시 입힌다
+  arReSync();
+  if (!arReTimer && Date.now() < arReAt) arReTimer = setInterval(arReSync, 250);
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 }
 

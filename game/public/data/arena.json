@@ -74,9 +74,10 @@
       "showOpponentScore": true,
       "showOpponentNote": "유저가 상대 전투력과 점수를 보고 직접 고른다. 이길 만한 상대를 고르는 것 자체가 플레이의 일부.",
       "refresh": {
-        "free": 1,
-        "adCost": 1,
-        "dailyLimit": 3
+        "free": "unlimited",
+        "cooldownMs": 10000,
+        "note": "광고도 일일 제한도 없앴다 (단장 확정 2026-08-27). 공짜로 몇 번이든 돌리되 10초 쿨타임만 둔다 — 막고 싶은 것은 횟수가 아니라 연타다. 상대를 고르는 것 자체가 플레이라 여기에 값을 매기면 그 재미에 통행료를 받는 꼴이 된다.",
+        "implNote": "서버를 다시 부르지 않는다. findProfiles 표본 12명 안에서 S.arena.foeSeed 만큼 돌려 집는다 (main.js > arenaFoes). 쿨타임은 세이브에 없는 화면 스로틀이다 (main.js > arReAt)."
       },
       "fallback": "구간 내 인원 부족 시 범위를 점진적으로 확대"
     }

@@ -214,20 +214,14 @@
     "nameKo": "아레나 도전 +3",
     "dailyLimit": 1,
     "effect": "아레나 도전 횟수 +3"
-   },
-   {
-    "id": "ad_shop_refresh",
-    "nameKo": "상점 갱신",
-    "dailyLimit": 3,
-    "effect": "아레나 매칭 목록 갱신"
    }
   ],
   "premiumBonus": {
    "ad_forge_speedup": 5,
    "note": "프리미엄 패스는 광고 횟수 상한을 늘린다. 광고를 없애지 않는다 - 광고 수익을 유지하면서 편의를 판다."
   },
-  "totalDailyAds": 15,
-  "totalDailyAdsNote": "일 15회는 상한이지 목표가 아니다. 실제 소화율은 30~50% 예상."
+  "totalDailyAds": 14,
+  "totalDailyAdsNote": "일 14회는 상한이지 목표가 아니다. 실제 소화율은 30~50% 예상. ad_shop_refresh(아레나 목록 갱신, 일 3회)를 뺀 값이다 — 갱신은 광고 없이 10초 쿨타임으로 바꿨다 (단장 확정 2026-08-27, arena.json > battle.matchmaking.refresh)."
  },
  "freeSummon": {
   "id": "daily_free_summon",
