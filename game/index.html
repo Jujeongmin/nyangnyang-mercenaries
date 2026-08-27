@@ -986,6 +986,20 @@
   /* 장비 */
   /* 반드시 골라야 하는 화면 — 닫기·ⓘ 를 숨긴다 */
   #ov.forced #ovx, #ov.forced #ovi{display:none}
+  /* 텍스트 입력 모달 — prompt() 대용. 모바일 WebView 는 prompt 를 막는
+     경우가 있어 닉네임 변경이 통째로 죽었다 (단장 지적 2026-08-27) */
+  #txtDlg{position:fixed;inset:0;z-index:300;display:none;align-items:center;
+    justify-content:center;background:rgba(20,14,8,.62)}
+  #txtDlg.show{display:flex}
+  #txtDlg .td-box{width:min(320px,86vw);background:var(--panel);border:2px solid var(--gold);
+    border-radius:14px;padding:16px 14px;display:flex;flex-direction:column;gap:10px}
+  #txtDlg b{font-size:14px;color:var(--ink);text-align:center}
+  #txtDlg input{width:100%;background:var(--ink);border:1px solid var(--line);
+    border-radius:9px;padding:10px;color:#e8dccf;font-size:16px;font-family:inherit}
+  #txtDlg .td-row{display:flex;gap:8px}
+  #txtDlg .td-row button{flex:1;padding:10px 0;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer}
+  #txtDlg .td-row button.ok{background:var(--gold);color:#2a1c0c;font-weight:800}
   /* 시작 직업 선택 — 카드 석 장. 초상은 1024² 원화라 위쪽(얼굴)만 보여준다 */
   .cls-note{font-size:12px;color:var(--ink2);text-align:center;margin:2px 0 10px}
   .cls-card{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;
@@ -1327,7 +1341,10 @@
   .ch-send{display:flex;gap:6px;align-items:center}
   .ch-send input{flex:1 1 auto;min-width:0;background:var(--ink);
     border:1px solid var(--line);border-radius:9px;padding:9px 10px;
-    color:#e8dccf;font-size:13px;font-family:inherit}
+    /* **16px 밑으로 내리지 않는다.** iOS 사파리는 입력칸 글자가 16px 보다
+       작으면 포커스 때 화면을 통째로 확대한다 — 채팅 칠 때마다 화면이
+       줌인되던 원인이 이 13px 이었다 (단장 지적 2026-08-27) */
+    color:#e8dccf;font-size:16px;font-family:inherit}
   .ch-send input:disabled{opacity:.5}
   .ch-send button{flex:0 0 auto}
   /* 퀘스트 — 제작대 왼쪽. 전투 영역의 얇은 띠가 아니라 **카드**다.
@@ -4365,5 +4382,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
 <script type="module" src="./src/main.js"></script>
+<div id="txtDlg"><div class="td-box">
+  <b id="tdTitle"></b>
+  <input id="tdIn" maxlength="15" autocomplete="off">
+  <div class="td-row"><button id="tdNo"></button><button id="tdOk" class="ok"></button></div>
+</div></div>
 </body>
 </html>

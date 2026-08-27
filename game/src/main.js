@@ -579,7 +579,29 @@ function autoNickname() {
   return `${pick(a.adjectives)}${pick(a.animals)}${n}`;
 }
 
-/** 변경 비용. 첫 변경은 무료, 이후 다이아 + 쿨타임 (changePolicy) */
+/**
+ * 텍스트 입력 모달. **prompt() 를 쓰지 않는다** — 모바일 WebView 가 막는
+ * 경우가 있어 닉네임 변경이 통째로 죽었고 (단장 지적 2026-08-27), PC 에서도
+ * 브라우저 기본 창은 게임 톤을 깬다. 취소하면 null.
+ */
+function askText(title, value = '', ok = '확인', no = '취소') {
+  return new Promise(done => {
+    const dlg = $('#txtDlg'), input = $('#tdIn');
+    $('#tdTitle').textContent = title;
+    $('#tdOk').textContent = t(ok);
+    $('#tdNo').textContent = t(no);
+    input.value = value;
+    dlg.classList.add('show');
+    input.focus();
+    const fin = v => { dlg.classList.remove('show'); okB.onclick = noB.onclick = input.onkeydown = null; done(v); };
+    const okB = $('#tdOk'), noB = $('#tdNo');
+    okB.onclick = () => fin(input.value);
+    noB.onclick = () => fin(null);
+    input.onkeydown = e => { if (e.key === 'Enter') fin(input.value); };
+  });
+}
+
+/** 변경 비용. 첫 변경은 무료, 이후 다이아 (changePolicy) */
 function nickCost() {
   const c = D.profile.nickname.changePolicy;
   if (!S.nickChanged && c.firstSetFree) return { free: true, dia: 0, waitDays: 0 };
@@ -602,6 +624,8 @@ function setNickname(name) {
   S.nickChanged = (S.nickChanged || 0) + 1;
   S.nickChangedAt = Date.now();
   save(); renderTop(); profile.render();
+  // 새 이름을 서버에도 바로 올린다 — 안 올리면 랭킹·채팅에는 옛 이름이 남는다
+  Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
   toast(c.free ? '닉네임을 정했습니다' : `닉네임 변경 · 다이아 -${num(c.dia)}`);
 }
 
@@ -3755,7 +3779,7 @@ function openAllianceGate() {
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   $('#alCreate')?.addEventListener('click', async () => {
-    const name = prompt(t('연합 이름 (2~12자)'));
+    const name = await askText(t('연합 이름 (2~12자)'));
     if (!name) return;
     if (name.length < 2 || name.length > 12) return toast(t('이름은 2~12자입니다'));
     if (S.dia < cost) return toast(t('다이아 부족'));
@@ -4673,7 +4697,10 @@ function openEntryShop() {
 function publicProfile() {
   return {
     account: null,                       // 서버가 $sender.account 로 채운다
-    nickname: S.profile?.nick || '단장',
+    // 닉네임의 저장소는 S.nickname 하나다. S.profile.nick 은 쓰는 곳이 없는
+    // 죽은 필드였는데 여기가 그걸 봐서, 서버에는 늘 '단장' 이 올라갔다 —
+    // 랭킹·채팅·친구가 전부 단장이던 원인 (단장 지적 2026-08-27)
+    nickname: S.nickname || '단장',
     cp: Math.round(totalCp()),
     stage: S.maxStage || 0,
     capCls: S.promoClass || 'warrior',
@@ -4860,7 +4887,7 @@ function showVs(foe) {
 /** 상단 양측 HP 바 — arena.json > presentation.uiRequirement */
 function showArenaBars(foe) {
   const el = $('#arBars');
-  el.querySelector('.ar-me b').textContent = S.profile?.nick || '단장';
+  el.querySelector('.ar-me b').textContent = S.nickname || '단장';
   el.querySelector('.ar-foe b').textContent = foe.name;
   el.querySelector('.ar-me i').style.width = '100%';
   el.querySelector('.ar-foe i').style.width = '100%';
@@ -5419,7 +5446,7 @@ function openAlliance(tab = 'home') {
       ? real.map(m => `<div class="al-mem${m.account === live.get('myAlliance')?.me?.account ? ' me' : ''}">
          <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
          <span class="al-mem-t"><b>${m.account === live.get('myAlliance')?.me?.account
-           ? (S.profile?.nick || S.nickname || '나')
+           ? (S.nickname || '나')
            : (m.nickname || shortAcc(m.account))}</b>
            <i>${ROLE_KO[m.role] || '단원'}</i></span>
          <span class="al-mem-c">${coin}${num(m.coin || 0)}</span></div>`).join('')
@@ -7099,6 +7126,15 @@ function bootTapToStart() {
   profile = new ProfileScreen($('#app'), {
     state: S, data: D, cp: totalCp,
     nickCost, setNick: n => setNickname(n), toast,
+    // prompt() 대신 게임 안 입력 모달 — profile.js 가 이걸 부른다
+    editNick: async () => {
+      const c = nickCost();
+      if (c.waitDays > 0) return toast(t('{0}일 뒤에 변경할 수 있습니다', c.waitDays));
+      const title = c.free ? t('닉네임을 정하세요 (무료 1회)')
+        : t('닉네임 변경 · 다이아 {0}', num(c.dia));
+      const v = await askText(title, S.nickname || '');
+      if (v != null) setNickname(v);
+    },
     set: (k, v) => { S.profile = S.profile || {}; S.profile[k] = v; save(); renderCaptain(); },
   });
   settings = new SettingsScreen($('#app'), {

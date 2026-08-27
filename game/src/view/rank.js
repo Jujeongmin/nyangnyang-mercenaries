@@ -162,13 +162,9 @@ export class RankScreen {
         <div class="rk-pred">${t('지금 {0} · 이대로면 훈장 {1} · 다이아 {2}',
           `<b>${t('{0}위', myRank)}</b>`, `<b>${num(tier.medals)}</b>`, `<b>${num(tier.diamond)}</b>`)}</div>
       </div>`;
-    } else if (this.tab === 'power') {
-      head = `<div class="sh-note" style="margin:0 0 10px">
-        ${t('서버가 유저 state 로 CP 를 재계산한다. 클라 전송값은 신뢰하지 않는다. 제출은 debounce 60초 + 최소 변화율 0.5% + 일 30회로 제한된다.')}</div>`;
-    } else {
-      head = `<div class="sh-note" style="margin:0 0 10px">
-        ${t(D.ranking.boards[0].tiebreak)} — ${t('CP 가 낮아도 빨리 민 유저가 위로 온다.')}</div>`;
     }
+    // 전투력·스테이지 보드의 설명문은 뺐다 (단장 지시 2026-08-27). 서버 검증
+    // 방식 같은 내부 규칙은 유저가 읽을 글이 아니다
 
     this.el.querySelector('#rkBody').innerHTML = head + rows.map(r => `
       <div class="rk-row${r.rank <= 3 ? ' top' : ''}">

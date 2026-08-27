@@ -159,15 +159,9 @@ export class ProfileScreen {
           <img src="/assets/char/${id}.webp" alt=""></button>`;
       }).join('') || '<div class="sh-note">용병을 소환하면 여기에 걸 수 있습니다.</div>'}</div>`;
 
-    // 닉네임 변경 — 첫 변경은 무료, 이후 다이아 + 쿨타임
-    this.el.querySelector('#pfEdit').addEventListener('click', () => {
-      if (c.waitDays > 0) return this.api.toast?.(`${c.waitDays}일 뒤에 변경할 수 있습니다`);
-      const msg = c.free
-        ? '닉네임을 정하세요 (무료 1회)'
-        : `닉네임 변경 · 다이아 ${c.dia}`;
-      const v = prompt(msg, S.nickname || '');
-      if (v != null) this.api.setNick(v);
-    });
+    // 닉네임 변경 — 게임 안 입력 모달 (main.js > askText). prompt() 는
+    // 모바일 WebView 가 막아 변경이 통째로 죽었다 (단장 지적 2026-08-27)
+    this.el.querySelector('#pfEdit').addEventListener('click', () => this.api.editNick?.());
 
     this.el.querySelectorAll('[data-title]').forEach(b => b.addEventListener('click', () => {
       this.api.set('titleId', b.dataset.title); this.render();

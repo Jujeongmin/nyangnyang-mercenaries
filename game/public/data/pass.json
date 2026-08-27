@@ -63,13 +63,13 @@
     "stageRange": "St5 ~ St25",
     "free": {
      "diamond": 30,
-     "gold": 300000,
      "equip_ticket": 5
     },
     "paid": {
      "diamond": 120,
      "equip_ticket": 20,
-     "speedup_5m": 1
+     "speedup_5m": 1,
+     "gold": 30000
     }
    },
    {
@@ -78,14 +78,14 @@
     "stageRange": "St30 ~ St50",
     "free": {
      "diamond": 40,
-     "gold": 1200000,
      "equip_ticket": 8
     },
     "paid": {
      "diamond": 160,
      "equip_ticket": 30,
      "speedup_5m": 2,
-     "merc_ticket": 3
+     "merc_ticket": 3,
+     "gold": 120000
     }
    },
    {
@@ -94,14 +94,14 @@
     "stageRange": "St55 ~ St75",
     "free": {
      "diamond": 50,
-     "gold": 5000000,
      "equip_ticket": 10
     },
     "paid": {
      "diamond": 200,
      "equip_ticket": 40,
      "speedup_5m": 2,
-     "skill_ticket": 3
+     "skill_ticket": 3,
+     "gold": 500000
     }
    },
    {
@@ -110,14 +110,14 @@
     "stageRange": "St80 ~ St100",
     "free": {
      "diamond": 60,
-     "gold": 20000000,
      "equip_ticket": 12
     },
     "paid": {
      "diamond": 240,
      "equip_ticket": 50,
      "speedup_5m": 3,
-     "merc_ticket": 4
+     "merc_ticket": 4,
+     "gold": 2000000
     }
    },
    {
@@ -126,14 +126,14 @@
     "stageRange": "St105 ~ St125",
     "free": {
      "diamond": 70,
-     "gold": 60000000,
      "equip_ticket": 15
     },
     "paid": {
      "diamond": 280,
      "equip_ticket": 60,
      "speedup_5m": 3,
-     "skill_ticket": 4
+     "skill_ticket": 4,
+     "gold": 6000000
     }
    },
    {
@@ -142,7 +142,6 @@
     "stageRange": "St130 ~ St150",
     "free": {
      "diamond": 80,
-     "gold": 150000000,
      "equip_ticket": 20
     },
     "paid": {
@@ -150,7 +149,8 @@
      "equip_ticket": 80,
      "speedup_5m": 4,
      "merc_ticket": 5,
-     "skill_ticket": 5
+     "skill_ticket": 5,
+     "gold": 15000000
     }
    }
   ],
@@ -164,12 +164,12 @@
     "title": "t_season1"
    },
    "note": "마지막 티어는 재화가 아니라 장식이다. 시즌이 끝나도 남는 게 있어야 다음 시즌을 산다."
-  }
+  },
+  "goldMoveNote": "2026-08-27 단장 지시: 골드는 무료 트랙에서 빼고 프리미엄으로 옮기되 1/10 로 줄였다. 무료 골드 총 11.8억은 방치 수입 대비 과했고, 프리미엄에는 \"사면 골드도 나온다\" 는 칸 하나가 생긴다."
  },
  "totals": {
   "free": {
    "diamond": 1650,
-   "gold": 1183000000,
    "equip_ticket": 350,
    "pullEquivalent": "약 11뽑 (다이아 150/뽑)",
    "verdict": "총 뽑기 예산의 0.3%. 상쇄 불필요."
@@ -182,7 +182,9 @@
    "skill_ticket": 60,
    "vxValue": 500,
    "verdict": "다이아 6,600 은 다이아 묶음 기준 약 3,000 VX 어치다. 500 VX 대비 6배 — 시즌 패스의 표준 체감 배율이고, 실결제라 무과금 예산과 무관하다.",
-   "hourglassCheck": "모래시계 75개 = 375분 = 6.25시간. 시즌 42일 동안이라 하루 9분꼴. 제작 타이머를 무너뜨리지 않는다."
+   "hourglassCheck": "모래시계 75개 = 375분 = 6.25시간. 시즌 42일 동안이라 하루 9분꼴. 제작 타이머를 무너뜨리지 않는다.",
+   "gold": 118250000,
+   "goldNote": "구 무료 트랙 골드(총 11.8억)의 1/10."
   }
  },
  "ui": {
