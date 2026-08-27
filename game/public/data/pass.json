@@ -68,7 +68,7 @@
     "paid": {
      "diamond": 120,
      "equip_ticket": 20,
-     "speedup_5m": 1,
+     "speedup_5m": 5,
      "gold": 30000
     }
    },
@@ -83,7 +83,7 @@
     "paid": {
      "diamond": 160,
      "equip_ticket": 30,
-     "speedup_5m": 2,
+     "speedup_5m": 6,
      "merc_ticket": 3,
      "gold": 120000
     }
@@ -99,7 +99,7 @@
     "paid": {
      "diamond": 200,
      "equip_ticket": 40,
-     "speedup_5m": 2,
+     "speedup_5m": 7,
      "skill_ticket": 3,
      "gold": 500000
     }
@@ -115,7 +115,7 @@
     "paid": {
      "diamond": 240,
      "equip_ticket": 50,
-     "speedup_5m": 3,
+     "speedup_5m": 8,
      "merc_ticket": 4,
      "gold": 2000000
     }
@@ -131,7 +131,7 @@
     "paid": {
      "diamond": 280,
      "equip_ticket": 60,
-     "speedup_5m": 3,
+     "speedup_5m": 9,
      "skill_ticket": 4,
      "gold": 6000000
     }
@@ -147,7 +147,7 @@
     "paid": {
      "diamond": 320,
      "equip_ticket": 80,
-     "speedup_5m": 4,
+     "speedup_5m": 10,
      "merc_ticket": 5,
      "skill_ticket": 5,
      "gold": 15000000
@@ -177,12 +177,12 @@
   "paid": {
    "diamond": 6600,
    "equip_ticket": 1400,
-   "speedup_5m": 75,
+   "speedup_5m": 225,
    "merc_ticket": 60,
    "skill_ticket": 60,
    "vxValue": 500,
    "verdict": "다이아 6,600 은 다이아 묶음 기준 약 3,000 VX 어치다. 500 VX 대비 6배 — 시즌 패스의 표준 체감 배율이고, 실결제라 무과금 예산과 무관하다.",
-   "hourglassCheck": "모래시계 75개 = 375분 = 6.25시간. 시즌 42일 동안이라 하루 9분꼴. 제작 타이머를 무너뜨리지 않는다.",
+   "hourglassCheck": "모래시계 225개 = 1125분 = 18.75시간. 시즌 42일 동안 하루 27분꼴. 2026-08-27 단장 지시로 1티어 5개 기준 상향 (구 1~4개, 총 75).",
    "gold": 118250000,
    "goldNote": "구 무료 트랙 골드(총 11.8억)의 1/10."
   }
