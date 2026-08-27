@@ -65,23 +65,41 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // atk / walk 는 { n: 프레임 수, h: 칸 안 캐릭터 높이, foot: 발이 닿는 y }.
 //
 // **n 이 틀리면** 프레임이 어긋나게 잘려 캐릭터가 반씩 잘린 채 재생된다.
-// **h 가 틀리면** 크기가 어긋난다 — 스프라이트 높이가 (칸높이 ÷ h) 배수라
-// h 를 크게 잡으면 캐릭터가 그만큼 작아진다. 실제로 archer 를 464 로 잡아 뒀다가
-// 모바일에서 10% 작게 나왔다 (단장 지적 2026-08-26). 실측은 420 이었다.
 // **foot 이 틀리면** 발이 뜨거나 파묻힌다.
+// **h 가 틀리면** 크기가 어긋난다 — 스프라이트 높이가 (칸높이 ÷ h) 배수라
+// h 를 크게 잡으면 캐릭터가 그만큼 작아진다.
+//
+// **h 는 0번 프레임의 "고양이" 높이다 — 모자까지 포함하고 무기는 뺀다**
+// (단장 확정 2026-08-27). 두 가지를 같이 막는 값이다.
+//
+//   · 전 프레임 합집합으로 재면 무기를 높이 드는 프레임 하나가 표를 통째로
+//     부풀려 그 시트만 고양이가 작아진다. PR-mage-3 attack 이 378 인데 464 가
+//     들어가 20% 작게 나왔고, 전사 1단계만 두 값이 같아서 혼자 정상이었다.
+//   · 그림 전체(bbox)로 재도 지팡이가 모자 위로 솟는 시트가 작아진다.
+//     PR-mage-3 walk 은 bbox 457 이지만 고양이는 414 다 — 그래서 법사 3단계가
+//     **걸어갈 때만** 작아졌다 (단장 지적 2026-08-27).
+//
+// 아홉 종 중 일곱은 무기가 머리 위로 안 솟아 두 값이 같다. 어긋나는 것은
+// PR-mage-3 의 attack·walk 과 PR-mage-2 의 walk 셋뿐이다.
+//
+// 0번 프레임이 기준인 데는 이유가 하나 더 있다. assets/trim.json 의
+// <id>_idle 이 바로 이 프레임을 떼어낸 것이고 칸 크기도 같아서, 여기를 h 로
+// 잡으면 **대기에서 공격으로 넘어갈 때 크기 점프가 0** 이다. 실제로 9종 모두
+// trim.json 의 _idle.h 와 아래 atk.h 가 정확히 같다 — 어긋나면 둘 중 하나가
+// 낡은 것이니 다시 재라.
 //
 // 값은 전부 정리 스크립트가 시트를 재서 뱉은 것이다. 눈대중 금지.
 const SHEET = {
-  captain_warrior: { atk: { n: 4, h: 266, foot: 286 }, walk: { n: 8, h: 357, foot: 377 } },
-  captain_archer:  { atk: { n: 4, h: 420, foot: 440 }, walk: { n: 8, h: 464, foot: 484 } },
-  captain_mage:    { atk: { n: 4, h: 457, foot: 477 }, walk: { n: 8, h: 464, foot: 484 } },
+  captain_warrior: { atk: { n: 4, h: 266, foot: 294 }, walk: { n: 8, h: 357, foot: 377 } },
+  captain_archer:  { atk: { n: 4, h: 417, foot: 440 }, walk: { n: 8, h: 463, foot: 484 } },
+  captain_mage:    { atk: { n: 4, h: 418, foot: 477 }, walk: { n: 8, h: 454, foot: 484 } },
 
-  'PR-warrior-2': { atk: { n: 4, h: 458, foot: 478 }, walk: { n: 8, h: 464, foot: 484 } },
-  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 359, foot: 379 } },
-  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360 }, walk: { n: 8, h: 461, foot: 481 } },
-  'PR-archer-3':  { atk: { n: 4, h: 413, foot: 433 }, walk: { n: 8, h: 399, foot: 419 } },
-  'PR-mage-2':    { atk: { n: 4, h: 464, foot: 484 }, walk: { n: 8, h: 464, foot: 484 } },
-  'PR-mage-3':    { atk: { n: 4, h: 464, foot: 484 }, walk: { n: 8, h: 464, foot: 484 } },
+  'PR-warrior-2': { atk: { n: 4, h: 443, foot: 478 }, walk: { n: 8, h: 460, foot: 484 } },
+  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 349, foot: 379 } },
+  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360 }, walk: { n: 8, h: 459, foot: 481 } },
+  'PR-archer-3':  { atk: { n: 4, h: 409, foot: 433 }, walk: { n: 8, h: 394, foot: 419 } },
+  'PR-mage-2':    { atk: { n: 4, h: 414, foot: 484 }, walk: { n: 8, h: 448, foot: 484 } },
+  'PR-mage-3':    { atk: { n: 4, h: 378, foot: 484 }, walk: { n: 8, h: 414, foot: 484 } },
 };
 
 
