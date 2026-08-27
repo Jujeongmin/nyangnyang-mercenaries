@@ -981,6 +981,9 @@ function load() {
         for (const c of ['warrior', 'archer', 'mage']) if (c !== top) S.promo[c] = 1;
       }
     }
+    // 전직 스킬이 1차부터 켜진 뒤(2026-08-27)의 이관 — 이미 길을 걷는데
+    // 스킬이 0레벨이면 1레벨을 채워 준다. 새 유저가 선택 즉시 받는 것과 같다
+    if (S.promoClass && !(S.promoSkillLv >= 1)) S.promoSkillLv = 1;
     return j.lastSeenAt;
   } catch { return null; }
 }
@@ -3282,6 +3285,47 @@ function doPromote(cls) {
 }
 
 /** 전직 초기화 — 단계·선택을 모두 되돌린다. 비용이 없으니 잃는 것도 없다 */
+/**
+ * 시작 직업 선택. **promoClass 가 없으면 게임이 시작되지 않는다** (단장 확정
+ * 2026-08-27). 새 유저·구버전 미전직 세이브·전직 초기화가 전부 이 문 하나를
+ * 지난다 — 별도 플래그를 두면 세 경로가 제각각 어긋난다.
+ *
+ * 선택 = 전직 경로 고정이다. 여기서 고른 직군만 훈련소를 채워 2·3차로
+ * 오른다 (promote 의 "한 길만" 차단). 바꾸려면 전직 초기화 뿐이다.
+ */
+function openClassSelect() {
+  return new Promise(done => {
+    $('#ovt').textContent = t('길을 선택하세요');
+    setSkin('promo');
+    $('#ovb').innerHTML = `<div class="cls-note">${t('단장의 길은 하나뿐입니다. 훈련소를 키우면 그 길의 끝까지 오릅니다.')}</div>`
+      + ['warrior', 'archer', 'mage'].map(c => {
+        const sk = csDef().skills[c];
+        return `<button class="cls-card" data-cls="${c}">
+          <img src="/assets/captain/captain_${c}.png" alt="">
+          <b>${CLASS_KO[c]}</b>
+          <span>${t(sk.nameKo)}</span>
+          <i>${sk.descKo.replace('{v}', (sk.perLevel * 100).toFixed(1).replace(/.0$/, '') + '%')} /${t('레벨')}</i>
+        </button>`;
+      }).join('');
+    $('#ovinfo').innerHTML = '';
+    $('#ovb').querySelectorAll('[data-cls]').forEach(b =>
+      b.addEventListener('click', () => {
+        const cls = b.dataset.cls;
+        S.promoClass = cls;
+        S.promo = S.promo || { warrior: 1, archer: 1, mage: 1 };
+        S.promo[cls] = Math.max(S.promo[cls] || 1, 1);
+        // 전직 스킬은 **1레벨로 바로 켠다** (단장 확정 2026-08-27). 0레벨이면
+        // 칩은 떠도 효과가 0 이라 "받았는데 아무 일도 없는" 스킬이 된다
+        if (!(S.promoSkillLv >= 1)) S.promoSkillLv = 1;
+        save(); refreshParty(); applyCaptainClass(); renderTop();
+        $('#ov').classList.remove('show', 'forced');
+        toast(`${CLASS_KO[cls]} ${t('의 길을 걷습니다')}`);
+        done();
+      }));
+    $('#ov').classList.add('show', 'forced');
+  });
+}
+
 function resetPromotion() {
   if (!S.promoClass) return;
   S.promo = { warrior: 1, archer: 1, mage: 1 };
@@ -3290,7 +3334,9 @@ function resetPromotion() {
   // 리셋할 때마다 강화가 날아가면 초기화가 벌이 된다
   save(); refreshParty(); applyCaptainClass();
   toast(t('전직을 초기화했습니다'));
-  openPromotion();
+  // 직업 없는 채로 두지 않는다 — 바로 다시 고르게 하고, 고르면 지금 판을
+  // 처음부터 다시 돌린다 (단장 확정 2026-08-27: 전투 상태 꼬임 방지)
+  openClassSelect().then(() => runStage());
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
@@ -7533,5 +7579,8 @@ function bootTapToStart() {
   // 진행도가 바뀌기 전까지 다시 안 돌아서 첫 손이 영영 안 떴다
   // (단장 지적 2026-08-25). 걷히는 애니메이션(0.4s)이 끝나고 잰다
   setTimeout(maybeOnboardHint, 500);
+  // 직업이 없으면 첫 판보다 먼저 길을 고른다 — 새 유저와 구버전 미전직
+  // 세이브 모두 여기로 들어온다
+  if (!S.promoClass) await openClassSelect();
   await runStage();
 })();

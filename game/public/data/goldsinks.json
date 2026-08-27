@@ -95,16 +95,16 @@
    "type": "capped_soft",
    "description": "골드로 전 용병의 기본 스탯을 영구 강화한다. 파티 편성·등급과 무관하게 적용.",
    "maxLevel": 200,
-   "bonusPerLevel": 0.005,
-   "maxBonus": 1.0,
+   "bonusPerLevel": 0.01,
+   "maxBonus": 2,
    "costFormula": "800 * 1.055^level",
    "costAtLv200": 213000000,
    "cumulativeCost": 4050000000,
    "cpIntegration": {
     "appliesTo": "CP_총합 곱연산 항",
     "term": "(1 + trainingCampBonus)",
-    "maxMultiplier": 2.0,
-    "warning": "CP 천장이 x2.0 항으로 상승. stages.json > cpCeiling 갱신 필요."
+    "maxMultiplier": 3,
+    "warning": "CP 천장이 x3.0 항으로 상승. stages.json > cpCeiling 갱신 필요."
    },
    "designNote": "무한 레벨로 만들면 CP 천장이 사라져 스테이지 곡선 기준이 무너진다. Lv200 상한 + 최대 +40%로 천장을 계산 가능하게 유지했다.",
    "promotion": {
@@ -164,7 +164,7 @@
     "statMultNote": "v3 상향: 2차 1.12 -> 1.25, 3차 1.28 -> 1.55. 한 길만 갈 수 있게 되면서 배수가 세 직군에 동시에 걸리는 일이 없어졌다 — 파티를 그 직군으로 몰수록 이득이 커지는 빌드 축이 된다. cpCeiling 은 모노 직군 파티 기준 1.55 배로 갱신 대상.",
     "classSkills": {
      "nameKo": "전직 스킬",
-     "unlockTier": 2,
+     "unlockTier": 1,
      "maxLevel": 50,
      "goldCost": {
       "base": 1000000,
@@ -178,8 +178,8 @@
        "id": "CS-W",
        "nameKo": "수호 기사의 결의",
        "effect": "party_atk",
-       "perLevel": 0.012,
-       "max": 0.6,
+       "perLevel": 0.024,
+       "max": 1.2,
        "fx": "CS-W1",
        "descKo": "아군 전체 공격력 +{v}"
       },
@@ -187,8 +187,8 @@
        "id": "CS-A",
        "nameKo": "바람의 가속",
        "effect": "party_atkspeed",
-       "perLevel": 0.012,
-       "max": 0.6,
+       "perLevel": 0.024,
+       "max": 1.2,
        "fx": "CS-A1",
        "descKo": "아군 전체 공격 속도 +{v}"
       },
@@ -196,13 +196,13 @@
        "id": "CS-M",
        "nameKo": "원소 증폭",
        "effect": "skill_damage",
-       "perLevel": 0.024,
-       "max": 1.2,
+       "perLevel": 0.048,
+       "max": 2.4,
        "fx": "CS-M1",
        "descKo": "스킬 피해 +{v}"
       }
      },
-     "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산. v2 에서 레벨당 수치를 2배로 올렸다 — 3차 배수(1.55)와 만렙 스킬(x1.6)을 곱하면 DPS 약 2.5배로, 스테이지 벽 배율(1.2~1.45)을 실제로 넘는 점프가 된다. 전직이 벽을 부수는 열쇠라는 게 설계 의도다.",
+     "effectNote": "전사·궁수는 파티 DPS 곱연산(공격력/공속은 DPS 에서 등가), 마법사는 스킬 피해 곱연산. v3 (2026-08-27): 레벨당 수치와 상한을 다시 2배로 — 1차부터 켜지는 대신 성장 체감이 즉시 보여야 한다. 만렙 전사/궁수 +120%, 마법사 +240%.",
      "skills2": {
       "warrior": {
        "id": "CS-W2",
@@ -238,15 +238,17 @@
       "growth": 1.12,
       "formula": "cost(lv) = base * growth^lv",
       "cumulativeAtMax": 4800000000
-     }
+     },
+     "unlockNote": "단장 확정 2026-08-27: 시작 직업 선택과 함께 1차부터 스킬이 켜진다. 선택 즉시 1레벨이 공짜로 주어진다 (main.js > openClassSelect)."
     }
    },
    "costBase": 800,
    "costNote": "2026-08-24: 5000 * 1.055^level → 800 * 1.055^level. Lv2 까지 10,275 였는데 온보딩 마지막 퀘스트(Q8 훈련소 Lv2)가 그걸 요구해서 퀘스트가 골드를 통째로 대신 줘야 했다. 이제 1,644 다. **생애 골드 예산이 그만큼 줄어든다** — 후반 소모처를 다시 볼 때 이 항목부터 본다.",
    "bonusHistory": {
     "v1": 0.002,
-    "current": 0.005,
-    "reason": "단장 지적 2026-08-26: 레벨당 +0.2% 는 전투력 변화가 안 보였다. +0.5%/레벨, 만렙 +100% 로 상향. 천장 재계산 대상."
+    "v2": 0.005,
+    "current": 0.01,
+    "reason": "단장 지시 2026-08-27: 훈련소 전투력 증가량 상향. 레벨당 +1%, 만렙 +200%. 천장 재계산 대상."
    }
   },
   {
