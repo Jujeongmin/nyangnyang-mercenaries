@@ -1928,7 +1928,13 @@ function canAutoEquip(track) {
  * 옛 구조처럼 밀려날 때 레벨을 가치로 환급하면 편성이 흔들릴 때마다 손해가 나므로,
  * 아예 환급 경로를 안 탄다.
  */
+/** 자동장착 + 온보딩 손 재평가 — 장착이 끝나면 손이 [보상 받기] 로 넘어간다 */
 function applyAutoEquip(track) {
+  const r = applyAutoEquipInner(track);
+  setTimeout(maybeOnboardHint, 50);
+  return r;
+}
+function applyAutoEquipInner(track) {
   const b = bestOf(track);
   if (track === 'skill') {
     // 배열 길이는 최종 4칸 그대로 두고 열린 칸만 채운다. 잠긴 칸은 null 이라
@@ -6591,8 +6597,10 @@ function showTapHint(sel, ms = 6000) {
   clearTimeout(tapHintT);
   if (!el || !hint) return;
   // **덮개가 열려 있으면 아예 안 띄운다.** 치우는 것만으로는 부족했다 —
-  // 상점을 열면 그 안에서 렌더가 돌고, 그때 이 함수가 다시 불려 손이 되살아났다
-  if (coverOpen()) return hideTapHint();
+  // 상점을 열면 그 안에서 렌더가 돌고, 그때 이 함수가 다시 불려 손이 되살아났다.
+  // 단, **목표가 그 덮개 안의 버튼이면 가리는 게 아니다** — 장착 튜토리얼이
+  // 편성 시트(z 65) 안의 [자동장착] 을 가리켜야 한다 (단장 지시 2026-08-27)
+  if (coverOpen(el)) return hideTapHint();
   // 아직 자리를 못 잡은 버튼(폭 0)에는 안 붙인다 — 시트가 뜨는 중이다
   if (!el.getBoundingClientRect().width) return hideTapHint();
   // 같은 목표로 이미 떠 있으면 그냥 둔다 — renderQuest 가 자주 도는데 그때마다
@@ -6647,8 +6655,17 @@ let hintCovers = [];
  * 어느 퀘스트에서도 안 떴다 (단장 지적 2026-08-25, Q1 무기 제작).
  * 판정은 셋을 다 본다: 보이는가, 클릭을 먹는가, 덮을 만한 크기인가.
  */
-function coverOpen() {
+function coverOpen(target) {
+  // 목표를 품은 판의 z — 그보다 낮은 판은 목표를 못 가린다. 편성 시트(z65)의
+  // 배경막(#sheetBg, z64)이 여기 걸려 시트 안 [자동장착] 에 손이 못 붙었다
+  const baseZ = target
+    ? Math.max(0, ...hintCovers.filter(e => e.contains(target))
+        .map(e => parseInt(getComputedStyle(e).zIndex, 10) || 0))
+    : 0;
   return hintCovers.some(e => {
+    // 목표를 품은 덮개는 가림막이 아니라 무대다
+    if (target && e.contains(target)) return false;
+    if (baseZ && (parseInt(getComputedStyle(e).zIndex, 10) || 0) <= baseZ) return false;
     const c = getComputedStyle(e);
     if (c.display === 'none' || c.visibility === 'hidden') return false;
     // 클릭을 안 먹으면 밑의 버튼을 그대로 누를 수 있다 — 가리는 게 아니다
@@ -6714,7 +6731,20 @@ function maybeOnboardHint() {
   // **다 채웠으면 목표가 아니라 퀘스트 배너를 가리킨다.** 예전에는 목표만 봐서,
   // Q1 을 다 깨고 나서도 손이 모루 위에서 계속 두드렸다 — 그 시점에 눌러야 할
   // 것은 제작이 아니라 [보상 받기] 다
-  if (qProgress(def) >= def.target) return showTapHint('#quest', 0);
+  if (qProgress(def) >= def.target) {
+    // **소환 퀘스트는 장착까지가 튜토리얼이다** (단장 지시 2026-08-27).
+    // 뽑기만 하고 보유함에 쌓인 채 끝나면 전투력이 하나도 안 오른다 — 소환을
+    // 마쳤고 보유함에 미장착분이 남아 있으면, 보상보다 먼저 손이
+    // [탭 열기] → [자동장착] 을 차례로 가리킨다. 장착이 끝나야 보상 차례다.
+    const TRACK = { mercenary_summon: 'mercenary', skill_summon: 'skill' };
+    const tr = TRACK[def.type];
+    if (tr && (S.own[tr] || []).length) {
+      const open = $('#sheet').classList.contains('show') && roster.track === tr;
+      return showTapHint(open ? '#shEqBtn'
+        : `.nv[data-tab="${tr === 'skill' ? 'skill' : 'merc'}"]`, 0);
+    }
+    return showTapHint('#quest', 0);
+  }
   const qt = QUEST_TYPE[def.type];
   const sel = TAP_TARGET[qt?.goto];
   // 목적지 화면이 이미 열려 있을 때만. 안 열려 있으면 가리킬 것이 화면에 없다
@@ -7392,6 +7422,8 @@ function bootTapToStart() {
     else toast(`${n.textContent} 탭 — 미구현`);
     // **연 뒤에** 맞춘다. 열기 전에 부르면 아직 아무것도 안 떠 있어 바로 지워진다
     syncNav();
+    // 장착 튜토리얼의 다음 걸음 — 시트가 뜨고 자리를 잡은 다음에 잰다
+    requestAnimationFrame(() => setTimeout(maybeOnboardHint, 150));
   }));
 
   // 설정은 사이드 열에서 상단바로 옮겼다. 스테이지 표시는 HUD 진행도와 중복이라 뺐다.

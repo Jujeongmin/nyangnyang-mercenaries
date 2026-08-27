@@ -92,7 +92,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const SHEET = {
   captain_warrior: { atk: { n: 4, h: 266, foot: 294 }, walk: { n: 8, h: 357, foot: 377 } },
   captain_archer:  { atk: { n: 4, h: 417, foot: 440 }, walk: { n: 8, h: 463, foot: 484 } },
-  captain_mage:    { atk: { n: 4, h: 418, foot: 477 }, walk: { n: 8, h: 454, foot: 484 } },
+  captain_mage:    { atk: { n: 4, h: 418, foot: 471 }, walk: { n: 8, h: 454, foot: 484 } },
 
   'PR-warrior-2': { atk: { n: 4, h: 443, foot: 478 }, walk: { n: 8, h: 460, foot: 484 } },
   'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 349, foot: 372 } },
