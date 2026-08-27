@@ -155,12 +155,22 @@ export const pullRank = onDone => {
  * party·title·frame 까지 딸려 와서 순위 행을 그대로 프로필 카드로 쓸 수 있다.
  * 예전에는 rankings 컬렉션에 CP 하나뿐이라 스테이지·아레나 보드가 더미였다.
  */
-const TOP_KEY = { power: 'topPower', stage: 'topStage', arena: 'topArena' };
+// 'score' 는 화면(경쟁점수 탭)의 이름이고 서버 필드는 arena 다 — 별칭이 없으면
+// 그 탭은 표를 아예 못 받는다 (단장 지적 2026-08-27: 순위가 등록이 안 돼 있다)
+const TOP_KEY = { power: 'topPower', stage: 'topStage', arena: 'topArena', score: 'topArena' };
 export const pullTop = (board, onDone) => {
   const key = TOP_KEY[board];
   if (key) pull(key, () => call('topProfiles', [board, 20]), onDone);
 };
 export const getTop = board => cache[TOP_KEY[board]] || null;
+
+// 보드별 내 실제 등수 (서버 myProfileRank). 행이 없으면 rank -1 이 온다
+const MYRANK_KEY = { power: 'myRankPower', stage: 'myRankStage', arena: 'myRankArena', score: 'myRankArena' };
+export const pullMyBoardRank = (board, onDone) => {
+  const key = MYRANK_KEY[board];
+  if (key) pull(key, () => call('myProfileRank', [board]), onDone);
+};
+export const getMyBoardRank = board => cache[MYRANK_KEY[board]] || null;
 
 /**
  * 아레나 상대. 내 CP 의 ±40% 대역에서 표본을 받는다 — 정교한 매칭이 아니라

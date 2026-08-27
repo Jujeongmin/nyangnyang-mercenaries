@@ -89,17 +89,20 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // 낡은 것이니 다시 재라.
 //
 // 값은 전부 정리 스크립트가 시트를 재서 뱉은 것이다. 눈대중 금지.
+// ch 는 **원본 칸높이**다. 배포 CDN 이나 iOS 가 큰 시트를 몰래 줄여 서빙하면
+// h·foot(원본 픽셀 좌표)이 실제 텍스처와 어긋난다 — rig 가 ch 와 텍스처를
+// 비교해 그 자리에서 환산한다 (trim.cw 와 같은 자가 보정).
 const SHEET = {
-  captain_warrior: { atk: { n: 4, h: 266, foot: 294 }, walk: { n: 8, h: 357, foot: 377 } },
-  captain_archer:  { atk: { n: 4, h: 417, foot: 440 }, walk: { n: 8, h: 463, foot: 484 } },
-  captain_mage:    { atk: { n: 4, h: 418, foot: 471 }, walk: { n: 8, h: 454, foot: 484 } },
+  captain_warrior: { atk: { n: 4, h: 266, foot: 294, ch: 314 }, walk: { n: 8, h: 357, foot: 377, ch: 397 } },
+  captain_archer:  { atk: { n: 4, h: 417, foot: 440, ch: 460 }, walk: { n: 8, h: 463, foot: 484, ch: 504 } },
+  captain_mage:    { atk: { n: 4, h: 418, foot: 471, ch: 491 }, walk: { n: 8, h: 454, foot: 484, ch: 504 } },
 
-  'PR-warrior-2': { atk: { n: 4, h: 443, foot: 478 }, walk: { n: 8, h: 460, foot: 484 } },
-  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 349, foot: 372 } },
-  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360 }, walk: { n: 8, h: 459, foot: 481 } },
-  'PR-archer-3':  { atk: { n: 4, h: 338, foot: 353 }, walk: { n: 8, h: 394, foot: 419 } },
-  'PR-mage-2':    { atk: { n: 4, h: 414, foot: 484 }, walk: { n: 8, h: 448, foot: 484 } },
-  'PR-mage-3':    { atk: { n: 4, h: 427, foot: 524 }, walk: { n: 8, h: 414, foot: 484 } },
+  'PR-warrior-2': { atk: { n: 4, h: 443, foot: 478, ch: 498 }, walk: { n: 8, h: 460, foot: 484, ch: 504 } },
+  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469, ch: 489 }, walk: { n: 8, h: 349, foot: 372, ch: 392 } },
+  'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360, ch: 380 }, walk: { n: 8, h: 459, foot: 481, ch: 501 } },
+  'PR-archer-3':  { atk: { n: 4, h: 338, foot: 353, ch: 373 }, walk: { n: 8, h: 394, foot: 419, ch: 439 } },
+  'PR-mage-2':    { atk: { n: 4, h: 414, foot: 484, ch: 504 }, walk: { n: 8, h: 448, foot: 484, ch: 504 } },
+  'PR-mage-3':    { atk: { n: 4, h: 427, foot: 524, ch: 544 }, walk: { n: 8, h: 414, foot: 484, ch: 504 } },
 };
 
 
@@ -414,10 +417,10 @@ export class BattleScene {
         trim: TR[baseId] || TR[capId] || TR.captain_warrior,
         attackSheet: capAttackTex,
         attackFrameCount: sh.atk?.n,
-        attackTrim: sh.atk && { h: sh.atk.h, footY: sh.atk.foot },
+        attackTrim: sh.atk && { h: sh.atk.h, footY: sh.atk.foot, ch: sh.atk.ch },
         walkSheet: capWalkTex,
         walkFrameCount: sh.walk?.n,
-        walkTrim: sh.walk && { h: sh.walk.h, footY: sh.walk.foot },
+        walkTrim: sh.walk && { h: sh.walk.h, footY: sh.walk.foot, ch: sh.walk.ch },
       });
       this.captain.capCls = capCls;
       // 자리를 잡기 전에는 숨긴다 — 아래 편성 루프가 그림을 기다리는 동안

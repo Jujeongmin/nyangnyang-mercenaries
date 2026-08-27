@@ -4412,7 +4412,15 @@ function chatDetach() {
   if (chatUnsub) { try { chatUnsub(); } catch { /* 이미 끊겼다 */ } chatUnsub = null; }
 }
 
-const chatRows = () => live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld') || [];
+/**
+ * 이번 접속의 시작 시각. **채팅은 이 뒤에 온 것만 보인다** (단장 확정
+ * 2026-08-27). 켤 때마다 지난 대화가 통째로 쏟아지면 "지금 흐르는 대화" 가
+ * 아니라 남의 로그를 읽는 화면이 된다. 세이브에 안 넣는다 — 새로고침이
+ * 곧 새 접속이다.
+ */
+const CHAT_SINCE = Date.now();
+const chatFresh = rows => (rows || []).filter(r => (r.createdAt || 0) >= CHAT_SINCE);
+const chatRows = () => chatFresh(live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld'));
 const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.account;
 
 /**
@@ -4607,7 +4615,7 @@ function chatToBottom() {
 function chatBarSync() {
   const line = $('#chatline'), who = document.querySelector('#chat .who');
   if (!line) return;
-  const rows = live.get('chatWorld') || [];
+  const rows = chatFresh(live.get('chatWorld'));
   const last = rows[rows.length - 1];
   // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
   // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다

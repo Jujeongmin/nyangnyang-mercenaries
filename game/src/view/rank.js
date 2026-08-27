@@ -61,6 +61,7 @@ export class RankScreen {
     const again = () => { if (this.el.classList.contains('show')) this.render(); };
     live.pullRank(again);
     live.pullTop(this.tab || 'power', again);
+    live.pullMyBoardRank(this.tab || 'power', again);
   }
   close() { this.el.classList.remove('show'); }
 
@@ -146,21 +147,22 @@ export class RankScreen {
       : this.tab === 'power' ? cpNum(v)
       : `${num(v)}<i>${t('점')}</i>`;
     const rows = this.rows(this.tab);
-    // 내 등수. 전투력 보드만 서버가 실제로 안다 (getMyBestRank).
-    // 나머지는 아직 컬렉션이 없어 표시용 상수다 — 숫자가 진짜인 척하지 않도록
-    // 보드별로 갈라 둔다
-    const myRank = (this.tab === 'power' && live.get('myRank')?.rank > 0)
-      ? live.get('myRank').rank : 47;
+    // 내 등수 — 서버가 profiles 에서 "나보다 높은 사람 수 + 1" 로 잰 실제
+    // 값이다 (server.js > myProfileRank). 예전에는 전투력 보드만 진짜였고
+    // 나머지는 47 을 지어냈다 (단장 지적 2026-08-27). 서버가 모르면(-1)
+    // 순위를 지어내지 않고 — 로 비워 둔다
+    const mine = live.getMyBoardRank(this.tab);
+    const myRank = mine && mine.rank > 0 ? mine.rank : null;
 
     let head = '';
     if (this.tab === 'score') {
       // 시즌 타이머 + 내 순위의 예상 보상 — ui.seasonTimerReason
-      const tier = D.ranking.rankRewards.tiers.find(x => inRank(x.rank, myRank))
+      const tier = (myRank && D.ranking.rankRewards.tiers.find(x => inRank(x.rank, myRank)))
         || D.ranking.rankRewards.tiers[D.ranking.rankRewards.tiers.length - 1];
       head = `<div class="rk-season">
         <div class="rk-srow"><b>${t('시즌 {0}', 1)}</b><span>${t('남은 시간')} ${t('6일 04:12')}</span></div>
         <div class="rk-pred">${t('지금 {0} · 이대로면 훈장 {1} · 다이아 {2}',
-          `<b>${t('{0}위', myRank)}</b>`, `<b>${num(tier.medals)}</b>`, `<b>${num(tier.diamond)}</b>`)}</div>
+          `<b>${myRank ? t('{0}위', myRank) : t('순위권 밖')}</b>`, `<b>${num(tier.medals)}</b>`, `<b>${num(tier.diamond)}</b>`)}</div>
       </div>`;
     }
     // 전투력·스테이지 보드의 설명문은 뺐다 (단장 지시 2026-08-27). 서버 검증
@@ -188,7 +190,7 @@ export class RankScreen {
     const myTitle = P.titles.list.find(t => t.id === S.profile?.titleId);
     this.el.querySelector('#rkMine').innerHTML = `
       <div class="rk-row mine">
-        <span class="rk-n">${myRank}</span>
+        <span class="rk-n">${myRank ?? '—'}</span>
         <span class="rk-ava" style="border-color:${myFrame?.color || '#9E9E9E'}">
           <img src="${myMerc ? `/assets/char/${myMerc}.webp`
                              : '/assets/captain/captain_warrior.png'}" alt="">

@@ -140,9 +140,15 @@ export class UnitRig {
       // 그래서 **칸이 아니라 캐릭터**를 기준으로 잡는다. 기본 리그가 trim 으로
       // 하는 것과 같은 계산이다.
       const ch = opt.attackSheet.height;
-      const t = opt.attackTrim;                       // { h, footY } — 칸 안 캐릭터 영역
-      const charH = t?.h || ch;                       // 없으면 칸 전체가 캐릭터라고 본다
-      const footY = t?.footY ?? ch;                   // 칸 안에서 발이 닿는 y
+      const t = opt.attackTrim;                       // { h, footY, ch } — 칸 안 캐릭터 영역
+      // **h·foot 은 원본 픽셀 좌표다.** 배포 CDN 이나 iOS 가 큰 시트를 몰래
+      // 줄여 서빙하면 텍스처가 원본보다 작아지는데, 그때 원본 좌표로 나누면
+      // 캐릭터가 그 비율만큼 작아진다 — 모바일에서 걷기·공격만 절반이 되던
+      // 원인 (단장 확인 2026-08-27, iPhone 12 Pro). UnitRig 가 trim.cw 로
+      // 하는 것과 같은 자가 환산: 표의 원본 칸높이(ch)와 실제 텍스처를 비교한다
+      const ak = t?.ch ? ch / t.ch : 1;
+      const charH = t?.h ? t.h * ak : ch;             // 없으면 칸 전체가 캐릭터라고 본다
+      const footY = t?.footY != null ? t.footY * ak : ch;   // 칸 안에서 발이 닿는 y
       this.attackSprite.anchor.set(0.5, footY / ch);  // 발을 기준점으로
       this.attackSprite.height = this.h * (ch / charH);
       this.attackSprite.width = this.attackSprite.height * (fw / ch);
@@ -167,8 +173,9 @@ export class UnitRig {
       }
       const wch = opt.walkSheet.height;
       const wt = opt.walkTrim;
-      const wCharH = wt?.h || wch;
-      const wFootY = wt?.footY ?? wch;
+      const wk = wt?.ch ? wch / wt.ch : 1;            // 공격 시트와 같은 자가 환산
+      const wCharH = wt?.h ? wt.h * wk : wch;
+      const wFootY = wt?.footY != null ? wt.footY * wk : wch;
       this.walkSprite = new PIXI.Sprite(this.walkFrames[0]);
       this.walkSprite.anchor.set(0.5, wFootY / wch);
       this.walkSprite.height = this.h * (wch / wCharH);

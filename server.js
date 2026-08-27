@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 4;
+const SERVER_REV = 5;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -416,13 +416,33 @@ class Server {
    * 등수를 누르면 그 사람 편성을 볼 수 있다.
    */
   async topProfiles(board, limit) {
-    const FIELD = { power: 'cp', stage: 'stage', arena: 'arenaScore' };
+    const FIELD = { power: 'cp', stage: 'stage', arena: 'arenaScore', score: 'arenaScore' };
     const f = FIELD[board] || 'cp';
     const n = Math.min(50, Math.max(1, limit | 0 || 20));
     const rows = await sortedTop('profiles', {}, f, n);
     // 그 보드 점수가 0 인 사람은 아직 순위에 낄 자격이 없다 — 스테이지 0,
     // 아레나 무기록이 상위에 섞이면 표가 거짓이 된다
     return rows.filter(r => (r[f] || 0) > 0).map(r => ({ ...r, score: r[f] || 0 }));
+  }
+
+  /**
+   * 이 보드에서 내 실제 등수. "나보다 높은 점수의 사람 수 + 1" 이다.
+   * 예전에는 전투력 보드만 등수가 있었고 스테이지·아레나는 화면이 47 을
+   * 지어냈다 (단장 지적 2026-08-27). 내 profiles 행이 없거나 그 보드 점수가
+   * 0 이면 -1 — 화면은 그때 순위를 지어내지 말고 비워 둔다.
+   */
+  async myProfileRank(board) {
+    const FIELD = { power: 'cp', stage: 'stage', arena: 'arenaScore', score: 'arenaScore' };
+    const f = FIELD[board] || 'cp';
+    const me = await oneByAccount('profiles', $sender.account);
+    const v = me ? (me[f] || 0) : 0;
+    if (v <= 0) return { rank: -1, value: 0 };
+    const above = await $global.countCollectionItems('profiles', {
+      filters: [{ field: f, operator: '>', value: v }],
+    });
+    // countOf 사용 — 셈이 안 되는 환경이면 등수를 지어내지 않는다
+    const n = countOf(above);
+    return { rank: n < 0 ? -1 : n + 1, value: v };
   }
 
   /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
