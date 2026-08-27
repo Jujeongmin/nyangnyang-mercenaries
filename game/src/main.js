@@ -4720,8 +4720,11 @@ function publicProfile() {
     capCls: S.promoClass || 'warrior',
     party: S.party.filter(Boolean).slice(0, 5)
       .map(x => ({ id: x.id, grade: x.grade, level: x.level || 1 })),
-    title: S.profile?.title || '',
-    frame: S.profile?.frame || '',
+    // 착용 칭호·액자의 저장소는 titleId·frameId 다. title/frame 은 아무도
+    // 안 쓰는 이름이라 늘 빈 문자열이 올라갔다 — 랭킹·아레나에 착용 프로필이
+    // 안 보이던 원인 (단장 지적 2026-08-27)
+    title: (D.profile.titles.list.find(x => x.id === S.profile?.titleId)?.nameKo) || '',
+    frame: S.profile?.frameId || '',
     wing: S.cosmetics?.wing || '',
     arenaScore: S.arenaScore || 0,
   };
@@ -7077,6 +7080,41 @@ function bootTapToStart() {
     window.addEventListener('keydown', start);
   });
 }
+
+/**
+ * 뷰포트 높이 관리자. #app·#boot 의 크기 기준(--vhpx)을 여기서 쥔다.
+ *
+ * 키보드가 올라오면 브라우저가 뷰포트를 줄이고, CSS 100vh 로 재면 게임이
+ * 통째로 가운데로 압축된다 (단장 지적 2026-08-27, iPhone 12 Pro). 그래서
+ * **입력칸에 포커스가 있는 동안은 갱신을 멈춰** 직전 크기를 픽셀로 붙잡는다.
+ *
+ * 같은 자리에서 키보드 높이(--kb)도 잰다 — visualViewport 가 있으면
+ * innerHeight 와의 차가 곧 키보드다. 채팅 오버레이(#ov)와 입력 모달
+ * (#txtDlg)이 이 값만큼 바닥을 밀어 올려 입력칸·확인·취소가 안 깔린다.
+ */
+(function vhpxKeeper() {
+  const root = document.documentElement;
+  let typing = false;
+  const isField = el => el && el.matches && el.matches('input, textarea, [contenteditable]');
+  const upd = () => {
+    if (!typing) root.style.setProperty('--vhpx', window.innerHeight + 'px');
+    // 키보드 높이 — 포커스 중에만 잰다. 평소에 innerHeight 와 vv 가 어긋나는
+    // 브라우저(주소창 접힘 등)에서 바닥이 괜히 들리면 안 된다
+    const vv = window.visualViewport;
+    const kb = typing && vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+    root.style.setProperty('--kb', Math.round(kb) + 'px');
+  };
+  upd();
+  window.addEventListener('resize', upd);
+  window.visualViewport?.addEventListener('resize', upd);
+  document.addEventListener('focusin', e => { if (isField(e.target)) { typing = true; upd(); } });
+  document.addEventListener('focusout', () => {
+    // 키보드가 실제로 내려간 다음 프레임에 푼다 — 바로 풀면 내려가는 중의
+    // 어중간한 높이가 --vhpx 에 박힌다
+    typing = false;
+    setTimeout(upd, 250);
+  });
+})();
 
 (async function boot() {
   // **어느 빌드가 도는지 맨 먼저 찍는다.** 배포본이 갱신됐는지 확인할 길이

@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 5;
+const SERVER_REV = 6;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -203,9 +203,18 @@ async function srvPatch(patch) {
  * 상한이 작아서(채팅 CHAT_KEEP, 랭킹·연합 수십) 통째로 받아도 부담이 없다.
  */
 async function sortedTop(collection, opts, field, n) {
-  let rows = await $global.getCollectionItems(collection, {
-    ...opts, orderBy: [{ field, direction: 'desc' }], limit: n,
-  });
+  let rows;
+  try {
+    rows = await $global.getCollectionItems(collection, {
+      ...opts, orderBy: [{ field, direction: 'desc' }], limit: n,
+    });
+  } catch (e) {
+    // 정렬 조회가 **필드에 따라 예외를 던진다** (인덱스가 없는 필드).
+    // arenaScore 는 되는데 cp·stage 는 죽어서, 경쟁점수 보드만 뜨고
+    // 전투력·스테이지가 통째로 비었다 (단장 지적 2026-08-27). 예외도
+    // "빈 결과" 와 같게 폴백으로 흘린다 — 이 컬렉션들은 상한이 작다
+    rows = null;
+  }
   if (rows && rows.length) return rows;
   rows = (await $global.getCollectionItems(collection, opts)) || [];
   rows.sort((a, b) => (b[field] || 0) - (a[field] || 0));
