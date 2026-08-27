@@ -95,11 +95,11 @@ const SHEET = {
   captain_mage:    { atk: { n: 4, h: 418, foot: 477 }, walk: { n: 8, h: 454, foot: 484 } },
 
   'PR-warrior-2': { atk: { n: 4, h: 443, foot: 478 }, walk: { n: 8, h: 460, foot: 484 } },
-  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 349, foot: 379 } },
+  'PR-warrior-3': { atk: { n: 4, h: 449, foot: 469 }, walk: { n: 8, h: 349, foot: 372 } },
   'PR-archer-2':  { atk: { n: 4, h: 340, foot: 360 }, walk: { n: 8, h: 459, foot: 481 } },
-  'PR-archer-3':  { atk: { n: 4, h: 409, foot: 433 }, walk: { n: 8, h: 394, foot: 419 } },
+  'PR-archer-3':  { atk: { n: 4, h: 338, foot: 353 }, walk: { n: 8, h: 394, foot: 419 } },
   'PR-mage-2':    { atk: { n: 4, h: 414, foot: 484 }, walk: { n: 8, h: 448, foot: 484 } },
-  'PR-mage-3':    { atk: { n: 4, h: 378, foot: 484 }, walk: { n: 8, h: 414, foot: 484 } },
+  'PR-mage-3':    { atk: { n: 4, h: 427, foot: 524 }, walk: { n: 8, h: 414, foot: 484 } },
 };
 
 
