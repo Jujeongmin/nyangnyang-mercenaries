@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 7;
+const SERVER_REV = 8;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -275,8 +275,48 @@ async function nickOf(account) {
   return p ? String(p.nickname || '').slice(0, 15) : '';
 }
 
+/**
+ * 필터 조회 — **실패해도 죽지 않는다.**
+ *
+ * getCollectionItems 의 filters/orderBy 는 필드에 따라 예외를 던지거나
+ * 빈 결과를 준다 (인덱스가 없는 필드 — cp 정렬이 그랬고, cp 범위·day 필터도
+ * 같은 병이다). 추천 친구가 안 뜨고 선물함이 데모로 굴러떨어진 원인
+ * (단장 확인 2026-08-27). 조회가 죽으면 통째로 받아 여기서 거른다 —
+ * 이 게임의 컬렉션들은 상한이 작아 풀스캔이 감당된다.
+ */
+async function qItems(collection, opts = {}) {
+  try {
+    const rows = await $global.getCollectionItems(collection, opts);
+    if (rows && rows.length) return rows;
+  } catch (e) { /* 아래 폴백 */ }
+  let all;
+  try {
+    all = (await $global.getCollectionItems(collection, {
+      limit: Math.max(300, (opts.limit || 0) * 10),
+    })) || [];
+  } catch (e) { return []; }
+  const fs = opts.filters || [];
+  const pass = it => fs.every(f => {
+    const v = it[f.field];
+    switch (f.operator) {
+      case '==': return v === f.value;
+      case '>':  return (v || 0) >  f.value;
+      case '>=': return (v || 0) >= f.value;
+      case '<':  return (v || 0) <  f.value;
+      case '<=': return (v || 0) <= f.value;
+      default: return true;
+    }
+  });
+  let rows = all.filter(pass);
+  const ob = opts.orderBy && opts.orderBy[0];
+  if (ob) rows.sort((a, b) => ob.direction === 'desc'
+    ? (b[ob.field] || 0) - (a[ob.field] || 0)
+    : (a[ob.field] || 0) - (b[ob.field] || 0));
+  return opts.limit ? rows.slice(0, opts.limit) : rows;
+}
+
 async function oneByAccount(collection, account) {
-  const rows = await $global.getCollectionItems(collection, {
+  const rows = await qItems(collection, {
     filters: [{ field: 'account', operator: '==', value: account }],
     limit: 1,
   });
@@ -334,7 +374,7 @@ class Server {
    */
   async wipeState() {
     await $global.updateMyState({ save: null });
-    const mine = await $global.getCollectionItems('profiles', {
+    const mine = await qItems('profiles', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
     for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
@@ -351,7 +391,7 @@ class Server {
   async submitCp(score, nickname) {
     if (typeof score !== 'number' || score < 0 || !Number.isFinite(score)) throw new Error('score');
     if (!nickname || nickname.length < 1 || nickname.length > 15) throw new Error('nickname');
-    const mine = await $global.getCollectionItems('rankings', {
+    const mine = await qItems('rankings', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
     for (const it of mine) {
@@ -397,7 +437,7 @@ class Server {
       arenaScore: Math.max(0, p.arenaScore | 0),
       updatedAt: Date.now(),
     };
-    const mine = await $global.getCollectionItems('profiles', {
+    const mine = await qItems('profiles', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
     for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
@@ -409,7 +449,7 @@ class Server {
    * 실매칭이 아니라 **표본**이다 — 정교한 매칭은 서버 부하가 커서 나중에.
    */
   async findProfiles({ minCp = 0, maxCp = Number.MAX_SAFE_INTEGER, limit = 12 } = {}) {
-    const rows = await $global.getCollectionItems('profiles', {
+    const rows = await qItems('profiles', {
       filters: [
         { field: 'cp', operator: '>=', value: Math.max(0, minCp | 0) },
         { field: 'cp', operator: '<=', value: maxCp },
@@ -472,7 +512,7 @@ class Server {
 
   /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
   async getMyBestRank() {
-    const mine = await $global.getCollectionItems('rankings', {
+    const mine = await qItems('rankings', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
     if (!mine.length) return { bestEntry: null, rank: -1 };
@@ -487,7 +527,7 @@ class Server {
   /** 닉네임으로 찾기. 완전 일치만 본다 - 부분 일치는 컬렉션 인덱스로 못 건다 */
   async findByNickname(nickname) {
     if (!nickname || typeof nickname !== 'string') return [];
-    const rows = await $global.getCollectionItems('profiles', {
+    const rows = await qItems('profiles', {
       filters: [{ field: 'nickname', operator: '==', value: nickname.slice(0, 15) }],
       limit: 10,
     });
@@ -497,13 +537,13 @@ class Server {
   /** 친구 신청. 중복 신청·이미 친구·자기 자신을 막는다 */
   async friendRequest(toAccount) {
     if (!toAccount || toAccount === $sender.account) throw new Error('target');
-    const already = await $global.getCollectionItems('friends', {
+    const already = await qItems('friends', {
       filters: [{ field: 'account', operator: '==', value: $sender.account },
                 { field: 'friend', operator: '==', value: toAccount }],
       limit: 1,
     });
     if (already.length) return { ok: false, reason: 'already_friend' };
-    const dup = await $global.getCollectionItems('friendReq', {
+    const dup = await qItems('friendReq', {
       filters: [{ field: 'from', operator: '==', value: $sender.account },
                 { field: 'to', operator: '==', value: toAccount }],
       limit: 1,
@@ -520,7 +560,7 @@ class Server {
 
   /** 나에게 온 신청 목록 */
   async friendRequests() {
-    return $global.getCollectionItems('friendReq', {
+    return qItems('friendReq', {
       filters: [{ field: 'to', operator: '==', value: $sender.account }],
       limit: 30,
     });
@@ -549,7 +589,7 @@ class Server {
    * 상대가 닉네임·전투력을 바꿔도 목록이 낡지 않는다
    */
   async friendList() {
-    const edges = await $global.getCollectionItems('friends', {
+    const edges = await qItems('friends', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
       limit: 60,
     });
@@ -566,7 +606,7 @@ class Server {
   /** 친구 끊기 - 양쪽 행을 다 지운다. 한쪽만 지우면 상대 목록에 유령이 남는다 */
   async friendRemove(account) {
     for (const pair of [[$sender.account, account], [account, $sender.account]]) {
-      const rows = await $global.getCollectionItems('friends', {
+      const rows = await qItems('friends', {
         filters: [{ field: 'account', operator: '==', value: pair[0] },
                   { field: 'friend', operator: '==', value: pair[1] }],
         limit: 2,
@@ -589,7 +629,7 @@ class Server {
     if (!mem) return null;
     const al = await $global.getCollectionItem('alliances', mem.allianceId);
     if (!al || !al.__id) return null;
-    const members = await $global.getCollectionItems('allyMembers', {
+    const members = await qItems('allyMembers', {
       filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
       limit: MAX_MEMBERS,
     });
@@ -600,7 +640,7 @@ class Server {
     if (!name || name.length < 2 || name.length > 12) throw new Error('name');
     if ((myStage | 0) < JOIN_MIN_STAGE) return { ok: false, reason: 'stage' };
     if (await oneByAccount('allyMembers', $sender.account)) return { ok: false, reason: 'already' };
-    const dup = await $global.getCollectionItems('alliances', {
+    const dup = await qItems('alliances', {
       filters: [{ field: 'name', operator: '==', value: name }], limit: 1,
     });
     if (dup.length) return { ok: false, reason: 'name_taken' };
@@ -663,7 +703,7 @@ class Server {
       } else {
         const patch = { ...al, members: n };
         if (al.leader === $sender.account) {
-          const rest = await $global.getCollectionItems('allyMembers', {
+          const rest = await qItems('allyMembers', {
             filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
             limit: MAX_MEMBERS,
           });
@@ -729,7 +769,7 @@ class Server {
     if (!al || !al.__id) return null;
     const wk = weekIdx(Date.now());
     if (al.bossWeek !== wk || !al.bossMax) {
-      const rows = await $global.getCollectionItems('allyMembers', {
+      const rows = await qItems('allyMembers', {
         filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
         limit: MAX_MEMBERS,
       });
@@ -802,14 +842,14 @@ class Server {
    */
   async friendGift(toAccount) {
     if (!toAccount || toAccount === $sender.account) throw new Error('target');
-    const pair = await $global.getCollectionItems('friends', {
+    const pair = await qItems('friends', {
       filters: [{ field: 'account', operator: '==', value: $sender.account },
                 { field: 'friend', operator: '==', value: toAccount }],
       limit: 1,
     });
     if (!pair.length) return { ok: false, reason: 'not_friend' };
     const day = dayIdx(Date.now());
-    const dup = await $global.getCollectionItems('gifts', {
+    const dup = await qItems('gifts', {
       filters: [{ field: 'from', operator: '==', value: $sender.account },
                 { field: 'to', operator: '==', value: toAccount },
                 { field: 'day', operator: '==', value: day }],
@@ -833,12 +873,12 @@ class Server {
   async friendGiftBox() {
     const day = dayIdx(Date.now());
     const [mine, inbox] = await Promise.all([
-      $global.getCollectionItems('gifts', {
+      qItems('gifts', {
         filters: [{ field: 'from', operator: '==', value: $sender.account },
                   { field: 'day', operator: '==', value: day }],
         limit: 60,
       }),
-      $global.getCollectionItems('gifts', {
+      qItems('gifts', {
         filters: [{ field: 'to', operator: '==', value: $sender.account }],
         limit: 60,
       }),
@@ -941,7 +981,7 @@ class Server {
   async allianceBossLog() {
     const mem = await oneByAccount('allyMembers', $sender.account);
     if (!mem) return [];
-    const rows = await $global.getCollectionItems('allyBossLog', {
+    const rows = await qItems('allyBossLog', {
       filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId },
                 { field: 'week', operator: '==', value: weekIdx(Date.now()) }],
       limit: MAX_MEMBERS * BOSS_ATTEMPTS,
@@ -950,7 +990,7 @@ class Server {
     for (const r of rows) byAcc.set(r.account, (byAcc.get(r.account) || 0) + r.damage);
     // 이름은 단원 행에서 가져온다 — 딜 로그마다 닉네임을 복사해 두면 개명이
     // 반영되지 않고, leaf 수만 늘어난다
-    const members = await $global.getCollectionItems('allyMembers', {
+    const members = await qItems('allyMembers', {
       filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
       limit: MAX_MEMBERS,
     });
