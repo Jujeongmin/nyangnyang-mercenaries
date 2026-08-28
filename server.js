@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 17;
+const SERVER_REV = 18;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -379,6 +379,25 @@ class Server {
       chatCountRaw: await $global.countCollectionItems(CHAT_WORLD, {}).catch(e => String(e)),
       chatRows: ((await $global.getCollectionItems(CHAT_WORLD, {})) || []).length,
       account: $sender.account,
+      // **서버가 이 계정에 대해 실제로 들고 있는 것.**
+      // "PC 진행이 폰에 안 온다" 를 두 갈래로 가른다 — PC 의 업로드가 서버에
+      // 닿지 않는 것인지(has=false 이거나 savedAt 이 옛날), 닿았는데 폰이
+      // 안 받는 것인지(savedAt 은 최신인데 폰의 마지막동기가 더 크다).
+      // 이게 없으면 두 기기의 화면만 보고는 어느 쪽이 끊겼는지 알 수 없다.
+      mySave: await (async () => {
+        try {
+          const cur = await $global.getMyState();
+          const sv = cur && cur.save;
+          return {
+            has: !!sv,
+            savedAt: (sv && sv.savedAt) || 0,
+            epoch: (cur && cur.saveEpoch) || 0,
+            score: sv ? progressScore(sv.s) : 0,
+            maxStage: (sv && sv.s && sv.s.maxStage) || 0,
+            gold: Math.floor((sv && sv.s && sv.s.gold) || 0),
+          };
+        } catch (e) { return { error: String(e && e.message || e) }; }
+      })(),
     };
   }
 

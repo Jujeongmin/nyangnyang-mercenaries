@@ -32,6 +32,13 @@ const CONNECT_MS = 6000;
 
 let server = null;
 
+/**
+ * 지금 붙어 있는 verse. **계정이 같아도 verse 가 다르면 데이터 공간이 다르다** —
+ * 한쪽이 옛 배포 주소를 북마크로 들고 있으면 세이브가 서로 안 보인다.
+ * 설정 > 접속 진단이 이걸 띄워서 그 경우를 가른다 (단장 재현 2026-08-28).
+ */
+export const currentVerse = () => (server && server.verse) || null;
+
 const withTimeout = (p, ms, what) => Promise.race([
   p,
   new Promise((_, rej) => setTimeout(() => rej(new Error(`${what} 시간 초과 (${ms}ms)`)), ms)),

@@ -17,7 +17,7 @@ import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
 import * as live from './net/live.js';
-import { connectGameServer } from './net/gameserver.js';
+import { connectGameServer, currentVerse } from './net/gameserver.js';
 import { BattleScene } from './view/battle/scene.js';
 import { SummonReveal, tierToGrade } from './view/summon.js';
 import { ShopScreen, summonProgress, levelRewardPending } from './view/shop.js';
@@ -7396,15 +7396,25 @@ function bootTapToStart() {
           `빌드      v${D.ui.meta.version} (${typeof __BUILD__ === 'string' ? __BUILD__ : 'dev'})`,
           `서버연결  ${live.liveReady() ? 'O' : 'X — 붙지 않았다'}`,
           `세이브    ${cloudReady() ? '클라우드' : '이 기기에만'}`,
+          `verse     ${currentVerse() || '—'}`,
           `세대      ${cloudEpoch()}`,
           `마지막동기  ${cloudSyncedAt() ? new Date(cloudSyncedAt()).toLocaleString() : '없음'}`,
         ];
         box.textContent = local.join('\n') + '\n서버      …';
+        const when = ms => (ms ? new Date(ms).toLocaleString() : '없음');
         live.raw('serverInfo', [])
           .then(r => {
+            const m = r.mySave || {};
             box.textContent = [...local,
               `서버REV   ${r.rev}`,
-              `계정      ${r.account || '—'}`].join('\n');
+              `계정      ${r.account || '—'}`,
+              '── 서버가 들고 있는 세이브 ──',
+              `있나      ${m.has ? 'O' : 'X — 서버에 세이브가 없다'}`,
+              `저장시각  ${when(m.savedAt)}`,
+              `서버세대  ${m.epoch}`,
+              `서버진행  스테이지 ${m.maxStage} · 골드 ${num(m.gold || 0)}`,
+              `내진행    스테이지 ${S.maxStage || 0} · 골드 ${num(Math.floor(S.gold || 0))}`,
+            ].join('\n');
           })
           .catch(e => {
             box.textContent = [...local, `서버      ${e && e.message || e}`].join('\n');
