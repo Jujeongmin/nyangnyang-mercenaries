@@ -4119,8 +4119,15 @@ function friendCandidates(seed, n = 6) {
   if (rows?.length) {
     const f = friendState();
     const mine = new Set([...f.list.map(x => x.id), ...(f.req || [])]);
-    return rows.filter(x => !mine.has(x.account)).slice(0, n).map((x, i) => ({
+    const pool = rows.filter(x => !mine.has(x.account));
+    // **새로 고침이 실제로 얼굴을 바꿔야 한다.** 서버는 늘 같은 순서(최근
+    // 활동순)를 주므로, 캐시를 버리고 다시 받아도 앞의 n 명이 그대로였다
+    // (단장 지적 2026-08-27). 표본 안에서 시드만큼 돌려 집는다
+    const k = (seed || 0) % Math.max(1, pool.length);
+    const rot = pool.slice(k).concat(pool.slice(0, k));
+    return rot.slice(0, n).map((x, i) => ({
       id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
+      featured: x.featured || '', party: x.party || [], capCls: x.capCls || 'warrior',
       face: i % 4, frame: i % 4,
     }));
   }
@@ -4159,6 +4166,11 @@ function friendIncoming() {
   if (reqs) return reqs.map((r, i) => ({
     id: r.__id, account: r.from, name: r.fromNick || '단장',
     cp: r.fromCp || 0, face: i % 4, frame: i % 4,
+    // 얼굴 재료 — 신청 아이템에는 없으니 추천 표본에서 같은 계정을 찾아 쓴다
+    ...(() => {
+      const p = (live.get('friendCands') || []).find(x => x.account === r.from);
+      return p ? { featured: p.featured || '', party: p.party || [], capCls: p.capCls } : {};
+    })(),
   }));
   const f = friendState();
   f.inbox = f.inbox || [];

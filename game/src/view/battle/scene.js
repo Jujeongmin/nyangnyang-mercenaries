@@ -92,6 +92,9 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // ch 는 **원본 칸높이**다. 배포 CDN 이나 iOS 가 큰 시트를 몰래 줄여 서빙하면
 // h·foot(원본 픽셀 좌표)이 실제 텍스처와 어긋난다 — rig 가 ch 와 텍스처를
 // 비교해 그 자리에서 환산한다 (trim.cw 와 같은 자가 보정).
+/** 단장 크기 배수 (용병 기준). 1.5 = 단장 지시 2026-08-27 */
+const CAPTAIN_SCALE = 1.5;
+
 const SHEET = {
   captain_warrior: { atk: { n: 4, h: 266, foot: 294, ch: 314 }, walk: { n: 8, h: 357, foot: 377, ch: 397 } },
   captain_archer:  { atk: { n: 4, h: 417, foot: 440, ch: 460 }, walk: { n: 8, h: 463, foot: 484, ch: 504 } },
@@ -423,7 +426,9 @@ export class BattleScene {
       if (stale()) return;                     // 컷아웃도 await 다
       const sh = SHEET[capId] || SHEET[`captain_${capCls}`] || {};
       this.captain = new UnitRig(PIXI(), capTex, {
-        size: this.allySize() * 1.0, facing: 1, grid: [5, 9],
+        // 단장은 용병보다 크다 (단장 지시 2026-08-27: 1.5배). 아레나·스테이지
+        // 모두 이 값 하나를 본다 — 두 곳에 나누면 화면마다 크기가 갈린다
+        size: this.allySize() * CAPTAIN_SCALE, facing: 1, grid: [5, 9],
         motion: motionForClass(capCls), arm,
         trim: TR[baseId] || TR[capId] || TR.captain_warrior,
         attackSheet: capAttackTex,
@@ -850,6 +855,31 @@ export class BattleScene {
     } else {
       u.rig.attack(() => this.hitFoe(u, target, useSkill));
     }
+  }
+
+  /**
+   * **적이 이쪽으로 쏘는 그림.** 아레나 전용이고 판정은 없다 — 맞은 자리에
+   * 타격 이펙트만 튄다. 한쪽만 투사체를 날리면 남의 궁수·법사가 맨손으로
+   * 서 있는 것처럼 보인다 (단장 지적 2026-08-27).
+   */
+  launchFoeAttack(f, target) {
+    if (!f?.rig || !target?.rig?.view || target.rig.view.destroyed) return;
+    const A = this.D.combat.allyAttack;
+    const kind = (A?.byClass || {})[f.class] || 'melee';
+    f.rig.attack(() => {
+      if (kind !== 'projectile') return;
+      if (!target.rig?.view || target.rig.view.destroyed) return;
+      const tip = f.rig.weaponTip();
+      let id = (A.projectileFx || {})[f.class] || A.projectileFx.fallback;
+      if (!this.fx.tex.get(id)) id = (A.projectileFallback || {})[id] || 'HIT-04';
+      const tx = target.rig.view.x, ty = target.rig.view.y - target.rig.h * 0.5;
+      this.fx.projectile(id, tip.x, tip.y, tx, ty, {
+        size: this.fxSize(f.rig.h * 0.34, 0.12),
+        dur: 260, arc: -0.1,
+        onHit: () => this.fx.play('HIT-05', tx, ty,
+          { size: this.fxSize(target.rig.h * 0.3, 0.1) }),
+      });
+    });
   }
 
   combatStep(s) {
@@ -1712,6 +1742,9 @@ export class BattleScene {
       const bar = new P.Graphics();
       this.ui.addChild(bar);
       this.foes.push({ id: m.id, rig, bar, label: null, boss: false, unit: true,
+        // 직군을 들고 간다 — 궁수·법사면 이쪽으로 투사체가 날아온다
+        // (combat.json > allyAttack.byClass)
+        class: m.class,
         atk: 'charge', hp: 1 / list.length, maxHp: 1 / list.length,
         cd: rnd(0.3, 1.2), cdMax: rnd(1.0, 1.6) });
     }
@@ -1743,7 +1776,7 @@ export class BattleScene {
     const baseId = idle.tex ? idleId : capId;
     const sh = SHEET[capId] || SHEET[`captain_${cls}`] || {};
     this.foeCap = new UnitRig(PIXI(), base.tex, {
-      size: this.allySize() * 1.0, facing: -1, flip: true, grid: [5, 9],
+      size: this.allySize() * CAPTAIN_SCALE, facing: -1, flip: true, grid: [5, 9],
       motion: motionForClass(cls), arm: null,
       trim: TR[baseId] || TR[capId] || TR.captain_warrior,
       attackSheet: capAtk, attackFrameCount: sh.atk?.n,
@@ -1751,6 +1784,7 @@ export class BattleScene {
       walkSheet: capWalk, walkFrameCount: sh.walk?.n,
       walkTrim: sh.walk && { h: sh.walk.h, footY: sh.walk.foot, ch: sh.walk.ch },
     });
+    this.foeCapCls = cls;          // 투사체 종류를 가른다 (궁수·법사만 쏜다)
     this.foeCap.view.visible = false;
     this.field.addChild(this.foeCap.view);
     this.layout();
@@ -1791,9 +1825,12 @@ export class BattleScene {
       const alive = this.foes.filter(f => !f.dead);
       const u = this.units[(Math.random() * this.units.length) | 0];
       if (u && alive.length) this.launchAttack(u, alive[(Math.random() * alive.length) | 0], false);
-      // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다
+      // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다.
+      // 궁수·법사면 이쪽으로 투사체가 날아온다 (판정 없음 — 그림이다)
       const f = alive[(Math.random() * alive.length) | 0];
-      if (f) f.rig.attack?.();
+      const myTarget = this.units[(Math.random() * this.units.length) | 0] || this.captain
+        && { rig: this.captain };
+      if (f) this.launchFoeAttack(f, myTarget);
     }
 
     // **단장은 자기 박자로 휘두른다.**
@@ -1811,7 +1848,11 @@ export class BattleScene {
     a.foeCapCd = (a.foeCapCd ?? 0.9) - s;
     if (a.foeCapCd <= 0) {
       a.foeCapCd = 0.7 + Math.random() * 0.35;
-      if (this.foeCap && a.foeHp > 0) this.foeCap.attack?.();
+      if (this.foeCap && a.foeHp > 0) {
+        const tgt = this.units[(Math.random() * this.units.length) | 0]
+          || (this.captain && { rig: this.captain });
+        this.launchFoeAttack({ rig: this.foeCap, class: this.foeCapCls }, tgt);
+      }
     }
 
     this.onEvent({ type: 'arenaHp', my: a.myHp, foe: a.foeHp });

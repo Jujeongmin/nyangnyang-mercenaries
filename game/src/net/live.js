@@ -263,7 +263,7 @@ export async function warmup(myScore = 1000) {
     pull('topStage', () => call('topProfiles', ['stage', 20])),
     pull('topArena', () => call('topProfiles', ['arena', 20])),
     pull('arenaFoes', () => call('findArenaFoes', [myScore, 12])),
-    pull('friendCands', () => call('findFriendCands', [12])),
+    pull('friendCands', () => call('findFriendCands', [30])),
     pull('friends', () => call('friendList')),
     pull('friendReqs', () => call('friendRequests')),
     pull('giftBox', () => call('friendGiftBox')),
@@ -291,7 +291,8 @@ export async function warmup(myScore = 1000) {
  */
 // 친구 추천은 조건 없이 최근 활동 순 (단장 확정 2026-08-27)
 export const pullFriendCands = onDone => pull('friendCands',
-  () => call('findFriendCands', [12]), onDone);
+  // 넉넉히 받는다 — 화면은 몇 명만 쓰지만 새로 고침이 그 안에서 돌린다
+  () => call('findFriendCands', [30]), onDone);
 
 /** 화면을 떠나거나 편성이 크게 바뀌면 캐시를 버린다 */
 export function invalidate(...keys) {

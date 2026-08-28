@@ -152,6 +152,11 @@ export class UnitRig {
       this.attackSprite.anchor.set(0.5, footY / ch);  // 발을 기준점으로
       this.attackSprite.height = this.h * (ch / charH);
       this.attackSprite.width = this.attackSprite.height * (fw / ch);
+      // **시트도 flip 을 따른다.** flip 은 rigRoot(대기 자세)에만 걸려 있어서,
+      // 적 자리에 세운 단장이 공격·걷기 순간에만 등을 돌렸다 (단장 지적
+      // 2026-08-27). width 에 음수를 넣으면 구현에 따라 절댓값으로 삼키므로
+      // scale.x 의 부호를 직접 준다 — 앵커(0.5) 기준으로 좌우가 뒤집힌다
+      this.attackSprite.scale.x = Math.abs(this.attackSprite.scale.x) * (this.flip ? -1 : 1);
       this.attackSprite.visible = false;
       this.view.addChild(this.attackSprite);
     }
@@ -180,6 +185,7 @@ export class UnitRig {
       this.walkSprite.anchor.set(0.5, wFootY / wch);
       this.walkSprite.height = this.h * (wch / wCharH);
       this.walkSprite.width = this.walkSprite.height * (wfw / wch);
+      this.walkSprite.scale.x = Math.abs(this.walkSprite.scale.x) * (this.flip ? -1 : 1);
       this.walkSprite.visible = false;
       this.view.addChild(this.walkSprite);
     }
