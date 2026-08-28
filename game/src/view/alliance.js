@@ -11,7 +11,7 @@
 const $ = (el, s) => el.querySelector(s);
 
 /** 데모 주민 — 서버(verse8.presence) 연동 전까지 마을이 비어 보이지 않게 */
-const DEMO_CATS = ['N-03', 'R-02', 'SR-03'];
+// DEMO_CATS 는 뺐다 — 데모 주민 제거 (2026-08-27)
 
 export class AllianceVillage {
   /** @param api {state, data, toast, num, openPanel(tab), donate(kind)} */
@@ -50,7 +50,8 @@ export class AllianceVillage {
           <b>게시판</b></div>
         <div id="alCap"><img src="/assets/captain/captain_warrior.png" alt=""></div>
         </div>
-        <div id="alDemoNote">주민은 서버 연동 전 데모입니다</div>
+        <!-- 데모 주민은 뺐다 (단장 지시 2026-08-27) — 마을에는 실제 단장만 선다.
+             접속 연합원 산책은 서버 presence 가 붙을 때 실제 데이터로 넣는다 -->
         <!-- 조이스틱은 월드 밖 — 화면 좌표에 떠야 카메라와 같이 안 밀린다 -->
         <div id="alJoy"><div id="alJoyKnob"></div></div>
       </div>`;
@@ -151,7 +152,7 @@ export class AllianceVillage {
     this.render();
     this.place(this.cap, this.capPos.x, this.capPos.y);
     this.updateCamera(true);
-    this.spawnBots();
+
   }
 
   /**
@@ -191,30 +192,6 @@ export class AllianceVillage {
     el.style.zIndex = 10 + Math.round(y);
   }
 
-  /** 데모 주민 — 몇 초마다 아무 데나 걸어 다닌다 */
-  spawnBots() {
-    if (this.bots.length) return;
-    DEMO_CATS.forEach((id, i) => {
-      const el = document.createElement('div');
-      el.className = 'al-bot';
-      el.innerHTML = `<img src="/assets/char/${id}.webp" alt="" onerror="this.parentNode.remove()">
-        <i>냥이${i + 1}</i>`;
-      this.field.appendChild(el);
-      const pos = { x: 20 + i * 26, y: 55 + (i % 2) * 20 };
-      this.place(el, pos.x, pos.y);
-      this.bots.push({ el, pos });
-    });
-    this.botTimer = setInterval(() => {
-      for (const b of this.bots) {
-        if (Math.random() < 0.45) continue;
-        const x = 8 + Math.random() * 84;
-        const y = 32 + Math.random() * 52;
-        const dur = Math.max(600, Math.hypot(x - b.pos.x, y - b.pos.y) * 46);
-        b.el.classList.toggle('flip', x < b.pos.x);
-        b.el.style.transition = `left ${dur}ms linear, top ${dur}ms linear`;
-        this.place(b.el, x, y);
-        b.pos = { x, y };
-      }
-    }, 2600);
-  }
+  // 데모 주민(spawnBots)은 뺐다 (단장 지시 2026-08-27). bots/botTimer 정리
+  // 코드는 남긴다 — presence 연동 때 실제 연합원 산책이 같은 자리를 쓴다
 }

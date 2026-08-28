@@ -3316,6 +3316,12 @@ function doPromote(cls) {
   S.promo[cls] = nx.tier;
   S.promoClass = cls;
   save(); refreshParty(); applyCaptainClass();
+  // **판을 처음부터 다시 돌린다** (단장 확정 2026-08-27: 전직은 어떤 상황에서도
+  // 판이 깨끗이 초기화돼야 한다). applyCaptainClass 의 setParty 는 await 없이
+  // 도는데, 그 위에 옛 판의 전투 상태가 얹혀 있으면 겹침 판정이 꼬여 모바일에서
+  // 화면이 멈췄다 — runStage 가 startStage 로 판 전체를 새로 세우면 setParty
+  // 토큰이 낡은 호출을 스스로 물린다
+  runStage();
   const nm = promoDef().names[cls][nx.tier - 1];
   toast(`${CLASS_KO[cls]} → ${nm}`);
 }
@@ -7240,7 +7246,21 @@ function bootTapToStart() {
       save();
     },
     action: a => {
-      if (a === 'reset') { localStorage.removeItem(SAVE_KEY); location.reload(); }
+      if (a === 'reset') {
+        // **resetSave 를 거쳐야 한다.** 여기서 localStorage 만 지우면 클라우드
+        // 세이브가 다음 부팅에 도로 살린다 — "초기화가 안 먹혀요" 의 마지막
+        // 구멍이 바로 이 우회 경로였다 (단장 확인 2026-08-27).
+        // confirm() 은 모바일 WebView 가 막으므로 버튼 두 번 누르기로 묻는다
+        const btn = settings.el?.querySelector('[data-a="reset"]');
+        if (btn && !btn.dataset.arm) {
+          btn.dataset.arm = '1';
+          btn.textContent = t('정말 초기화할까요? 한 번 더 누르면 실행');
+          setTimeout(() => { if (btn.isConnected) { delete btn.dataset.arm;
+            btn.textContent = t('저장 데이터 초기화'); } }, 5000);
+          return;
+        }
+        resetSave();
+      }
       else if (a === 'rates') { settings.close(); shop.open(); }
       // 절전 — 낮은 화면에서는 사이드 열의 [절전]이 빠지므로 여기가 유일한 길이다.
       // 덮개가 #app 을 display:none 하니 설정 화면부터 닫고 켠다
@@ -7385,7 +7405,25 @@ function bootTapToStart() {
   // 보상 지급 경로를 검증한다 (호스트 밖에서는 실제 광고가 unsupported 라
   // 이걸 안 열면 확인할 길이 없다)
   if (import.meta.env.DEV) window.__setAdSdk = setAdSdk;
+  // 한 방 진단 — 배포본 콘솔에서 __dbg.diag() 를 치면 서버 상태가 다 나온다.
+  // 폰에서 재현되는 문제를 PC 배포본에서 특정하는 용도다 (단장 워크플로)
   window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live, connectGameServer,
+    diag: async () => {
+      const out = {};
+      const tryCall = async (name, args) => {
+        try { return await live.raw(name, args || []); }
+        catch (e) { return 'ERR ' + (e && e.message || e); }
+      };
+      out.연결 = live.liveReady();
+      out.serverInfo = await tryCall('serverInfo');
+      for (const b2 of ['power', 'stage', 'arena'])
+        out['top_' + b2] = await tryCall('topProfiles', [b2, 3]);
+      out.추천친구 = await tryCall('findProfiles', [{ minCp: 0, maxCp: 9e15, limit: 3 }]);
+      out.선물함 = await tryCall('friendGiftBox');
+      out.내순위_stage = await tryCall('myProfileRank', ['stage']);
+      console.log('[진단]', JSON.stringify(out, null, 1).slice(0, 4000));
+      return out;
+    },
     openAllianceGate, openAlliance, openArena, openFriends, openChat };
   await scene.init();
   bootStep(82);
