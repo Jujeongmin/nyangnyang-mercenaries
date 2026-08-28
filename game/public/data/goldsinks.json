@@ -321,5 +321,6 @@
   "expected": "일일 골드 3억 대비, 훈련소 후반 1레벨이 약 2.1억 + 환전소 일일 소진 약 1.5억 => 배출을 소모가 따라잡는다.",
   "failureMode": "골드가 계속 남으면 환전소 dailyTrades 를 올리거나 priceScaling 을 낮춘다. 반대로 골드가 모자라면 장비 분해 골드(equipment.json > duplicateHandling.goldByTier)를 상향한다.",
   "todo": "프로토타입에서 D30/D90/D180 골드 수지를 실측할 것. 지금 수치는 추정이다."
- }
+ },
+ "rebalanceNote": "2026-08-27: 제작대 레벨업 골드 전 구간 x2 (economy > equipmentSummonLevel, 총 24억). 훈련소 +1%/lv·전직 스킬 2배 상향과 같은 날 — 배출·소모 배분 전체 재점검 대상."
 }
