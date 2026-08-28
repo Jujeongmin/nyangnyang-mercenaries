@@ -22,14 +22,13 @@ const SAVE_VERSION = 1;
 // (단장 재현 2026-08-28). remoteFunction 예산은 초당 10회라 10초에 한 번은 싸다.
 const UPLOAD_INTERVAL = 10_000;
 
-// 진행이 실제로 늘었으면 스로틀을 안 기다린다. progressScore 는 스테이지·제작대·
-// 훈련소·소환·퀘스트를 담고 있어 "지금 저장 안 되면 아까운 것" 과 거의 겹친다.
-// 다만 이것도 하한은 둔다 — 소환 10연이 한 프레임에 여러 번 올리면 예산이 샌다.
-const MILESTONE_MIN_GAP = 3_000;
+// **유저의 결정이 바뀌면 스로틀을 안 기다린다.** 하한은 둔다 — 소환 10연이
+// 한 프레임에 여러 번 올리면 예산이 샌다.
+const DECISION_MIN_GAP = 3_000;
 
 let server = null;          // Verse8 server 객체 (remoteFunction 보유)
 let lastUpload = 0;
-let lastScore = null;       // 마지막으로 올린 진행도. null 이면 아직 안 올렸다
+let lastSig = null;         // 마지막으로 올린 결정 서명. null 이면 아직 안 올렸다
 let pending = false;
 let getState = null;        // () => S — 통합부가 준다
 let wiping = false;         // 초기화 중 — flush·업로드가 지운 것을 되살리면 안 된다
@@ -108,6 +107,43 @@ export async function forceUpload() {
     lastUp = { at: Date.now(), ok: false, reason: String(e && e.message || e), note: 'manual' };
     return { ok: false, reason: lastUp.reason };
   }
+}
+
+/**
+ * **유저가 내린 결정만 뽑은 서명.** 이게 바뀌면 스로틀을 안 기다리고 바로 올린다.
+ *
+ * 왜 progressScore 로는 모자랐나: 그 식에는 스테이지·제작대·훈련소·소환·퀘스트만
+ * 들어 있다. 장비를 갈아 끼우거나 편성을 바꾸거나 강화를 돌린 것은 점수가 그대로라
+ * 최대 10초를 기다렸고, 그 안에 창을 닫으면 그대로 사라졌다. 잃으면 아까운 것은
+ * 방치로 쌓인 골드가 아니라 **유저가 손으로 고른 것**이다 (단장 지시 2026-08-28).
+ *
+ * 반대로 **계속 흐르는 값은 반드시 빼야 한다.** 처치 골드·스테이지 진행·자동 소환의
+ * 보관함과 소환권은 방치 중 초 단위로 바뀌어서, 넣으면 3초마다 세이브 전체를
+ * 영원히 밀어 올리게 된다. 그건 스로틀을 없앤 것과 같다.
+ *   넣는 것 — 편성·장착 스킬·착용 장비·보유 수·다이아·소환권·모래시계·훈장·
+ *            승급·닉네임·배속·패스·아레나 점수·탑 최고층
+ *   빼는 것 — gold, stage, questProg, inv, eqTicket, eqSummons, autoAcc, autoBatch, carry
+ */
+function decisionSig(s) {
+  if (!s || typeof s !== 'object') return '';
+  const ids = a => (a || []).map(x => (x && (x.id ?? x)) ?? '-').join(',');
+  const lvs = a => (a || []).map(x => (x && x.level) || 0).join(',');
+  const n = a => (a || []).length;
+  return [
+    s.maxStage | 0, s.forgeLv | 0, s.trainLv | 0, s.quest | 0,
+    s.promoClass || '', s.promoSkillLv | 0, JSON.stringify(s.promo || {}),
+    ids(s.party), lvs(s.party),
+    ids(s.skills && s.skills.active), lvs(s.skills && s.skills.active),
+    ids(s.skills && s.skills.passive), lvs(s.skills && s.skills.passive),
+    JSON.stringify(s.equip || {}),
+    n(s.own && s.own.mercenary), n(s.own && s.own.skill),
+    n(s.pend && s.pend.mercenary), n(s.pend && s.pend.skill),
+    s.dia | 0, s.mercTicket | 0, s.skillTicket | 0, s.hourglass | 0, s.medal | 0,
+    (s.summonExp && s.summonExp.mercenary) | 0, (s.summonExp && s.summonExp.skill) | 0,
+    s.arenaScore | 0, (s.tower && s.tower.best) | 0,
+    s.speed | 0, s.nickname || '',
+    s.pass && s.pass.bought ? 1 : 0, n(s.pass && s.pass.free), n(s.pass && s.pass.paid),
+  ].join('|');
 }
 
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
@@ -212,22 +248,24 @@ export async function initCloud(stateGetter, injected) {
  *
  * 세 갈래다:
  *   1. 손으로 시킨 것(immediate) — 바로 올린다
- *   2. **진행이 늘었다** — 스로틀을 안 기다리고 바로 올린다 (하한 3초).
- *      스테이지를 깨고 30초 안에 창을 닫으면 그 진행이 사라지던 구멍이 여기다.
- *   3. 그 밖 — 10초 스로틀. 예약 타이머로 마지막 상태 하나가 올라간다
+ *   2. **유저의 결정이 바뀌었다** — 스로틀을 안 기다리고 바로 올린다 (하한 3초).
+ *      스테이지를 깨거나 장비를 갈아 끼우고 곧바로 창을 닫으면 그게 사라지던
+ *      구멍이 여기다 (decisionSig 주석)
+ *   3. 그 밖 (방치로 흐르는 골드 등) — 10초 스로틀. 예약 타이머로 마지막 상태
+ *      하나가 올라간다
  */
 export function cloudSave(immediate = false) {
   if (!server) return;
   const now = Date.now();
 
-  // 진행도가 늘었나 — getState 가 없을 리 없지만 부팅 경합에서 방어한다
-  let bumped = false;
+  // 결정이 바뀌었나 — getState 가 없을 리 없지만 부팅 경합에서 방어한다
+  let decided = false;
   try {
-    const sc = progressScore(getState());
-    bumped = lastScore != null && sc > lastScore && now - lastUpload >= MILESTONE_MIN_GAP;
-  } catch { bumped = false; }
+    const sig = decisionSig(getState());
+    decided = lastSig != null && sig !== lastSig && now - lastUpload >= DECISION_MIN_GAP;
+  } catch { decided = false; }
 
-  if (!immediate && !bumped && now - lastUpload < UPLOAD_INTERVAL) {
+  if (!immediate && !decided && now - lastUpload < UPLOAD_INTERVAL) {
     if (!pending) {
       pending = true;
       setTimeout(() => { pending = false; upload(); },
@@ -241,7 +279,7 @@ export function cloudSave(immediate = false) {
 async function upload(force = false) {
   if (!server) return;
   lastUpload = Date.now();
-  try { lastScore = progressScore(getState()); } catch { /* 부팅 경합 */ }
+  try { lastSig = decisionSig(getState()); } catch { /* 부팅 경합 */ }
   try {
     const S = getState();
     const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false]);
