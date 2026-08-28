@@ -7532,6 +7532,38 @@ function bootTapToStart() {
       console.log('[진단]', JSON.stringify(out, null, 1).slice(0, 4000));
       return out;
     },
+    // 모션 진단 — 폰에서 "애니메이션이 안 나온다" 를 숫자로 잡는다.
+    // 4초 동안 프레임 수와 각 리그의 act 점유율을 센다. act 가 잡히는데도
+    // 눈에 안 보이면 프레임이 모자란 것이고, act 가 0 이면 발동 자체가 안 된 것.
+    anim: async () => {
+      const sc = scene;
+      const hits = { 단장: 0, 상대단장: 0, 용병: [0, 0, 0, 0, 0], 적: [0, 0, 0, 0, 0] };
+      let samples = 0, frames = 0;
+      const t = sc.app.ticker, count = () => frames++;
+      t.add(count);
+      const t0 = performance.now();
+      while (performance.now() - t0 < 4000) {
+        await new Promise(r => requestAnimationFrame(r));
+        samples++;
+        if (sc.captain?.act) hits.단장++;
+        if (sc.foeCap?.act) hits.상대단장++;
+        sc.units.forEach((u, i) => { if (i < 5 && u.rig.act) hits.용병[i]++; });
+        sc.foes.forEach((f, i) => { if (i < 5 && f.rig.act) hits.적[i]++; });
+      }
+      t.remove(count);
+      const secs = (performance.now() - t0) / 1000;
+      const out = {
+        fps: +(frames / secs).toFixed(1), 배속: sc.speed,
+        한프레임ms: +(1000 * secs / frames).toFixed(1),
+        모드: sc.mode, 페이즈: sc.phase, 표본: samples,
+        act점유: hits,
+        시트: { 단장어택: sc.captain?.attackFrames?.length ?? null,
+               단장워크: sc.captain?.walkFrames?.length ?? null },
+        화면: { dpr: window.devicePixelRatio, res: sc.app.renderer.resolution, w: innerWidth },
+      };
+      console.log('[모션진단]', JSON.stringify(out));
+      return out;
+    },
     openAllianceGate, openAlliance, openArena, openFriends, openChat,
     // 전직 경로 — 보스·아레나 중 초기화 같은 상태 전이를 콘솔에서 재현한다
     doPromote, resetPromotion, leaveSpecialModes };

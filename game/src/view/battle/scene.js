@@ -92,8 +92,12 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // ch 는 **원본 칸높이**다. 배포 CDN 이나 iOS 가 큰 시트를 몰래 줄여 서빙하면
 // h·foot(원본 픽셀 좌표)이 실제 텍스처와 어긋난다 — rig 가 ch 와 텍스처를
 // 비교해 그 자리에서 환산한다 (trim.cw 와 같은 자가 보정).
-/** 단장 크기 배수 (용병 기준). 1.5 = 단장 지시 2026-08-27 */
-const CAPTAIN_SCALE = 1.5;
+/** 단장 크기 배수 (용병 기준). 1.5 -> 1.3 (단장 조정 2026-08-27: 1.5는 컸다) */
+const CAPTAIN_SCALE = 1.3;
+
+/** 폰 판정 — 렌더 품질을 낮춰 프레임을 확보하는 데만 쓴다 */
+const MOBILE = typeof matchMedia === 'function'
+  && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 820px)').matches);
 
 const SHEET = {
   captain_warrior: { atk: { n: 4, h: 266, foot: 294, ch: 314 }, walk: { n: 8, h: 357, foot: 377, ch: 397 } },
@@ -197,7 +201,12 @@ export class BattleScene {
     const app = new P.Application();
     await app.init({
       canvas: this.canvas, background: '#16202f',
-      antialias: true, resolution: Math.min(2, window.devicePixelRatio || 1), autoDensity: true,
+      // 폰은 안티에일리어싱을 끄고 해상도도 1.5 로 묶는다. 스프라이트 비트맵이라
+      // MSAA 이득이 거의 없는데, DPR 3 화면에서는 픽셀을 9배 칠하느라 프레임이
+      // 반토막 났다. 프레임이 떨어지면 모션이 통째로 건너뛴다 (위 tick 주석)
+      antialias: !MOBILE,
+      resolution: Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1),
+      autoDensity: true,
     });
     this.app = app;
 
@@ -692,7 +701,16 @@ export class BattleScene {
 
   tick(rawMs) {
     if (this.paused || !this.app) return;
-    const scaled = rawMs * this.speed;
+    // ⚠️ 한 프레임이 먹는 시간에 상한을 둔다.
+    //
+    // PIXI 는 deltaMS 를 100ms 로 클램프한다. 거기에 배속 3 을 곱하면 한 프레임에
+    // 300ms 가 흐르는데, 공격 모션 dur 이 400ms 안팎이라 p 가 0 -> 0.75 -> 끝으로
+    // 튄다. 4프레임짜리 어택 시트가 한두 장만 스치고 지나가서 폰에서는 모션이
+    // 아예 안 나오는 것처럼 보였다 (아레나에서 단장·용병 정지 제보).
+    // 50ms 로 막으면 어떤 기기에서도 모션 하나가 최소 8프레임에 걸쳐 재생된다.
+    // 느린 기기는 전투가 실시간 기준으로 조금 늘어지지만, 승패는 arenaStep 이
+    // 같은 시계를 쓰므로 어긋나지 않는다.
+    const scaled = Math.min(rawMs * this.speed, 50);
     const dt = this.impact.update(scaled);
     const s = dt / 1000;
 
