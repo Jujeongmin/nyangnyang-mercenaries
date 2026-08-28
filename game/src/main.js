@@ -4533,12 +4533,48 @@ const GIFT_ERR = {
 // 화면을 열어 두면 상대가 친 순간 뜬다. 대신 닫을 때 반드시 해제해야 한다 —
 // 방치 게임을 몇 시간 켜 두는 동안 구독이 살아 있으면 트래픽이 계속 흐른다.
 let chatScope = 'world';
-let chatUnsub = null;
 
-/** 구독 해제. 화면을 닫는 모든 경로가 이걸 지난다 */
+// **구독은 방마다 하나씩 든다.**
+//
+// 예전에는 채팅창을 열 때만 구독했고, 탭을 옮길 때마다 끊고 다시 걸었다.
+// 그래서 부팅 직후에는 하단 채팅바가 죽어 있었고 — 채팅창을 한 번
+// 열기 전까지는 남의 말이 흐르는 것을 모르고 지난다. 바 자체가 채팅 입구라
+// 거기 남의 말이 흐르는 것이 곧 "눌러 볼 이유" 인데 그게 없었다.
+// 이제 전체 방 구독은 **부팅 로딩 안에서** 열고 (boot > wireServer),
+// 채팅창은 있으면 그대로 쓴다. 방마다 하나라 중복도 안 쌓힌다.
+const chatSubs = { world: null, ally: null };
 let chatReadyT = null;   // 접속을 기다리는 채팅 화면의 감시 타이머
+
+/**
+ * 한 방을 구독한다. 이미 구독 중이면 그대로 둔다.
+ * 새 줄이 오면 채팅바를 갱신하고, 같은 방을 보고 있는 채팅창이 열려
+ * 있으면 본문도 다시 그린다.
+ */
+function chatSubscribe(scope) {
+  if (chatSubs[scope]) return true;
+  chatSubs[scope] = live.subscribeChat(scope, () => {
+    const open = $('#ov').classList.contains('show') && $('#ovt').textContent === t('채팅');
+    if (open && chatScope === scope) chatRedraw();
+    else if (scope === 'world') chatBarSync();
+  });
+  return !!chatSubs[scope];
+}
+
+/**
+ * **채팅 화면을 떠날 때.** 전체 방은 안 끊는다 — 그게 하단 채팅바를
+ * 먹여 살리는 선이고, 부팅 로딩에서 일부러 열어 둔 것이다 (boot > wireServer).
+ * 연합 방만 끊는다 — 연합 대화는 바에 안 흐르므로 보고 있을 때만 필요하다.
+ */
+function chatLeaveScreen() {
+  if (chatSubs.ally) { try { chatSubs.ally(); } catch { /* 이미 끊겼다 */ } chatSubs.ally = null; }
+  if (chatReadyT) { clearInterval(chatReadyT); chatReadyT = null; }
+}
+
+/** 구독을 전부 끊는다 — 끝내기·재접속 같은 자리용 */
 function chatDetach() {
-  if (chatUnsub) { try { chatUnsub(); } catch { /* 이미 끊겼다 */ } chatUnsub = null; }
+  for (const k of Object.keys(chatSubs)) {
+    if (chatSubs[k]) { try { chatSubs[k](); } catch { /* 이미 끊겼다 */ } chatSubs[k] = null; }
+  }
   if (chatReadyT) { clearInterval(chatReadyT); chatReadyT = null; }
 }
 
@@ -4637,21 +4673,16 @@ function openChat(scope) {
   $('#ovb').querySelectorAll('[data-chtab]').forEach(b =>
     b.addEventListener('click', () => openChat(b.dataset.chtab)));
 
-  // 방을 옮기면 이전 구독을 반드시 먼저 끊는다. 안 끊으면 탭을 오갈 때마다
-  // 구독이 하나씩 쌓여 같은 줄이 두 번 세 번 그려진다
-  chatDetach();
   // **내 프로필을 먼저 올린다.** 서버는 보낼 때 profiles 컬렉션에서 닉네임을
   // 꺼내 줄에 굳혀 담는다 (server.js > sendChat). 그게 비어 있으면 내가 친 말이
   // 전부 "단장" 으로 뜬다 (단장 지적 2026-08-26). 개명·전직도 여기서 따라온다.
   // 실패해도 채팅은 열려야 하므로 조용히 삼킨다.
   if (ready) Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
   if (ready) {
-    chatUnsub = live.subscribeChat(chatScope, () => {
-      if (!$('#ov').classList.contains('show') || $('#ovt').textContent !== t('채팅')) return;
-      chatRedraw();
-    });
+    // 부팅에서 이미 걸어 두었으면 그대로 쓴다 (chatSubs 주석)
+    const subbed = chatSubscribe(chatScope);
     // 구독이 안 되는 환경이면(문서에 없는 호스트) 최소한 열 때 한 번은 받아 둔다
-    if (!chatUnsub) live.fetchChat(chatScope).then(r => {
+    if (!subbed) live.fetchChat(chatScope).then(r => {
       if (r) { live.setChat(chatScope, r); chatRedraw(); }
     }).catch(() => {});
   }
@@ -4669,7 +4700,7 @@ function openChat(scope) {
       return toast(t(CHAT_ERR[r?.reason] || '보내지 못했습니다'));
     }
     // 구독이 곧 새 목록을 주지만, 내가 친 줄은 **즉시** 보여야 한다
-    if (!chatUnsub) {
+    if (!chatSubs[chatScope]) {
       const rowsNow = live.fetchChat(chatScope).catch(() => null);
       rowsNow.then(v => { if (v) { live.setChat(chatScope, v); chatRedraw(); } });
     }
@@ -7912,7 +7943,7 @@ function bootTapToStart() {
   });
   $('#ovx').addEventListener('click', () => {
     if ($('#ov').classList.contains('forced')) return;
-    chatDetach();                 // 화면을 떠나면 구독을 끊는다
+    chatLeaveScreen();            // 연합 방만 끊는다 — 전체 방은 채팅바가 계속 쓴다
     $('#ov').classList.remove('show', 'over-alli');
     $('#ovinfo').classList.remove('show');
     $('#ovi').classList.remove('on');
@@ -8018,8 +8049,16 @@ function bootTapToStart() {
     try {
       await live.warmup(S.arenaScore || 1000);
       syncAllyFromServer();
-      chatBarSync();
     } catch (e) { console.warn('[live] 예열 실패 — 화면마다 다시 받는다', e); }
+    // **채팅을 로딩 안에서 연결한다** (단장 지시 2026-08-28).
+    // warmup 이 지난 대화는 이미 받아 왔지만 구독은 채팅창을 열어야 열렸다.
+    // 그래서 부팅 직후에는 하단 채팅바가 죽어 있었고, 한 번 열기 전까지는
+    // 남의 말이 흐르는 것을 몰랐다. 여기서 걸어 두면 게임이 뜨는 순간부터
+    // 바가 살아 있고, 채팅창을 열 때도 이미 연결돼 있어 바로 뜬다.
+    // 실패해도 로딩은 끝난다 — 채팅이 없다고 게임이 안 열리면 안 된다.
+    if (booting) bootStep(92, t('채팅에 연결하는 중…'));
+    try { chatSubscribe('world'); } catch (e) { console.warn('[live] 채팅 구독 실패', e); }
+    chatBarSync();
     if (booting) bootStep(95);
     return true;
   }
