@@ -47,6 +47,22 @@ const hasLocalSave = () => {
   try { return !!localStorage.getItem(LOCAL_SAVE_KEY); } catch { return false; }
 };
 
+// **마지막으로 서버와 맞춘 시각(서버 시계).** 기기 간 최신본을 가리는 기준이다.
+//
+// 예전에는 progressScore 만 비교했는데, 그 식에는 장비·골드·명부가 안 들어간다.
+// PC 에서 장비만 맞추고 폰을 켜면 점수가 그대로라 "클라우드가 앞서지 않는다"로
+// 보고 무시했다 — PC 진행이 폰에 영영 안 왔다 (단장 지적 2026-08-28).
+// 서버는 저장할 때마다 savedAt 을 남기므로, 그게 이 기기의 마지막 동기화보다
+// 뒤면 다른 기기가 그 뒤에 진행한 것이다.
+const SYNC_KEY = 'nyang:cloud:syncedAt';
+const readSync = () => {
+  try { return Math.max(0, +(localStorage.getItem(SYNC_KEY) || 0) || 0); } catch { return 0; }
+};
+const writeSync = n => {
+  if (!n) return;
+  try { localStorage.setItem(SYNC_KEY, String(n)); } catch { /* 시크릿 모드 */ }
+};
+
 // 초기값은 **로컬 기록**이다. 0 으로 두면 loadState 가 실패해 세대를 못 읽었을 때
 // 0 을 보내 거부당하고, 그 처리가 reload 라서 재부팅 루프가 된다
 let epoch = readEpoch();
@@ -56,6 +72,9 @@ export const cloudWiped = () => wipedElsewhere;
 
 /** 이 기기가 아는 세대 — 설정의 접속 진단이 보여 준다 */
 export const cloudEpoch = () => epoch;
+
+/** 마지막으로 서버와 맞춘 시각(서버 시계). 0 이면 아직 한 번도 못 맞췄다 */
+export const cloudSyncedAt = () => readSync();
 
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
 export function progressScore(s) {
@@ -93,7 +112,12 @@ export async function initCloud(stateGetter, injected) {
   };
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flush();
+    // **숨을 때는 응답을 받는 업로드를 쓴다.** flush 는 fire-and-forget 이라
+    // 서버가 남긴 savedAt 을 못 받고, 그러면 이 기기의 동기화 시각이 뒤처져
+    // 다음 부팅에 자기가 올린 세이브를 "남의 최신본"으로 보고 채택한다
+    // (재부팅이 한 번 더 돈다). 폰은 홈으로 나가는 게 이 경로다.
+    // pagehide 는 응답을 기다릴 수 없는 시점이라 그대로 flush 다.
+    if (document.visibilityState === 'hidden') { if (!wiping) upload(true); }
   });
 
   try {
@@ -123,8 +147,25 @@ export async function initCloud(stateGetter, injected) {
     if (cloud.v !== SAVE_VERSION) return null;     // 다른 버전 — 마이그레이션 전까지 무시
     const local = getState();
     const cs = progressScore(cloud.s), ls = progressScore(local);
-    if (cs > ls) return cloud.s;                   // 클라우드가 앞선다 — 채택
-    if (ls > cs) upload(true);                     // 로컬이 앞선다 — 즉시 올린다
+    const stamp = +cloud.savedAt || 0;
+    const mySync = readSync();
+
+    // **최신본이 이긴다.** 서버본이 이 기기의 마지막 동기화보다 뒤에 저장됐다면
+    // 다른 기기가 그 뒤에 진행한 것이다. progressScore 만 보면 장비·골드·명부가
+    // 식에 없어서 "PC 에서 장비만 맞춘 것"이 폰에 영영 안 온다 (위 SYNC_KEY 주석).
+    //
+    // 다만 진행도가 크게 뒷걸음질하는 서버본은 채택하지 않는다 — 서버의
+    // regression 가드와 같은 0.6 문턱이다. 한 번도 안 맞춘 기기(mySync 0)가
+    // 오프라인으로 쌓은 진행을 통째로 날리는 것을 막는다.
+    if (stamp && stamp > mySync && cs >= ls * 0.6) {
+      writeSync(stamp);
+      // 내용이 같으면 채택할 것이 없다. 여기서 안 걸러 내면 자기가 올린 세이브를
+      // 도로 채택하며 재부팅한다 (flush 는 응답을 안 받아 동기화 시각이 뒤처진다)
+      if (JSON.stringify(cloud.s) === JSON.stringify(local)) return null;
+      return cloud.s;
+    }
+    if (cs > ls) { writeSync(stamp); return cloud.s; }   // 클라우드가 앞선다 — 채택
+    if (ls > cs) upload(true);                           // 로컬이 앞선다 — 즉시 올린다
     return null;
   } catch (e) {
     console.warn('[cloud] load 실패 — 로컬로 계속', e);
@@ -156,6 +197,9 @@ async function upload(force = false) {
   try {
     const S = getState();
     const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false]);
+    // 서버가 남긴 시각을 그대로 받아 둔다 — 다음 부팅에 "내가 올린 것"과
+    // "남이 올린 것"을 가르는 기준이다 (SYNC_KEY 주석)
+    if (res && res.ok && res.savedAt) writeSync(res.savedAt);
     if (res && res.ok === false && res.reason === 'wiped') {
       // 이 기기가 도는 사이에 다른 기기가 초기화했다. 더 올리지 않고 로컬을
       // 버린 뒤 새로 뜬다 — 안 그러면 계속 옛 세이브를 밀어 넣는다.

@@ -12,7 +12,7 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
-import { initCloud, cloudSave, wipeCloud, cloudWiped, cloudReady, cloudEpoch } from './core/cloudsave.js';
+import { initCloud, cloudSave, wipeCloud, cloudWiped, cloudReady, cloudEpoch, cloudSyncedAt } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
@@ -7397,6 +7397,7 @@ function bootTapToStart() {
           `서버연결  ${live.liveReady() ? 'O' : 'X — 붙지 않았다'}`,
           `세이브    ${cloudReady() ? '클라우드' : '이 기기에만'}`,
           `세대      ${cloudEpoch()}`,
+          `마지막동기  ${cloudSyncedAt() ? new Date(cloudSyncedAt()).toLocaleString() : '없음'}`,
         ];
         box.textContent = local.join('\n') + '\n서버      …';
         live.raw('serverInfo', [])
