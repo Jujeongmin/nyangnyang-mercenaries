@@ -200,6 +200,23 @@ export const sendChat = (scope, text) => call('sendChat', [scope, text]);
 export const fetchChat = (scope, limit = 40) => call('getChat', [scope, limit]);
 
 /**
+ * 방금 보낸 줄을 캐시에 바로 꼽는다.
+ *
+ * 구독이 곧 같은 줄을 다시 주지만 그 왕복을 기다리면 내가 친 말이 몇 텔나
+ * 뒤에 뜨다 (단장 지적 2026-08-28). 서버가 돌려준 **저장된 행 그대로** 넣으므로
+ * at 도 서버 시계고, 구독이 늦게 와도 __id 로 겹치지 않게 걸러낸다.
+ */
+export function addChatRow(scope, item) {
+  if (!item) return;
+  const key = scope === 'ally' ? 'chatAlly' : 'chatWorld';
+  const rows = Array.isArray(cache[key]) ? cache[key].slice() : [];
+  if (item.__id && rows.some(r => r.__id === item.__id)) return;
+  rows.push(item);
+  rows.sort((a, b) => (a.at || 0) - (b.at || 0));
+  cache[key] = rows;
+}
+
+/**
  * 채팅 구독. 새 글이 즉시 온다 (globalCollection > subscribeGlobalCollection).
  *
  * **해제 함수를 반드시 돌려준다.** 화면을 닫아도 구독이 살아 있으면 방치 게임을

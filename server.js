@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 20;
+const SERVER_REV = 21;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1216,7 +1216,10 @@ class Server {
     const me = await oneByAccount('profiles', $sender.account);
     const item = await $global.addCollectionItem(room, {
       account: $sender.account,
-      nickname: me ? String(me.nickname || '').slice(0, 15) : '',
+      // 프로필을 못 찾아도 **비워 두지 않는다.** 빈 이름은 보는 쪽에서 자동 닉으로
+      // 대체되는데, 그러면 같은 사람이 채팅에서만 다른 이름으로 보인다.
+      // nickOf 는 프로필이 있으면 그 이름을, 없으면 계정에서 만든 자동 닉을 준다
+      nickname: (me && String(me.nickname || '').slice(0, 15)) || await nickOf($sender.account),
       capCls: me && ['warrior', 'archer', 'mage'].includes(me.capCls) ? me.capCls : 'warrior',
       text: body, at: now,
     });

@@ -4576,6 +4576,7 @@ let chatScope = 'world';
 // 이제 전체 방 구독은 **부팅 로딩 안에서** 열고 (boot > wireServer),
 // 채팅창은 있으면 그대로 쓴다. 방마다 하나라 중복도 안 쌓힌다.
 const chatSubs = { world: null, ally: null };
+let chatProfileReady = null;   // 채팅창이 올린 내 프로필 저장의 약속
 let chatReadyT = null;   // 접속을 기다리는 채팅 화면의 감시 타이머
 
 /**
@@ -4710,7 +4711,10 @@ function openChat(scope) {
   // 꺼내 줄에 굳혀 담는다 (server.js > sendChat). 그게 비어 있으면 내가 친 말이
   // 전부 "단장" 으로 뜬다 (단장 지적 2026-08-26). 개명·전직도 여기서 따라온다.
   // 실패해도 채팅은 열려야 하므로 조용히 삼킨다.
-  if (ready) Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+  // **약속으로 들고 있다가 보낼 때 기다린다.** 던져 놓기만 하면, 채팅창을 열고
+  // 곧바로 친 말은 프로필이 저장되기 전에 서버가 읽어서 닉네임·직군이 빈 채로
+  // 굳는다 — 내 줄만 이름과 얼굴이 안 맞던 원인이다 (단장 지적 2026-08-28).
+  if (ready) chatProfileReady = Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
   if (ready) {
     // 부팅에서 이미 걸어 두었으면 그대로 쓴다 (chatSubs 주석)
     const subbed = chatSubscribe(chatScope);
@@ -4726,14 +4730,20 @@ function openChat(scope) {
     if (!text) return;
     if (!live.liveReady()) return toast(t('연결 대기 중입니다 — 잠시 후 다시 시도해 주세요'));
     el.value = '';
+    // 서버가 profiles 에서 닉네임·직군을 꼼내 줄에 굳힌다 — 그 저장이 끝난 뒤여야
+    // 내 줄에 내 이름과 얼굴이 붙는다 (openChat 의 chatProfileReady 주석)
+    try { await chatProfileReady; } catch { /* 실패해도 보내긴 한다 */ }
     const r = await live.sendChat(chatScope, text)
       .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
     if (!r?.ok) {
       el.value = text;                    // 실패하면 쓴 글을 돌려준다
       return toast(t(CHAT_ERR[r?.reason] || '보내지 못했습니다'));
     }
-    // 구독이 곧 새 목록을 주지만, 내가 친 줄은 **즉시** 보여야 한다
-    if (!chatSubs[chatScope]) {
+    // **돌아온 행을 그 자리에서 붙인다.** 구독이 곧 같은 줄을 다시 주지만
+    // 그 왕복을 기다리면 내가 친 말이 몇 텔나 뒤에 뜨다. 서버가 저장한
+    // 행 그대로라 at 도 서버 시계고, 구독이 와도 __id 로 겹치지 않는다
+    if (r.item) { live.addChatRow(chatScope, r.item); chatRedraw(); }
+    else if (!chatSubs[chatScope]) {
       const rowsNow = live.fetchChat(chatScope).catch(() => null);
       rowsNow.then(v => { if (v) { live.setChat(chatScope, v); chatRedraw(); } });
     }
