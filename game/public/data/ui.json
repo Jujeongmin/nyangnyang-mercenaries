@@ -1,6 +1,6 @@
 {
  "meta": {
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "화면 구조 + 정보구조. 레퍼런스는 버섯커 계열 방치형 UI (상단 전투 / 하단 인벤토리 고정 분할).",
   "renderer": "PixiJS",
   "dimension": "2D",

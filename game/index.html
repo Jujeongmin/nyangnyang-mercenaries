@@ -3586,13 +3586,17 @@
      중복 1개 = 1레벨이라(cascade.twoStepRule) 게이지는 "쌓인 중복 / 남은 레벨"이다 */
   .cx-cell .cx-g{position:absolute;left:4px;right:4px;bottom:4px;z-index:5;height:11px;
     background:#000000a8;border-radius:3px;overflow:hidden}
-  .cx-cell .cx-g i{display:block;height:100%;width:0;border-radius:3px;
+  /* 채움 막대의 층을 **여기서 되돌린다.** 위쪽 UI 킷에 `.cx-cell i{z-index:5}`
+     가 있는데(액자가 레벨 글자를 덮는 것을 막는 규칙이다) 게이지 채움도 i 라
+     같이 걸렸다. 그래서 채움 5 > 숫자 2 가 되어 "4/7" 이 초록 막대에 덮였다
+     (단장 지적 2026-08-28). 채움은 게이지 안쪽 층이라 프레임과 다툴 일이 없다 */
+  .cx-cell .cx-g i{display:block;height:100%;width:0;border-radius:3px;z-index:1;
     background:linear-gradient(90deg,#3f8a4f,var(--up))}
   /* 숫자는 **채워진 막대 위에** 떠야 한다. z-index 없이 두면 초록 채움과
      같은 층이라 밝은 초록 위에서 흰 글자가 묻힌다 — "게이지가 1/4 를 가린다"
      로 보였다 (단장 지적 2026-08-26). 층을 올리고 어두운 테두리를 둘러
      채움 색이 무엇이든 읽히게 한다 */
-  .cx-cell .cx-g b{position:absolute;inset:0;z-index:2;font-size:9px;line-height:11px;
+  .cx-cell .cx-g b{position:absolute;inset:0;z-index:3;font-size:9px;line-height:11px;
     text-align:center;color:#fff;font-weight:400;
     font-family:"Black Han Sans","Jua",system-ui,sans-serif;
     -webkit-text-stroke:2px #000; paint-order:stroke fill;
