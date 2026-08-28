@@ -30,7 +30,7 @@ let wiping = false;         // 초기화 중 — flush·업로드가 지운 것�
 // 기기가 30초 업로드로 그것을 도로 살려낸다 (단장 재현 2026-08-28:
 // PC 초기화 -> 폰이 그대로 -> PC 재접속하면 옛 캐릭터가 돌아옴)
 const EPOCH_KEY = 'nyang:cloud:epoch';
-let epoch = 0;
+const LOCAL_SAVE_KEY = 'nyang:proto:v1';   // main.js 의 SAVE_KEY 와 같아야 한다
 let wipedElsewhere = false;
 
 const readEpoch = () => {
@@ -41,6 +41,15 @@ const writeEpoch = n => {
   epoch = n;
   try { localStorage.setItem(EPOCH_KEY, String(n)); } catch { /* 시크릿 모드 */ }
 };
+
+/** 이 기기에 버릴 로컬 세이브가 실제로 있나 */
+const hasLocalSave = () => {
+  try { return !!localStorage.getItem(LOCAL_SAVE_KEY); } catch { return false; }
+};
+
+// 초기값은 **로컬 기록**이다. 0 으로 두면 loadState 가 실패해 세대를 못 읽었을 때
+// 0 을 보내 거부당하고, 그 처리가 reload 라서 재부팅 루프가 된다
+let epoch = readEpoch();
 
 /** 다른 기기에서 초기화됐나 — initCloud 직후에 본다. 참이면 로컬을 버려야 한다 */
 export const cloudWiped = () => wipedElsewhere;
@@ -97,8 +106,12 @@ export async function initCloud(stateGetter, injected) {
       // 다른 기기가 초기화했다. 이 기기의 로컬은 죽은 세대다 — 올리지 말고 버린다.
       // 세대를 먼저 기록해야 재부팅 뒤에 같은 판정이 또 나지 않는다
       writeEpoch(serverEpoch);
-      wipedElsewhere = true;
       wiping = true;            // 이 세션의 flush·업로드를 막는다
+      // **버릴 로컬이 있을 때만 재부팅을 요청한다.**
+      // 스토리지가 막힌 환경(시크릿 모드 등)에서는 세대 기록도 로컬 세이브도
+      // 남지 않아, 매 부팅 이 가지로 들어와 무한 reload 가 된다. 지울 것이
+      // 없으면 이 기기는 어차피 빈 채로 시작하므로 그냥 진행하면 된다
+      wipedElsewhere = hasLocalSave();
       return null;
     }
     writeEpoch(serverEpoch);
@@ -142,10 +155,12 @@ async function upload(force = false) {
     const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false]);
     if (res && res.ok === false && res.reason === 'wiped') {
       // 이 기기가 도는 사이에 다른 기기가 초기화했다. 더 올리지 않고 로컬을
-      // 버린 뒤 새로 뜬다 — 안 그러면 계속 옛 세이브를 밀어 넣는다
+      // 버린 뒤 새로 뜬다 — 안 그러면 계속 옛 세이브를 밀어 넣는다.
+      // 지울 로컬이 없으면 재부팅해도 같은 자리라, 업로드만 멈춘다 (위 주석)
       writeEpoch(res.epoch | 0);
       wiping = true;
-      try { localStorage.removeItem('nyang:proto:v1'); } catch {}
+      if (!hasLocalSave()) return;
+      try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch { return; }
       location.reload();
       return;
     }
@@ -154,7 +169,7 @@ async function upload(force = false) {
       // (기기 교체 직후의 빈 로컬이 여기로 들어온다)
       const cloud = await server.remoteFunction('loadState', []);
       if (cloud?.s && typeof window !== 'undefined') {
-        localStorage.setItem('nyang:proto:v1',
+        localStorage.setItem(LOCAL_SAVE_KEY,
           JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: cloud.s }));
         location.reload();                          // 채택은 재부팅으로 — 반쯤 섞인 상태가 최악이다
       }

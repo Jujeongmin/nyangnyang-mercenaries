@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 16;
+const SERVER_REV = 17;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -393,7 +393,10 @@ class Server {
     // 돌아오면 옛 캐릭터가 그대로였다 (단장 재현 2026-08-28).
     // 서버가 막아야 한다. 클라의 협조에 기댈 수 없다 (flush 는 응답도 안 받는다).
     const epoch = cur && cur.saveEpoch || 0;
-    if (payload.epoch != null && payload.epoch < epoch) {
+    // 세대를 안 보내는 클라(감싸기 전 번들)는 초기화 이력이 없는 계정에서만
+    // 통과시킨다. epoch > 0 은 누군가 초기화했다는 뜻이라, 세대를 모르는
+    // 업로드는 지운 세이브를 되살릴 후보다 — 그 기기가 새 번들을 받을 때까지 막는다
+    if (epoch > 0 && (payload.epoch == null || payload.epoch < epoch)) {
       return { ok: false, reason: 'wiped', epoch };
     }
     if (cur && cur.save && !force) {
@@ -483,10 +486,17 @@ class Server {
   /** 세이브 복원. 없으면 null — 신규 계정이다. */
   async loadState() {
     const cur = await $global.getMyState();
-    // **{save, epoch} 로 감싸서 준다.** 세대를 같이 줘야 클라가 자기 로컬이
-    // 죽은 세대인지 안다. 옛 클라(감싸기 전)는 v 가 없어 "다른 버전"으로
-    // 보고 로컬을 쓰므로, 지금까지의 동작에서 나빠지지는 않는다
-    return { save: (cur && cur.save) || null, epoch: (cur && cur.saveEpoch) || 0 };
+    // 세대를 같이 줘야 클라가 자기 로컬이 죽은 세대인지 안다.
+    //
+    // **v/s 를 같은 높이에 같이 싣는다.** { save, epoch } 로만 감쌌더니 아직 새
+    // 번들을 못 받은 기기가 cloud.v 를 못 찾아 "다른 버전"으로 보고 클라우드를
+    // 아예 채택하지 못했다 — 기기 간 이어하기가 배포 사이에 끊긴다.
+    // 옛 클라는 v/s 를 읽고, 새 클라는 save/epoch 를 읽는다.
+    const save = (cur && cur.save) || null;
+    return {
+      ...(save || {}),                                   // v, s, savedAt — 옛 클라용
+      save, epoch: (cur && cur.saveEpoch) || 0,          // 새 클라용
+    };
   }
 
   /** 랭킹 제출 (best-only). net/verse8.js SERVER_REFERENCE 의 패턴 그대로. */
