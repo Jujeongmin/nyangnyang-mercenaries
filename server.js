@@ -298,6 +298,18 @@ function dedupAcc(rows) {
   return [...seen.values()];
 }
 
+/**
+ * 보낸 사람 이름 칸을 표시용으로 확정한다 (friendReq.fromNick, gifts.fromNick).
+ * fixNick 은 nickname 필드만 보므로 이 둘에는 안 먹는다.
+ * @param accField  계정이 담긴 필드 이름  @param nickField  이름이 담긴 필드 이름
+ */
+function fixSenderNick(r, accField, nickField) {
+  if (!r) return r;
+  const n = String(r[nickField] || '');
+  if (n && n !== '단장') return r;
+  return { ...r, [nickField]: fallbackNick(r[accField]) };
+}
+
 /** 행의 nickname 을 표시용으로 확정한다 — 빈 값·'단장' 은 자동 닉으로 */
 function fixNick(r) {
   if (!r) return r;
@@ -737,18 +749,23 @@ class Server {
     const me = await oneByAccount('profiles', $sender.account);
     await $global.addCollectionItem('friendReq', {
       from: $sender.account, to: toAccount,
-      fromNick: me ? me.nickname : '단장', fromCp: me ? me.cp : 0,
+      // nickOf 는 프로필이 없거나 옛 '단장' 행이어도 계정에서 만든 자동 닉을
+      // 돌려준다. 여기서 '단장' 을 그대로 적으면 그 문자열이 신청 목록에
+      // 박제되어 나중에 고쳐도 안 사라진다 (단장 지적 2026-08-28)
+      fromNick: await nickOf($sender.account), fromCp: me ? me.cp : 0,
       createdAt: Date.now(),
     });
     return { ok: true };
   }
 
-  /** 나에게 온 신청 목록 */
+  /** 나에게 온 신청 목록. **fromNick 은 읽을 때 한 번 더 고친다** — 예전 행에
+   *  '단장' 이 그대로 박제돼 있어 목록이 전부 같은 이름으로 보였다 */
   async friendRequests() {
-    return qItems('friendReq', {
+    const rows = await qItems('friendReq', {
       filters: [{ field: 'to', operator: '==', value: $sender.account }],
       limit: 30,
     });
+    return rows.map(r => fixSenderNick(r, 'from', 'fromNick'));
   }
 
   /**
@@ -765,7 +782,8 @@ class Server {
     await $global.addCollectionItem('friends',
       { account: $sender.account, friend: req.from, nick: req.fromNick, since: now });
     await $global.addCollectionItem('friends',
-      { account: req.from, friend: $sender.account, nick: me ? me.nickname : '단장', since: now });
+      { account: req.from, friend: $sender.account,
+        nick: await nickOf($sender.account), since: now });
     return { ok: true, accepted: true };
   }
 
@@ -1086,7 +1104,10 @@ class Server {
     }
     return {
       sent: srv.giftDay === day ? (srv.giftTo || []) : [],
-      inbox: fresh.map(g => ({ id: g.__id, from: g.from, fromNick: g.fromNick, day: g.day })),
+      inbox: fresh.map(g => {
+        const f = fixSenderNick(g, 'from', 'fromNick');
+        return { id: g.__id, from: g.from, fromNick: f.fromNick, day: g.day };
+      }),
     };
   }
 

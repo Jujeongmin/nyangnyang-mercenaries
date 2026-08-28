@@ -4084,7 +4084,7 @@ function friendState() {
   if (rows) {
     // id = account. 선물 기록(sent/recv)이 이 id 로 걸려 있어 키를 바꾸면 안 된다
     S.friends.list = rows.map(x => ({
-      id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
+      id: x.account, name: x.nickname || autoNickOf(x.account), cp: x.cp || 0,
       stage: x.stage || 1, capCls: x.capCls || 'warrior',
       // 얼굴 재료 — faceSrc 가 대표 용병 > 편성 첫 자리 > 단장 순으로 고른다
       featured: x.featured || '', party: x.party || [],
@@ -4111,6 +4111,24 @@ const friendGiftReady = () => {
 
 // 신청 목록은 10초마다 새로 고칠 수 있다. 후보는 시드로 만들어서
 // 새로 고치기 전까지는 같은 얼굴이 남는다 (서버 연동 전 자리)
+/**
+ * 계정으로 만드는 자동 닉. **server.js 의 fallbackNick 과 같은 식이어야 한다** —
+ * 한쪽만 바꾸면 같은 사람이 화면마다 다른 이름으로 뜬다.
+ *
+ * 이름이 비어 오는 자리에 '단장' 을 박아 두던 것을 이걸로 바꿨다. 그 폴백 때문에
+ * 친구 목록·신청 목록에 여러 명이 다 '단장' 으로 보였다 (단장 지적 2026-08-28).
+ */
+const NICK_ADJ = ['용감한', '날쌀', '귀여운', '든든한', '엉뚱한', '단단한',
+  '반착', '느긋한', '까칠한', '포근한', '씨씩한', '해맑은'];
+const NICK_ANI = ['냥이', '멍목', '햄찌', '토깱', '너굴', '펭귄',
+  '여우', '곰돌', '다람', '두더지', '박쥐', '고슴'];
+function autoNickOf(account) {
+  let h = 0;
+  for (const c of String(account || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const n = String(h % 99 + 1).padStart(2, '0');
+  return NICK_ADJ[h % 12] + NICK_ANI[((h / 12) | 0) % 12] + n;
+}
+
 const FRIEND_REFRESH_SEC = 10;
 const FR_SURNAME = ['까칠한', '엉덩이', '식빵 굽는', '새벽', '츄르', '골골', '낮잠',
   '수염', '방울', '츤데레', '통통한', '발라당', '창가의', '지붕 위'];
@@ -4133,7 +4151,7 @@ function friendCandidates(seed, n = 6) {
     const k = (seed || 0) % Math.max(1, pool.length);
     const rot = pool.slice(k).concat(pool.slice(0, k));
     return rot.slice(0, n).map((x, i) => ({
-      id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
+      id: x.account, name: x.nickname || autoNickOf(x.account), cp: x.cp || 0,
       featured: x.featured || '', party: x.party || [], capCls: x.capCls || 'warrior',
       face: i % 4, frame: i % 4,
     }));
@@ -4171,7 +4189,7 @@ function demoFriendCandidates(seed, n = 6) {
 function friendIncoming() {
   const reqs = live.get('friendReqs');
   if (reqs) return reqs.map((r, i) => ({
-    id: r.__id, account: r.from, name: r.fromNick || '단장',
+    id: r.__id, account: r.from, name: r.fromNick || autoNickOf(r.from),
     cp: r.fromCp || 0, face: i % 4, frame: i % 4,
     // 얼굴 재료 — 신청 아이템에는 없으니 추천 표본에서 같은 계정을 찾아 쓴다
     ...(() => {
@@ -4518,8 +4536,10 @@ let chatScope = 'world';
 let chatUnsub = null;
 
 /** 구독 해제. 화면을 닫는 모든 경로가 이걸 지난다 */
+let chatReadyT = null;   // 접속을 기다리는 채팅 화면의 감시 타이머
 function chatDetach() {
   if (chatUnsub) { try { chatUnsub(); } catch { /* 이미 끊겼다 */ } chatUnsub = null; }
+  if (chatReadyT) { clearInterval(chatReadyT); chatReadyT = null; }
 }
 
 /**
@@ -4544,7 +4564,7 @@ const chatLineHtml = m => `<div class="ch-line${chatMine(m) ? ' me' : ''}">
     <img class="ch-av" src="/assets/captain/captain_${
       ['warrior', 'archer', 'mage'].includes(m.capCls) ? m.capCls : 'warrior'}.png"
       alt="" data-chacc="${esc(m.account || '')}" onerror="this.remove()">
-    <b>${esc(m.nickname || '단장')}</b>
+    <b>${esc(m.nickname || autoNickOf(m.account))}</b>
     <span>${esc(m.text || '')}</span>
     <i>${chatTime(m.at)}</i></div>`;
 
@@ -4582,9 +4602,14 @@ function openChat(scope) {
     </div>
     <div id="chBody" class="ch-body">${body}</div>
     <div class="ch-send">
+      <!-- **disabled 를 걸지 않는다.** ready 는 이 화면을 열 때 한 번 찍은 값이라,
+           그 순간 소켓이 안 붙어 있으면 입력창이 굳어 버리고 나중에 붙어도
+           되살아나지 않았다 — 부팅 접속이 6초에 실패하면 채팅을 닫았다 열기
+           전까지 글을 못 썼다 (단장 지적 2026-08-28). 아래 watcher 가 붙는
+           순간 화면을 다시 그리고, 그 전에 보내면 send 가 이유를 알려 준다. -->
       <input id="chIn" maxlength="100" placeholder="${
-        ready ? t('메시지를 입력하세요') : t('연결 대기 중')}" ${ready ? '' : 'disabled'}>
-      <button class="rt-b go" id="chGo" ${ready ? '' : 'disabled'}>${t('보내기')}</button>
+        ready ? t('메시지를 입력하세요') : t('연결 대기 중')}">
+      <button class="rt-b go" id="chGo">${t('보내기')}</button>
     </div>`;
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
   chatToBottom();
@@ -4615,6 +4640,7 @@ function openChat(scope) {
     const el = $('#chIn');
     const text = (el.value || '').trim();
     if (!text) return;
+    if (!live.liveReady()) return toast(t('연결 대기 중입니다 — 잠시 후 다시 시도해 주세요'));
     el.value = '';
     const r = await live.sendChat(chatScope, text)
       .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
@@ -4628,6 +4654,17 @@ function openChat(scope) {
       rowsNow.then(v => { if (v) { live.setChat(chatScope, v); chatRedraw(); } });
     }
   };
+  // 부팅 때 못 붙어도 뒤에서 다시 붙는다 (boot 의 재접속). 붙는 순간 이 화면이
+  // 스스로 살아나야 한다 — 목록도 구독도 입력창도 그때 함께 선다
+  clearInterval(chatReadyT); chatReadyT = null;
+  if (!ready) {
+    chatReadyT = setInterval(() => {
+      if (!live.liveReady()) return;
+      clearInterval(chatReadyT); chatReadyT = null;
+      if ($('#ov').classList.contains('show') && $('#ovt').textContent === t('채팅')) openChat();
+    }, 1000);
+  }
+
   $('#chGo').addEventListener('click', send);
   $('#chIn').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
   // 줄마다 리스너를 달지 않는다 — chatRedraw 가 innerHTML 을 갈아치우면
@@ -4651,14 +4688,14 @@ async function openChatProfile(account) {
   // 나를 누르면 내 프로필 화면이 낫다 — 남 카드 모양으로 나를 보여 줄 이유가 없다
   if (account === live.get('myAlliance')?.me?.account) return;
   const line = chatRows().find(m => m.account === account);
-  const ttl = $('#smTitle'); if (ttl) ttl.textContent = line?.nickname || t('단장');
+  const ttl = $('#smTitle'); if (ttl) ttl.textContent = line?.nickname || autoNickOf(account);
   $('#smBody').innerHTML = `<div class="sh-note">${t('불러오는 중…')}</div>`;
   $('#smPop').classList.add('show');
 
   const x = await live.fetchProfile(account).catch(() => null);
   // 기다리는 사이 카드를 닫았거나 다른 카드를 열었으면 그리지 않는다
   if (!$('#smPop').classList.contains('show')) return;
-  const nick = x?.nickname || line?.nickname || '단장';
+  const nick = x?.nickname || line?.nickname || autoNickOf(account);
   const cls = ['warrior', 'archer', 'mage'].includes(x?.capCls || line?.capCls)
     ? (x?.capCls || line?.capCls) : 'warrior';
   if (ttl) ttl.textContent = nick;
@@ -4730,7 +4767,7 @@ function chatBarSync() {
   // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
   // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다
   if (!last) { if (who) who.textContent = ''; line.textContent = ''; return; }
-  if (who) who.textContent = esc(last.nickname || '단장');
+  if (who) who.textContent = esc(last.nickname || autoNickOf(last.account));
   line.textContent = last.text || '';
 }
 
@@ -4824,7 +4861,7 @@ function publicProfile() {
     // 닉네임의 저장소는 S.nickname 하나다. S.profile.nick 은 쓰는 곳이 없는
     // 죽은 필드였는데 여기가 그걸 봐서, 서버에는 늘 '단장' 이 올라갔다 —
     // 랭킹·채팅·친구가 전부 단장이던 원인 (단장 지적 2026-08-27)
-    nickname: S.nickname || '단장',
+    nickname: S.nickname || autoNickname(),
     cp: Math.round(totalCp()),
     stage: S.maxStage || 0,
     capCls: S.promoClass || 'warrior',
@@ -4880,7 +4917,7 @@ function arenaFoes() {
       seen.add(x.account); uniq.push(x);
     }
     if (uniq.length) return uniq.map((x, i) => ({
-      i, account: x.account, name: x.nickname || '단장',
+      i, account: x.account, name: x.nickname || autoNickOf(x.account),
       cp: x.cp || 0, score: x.arenaScore || 0, stage: x.stage || 1,
       capCls: x.capCls || 'warrior', capTier: x.capTier || 1,
       // 프로필 카드 — 서버가 title·frame 을 주는데 버리고 있었다 (단장 지적
