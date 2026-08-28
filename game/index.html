@@ -1009,6 +1009,14 @@
     background:var(--panel2);color:var(--txt);font-family:inherit;font-size:13px;cursor:pointer}
   #txtDlg .td-row button.ok{background:var(--gold);color:#2a1c0c;font-weight:800}
   /* 시작 직업 선택 — 카드 석 장. 초상은 1024² 원화라 위쪽(얼굴)만 보여준다 */
+  /* 접속 진단 — 설정의 버전 줄을 눌러야 펼쳐진다. 폰에 콘솔이 없어서 있다.
+     가로로만 스크롤시키고(본문은 절대 가로로 안 밀린다) 글자는 선택 가능하게
+     둔다 — 값을 옮겨 적어야 하는 화면이다 */
+  .st-diag{margin:-4px 0 8px;padding:8px 10px;border-radius:9px;
+    background:var(--ink);border:1px solid var(--line);color:var(--dim);
+    font-size:11px;line-height:1.6;white-space:pre;overflow-x:auto;
+    -webkit-user-select:text;user-select:text}
+  .st-diag[hidden]{display:none}
   /* 색은 --txt/--dim 을 쓴다. --ink 계열은 양피지(밝은 바닥)용 먹색이라
      --panel2(#3a2c20) 위에 얹으면 검정 위 검정이 되어 안 읽혔다 (단장 지적 2026-08-28) */
   .cls-note{font-size:12px;color:var(--dim);text-align:center;margin:2px 0 10px}

@@ -54,6 +54,9 @@ let epoch = readEpoch();
 /** 다른 기기에서 초기화됐나 — initCloud 직후에 본다. 참이면 로컬을 버려야 한다 */
 export const cloudWiped = () => wipedElsewhere;
 
+/** 이 기기가 아는 세대 — 설정의 접속 진단이 보여 준다 */
+export const cloudEpoch = () => epoch;
+
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
 export function progressScore(s) {
   if (!s || typeof s !== 'object') return 0;

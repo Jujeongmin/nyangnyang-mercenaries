@@ -12,7 +12,7 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
-import { initCloud, cloudSave, wipeCloud, cloudWiped } from './core/cloudsave.js';
+import { initCloud, cloudSave, wipeCloud, cloudWiped, cloudReady, cloudEpoch } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
@@ -7384,6 +7384,31 @@ function bootTapToStart() {
       // 돌 수 있고, sandbox 에 allow-popups 가 없으면 window.open 이 조용히
       // null 을 준다. 그때는 주소를 복사해 주고 직접 붙여 넣게 한다 —
       // "눌렀는데 아무 일도 없다" 로 끝나면 안 된다
+      // 접속 진단 — 설정의 버전 줄. 폰에서 콘솔을 열 수가 없어서 화면에 띄운다
+      // (단장 지적 2026-08-28). 접혀 있다가 누르면 펴진다.
+      else if (a === 'diag') {
+        const box = $('#stDiag');
+        if (!box) return;
+        if (!box.hidden) { box.hidden = true; return; }
+        box.hidden = false;
+        // 서버를 안 기다리고 먼저 아는 것부터 그린다 — 응답이 늦어도 화면이 빈다
+        const local = [
+          `빌드      v${D.ui.meta.version} (${typeof __BUILD__ === 'string' ? __BUILD__ : 'dev'})`,
+          `서버연결  ${live.liveReady() ? 'O' : 'X — 붙지 않았다'}`,
+          `세이브    ${cloudReady() ? '클라우드' : '이 기기에만'}`,
+          `세대      ${cloudEpoch()}`,
+        ];
+        box.textContent = local.join('\n') + '\n서버      …';
+        live.raw('serverInfo', [])
+          .then(r => {
+            box.textContent = [...local,
+              `서버REV   ${r.rev}`,
+              `계정      ${r.account || '—'}`].join('\n');
+          })
+          .catch(e => {
+            box.textContent = [...local, `서버      ${e && e.message || e}`].join('\n');
+          });
+      }
       else if (a === 'discord') {
         const url = D.ui.links?.discord;
         if (!url) return;
@@ -7845,32 +7870,42 @@ function bootTapToStart() {
   bootStep(85);
   const gs = await connectGameServer();
 
-  // 클라우드 세이브 — Verse8 호스트 안에서만 산다. 클라우드가 로컬보다
-  // 앞서 있으면 그쪽을 채택하고 재부팅한다 (반쯤 섞인 상태가 최악이라
-  // 필드 단위 병합은 안 한다 — 세이브는 통짜가 원칙이다)
-  try {
-    const adopted = await initCloud(() => S, gs);
-    // 다른 기기에서 저장 데이터를 초기화했다. 이 기기가 들고 있는 로컬은 이미
-    // 지워진 세대라, 그대로 두면 30초 업로드가 그것을 클라우드에 도로 살린다.
-    // 여기서 버리고 새로 뜬다 (cloudsave 의 세대 주석 참고)
-    if (cloudWiped()) {
-      localStorage.removeItem(SAVE_KEY);
-      location.reload();
-      return;
-    }
-    if (adopted) {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: adopted }));
-      location.reload();
-      return;
-    }
-  } catch (e) { console.warn('[cloud] 초기화 실패 — 로컬로 계속', e); }
+  /**
+   * 클라우드 세이브 붙이기. **재부팅을 걸었으면 false 를 돌려준다** — 부르는
+   * 쪽은 거기서 멈춰야 한다 (지워질 상태로 게임을 더 진행시키면 안 된다).
+   *
+   * 클라우드가 로컬보다 앞서 있으면 그쪽을 채택하고 재부팅한다. 반쯤 섞인
+   * 상태가 최악이라 필드 단위 병합은 안 한다 — 세이브는 통짜가 원칙이다.
+   */
+  async function adoptCloud(srv) {
+    try {
+      const adopted = await initCloud(() => S, srv);
+      // 다른 기기에서 저장 데이터를 초기화했다. 이 기기가 들고 있는 로컬은 이미
+      // 지워진 세대라, 그대로 두면 30초 업로드가 그것을 클라우드에 도로 살린다.
+      // 여기서 버리고 새로 뜬다 (cloudsave 의 세대 주석 참고)
+      if (cloudWiped()) {
+        localStorage.removeItem(SAVE_KEY);
+        location.reload();
+        return false;
+      }
+      if (adopted) {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: adopted }));
+        location.reload();
+        return false;
+      }
+    } catch (e) { console.warn('[cloud] 초기화 실패 — 로컬로 계속', e); }
+    return true;
+  }
 
-  // ── 서버 연동 마무리 ──────────────────────────────────
-  // 붙어 있으면 **로딩이 끝나기 전에 전부 끝낸다.** 화면을 열 때 받으면 유저가
-  // 데모를 한 번 보고 진짜 값으로 갈리는 것을 본다 — 목록이 눈앞에서 바뀌면
-  // 고장으로 읽힌다. 실패해도 게임은 그대로 돈다 (전부 데모로 떨어진다).
-  if (live.initLive(gs)) {
-    bootStep(88, t('용병단 명부를 맞추는 중…'));
+  /**
+   * 서버 연동 마무리. 부팅 중에는 **로딩이 끝나기 전에 전부 끝낸다** — 화면을
+   * 열 때 받으면 유저가 데모를 한 번 보고 진짜 값으로 갈리는 것을 본다.
+   * 목록이 눈앞에서 바뀌면 고장으로 읽힌다.
+   * 실패해도 게임은 그대로 돈다 (전부 데모로 떨어진다).
+   */
+  async function wireServer(srv, booting) {
+    if (!live.initLive(srv)) return false;
+    if (booting) bootStep(88, t('용병단 명부를 맞추는 중…'));
     try {
       // 프로필이 **먼저**다. 남이 나를 볼 수 있는 것은 이것뿐이고
       // (server.js > submitProfile), 이게 없으면 남의 아레나 상대·친구 목록에
@@ -7882,7 +7917,39 @@ function bootTapToStart() {
       syncAllyFromServer();
       chatBarSync();
     } catch (e) { console.warn('[live] 예열 실패 — 화면마다 다시 받는다', e); }
-    bootStep(95);
+    if (booting) bootStep(95);
+    return true;
+  }
+
+  if (!(await adoptCloud(gs))) return;
+  await wireServer(gs, true);
+
+  // ── 못 붙었으면 뒤에서 계속 시도한다 ──────────────────
+  // 접속 상한이 6초다 (gameserver.js CONNECT_MS — 부팅이 이걸 기다리므로 길게
+  // 못 잡는다). 폰의 느린 망이나 백엔드 콜드스타트면 그 안에 못 붙고, 그러면
+  // **그 세션이 통째로 데모로 굳었다** — initLive 가 부팅 때 한 번만 돌기
+  // 때문이다. 채팅·랭킹·친구가 안 뜨는 것은 물론이고, 클라우드 세이브가 없어
+  // 저장 데이터 초기화가 다른 기기로 전파되지도 않는다 (단장 재현 2026-08-28:
+  // 폰에서 "서버에 안 붙어 있다").
+  //
+  // 늦게라도 붙으면 세대 확인부터 다시 한다 — 그 사이 다른 기기가 초기화했을
+  // 수 있고, 그때는 adoptCloud 가 재부팅을 건다.
+  if (!gs) {
+    let wait = 4000;
+    const retry = async () => {
+      if (live.liveReady()) return;
+      const late = await connectGameServer();
+      if (late) {
+        console.log('[냥냥] 늦게 접속됨 — 연동을 다시 붙인다');
+        if (!(await adoptCloud(late))) return;   // 재부팅이 걸렸다
+        await wireServer(late, false);
+        renderTop();
+        return;
+      }
+      wait = Math.min(wait * 2, 60_000);
+      setTimeout(retry, wait);
+    };
+    setTimeout(retry, wait);
   }
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
