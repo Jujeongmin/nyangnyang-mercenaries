@@ -406,10 +406,17 @@ export class BattleScene {
     const baseId = idle.tex ? idleId : capId;
     const { tex: capAttackTex } = await this.loadSprite(capFile(capId, 'attack'));
     const { tex: capWalkTex } = await this.loadSprite(capFile(capId, 'walk'));
+    // **여기서 다시 본다.** 위의 stale 검사는 loadTrim 직후 한 번뿐이었는데,
+    // 그 뒤로 시트 넉 장을 기다리는 사이에 두 번째 setParty 가 끼면 낡은
+    // 호출도 그대로 내려와 단장을 하나 더 만들어 field 에 넣었다 — 단장이
+    // 둘로 겹쳐 보이던 원인이고, 그 유령이 tick 에서 참조되며 화면이
+    // 멈추기도 했다 (단장 지적 2026-08-27: 전직 초기화 후 선택 시 멈춤)
+    if (stale()) return;
     if (capTex) {
       // 팔 컷아웃은 1024² 원화 좌표라 _idle 그림에는 안 맞는다 — 엉뚱한 데를
       // 떼어 낸다. _idle 을 쓰는 동안에는 몸통 리그만 쓴다.
       const arm = idle.tex ? null : await this.cutoutFor(capId, capSrc);
+      if (stale()) return;                     // 컷아웃도 await 다
       const sh = SHEET[capId] || SHEET[`captain_${capCls}`] || {};
       this.captain = new UnitRig(PIXI(), capTex, {
         size: this.allySize() * 1.0, facing: 1, grid: [5, 9],
@@ -461,8 +468,12 @@ export class BattleScene {
       const { tex: t, src } = await this.loadSprite(m.id === 'CAPTAIN'
         ? '/assets/captain/captain_warrior'
         : `/assets/char/${m.id}`);
-      if (!t || stale()) continue;
+      // **낡은 호출은 continue 가 아니라 return 이다.** continue 면 뒤 칸을
+      // 계속 만들고 루프 끝의 layout() 까지 돌아 새 호출의 배치를 덮어쓴다
+      if (stale()) return;
+      if (!t) continue;
       const arm = await this.cutoutFor(m.id === 'CAPTAIN' ? 'captain_warrior' : m.id, src);
+      if (stale()) return;
       const rig = new UnitRig(PIXI(), t, {
         size: this.allySize(), facing: 1, grid: [5, 9],
         motion: motionForClass(m.class), arm, trim: TR[m.id],
@@ -475,6 +486,7 @@ export class BattleScene {
       this.field.addChild(rig.view);
       this.units.push({ ...m, rig, cd: rnd(0.2, 1.2), cdMax: rnd(1.0, 1.5) });
     }
+    if (stale()) return;
     this.layout();
     for (const u of this.units) u.rig.view.visible = true;
     if (this.captain) this.captain.view.visible = true;

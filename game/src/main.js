@@ -3322,13 +3322,10 @@ function doPromote(cls) {
   S.promo = S.promo || {};
   S.promo[cls] = nx.tier;
   S.promoClass = cls;
-  save(); refreshParty(); applyCaptainClass();
-  // **판을 처음부터 다시 돌린다** (단장 확정 2026-08-27: 전직은 어떤 상황에서도
-  // 판이 깨끗이 초기화돼야 한다). applyCaptainClass 의 setParty 는 await 없이
-  // 도는데, 그 위에 옛 판의 전투 상태가 얹혀 있으면 겹침 판정이 꼬여 모바일에서
-  // 화면이 멈췄다 — runStage 가 startStage 로 판 전체를 새로 세우면 setParty
-  // 토큰이 낡은 호출을 스스로 물린다
-  runStage();
+  save(); refreshParty();
+  // **다 세운 뒤에 판을 돌린다.** 순서가 어긋나면 새 판과 옛 편성 로드가
+  // 겹쳐 단장이 둘로 서거나 화면이 멈춘다 (단장 확정 2026-08-27)
+  applyCaptainClass().then(() => runStage());
   const nm = promoDef().names[cls][nx.tier - 1];
   toast(`${CLASS_KO[cls]} → ${nm}`);
 }
@@ -3366,10 +3363,11 @@ function openClassSelect() {
         // 전직 스킬은 **1레벨로 바로 켠다** (단장 확정 2026-08-27). 0레벨이면
         // 칩은 떠도 효과가 0 이라 "받았는데 아무 일도 없는" 스킬이 된다
         if (!(S.promoSkillLv >= 1)) S.promoSkillLv = 1;
-        save(); refreshParty(); applyCaptainClass(); renderTop();
+        save(); refreshParty(); renderTop();
         $('#ov').classList.remove('show', 'forced');
         toast(`${CLASS_KO[cls]} ${t('의 길을 걷습니다')}`);
-        done();
+        // 편성이 다 선 뒤에 약속을 푼다 — 부팅·초기화가 그 뒤에 runStage 한다
+        applyCaptainClass().then(done);
       }));
     $('#ov').classList.add('show', 'forced');
   });
@@ -3381,19 +3379,27 @@ function resetPromotion() {
   S.promoClass = null;
   // 스킬 레벨은 남긴다 — 골드를 이미 태웠고, 새 길의 스킬에 그대로 이어진다.
   // 리셋할 때마다 강화가 날아가면 초기화가 벌이 된다
-  save(); refreshParty(); applyCaptainClass();
+  save(); refreshParty();
   toast(t('전직을 초기화했습니다'));
-  // 직업 없는 채로 두지 않는다 — 바로 다시 고르게 하고, 고르면 지금 판을
-  // 처음부터 다시 돌린다 (단장 확정 2026-08-27: 전투 상태 꼬임 방지)
-  openClassSelect().then(() => runStage());
+  // 직업 없는 채로 두지 않는다 — 바로 다시 고르게 하고, 고른 뒤 편성이
+  // 다 선 다음에 판을 돌린다 (순서가 어긋나면 겹쳐서 멈춘다)
+  applyCaptainClass()
+    .then(() => openClassSelect())
+    .then(() => runStage());
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
+/**
+ * **setParty 의 약속을 돌려준다.** 전직·초기화는 이 뒤에 곧바로 runStage 를
+ * 부르는데, 안 기다리면 판이 새로 서는 동안 옛 setParty 가 아직 그림을
+ * 기다리고 있어 둘이 겹친다 — 단장이 둘로 보이거나 화면이 멈췄다
+ * (단장 지적 2026-08-27)
+ */
 function applyCaptainClass() {
   scene.captainClass = S.promoClass || 'warrior';
   // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
   scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
-  scene.setParty(S.party);
+  return scene.setParty(S.party);
 }
 
 const CLASS_IMG = { warrior: 'captain_warrior', archer: 'captain_archer', mage: 'captain_mage' };

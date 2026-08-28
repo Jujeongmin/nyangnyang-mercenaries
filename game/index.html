@@ -1787,12 +1787,10 @@
   #csChip2::before{border-color:#ff8a4aa8}
   /* 칩이 8칸 옆에 낄 자리는 스킬 간격에서 얻는다 — 줄 전체가 4px 넘쳤었다 */
   #skRow:has(#csChip:not([hidden])) #skills{gap:4px}
-  /* 칩이 보이면 원 크기를 줄 전체로 다시 나눈다 — 8칸 기준 clamp 는 칩을 모른다.
-     칩 1개 = 9원, 2개 = 10원. 안 그러면 줄이 앱 폭(480)을 옆으로 뚫는다 (실측 +38px) */
-  #skRow:has(#csChip:not([hidden])) :is(.sk,#csChip,#csChip2){
-    width:clamp(22px,calc((100cqw - 140px)/9),38px)}
-  #skRow:has(#csChip2:not([hidden])) :is(.sk,#csChip,#csChip2){
-    width:clamp(20px,calc((100cqw - 150px)/10),34px)}
+  /* 칸 수 특례(:has 로 9칸·10칸을 따로 계산하던 것)는 뺐다 — 칸 수는
+     --sk-n 하나가 안다 (main.js > syncSkRowCount). 두 규칙이 공존하면
+     .sk 와 칩이 서로 다른 식으로 커져 칩만 유독 크게 보인다
+     (단장 지적 2026-08-27 모바일 스크린샷) */
 
   /* ── 7일 축제 ── */
   .ev7-hero{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;
