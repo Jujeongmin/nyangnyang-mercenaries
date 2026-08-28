@@ -970,8 +970,10 @@
      나눴는데, 단장 스킬처럼 칸이 하나라도 늘면 폭 계산이 어긋나 줄이 화면
      밖으로 나갔다 (단장 지적 2026-08-26). renderSkills 가 실제 칸 수를
      --sk-n 으로 넣어 주고, 여기서는 그 값으로 나눈다. */
+  /* --sk-cell 은 **JS 가 실측해서 넣는다** (main.js > syncSkRowCount).
+     아래 값은 그 전에 한 프레임 그려질 때 쓰는 폴백이다 */
   #skRow{--sk-n:9;--sk-gap:6px;
-    --sk-cell:clamp(22px,calc((100cqw - 150px - (var(--sk-n) - 1) * var(--sk-gap))/var(--sk-n)),64px)}
+    --sk-cell:clamp(22px,calc((100cqw - 40px - (var(--sk-n) - 1) * var(--sk-gap))/var(--sk-n)),46px)}
   #skills{gap:var(--sk-gap)}
   .sk{position:relative;width:var(--sk-cell);aspect-ratio:1;
     height:auto;border-radius:50%;overflow:hidden;
@@ -4024,9 +4026,7 @@
     #skills{gap:2px}
     /* 8칸이 #skills(max 100cqw-96px) 안에서 최대한 커지도록. 375 폭에서 32px */
     /* 칸 하나만 정하면 .sk 와 #skAuto 가 같이 따라온다 */
-    /* 8/9/10칸 특례(:has)를 뺐다 — 칸 수는 --sk-n 하나가 안다
-       (main.js > syncSkRowCount). 폭 식도 그 변수로 계산한다 */
-    #skRow{--sk-cell:clamp(20px,calc((100cqw - 80px - (var(--sk-n) - 1) * var(--sk-gap))/var(--sk-n)),40px)}
+    /* 모바일에서도 폭은 JS 실측이 정한다 — 여기서 다시 못 박지 않는다 */
     /* VS 연출 — 그림이 세로 공간을 넘지 않게 높이로도 묶는다. 폭 56% 는
        360x640(전투 영역 ~205px)에서 세로로 터졌다.
 

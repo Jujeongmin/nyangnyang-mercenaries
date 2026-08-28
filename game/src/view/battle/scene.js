@@ -375,6 +375,10 @@ export class BattleScene {
    * (단장 지적 2026-08-25). 표를 하나 들고 있다가 낡은 호출은 스스로 물러난다.
    */
   async setParty(party) {
+    // **무대가 아직 없으면 아무것도 안 한다.** init() 이 끝나기 전에 편성이
+    // 들어오면 field 가 undefined 라 그 자리에서 예외가 나고, 그 예외가
+    // 부팅을 통째로 멈춘다 (전직·초기화가 이른 시점에 겹칠 때 실제로 났다)
+    if (!this.field || !this.ui) return;
     const token = (this._partyToken = (this._partyToken || 0) + 1);
     const stale = () => token !== this._partyToken;
     for (const u of this.units) u.rig.view.destroy({ children: true });
@@ -590,6 +594,12 @@ export class BattleScene {
       u.rig.view.zIndex = L1.z;
       u.rig.view.scale.set(L1.sc);
     });
+    // 상대 단장 — 내 단장의 거울 자리 (ex 쪽 맨 앞)
+    if (this.foeCap) {
+      this.foeCap.setBase(ex - unit * 0.98, gy - unit * 0.38);
+      this.foeCap.view.zIndex = 20;
+      this.foeCap.view.scale.set(1.05);
+    }
     this.foes.forEach((f, i) => {
       const L2 = FOE_LANE[i % FOE_LANE.length];
       // 목표 자리를 기억해 둔다. walk 구간에는 이 자리로 걸어온다.
@@ -774,6 +784,7 @@ export class BattleScene {
 
     this.fx.update(dt);
     if (this.captain) this.captain.update(dt);
+    if (this.foeCap) this.foeCap.update(dt);   // 상대 단장도 살아 움직인다
     // 날개 퍼덕임 — 몸의 숨쉬기와 같은 주기대로 살짝 벌어졌다 오므라든다
     if (this.capWing && !this.capWing.destroyed) {
       this.capWingT = (this.capWingT || 0) + dt / 1000;
@@ -1636,6 +1647,10 @@ export class BattleScene {
     this.partyMaxHp = 1; this.partyHp = 1;   // 파티 체력바가 같은 값을 읽는다
 
     await this.spawnUnitFoes(o.foeParty);
+    // **상대 단장을 세운다.** 예전에는 편성 용병만 세워서, 남의 단장이
+    // 화면에 아예 없었다 (단장 지적 2026-08-27). 아레나는 "저 사람의
+    // 조합에 졌다" 가 남아야 하는 화면인데 정작 그 사람이 없었다
+    await this.spawnFoeCaptain(o.foeCls, o.foeTier);
     this.onEvent({ type: 'arenaHp', my: 1, foe: 1 });
     this.phase = 'walk';
     this.phaseT = 0;
@@ -1682,6 +1697,39 @@ export class BattleScene {
     // 로딩이 걸리면 적이 나타나는 순간 걷기가 끝나 있어, 도착도 하기 전에
     // 제자리에서 두들겨 맞고 죽어 있었다 (단장 지적 2026-08-25)
     if (this.phase === 'walk') this.phaseT = 0;
+  }
+
+  /**
+   * 상대 단장. 내 단장과 **같은 시트·같은 규칙**을 쓰되 좌우를 뒤집는다 —
+   * 두 벌로 갈리면 크기·발 위치가 반드시 어긋난다. 판정에는 안 들어가고
+   * (characters.json > combatParticipation:false) 화면에만 선다.
+   */
+  async spawnFoeCaptain(cls = 'warrior', tier = 1) {
+    if (!this.field) return;
+    if (this.foeCap) { this.foeCap.view.destroy({ children: true }); this.foeCap = null; }
+    const TR = await this.loadTrim();
+    const capId = captainAsset(cls, tier || 1);
+    const idle = await this.loadSprite(capFile(capId, 'idle'));
+    const base = idle.tex ? idle : await this.loadSprite(`/assets/captain/${capId}`);
+    if (!base.tex) return;
+    const { tex: capAtk } = await this.loadSprite(capFile(capId, 'attack'));
+    const { tex: capWalk } = await this.loadSprite(capFile(capId, 'walk'));
+    const idleId = capId + (capId.startsWith('PR-') ? '-' : '_') + 'idle';
+    const baseId = idle.tex ? idleId : capId;
+    const sh = SHEET[capId] || SHEET[`captain_${cls}`] || {};
+    this.foeCap = new UnitRig(PIXI(), base.tex, {
+      size: this.allySize() * 1.0, facing: -1, flip: true, grid: [5, 9],
+      motion: motionForClass(cls), arm: null,
+      trim: TR[baseId] || TR[capId] || TR.captain_warrior,
+      attackSheet: capAtk, attackFrameCount: sh.atk?.n,
+      attackTrim: sh.atk && { h: sh.atk.h, footY: sh.atk.foot, ch: sh.atk.ch },
+      walkSheet: capWalk, walkFrameCount: sh.walk?.n,
+      walkTrim: sh.walk && { h: sh.walk.h, footY: sh.walk.foot, ch: sh.walk.ch },
+    });
+    this.foeCap.view.visible = false;
+    this.field.addChild(this.foeCap.view);
+    this.layout();
+    this.foeCap.view.visible = true;
   }
 
   /**
@@ -1733,6 +1781,12 @@ export class BattleScene {
     if (a.capCd <= 0) {
       a.capCd = 0.62 + Math.random() * 0.3;
       if (this.captain && this.foes.some(f => !f.dead)) this.captain.attack?.();
+    }
+    // 상대 단장도 자기 박자로 — 가만히 선 단장은 "공격 모션이 없다" 로 읽힌다
+    a.foeCapCd = (a.foeCapCd ?? 0.9) - s;
+    if (a.foeCapCd <= 0) {
+      a.foeCapCd = 0.7 + Math.random() * 0.35;
+      if (this.foeCap && a.foeHp > 0) this.foeCap.attack?.();
     }
 
     this.onEvent({ type: 'arenaHp', my: a.myHp, foe: a.foeHp });
@@ -1833,6 +1887,9 @@ export class BattleScene {
       f.label?.destroy();
     }
     this.foes = [];
+    // 상대 단장은 아레나에서만 서므로 여기서 같이 치운다 — 안 치우면
+    // 스테이지로 돌아갔을 때 남의 단장이 적 자리에 남는다
+    if (this.foeCap) { this.foeCap.view.destroy({ children: true }); this.foeCap = null; }
   }
 
   /**

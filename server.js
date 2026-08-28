@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 13;
+const SERVER_REV = 14;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -465,6 +465,7 @@ class Server {
       cp: Math.floor(p.cp),
       stage: Math.max(0, p.stage | 0),
       capCls: ['warrior', 'archer', 'mage'].includes(p.capCls) ? p.capCls : 'warrior',
+      capTier: Math.max(1, Math.min(3, p.capTier | 0 || 1)),
       party,
       title: String(p.title || '').slice(0, 24),
       frame: String(p.frame || '').slice(0, 24),

@@ -2509,15 +2509,19 @@ function renderCsChip() {
 }
 
 /**
- * 스킬 줄의 **실제 칸 수**를 CSS 에 알린다.
+ * 스킬 줄의 칸 폭을 **JS 가 직접 잰다.**
  *
- * 칸 폭이 (쓸 수 있는 폭 ÷ 칸 수) 로 정해지는데, 예전에는 그 9 가 CSS 에
- * 박혀 있었다. 전직 스킬(csChip·csChip2)이 열리면 칸이 10~11개가 되면서
- * 줄이 화면 밖으로 밀려났다 (단장 지적 2026-08-26).
+ * 예전에는 CSS 가 (100cqw - 여유값) ÷ 칸수 로 계산했는데, 그 "여유값" 이
+ * 매번 추측이었다 — 8칸 기준으로 박아 두면 전직 칩이 열릴 때 줄이 화면
+ * 밖으로 나가고, 넉넉히 잡으면 칸이 21px 로 쪼그라들어 여백만 109px 남았다
+ * (단장 지적 2026-08-27). 게다가 .skgap 은 8px 짜리인데 한 칸 몫으로 세서
+ * 계산이 늘 어긋났다.
  *
- * 세는 것은 **지금 보이는 것만**이다 — hidden 인 전직 칩은 자리를 안 차지한다.
- * 액티브와 패시브 사이의 간격(.skgap)도 한 칸 몫으로 친다.
+ * 이제 실제 가용 폭·간격·skgap 을 재서 칸 폭을 그대로 정한다. 추측이 없으니
+ * 칸 수가 몇이든, 화면이 얼마든 한 식으로 맞는다.
  */
+const SK_PAD = 10;      // 줄 좌우 여백
+const SK_MIN = 22, SK_MAX = 46;
 function syncSkRowCount() {
   const row = $('#skRow');
   if (!row) return;
@@ -2525,11 +2529,22 @@ function syncSkRowCount() {
   let n = 0;
   if (vis($('#skAuto'))) n++;
   n += document.querySelectorAll('#skills .sk').length;
-  if (document.querySelector('#skills .skgap')) n += 1;   // 간격도 폭을 먹는다
   if (vis($('#csChip'))) n++;
   if (vis($('#csChip2'))) n++;
-  row.style.setProperty('--sk-n', Math.max(1, n));
+  if (!n) return;
+  row.style.setProperty('--sk-n', n);
+  const avail = (row.parentElement || row).clientWidth;
+  if (!avail) return;                       // 아직 자리를 못 잡았다
+  const cs = getComputedStyle(row);
+  const gap = parseFloat(cs.getPropertyValue('--sk-gap')) || 6;
+  const sg = document.querySelector('#skills .skgap');
+  const extra = sg ? sg.getBoundingClientRect().width : 0;
+  const cell = (avail - SK_PAD * 2 - extra - gap * (n - 1)) / n;
+  row.style.setProperty('--sk-cell',
+    Math.floor(Math.max(SK_MIN, Math.min(SK_MAX, cell))) + 'px');
 }
+// 화면이 바뀌면 다시 잰다 — 회전·키보드·창 크기
+window.addEventListener('resize', () => syncSkRowCount());
 
 function missionState() {
   const d = dayIdx(Date.now()), w = weekIdx(Date.now());
@@ -3325,6 +3340,7 @@ function doPromote(cls) {
   save(); refreshParty();
   // **다 세운 뒤에 판을 돌린다.** 순서가 어긋나면 새 판과 옛 편성 로드가
   // 겹쳐 단장이 둘로 서거나 화면이 멈춘다 (단장 확정 2026-08-27)
+  leaveSpecialModes();
   applyCaptainClass().then(() => runStage());
   const nm = promoDef().names[cls][nx.tier - 1];
   toast(`${CLASS_KO[cls]} → ${nm}`);
@@ -3381,6 +3397,9 @@ function resetPromotion() {
   // 리셋할 때마다 강화가 날아가면 초기화가 벌이 된다
   save(); refreshParty();
   toast(t('전직을 초기화했습니다'));
+  // 보스전·아레나가 돌던 중이면 먼저 빠져나온다 — 그 잔여물이 화면을 덮은
+  // 채 남으면 새 판이 뒤에서 도는데도 멈춘 것처럼 보인다
+  leaveSpecialModes();
   // 직업 없는 채로 두지 않는다 — 바로 다시 고르게 하고, 고른 뒤 편성이
   // 다 선 다음에 판을 돌린다 (순서가 어긋나면 겹쳐서 멈춘다)
   applyCaptainClass()
@@ -3395,6 +3414,32 @@ function resetPromotion() {
  * 기다리고 있어 둘이 겹친다 — 단장이 둘로 보이거나 화면이 멈췄다
  * (단장 지적 2026-08-27)
  */
+/**
+ * 특수 모드에서 평시 전투로 빠져나온다.
+ *
+ * 전직·초기화는 판을 새로 세우는데, **보스전·아레나가 돌던 중이면 그
+ * 잔여물이 화면을 덮은 채로 남는다** — VS 컷(#vs)이 show 인 채 굳거나,
+ * 아레나 막대·보스 타이머가 지워지지 않아 "멈췄다" 로 보였다
+ * (단장 지적 2026-08-27: 보스 중 전직 초기화하면 멈춘다).
+ */
+function leaveSpecialModes() {
+  bossLocked = false;
+  $('#vs')?.classList.remove('show');
+  $('#bossGo')?.classList.remove('show');
+  $('#hudC')?.classList.remove('farm');
+  hideArenaBars();
+  const t = $('#timer'); if (t) t.textContent = '';
+  if (scene) {
+    scene.bossFight = false;
+    scene.bossPending = false;
+    scene.timeLeft = null;
+    scene.mode = 'stage';
+    scene.ar = null;              // 아레나 재생 상태
+    // runId 를 올려 옛 판이 예약해 둔 지연 콜백을 전부 무효로 만든다
+    scene.runId = (scene.runId || 0) + 1;
+  }
+}
+
 function applyCaptainClass() {
   scene.captainClass = S.promoClass || 'warrior';
   // 단계도 같이 넘긴다 — 전투 외형이 승급을 따라간다 (scene 의 captainAsset)
@@ -4743,6 +4788,8 @@ function publicProfile() {
     cp: Math.round(totalCp()),
     stage: S.maxStage || 0,
     capCls: S.promoClass || 'warrior',
+    // 승급 단계 — 아레나가 상대 단장을 그 단계 모습으로 세운다
+    capTier: (S.promo && S.promo[S.promoClass || 'warrior']) || 1,
     party: S.party.filter(Boolean).slice(0, 5)
       .map(x => ({ id: x.id, grade: x.grade, level: x.level || 1 })),
     // 착용 칭호·액자의 저장소는 titleId·frameId 다. title/frame 은 아무도
@@ -4795,7 +4842,7 @@ function arenaFoes() {
     if (uniq.length) return uniq.map((x, i) => ({
       i, account: x.account, name: x.nickname || '단장',
       cp: x.cp || 0, score: x.arenaScore || 0, stage: x.stage || 1,
-      capCls: x.capCls || 'warrior',
+      capCls: x.capCls || 'warrior', capTier: x.capTier || 1,
       // 프로필 카드 — 서버가 title·frame 을 주는데 버리고 있었다 (단장 지적
       // 2026-08-26). 랭킹 행과 같은 문법: 액자색 테두리 + 칭호
       title: x.title || '', frame: x.frame || '',
@@ -4919,6 +4966,8 @@ async function playArenaMatch(foe, win, myCp) {
   scene.syncPassiveAura?.();
   await scene.startArenaMatch({
     foeParty: foe.party, win, hpRemain: remain, duration,
+    // 상대 단장의 모습 — 직군과 승급 단계를 같이 넘긴다
+    foeCls: foe.capCls || 'warrior', foeTier: foe.capTier || 1,
   });
 }
 
@@ -7449,7 +7498,9 @@ function bootTapToStart() {
       console.log('[진단]', JSON.stringify(out, null, 1).slice(0, 4000));
       return out;
     },
-    openAllianceGate, openAlliance, openArena, openFriends, openChat };
+    openAllianceGate, openAlliance, openArena, openFriends, openChat,
+    // 전직 경로 — 보스·아레나 중 초기화 같은 상태 전이를 콘솔에서 재현한다
+    doPromote, resetPromotion, leaveSpecialModes };
   await scene.init();
   bootStep(82);
 
