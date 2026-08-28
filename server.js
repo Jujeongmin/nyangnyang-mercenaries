@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 14;
+const SERVER_REV = 15;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -408,12 +408,59 @@ class Server {
    * 랭킹에 옛 기록으로 남으면 안 된다.
    */
   async wipeState() {
-    await $global.updateMyState({ save: null });
-    const mine = await qItems('profiles', {
-      filters: [{ field: 'account', operator: '==', value: $sender.account }],
-    });
-    for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
-    return { ok: true };
+    const me = $sender.account;
+    // 세이브와 서버쪽 개인 상태(아레나 갱신 쿨타임·연합 탈퇴 쿨타임 등)를 같이 비운다.
+    // srv 를 남기면 초기화한 계정에 쿨타임만 유령처럼 붙어 있다
+    await $global.updateMyState({ save: null, srv: {} });
+
+    /** 한 컬렉션에서 내가 걸린 행을 전부 지운다. 필드가 여럿이면 각각 훑는다 */
+    const purge = async (col, fields) => {
+      const seen = new Set();
+      for (const field of fields) {
+        let rows = [];
+        try {
+          rows = await qItems(col, { filters: [{ field, operator: '==', value: me }] });
+        } catch { rows = []; }
+        for (const it of rows) {
+          if (!it || !it.__id || seen.has(it.__id)) continue;
+          seen.add(it.__id);
+          try { await $global.deleteCollectionItem(col, it.__id); } catch { /* 이미 없음 */ }
+        }
+      }
+      return seen.size;
+    };
+
+    // 초기화는 **남이 보는 흔적까지** 지워야 한다. 프로필만 지웠더니 보낸 친구
+    // 신청·친구 관계·랭킹 행이 그대로 남아, 새로 시작한 계정에 옛 인연이
+    // 따라붙었다 (단장 지적 2026-08-28).
+    const n = {};
+    n.profiles = await purge('profiles', ['account']);
+    n.rankings = await purge('rankings', ['account']);
+    // 보낸 신청(from)과 받은 신청(to) 둘 다
+    n.friendReq = await purge('friendReq', ['from', 'to']);
+    // 친구는 양방향 2행이라 내 행(account)과 상대가 나를 가리키는 행(friend) 둘 다
+    n.friends = await purge('friends', ['account', 'friend']);
+    n.gifts = await purge('gifts', ['from', 'to']);
+
+    // 연합은 인원 캐시를 되돌려 놓고 빠진다. 그냥 행만 지우면 정원이 영영 찬 채로 남는다
+    try {
+      const mem = await qItems('allyMembers', {
+        filters: [{ field: 'account', operator: '==', value: me }],
+      });
+      for (const it of mem) {
+        await $global.deleteCollectionItem('allyMembers', it.__id);
+        const al = it.allianceId && await $global.getCollectionItem('alliances', it.allianceId);
+        if (al && al.__id) {
+          const left = await $global.countCollectionItems('allyMembers', {
+            filters: [{ field: 'allianceId', operator: '==', value: it.allianceId }],
+          });
+          await $global.updateCollectionItem('alliances', { ...al, members: Math.max(0, left) });
+        }
+      }
+      n.allyMembers = mem.length;
+    } catch { n.allyMembers = -1; }
+
+    return { ok: true, deleted: n };
   }
 
   /** 세이브 복원. 없으면 null — 신규 계정이다. */

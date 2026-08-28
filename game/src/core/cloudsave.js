@@ -123,7 +123,10 @@ async function upload(force = false) {
  */
 export async function wipeCloud() {
   wiping = true;
-  if (!server) return true;
+  // 서버에 안 붙어 있으면 **성공이라고 하지 않는다.** true 를 돌려주던 탓에
+  // 로컬만 지우고 "초기화됐다" 로 끝났고, 다음 접속에서 클라우드가 도로
+  // 살려 놓아 초기화가 안 먹은 것처럼 보였다 (단장 지적 2026-08-28)
+  if (!server) return false;
   try { await server.remoteFunction('wipeState', []); return true; }
   catch (e) { console.warn('[cloud] wipe 실패', e); return false; }
 }

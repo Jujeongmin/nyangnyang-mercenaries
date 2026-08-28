@@ -1025,8 +1025,14 @@ async function resetSave() {
   // 그대로 되살아났다 (단장 확인 2026-08-27). 클라우드부터 지우고,
   // cloudsave 의 wiping 플래그가 그 사이의 flush 를 막는다
   clearTimeout(saveTimer);           // 대기 중인 저장도 무효
-  await wipeCloud();
+  const ok = await wipeCloud();
   localStorage.removeItem(SAVE_KEY);
+  if (!ok) {
+    // 서버가 안 지워졌으면 이 기기만 비는 것이라, 다음 접속에 클라우드가 도로
+    // 살린다. 말없이 새로고침하면 "초기화가 안 된다" 로만 보인다
+    toast(t('서버 기록을 못 지웠습니다 — 연결 확인 후 다시 시도'));
+    await new Promise(r => setTimeout(r, 1600));
+  }
   location.reload();
 }
 

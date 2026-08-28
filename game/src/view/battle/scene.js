@@ -1841,8 +1841,21 @@ export class BattleScene {
     if (a.atkCd <= 0) {
       a.atkCd = 0.28 + Math.random() * 0.22;
       const alive = this.foes.filter(f => !f.dead);
+      // **상대 단장도 표적이다.**
+      // 편성 없이 단장만 데려온 상대를 만나면 foes 가 0 이라, 우리 쪽은 때릴
+      // 대상이 없어 다섯이 통째로 가만히 서 있었다 (단장 지적 2026-08-28).
+      // 아레나 타격은 판정이 없는 그림이므로 대상만 있으면 된다.
+      const targets = alive.length
+        ? alive
+        : (this.foeCap && a.foeHp > 0 ? [{ rig: this.foeCap, class: this.foeCapCls }] : []);
       const u = this.units[(Math.random() * this.units.length) | 0];
-      if (u && alive.length) this.launchAttack(u, alive[(Math.random() * alive.length) | 0], false);
+      const tgt = targets[(Math.random() * targets.length) | 0];
+      // 진짜 용병 행에는 hp·bar 가 달려 있어 기존 타격 경로를 그대로 태운다.
+      // 단장 행은 그게 없으니(drawHpBar 가 bar 를 요구한다) 그림 전용 경로로 보낸다
+      if (u && tgt) {
+        if (tgt.bar) this.launchAttack(u, tgt, false);
+        else this.launchFoeAttack({ rig: u.rig, class: u.class }, tgt);
+      }
       // 상대도 때린다. 한쪽만 움직이면 지는 판에서도 내가 일방적으로 패는 그림이 된다.
       // 궁수·법사면 이쪽으로 투사체가 날아온다 (판정 없음 — 그림이다)
       const f = alive[(Math.random() * alive.length) | 0];
@@ -1860,7 +1873,9 @@ export class BattleScene {
     a.capCd = (a.capCd ?? 0.6) - s;
     if (a.capCd <= 0) {
       a.capCd = 0.62 + Math.random() * 0.3;
-      if (this.captain && this.foes.some(f => !f.dead)) this.captain.attack?.();
+      // 상대 편성이 비어 있어도 단장은 휘두른다 — 상대 진영이 살아 있는지만 본다.
+      // 예전엔 foes 를 봐서, 단장만 있는 상대 앞에서 우리 단장까지 멈췄다
+      if (this.captain && a.foeHp > 0) this.captain.attack?.();
     }
     // 상대 단장도 자기 박자로 — 가만히 선 단장은 "공격 모션이 없다" 로 읽힌다
     a.foeCapCd = (a.foeCapCd ?? 0.9) - s;
