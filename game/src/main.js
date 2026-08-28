@@ -4548,9 +4548,29 @@ function chatDetach() {
  * 아니라 남의 로그를 읽는 화면이 된다. 세이브에 안 넣는다 — 새로고침이
  * 곧 새 접속이다.
  */
-const CHAT_SINCE = Date.now();
-const chatFresh = rows => (rows || []).filter(r => (r.createdAt || 0) >= CHAT_SINCE);
-const chatRows = () => chatFresh(live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld'));
+// 방마다 "여기까지는 옛것" 기준선. **서버 시계로 잡는다.**
+//
+// 처음에는 클라의 Date.now() 로 잘랐고, 거르는 필드도 createdAt 을 봤다.
+// 그런데 서버는 줄에 at 을 담는다 (server.js > sendChat) — createdAt 은 없는
+// 필드라 항상 undefined 고, (undefined || 0) >= CHAT_SINCE 는 영원히 거짓이다.
+// 그래서 **모든 줄이 걸러져** 내가 친 말조차 안 떠다 (단장 지적 2026-08-28).
+//
+// 클라 시각으로 자르는 것 자체도 틀렸다 — 클라와 서버의 시계가 달라서, 시계가
+// 앞선 기기에서는 새 줄까지 잘린다. 처음 받아온 묶음의 가장 최근 at 을
+// 기준으로 삼으면 판단이 통째로 서버 시계 안에서 끝나 시계 차가 무관해진다.
+const chatBase = {};
+function chatMarkBase(scope, all) {
+  // 한 번도 받아보지 않았으면(undefined) 기준을 잡지 않는다 — 0 으로 잡히면
+  // 첫 받기 전에 기준이 굳어 지난 대화가 통째로 쌏아진다
+  if (chatBase[scope] != null || !Array.isArray(all)) return;
+  chatBase[scope] = all.reduce((m, r) => Math.max(m, r.at || 0), 0);
+}
+const chatRows = () => {
+  const all = live.get(chatScope === 'ally' ? 'chatAlly' : 'chatWorld');
+  if (!Array.isArray(all)) return [];
+  chatMarkBase(chatScope, all);
+  return all.filter(r => (r.at || 0) > (chatBase[chatScope] ?? 0));
+};
 const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.account;
 
 /**
@@ -4762,7 +4782,11 @@ function chatToBottom() {
 function chatBarSync() {
   const line = $('#chatline'), who = document.querySelector('#chat .who');
   if (!line) return;
-  const rows = chatFresh(live.get('chatWorld'));
+  // 전체 방 기준으로 같은 기준선을 쓴다 (chatBase 주석)
+  const all = live.get('chatWorld');
+  chatMarkBase('world', all);
+  const rows = Array.isArray(all)
+    ? all.filter(r => (r.at || 0) > (chatBase.world ?? 0)) : [];
   const last = rows[rows.length - 1];
   // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
   // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다
