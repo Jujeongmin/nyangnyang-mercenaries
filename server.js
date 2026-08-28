@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 8;
+const SERVER_REV = 9;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -440,7 +440,18 @@ class Server {
     const mine = await qItems('profiles', {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
     });
-    for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
+    // **지우고 다시 넣지 않는다.** 삭제와 추가 사이에 같은 계정의 두 번째
+    // 호출이 끼면 행이 두 개가 된다 — 실제로 1초 차 중복 2행이 생겨 랭킹
+    // 1·2위가 같은 사람이었다 (단장 진단 2026-08-27). 첫 행을 제자리에서
+    // 갱신하고, 경합이 이미 남긴 잉여 행만 지운다.
+    if (mine.length) {
+      const keep = mine[0];
+      for (const it of mine.slice(1)) {
+        try { await $global.deleteCollectionItem('profiles', it.__id); } catch (e) {}
+      }
+      await $global.updateCollectionItem('profiles', keep.__id, item);
+      return { ...item, __id: keep.__id };
+    }
     return $global.addCollectionItem('profiles', item);
   }
 
@@ -484,10 +495,18 @@ class Server {
     const FIELD = { power: 'cp', stage: 'stage', arena: 'arenaScore', score: 'arenaScore' };
     const f = FIELD[board] || 'cp';
     const n = Math.min(50, Math.max(1, limit | 0 || 20));
-    const rows = await sortedTop('profiles', {}, f, n);
+    const rows = await sortedTop('profiles', {}, f, n * 2);
+    // 계정당 한 행 — submitProfile 경합이 남긴 중복(updatedAt 최신이 진짜)이
+    // 표에 두 번 서면 안 된다
+    const seen = new Map();
+    for (const r of rows) {
+      const cur = seen.get(r.account);
+      if (!cur || (r.updatedAt || 0) > (cur.updatedAt || 0)) seen.set(r.account, r);
+    }
+    const uniq = [...seen.values()].sort((a, b) => (b[f] || 0) - (a[f] || 0)).slice(0, n);
     // 그 보드 점수가 0 인 사람은 아직 순위에 낄 자격이 없다 — 스테이지 0,
     // 아레나 무기록이 상위에 섞이면 표가 거짓이 된다
-    return rows.filter(r => (r[f] || 0) > 0).map(r => ({ ...r, score: r[f] || 0 }));
+    return uniq.filter(r => (r[f] || 0) > 0).map(r => ({ ...r, score: r[f] || 0 }));
   }
 
   /**
@@ -502,12 +521,14 @@ class Server {
     const me = await oneByAccount('profiles', $sender.account);
     const v = me ? (me[f] || 0) : 0;
     if (v <= 0) return { rank: -1, value: 0 };
-    const above = await $global.countCollectionItems('profiles', {
+    // countCollectionItems 는 filters 를 못 먹는다 ("filters is not iterable",
+    // 단장 진단 2026-08-27) — qItems 로 받아서 계정 중복을 걷어내고 센다
+    const above = await qItems('profiles', {
       filters: [{ field: f, operator: '>', value: v }],
+      limit: 300,
     });
-    // countOf 사용 — 셈이 안 되는 환경이면 등수를 지어내지 않는다
-    const n = countOf(above);
-    return { rank: n < 0 ? -1 : n + 1, value: v };
+    const accs = new Set(above.filter(r => r.account !== $sender.account).map(r => r.account));
+    return { rank: accs.size + 1, value: v };
   }
 
   /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
@@ -517,10 +538,13 @@ class Server {
     });
     if (!mine.length) return { bestEntry: null, rank: -1 };
     const best = mine.sort((a, b) => b.score - a.score)[0];
-    const above = await $global.countCollectionItems('rankings', {
+    // countCollectionItems 는 filters 를 못 먹는다 — qItems 로 세고 계정 중복 제거
+    const above = await qItems('rankings', {
       filters: [{ field: 'score', operator: '>', value: best.score }],
+      limit: 300,
     });
-    return { bestEntry: best, rank: above + 1 };
+    const accs = new Set(above.filter(r => r.account !== $sender.account).map(r => r.account));
+    return { bestEntry: best, rank: accs.size + 1 };
   }
 
   // -- 친구 --------------------------------------------------
