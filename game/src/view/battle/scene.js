@@ -231,7 +231,22 @@ export class BattleScene {
       ...Array.from({ length: 16 }, (_, i) => `SFX-${String(i + 1).padStart(2, '0')}`),
     ]);
 
-    app.ticker.add(t => this.tick(t.deltaMS));
+    // **한 프레임의 예외가 게임을 통째로 멈추게 두지 않는다.**
+    //
+    // PIXI 티커는 콜백이 던지면 그 자리에서 루프가 죽는다. 그러면 전투도 UI 도
+    // 영영 안 돈다 — 유저에게는 "게임이 멈췄다" 다. 실제로 편성을 바꾸는 순간
+    // 멈추는 제보가 있었는데(단장 2026-08-28), setParty 가 await 전에 기존 리그를
+    // destroy 하기 때문에 그 사이 죽은 그림을 붙잡은 코드가 던질 창이 있다.
+    // 원인을 하나씩 막는 것과 별개로, 한 프레임을 건너뛰고 계속 도는 쪽이 언제나
+    // 낫다. 같은 오류가 매 프레임 콘솔을 채우지 않게 한 번만 찍는다.
+    app.ticker.add(t => {
+      try { this.tick(t.deltaMS); }
+      catch (e) {
+        const k = String(e && e.message || e);
+        this._tickErr = this._tickErr || new Set();
+        if (!this._tickErr.has(k)) { this._tickErr.add(k); console.error('[scene] tick 예외 — 한 프레임 건너뛰다', e); }
+      }
+    });
     app.renderer.on('resize', () => this.layout());
 
     // 창 resize 이벤트만 믿으면 안 된다. 탭이 숨어 있거나 모바일 주소창이
@@ -396,6 +411,9 @@ export class BattleScene {
     for (const u of this.units) u.rig.view.destroy({ children: true });
     this.units = [];
     if (this.captain) { this.captain.view.destroy({ children: true }); this.captain = null; }
+    // combatStep 이 들고 있는 단장 대행 객체도 같이 버린다 — 안 버리면 방금
+    // destroy 한 그림을 가리키는 채로 남아 다음 타격에서 터진다
+    this.capUnit = null;
     this.capWing = null;
     if (this.capBar) { this.capBar.destroy(); this.capBar = null; }
 
@@ -843,8 +861,15 @@ export class BattleScene {
     }
     this.syncReadyBadge();
     this.drawPartyBar();
-    for (const u of this.units) u.rig.update(dt);
-    for (const f of this.foes) { f.rig.update(dt); this.drawHpBar(f); }
+    // 파괴된 그림은 건너뛴다. setParty 가 await 전에 기존 리그를 destroy 하므로,
+    // 편성을 바꾸는 한두 프레임 동안 죽은 객체가 이 목록에 남아 있을 수 있다
+    const alive = r => r && r.view && !r.view.destroyed;
+    for (const u of this.units) if (alive(u.rig)) u.rig.update(dt);
+    for (const f of this.foes) {
+      if (!alive(f.rig)) continue;
+      f.rig.update(dt);
+      this.drawHpBar(f);
+    }
     this.numbers.update(dt);
     this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
   }

@@ -7339,6 +7339,40 @@ function bootTapToStart() {
  * innerHeight 와의 차가 곧 키보드다. 채팅 오버레이(#ov)와 입력 모달
  * (#txtDlg)이 이 값만큼 바닥을 밀어 올려 입력칸·확인·취소가 안 깔린다.
  */
+/**
+ * **화면이 꺼지지 않게 붙잡는다.**
+ *
+ * 방치형은 손을 안 대고 보는 시간이 본편이다. 그런데 폰은 터치가 없으면
+ * 몇십 초 만에 화면을 끈다 — 전투를 지켜보는 중에 꺼지는 것이 곧 이 장르의
+ * 반칙이다 (단장 지시 2026-08-28).
+ *
+ * Screen Wake Lock API 를 쓴다. 주의할 점 셋:
+ *   · **탭이 숨으면 브라우저가 자동으로 해제한다.** 돌아왔을 때 다시 잡아야
+ *     한다 — 안 그러면 홈에 한 번 갔다 온 뒤로는 안 걸린 채로 남는다.
+ *   · iOS Safari 는 16.4+ 부터만 있다. 없으면 조용히 넘어간다 — 이것 때문에
+ *     게임이 안 열리면 안 된다.
+ *   · 첫 시도는 사용자 제스처 안에서 해야 통과하는 경우가 있어, 실패하면
+ *     다음 탭 때 다시 잡는다.
+ */
+(function keepAwake() {
+  if (typeof navigator === 'undefined' || !navigator.wakeLock) return;
+  let lock = null;
+  const grab = async () => {
+    if (lock || document.visibilityState !== 'visible') return;
+    try {
+      lock = await navigator.wakeLock.request('screen');
+      // 브라우저가 스스로 풀면 참조를 비워 다음 기회에 다시 잡게 한다
+      lock.addEventListener('release', () => { lock = null; });
+    } catch { lock = null; }   // 배터리 절약 모드 등 — 조용히 포기한다
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') grab();
+  });
+  // 제스처가 필요한 브라우저를 위한 재시도. 한 번 잡히면 grab 이 바로 빠진다
+  document.addEventListener('pointerdown', grab, { passive: true });
+  grab();
+})();
+
 (function vhpxKeeper() {
   const root = document.documentElement;
   let typing = false;
