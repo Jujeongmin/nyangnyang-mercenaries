@@ -924,27 +924,60 @@ function save() {
  * 공개 프로필·랭킹 제출.
  *
  * **호출 예산이 좁다** — remoteFunction 은 초당 약 10회고, 소환 1회마다 올리면
- * 10연차에서 즉시 한계다 (ranking.json > rateLimitBudget). 그래서 세 겹으로 막는다:
- *   60초 debounce · 최소 변화율 0.5% · 하루 30회
- * net/backend.js 의 submitCp 와 같은 규칙이다 — 그쪽은 서버 판정 이관(2단계)에서
- * 쓰고, 지금 실제로 도는 경로는 여기다.
+ * 10연차에서 즉시 한계다 (ranking.json > rateLimitBudget).
+ *
+ * 예전에는 "전투력이 0.5% 이상 달라졌을 때" 를 문턱으로 썼다. 그런데 전투력이
+ * 큰 유저일수록 0.5% 가 커져서, 장비를 갈아 끼우고 승급까지 해도 문턱을 못 넘어
+ * 남의 랭킹에는 옛 모습이 계속 남았다 (단장 지적 2026-08-28).
+ *
+ * 이제 **남들이 보는 값 자체가 바뀌었나**로 판단한다. publicProfile() 이 곧
+ * 그 값이므로 그걸 통째로 직렬화해 비교한다. 필드를 새로 넣어도 저절로 따라온다.
+ * 방치로 흐르는 골드는 이 안에 없어서 예산을 축내지 않는다 (core/cloudsave.js 의
+ * decisionSig 와 같은 생각이다).
+ *
+ * 남은 겹은 둘이다:
+ *   60초 최소 간격 — 10연 뽑기가 한 번에 여러 번 올리는 것을 막는다
+ *   하루 상한      — 30 은 좁았다. 크게 성장하는 날이면 다 쓰고 그날 남은
+ *                    시간의 성장이 통째로 안 올라갔다. 120 으로 올리고,
+ *                    상한에 걸렸어도 화면을 떠날 때 마지막 한 번은 반드시 민다.
  */
-let _cpSent = 0, _cpAt = 0, _cpDay = 0, _cpToday = 0;
-function pushPublic() {
+const PUSH_MIN_GAP = 60_000;
+const PUSH_DAILY_MAX = 120;
+let _cpAt = 0, _cpDay = 0, _cpToday = 0;
+let _pubSig = null;   // 마지막으로 올린 공개 프로필의 서명
+let _pubT = null;     // 간격에 걸려 미뤄 둔 올리기
+
+/** @param mode 'final' 이면 간격·상한을 무시한다 (화면을 떠날 때 한 번) */
+function pushPublic(mode) {
+  const final = mode === 'final';
   if (!live.liveReady()) return;
   const now = Date.now(), day = dayIdx(now);
   if (_cpDay !== day) { _cpDay = day; _cpToday = 0; }
-  if (_cpToday >= 30) return;
-  if (now - _cpAt < 60_000) return;
-  const cp = Math.round(totalCp());
-  if (_cpSent && Math.abs(cp - _cpSent) / _cpSent < 0.005) return;
-  _cpAt = now; _cpSent = cp; _cpToday++;
-  const nick = S.profile?.nick || S.nickname || '단장';
+
+  let prof;
+  try { prof = publicProfile(); } catch { return; }
+  const sig = JSON.stringify(prof);
+  if (sig === _pubSig) return;                  // 남들이 볼 것이 안 바뀌었다
+
+  if (!final) {
+    if (now - _cpAt < PUSH_MIN_GAP) {
+      // **미뤘으면 예약한다.** 안 그러면 한 번 바꾸고 가만히 있는 동안
+      // 그 변경이 다음 save() 가 올 때까지 안 올라간다
+      if (!_pubT) {
+        _pubT = setTimeout(() => { _pubT = null; pushPublic(); },
+          PUSH_MIN_GAP - (now - _cpAt) + 50);
+      }
+      return;
+    }
+    if (_cpToday >= PUSH_DAILY_MAX) return;     // 떠날 때의 final 이 마무리한다
+    _cpToday++;
+  }
+  _cpAt = now; _pubSig = sig;
   // 프로필과 랭킹을 같이 올린다. 랭킹 행은 점수만 갖고 있어서, 프로필이 낡으면
   // 남의 화면에 뜨는 내 편성·칭호가 옛날 것으로 남는다
   Promise.all([
-    live.pushProfile(publicProfile()),
-    live.pushCp(cp, nick),
+    live.pushProfile(prof),
+    live.pushCp(Math.round(prof.cp || 0), prof.nickname),
   ]).catch(e => console.warn('[live] 제출 실패', e));
 }
 
@@ -7731,7 +7764,9 @@ function bootTapToStart() {
     },
     openAllianceGate, openAlliance, openArena, openFriends, openChat,
     // 전직 경로 — 보스·아레나 중 초기화 같은 상태 전이를 콘솔에서 재현한다
-    doPromote, resetPromotion, leaveSpecialModes };
+    doPromote, resetPromotion, leaveSpecialModes,
+    // 공개 프로필 제출 — 랜킹에 언제 반영되는지 손으로 확인하는 자리
+    pushPublic, publicProfile };
   await scene.init();
   bootStep(82);
 
@@ -7965,6 +8000,15 @@ function bootTapToStart() {
   // 오히려 흐렸다. 이제 진짜 대화만 띄우고, 없으면 비워 둔다.
   $('#chat').addEventListener('click', () => openChat());
   setInterval(chatBarSync, 6000);
+
+  // **떠날 때 공개 프로필을 한 번 더 민다.** 60초 간격이나 하루 상한에 걸려
+  // 못 올린 마지막 모습이 그대로 남으면, 남의 랭킹에는 오늘 한 일이 통째로
+  // 빠진다. 폰은 홈으로 나가는 visibilitychange 가 이 자리다 (pagehide 는
+  // 응답을 기다릴 수 없어 못 닿을 수 있다 — 둘 다 걸어 둔다).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') pushPublic('final');
+  });
+  window.addEventListener('pagehide', () => pushPublic('final'));
 
   setInterval(() => {
     // 제작대 타이머
