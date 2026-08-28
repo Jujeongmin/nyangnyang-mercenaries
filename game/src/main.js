@@ -517,6 +517,13 @@ function renderMailDot() {
 }
 
 function renderCaptain() {
+  // 상단 아바타는 **대표 용병**이 우선이다 (단장 확정 2026-08-27:
+  // 프로필에서 고른 대표가 메인에도 랭킹에도 보여야 한다). 없으면 단장 초상
+  const fm = S.profile?.featuredMercId;
+  $('#cap').src = fm ? `/assets/char/${fm}.webp`
+    : `/assets/captain/captain_${S.promoClass || 'warrior'}.png`;
+  $('#cap').onerror = () => { $('#cap').onerror = null;
+    $('#cap').src = '/assets/captain/captain_warrior.png'; };
   $('#caplv').textContent = S.capLv;
   renderMailDot();
   const need = capNeed(S.capLv);
@@ -4737,6 +4744,9 @@ function publicProfile() {
     // 안 보이던 원인 (단장 지적 2026-08-27)
     title: (D.profile.titles.list.find(x => x.id === S.profile?.titleId)?.nameKo) || '',
     frame: S.profile?.frameId || '',
+    // 대표 용병 — 프로필에서 직접 고른 것. 없으면 빈 값이고, 보는 쪽이
+    // 편성 첫 자리로 폴백한다 (rank.js)
+    featured: S.profile?.featuredMercId || '',
     wing: S.cosmetics?.wing || '',
     arenaScore: S.arenaScore || 0,
   };
@@ -7223,7 +7233,12 @@ function bootTapToStart() {
       const v = await askText(title, S.nickname || '');
       if (v != null) setNickname(v);
     },
-    set: (k, v) => { S.profile = S.profile || {}; S.profile[k] = v; save(); renderCaptain(); },
+    set: (k, v) => {
+      S.profile = S.profile || {}; S.profile[k] = v; save(); renderCaptain();
+      // 대표 용병·칭호·액자는 남에게 보이는 값이다 — 바꾼 즉시 서버에 올린다
+      // (pushPublic 의 60초 debounce 를 기다리면 랭킹에 옛 모습이 남는다)
+      Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+    },
   });
   settings = new SettingsScreen($('#app'), {
     state: S, data: D, playerCode,

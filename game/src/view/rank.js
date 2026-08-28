@@ -97,8 +97,11 @@ export class RankScreen {
         // 편성이 비어 있으면(옛 세대 행) 지어내지 않는다 — merc 를 비우면
         // 아래 렌더가 그 사람 단장 초상으로 그린다 (단장 지적 2026-08-27:
         // "실제 착용한 프로필이 아니다")
-        merc: (r.party || []).map(m => m.id)
-          .find(id => D.characters.characters.some(c => c.id === id)) || null,
+        // 대표 용병(프로필에서 직접 고른 것) > 편성 첫 자리 > 단장 초상
+        merc: (r.featured && D.characters.characters.some(c => c.id === r.featured)
+            ? r.featured : null)
+          || (r.party || []).map(m => m.id)
+            .find(id => D.characters.characters.some(c => c.id === id)) || null,
         capCls: r.capCls || 'warrior',
         title: r.title || '',
         frame: P.profileFrame.unlocks.find(f => f.id === r.frame)?.color

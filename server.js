@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 11;
+const SERVER_REV = 12;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -457,6 +457,7 @@ class Server {
       party,
       title: String(p.title || '').slice(0, 24),
       frame: String(p.frame || '').slice(0, 24),
+      featured: String(p.featured || '').slice(0, 12),   // 대표 용병 id
       wing: String(p.wing || '').slice(0, 24),
       arenaScore: Math.max(0, p.arenaScore | 0),
       updatedAt: Date.now(),
@@ -484,15 +485,33 @@ class Server {
    * 실매칭이 아니라 **표본**이다 — 정교한 매칭은 서버 부하가 커서 나중에.
    */
   async findProfiles({ minCp = 0, maxCp = Number.MAX_SAFE_INTEGER, limit = 12 } = {}) {
-    const rows = await qItems('profiles', {
+    const n = Math.min(50, Math.max(1, limit | 0));
+    const lo = Math.max(0, minCp | 0);
+    let rows = await qItems('profiles', {
       filters: [
-        { field: 'cp', operator: '>=', value: Math.max(0, minCp | 0) },
+        { field: 'cp', operator: '>=', value: lo },
         { field: 'cp', operator: '<=', value: maxCp },
       ],
-      limit: Math.min(50, Math.max(1, limit | 0)),
+      limit: n,
     });
     // 본인은 뺀다 — 자기 자신과 싸우거나 친구 신청하게 되면 안 된다
-    return rows.filter(r => r.account !== $sender.account).map(fixNick);
+    rows = rows.filter(r => r.account !== $sender.account);
+    // **구간에 인원이 모자라면 범위를 버리고 CP 가 가까운 순으로 채운다**
+    // (arena.json > fallback — 기획만 있고 구현이 없었다). 초반 서버는
+    // 인구가 적어 내 주변 구간이 텅 비기 일쑤다 — 그때 아레나·친구 추천이
+    // 통째로 빈 화면이 됐다 (단장 확인 2026-08-27)
+    if (rows.length < Math.min(3, n)) {
+      const mid = (lo + Math.min(maxCp, lo * 2 + 1000)) / 2;
+      const all = (await qItems('profiles', { limit: 500 }))
+        .filter(r => r.account !== $sender.account && (r.cp || 0) > 0);
+      all.sort((a, b) => Math.abs((a.cp || 0) - mid) - Math.abs((b.cp || 0) - mid));
+      const seen = new Set(rows.map(r => r.account));
+      for (const r of all) {
+        if (rows.length >= n) break;
+        if (!seen.has(r.account)) { seen.add(r.account); rows.push(r); }
+      }
+    }
+    return rows.map(fixNick);
   }
 
   // -- 랭킹 조회 --------------------------------------------
