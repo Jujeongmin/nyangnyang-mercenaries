@@ -3991,6 +3991,21 @@ function demoFriends() {
 }
 
 /** 친구 아바타 — 단장 표정 + 프로필 프레임. i 시드라 항상 같은 얼굴이다 */
+/**
+ * 그 사람이 보여 주기로 한 얼굴. **대표 용병 > 편성 첫 자리 > 직군 단장** 순.
+ *
+ * 친구·아레나·랭킹이 각자 다른 규칙으로 그리면 같은 사람이 화면마다 다른
+ * 얼굴이 된다 — 실제로 친구 목록은 계정 시드로 얼굴을 지어냈고 아레나는
+ * 직군 초상만 썼다 (단장 지적 2026-08-27). 한 곳에서 정한다.
+ */
+function faceSrc(x) {
+  const has = id => id && D.characters.characters.some(c => c.id === id);
+  if (has(x?.featured)) return `/assets/char/${x.featured}.webp`;
+  const first = (x?.party || []).map(m => m.id || m).find(has);
+  if (first) return `/assets/char/${first}.webp`;
+  return `/assets/captain/captain_${x?.capCls || 'warrior'}.png`;
+}
+
 const friendAvatar = (i, px, frame) => `
   <span class="fr-av" style="width:${px}px;height:${px}px">
     <img class="fr-face" src="/assets/captain/captain_face_${FR_FACES[i % 4]}.png" alt="">
@@ -4064,6 +4079,8 @@ function friendState() {
     S.friends.list = rows.map(x => ({
       id: x.account, name: x.nickname || '단장', cp: x.cp || 0,
       stage: x.stage || 1, capCls: x.capCls || 'warrior',
+      // 얼굴 재료 — faceSrc 가 대표 용병 > 편성 첫 자리 > 단장 순으로 고른다
+      featured: x.featured || '', party: x.party || [],
     }));
   } else if (!S.friends.list.length && !live.liveReady() && DEMO_SOCIAL) {
     S.friends.list = demoFriends();   // 서버가 없는 **개발 빌드**에서만
@@ -4201,7 +4218,11 @@ function openFriendRequests() {
   const left = Math.ceil(((f.reqAt || 0) + FRIEND_REFRESH_SEC * 1000 - Date.now()) / 1000);
 
   const row = (x, i, kind) => `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px">
-      ${friendAvatar(x.face ?? i, 40, x.frame)}
+      <span class="fr-av" style="width:40px;height:40px">
+        <img class="fr-face" src="${faceSrc(x)}" alt=""
+          onerror="this.src='/assets/captain/captain_warrior.png'">
+        <img class="fr-ring" src="/assets/ui/PFRAME-0${((x.frame ?? i) % 4) + 1}.png" alt=""
+          onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
         <span class="k" style="display:block">${t('전투력')} ${num(x.cp)}</span></span>
       ${kind === 'in'
@@ -4850,6 +4871,7 @@ function arenaFoes() {
       // id 로 찾아 그림을 붙인다 — 없는 id 면 조용히 빠진다
       party: (x.party || []).map(m => D.characters.characters.find(c => c.id === m.id))
         .filter(Boolean),
+      featured: x.featured || '',
     }));
   }
   // **배포본에서는 지어낸 상대를 세우지 않는다** (단장 지시 2026-08-26).
@@ -5096,7 +5118,7 @@ function openArena(view) {
     const gain = arenaWinDelta(f.score);
     const col = gain >= 40 ? 'var(--up)' : gain >= 25 ? 'var(--gold)' : 'var(--warn)';
     return `<div class="frow af-row" data-afinfo="${f.i}" style="padding:7px 11px;margin-bottom:5px">
-      <span class="af-ava"${frameColorOf(f.frame) ? ` style="border:2px solid ${frameColorOf(f.frame)};border-radius:50%"` : ''}><img src="/assets/captain/captain_${f.capCls}.png" alt=""
+      <span class="af-ava"${frameColorOf(f.frame) ? ` style="border:2px solid ${frameColorOf(f.frame)};border-radius:50%"` : ''}><img src="${faceSrc(f)}" alt=""
         onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${f.name}</b>
         ${f.title ? `<i style="display:block;font-size:9px;color:var(--gold);font-style:normal">${t(f.title)}</i>` : ''}

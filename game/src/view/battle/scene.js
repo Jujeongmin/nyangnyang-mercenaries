@@ -594,9 +594,12 @@ export class BattleScene {
       u.rig.view.zIndex = L1.z;
       u.rig.view.scale.set(L1.sc);
     });
-    // 상대 단장 — 내 단장의 거울 자리 (ex 쪽 맨 앞)
+    // 상대 단장 — 내 단장의 거울 자리 (ex 쪽 맨 앞). 목표 좌표를 기억해
+    // 두면 걷기 구간이 이 자리로 걸어온다
     if (this.foeCap) {
-      this.foeCap.setBase(ex - unit * 0.98, gy - unit * 0.38);
+      this.foeCapBx = ex - unit * 0.98;
+      this.foeCapBy = gy - unit * 0.38;
+      this.foeCap.setBase(this.foeCapBx, this.foeCapBy);
       this.foeCap.view.zIndex = 20;
       this.foeCap.view.scale.set(1.05);
     }
@@ -743,6 +746,16 @@ export class BattleScene {
         this.captain.base.y = sheet ? this.capBy
           : this.capBy - Math.abs(Math.sin(this.phaseT * 10 + 2.2)) * this.captain.h * 0.04;
       }
+      // 상대 단장도 걸어온다 — 적 용병들과 같이 오른쪽에서 들어온다.
+      // 시트는 좌우가 뒤집혀 있어 그대로 걸으면 이쪽을 향해 온다
+      if (this.foeCap && this.foeCapBy != null) {
+        const from = W + this.foeCap.w * 0.7;
+        this.foeCap.setBase(from + (this.foeCapBx - from) * k, this.foeCapBy);
+        const sheet = this.foeCap.playWalk(true, this.phaseT, WALK_FPS);
+        if (!sheet) this.foeCap.base.y = this.foeCapBy
+          - Math.abs(Math.sin(this.phaseT * 10 + 1.1)) * this.foeCap.h * 0.04;
+        this.foeCap.view.alpha = Math.min(1, p * 3);
+      }
       if (this.phaseT >= dur) {
         this.phase = 'fight';
         this.fightT = 0;              // 선제(전투 시작 N초)·투지(길수록)의 기준점
@@ -752,11 +765,22 @@ export class BattleScene {
           this.captain.playWalk(false);      // 걷기 끄고 리그로 돌아간다
           this.captain.base.y = this.capBy;
         }
+        if (this.foeCap && this.foeCapBy != null) {
+          this.foeCap.playWalk(false);
+          this.foeCap.setBase(this.foeCapBx, this.foeCapBy);
+          this.foeCap.view.alpha = 1;
+        }
       }
     } else if (this.phase === 'fight') {
       // 아레나는 **판정을 하지 않는다** — 정해진 결과로 HP 를 끌고 갈 뿐이다.
-      // combatStep 을 같이 돌리면 진짜 피해가 섞여 들어가 화면과 결과가 어긋난다
-      if (this.mode === 'arena') { this.arenaStep(s); return; }
+      // combatStep 을 같이 돌리면 진짜 피해가 섞여 들어가 화면과 결과가 어긋난다.
+      //
+      // **여기서 return 하지 않는다.** 예전에는 곧바로 빠져나갔는데, 그러면
+      // 이 함수 아래의 rig.update() 가 통째로 안 돌아 공격을 걸어도 프레임이
+      // 한 장에서 멈춘다 — 아레나에서 양쪽 다 모션이 없던 원인이다
+      // (단장 지적 2026-08-27)
+      if (this.mode === 'arena') this.arenaStep(s);
+      else {
       this.combatStep(s);
       // 제한이 걸린 구간(보스)에서만 시간이 준다
       if (this.timeLeft != null) {
@@ -779,6 +803,7 @@ export class BattleScene {
           this.phase = 'done';
           this.clearFoes();
         }
+      }
       }
     }
 
