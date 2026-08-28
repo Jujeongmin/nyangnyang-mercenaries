@@ -2953,6 +2953,12 @@
   /* 프레임 자체엔 색을 안 준다 — 프레임 그림 하나로 통일 */
   #ovcard[data-skin] .als-card, #ovcard[data-skin] .fg-up, #ovcard[data-skin] .dn-card{
     background-color:color-mix(in srgb, var(--ov-bg) 45%, var(--card))}
+  /* **border-color 는 투명이 기본이다.** border-image 는 그림이 로드되기
+     전(또는 실패)에는 border-style:solid 의 민짜 테두리로 폴백하는데, 그때
+     기본 색(글자색)이 그대로 보여 모바일에서 카드마다 회색 굵은 테두리가
+     떴다 (단장 지적 2026-08-27). 그림이 오면 border-color 는 무시된다 */
+  .frow,.sh-card,.er-card,#ovcard,.st-row,.tw-row,.pf-stats div,.pf-t,.fgbtn,.mdBuy,
+  .dg.lock .sh-price{border-color:transparent}
   .frow,.sh-card{background:none;border-style:solid;border-width:11px;border-radius:0;
     border-image:var(--f-card) 122 fill stretch}
   .frow{padding:1px 3px;margin-bottom:5px}

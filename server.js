@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 6;
+const SERVER_REV = 7;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -323,6 +323,22 @@ class Server {
       save: { v: payload.v, s: payload.s, savedAt: Date.now() },   // ★ 서버 시각
     });
     return { ok: true, savedAt: Date.now() };
+  }
+
+  /**
+   * 세이브 삭제 — "저장 데이터 초기화" 전용. regression 가드 때문에 빈
+   * 세이브 업로드로는 지울 수 없고 (후퇴로 거부된다), 로컬만 지우면 다음
+   * 부팅에 클라우드가 도로 살린다 (단장 확인 2026-08-27). 그래서 명시적
+   * 삭제 창구가 필요하다. 공개 프로필도 같이 지운다 — 초기화한 계정이
+   * 랭킹에 옛 기록으로 남으면 안 된다.
+   */
+  async wipeState() {
+    await $global.updateMyState({ save: null });
+    const mine = await $global.getCollectionItems('profiles', {
+      filters: [{ field: 'account', operator: '==', value: $sender.account }],
+    });
+    for (const it of mine) await $global.deleteCollectionItem('profiles', it.__id);
+    return { ok: true };
   }
 
   /** 세이브 복원. 없으면 null — 신규 계정이다. */

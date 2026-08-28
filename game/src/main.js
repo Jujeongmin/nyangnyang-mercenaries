@@ -12,7 +12,7 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
-import { initCloud, cloudSave } from './core/cloudsave.js';
+import { initCloud, cloudSave, wipeCloud } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
@@ -1012,7 +1012,13 @@ function load() {
   } catch { return null; }
 }
 
-function resetSave() {
+async function resetSave() {
+  // 로컬만 지우면 초기화가 안 된다 — reload 의 pagehide 가 메모리 상태를
+  // 클라우드로 흘리고, 다음 부팅에서 진행도가 앞선 클라우드가 채택돼
+  // 그대로 되살아났다 (단장 확인 2026-08-27). 클라우드부터 지우고,
+  // cloudsave 의 wiping 플래그가 그 사이의 flush 를 막는다
+  clearTimeout(saveTimer);           // 대기 중인 저장도 무효
+  await wipeCloud();
   localStorage.removeItem(SAVE_KEY);
   location.reload();
 }

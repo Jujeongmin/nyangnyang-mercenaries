@@ -22,6 +22,7 @@ let server = null;          // Verse8 server 객체 (remoteFunction 보유)
 let lastUpload = 0;
 let pending = false;
 let getState = null;        // () => S — 통합부가 준다
+let wiping = false;         // 초기화 중 — flush·업로드가 지운 것을 되살리면 안 된다
 
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
 export function progressScore(s) {
@@ -50,6 +51,7 @@ export async function initCloud(stateGetter, injected) {
   // 떠날 때 마지막 상태를 흘려 보낸다 — 응답을 기다릴 수 없는 시점이라
   // fire-and-forget(needResponse:false)이다. 문서의 두 번째 호출 패턴.
   const flush = () => {
+    if (wiping) return;     // 초기화 직후의 reload 가 옛 상태를 도로 올린다
     try {
       const S = getState();
       server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S }, false],
@@ -113,4 +115,15 @@ async function upload(force = false) {
   } catch (e) {
     console.warn('[cloud] save 실패 — 다음 주기에 재시도', e);
   }
+}
+
+/**
+ * 클라우드 세이브 삭제. resetSave 가 reload 직전에 부른다 — 응답을 기다려야
+ * 한다. 서버 밖(로컬)이면 지울 것이 없으니 그냥 통과.
+ */
+export async function wipeCloud() {
+  wiping = true;
+  if (!server) return true;
+  try { await server.remoteFunction('wipeState', []); return true; }
+  catch (e) { console.warn('[cloud] wipe 실패', e); return false; }
 }
