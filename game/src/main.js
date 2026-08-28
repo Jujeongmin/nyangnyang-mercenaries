@@ -12,7 +12,8 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
-import { initCloud, cloudSave, wipeCloud, cloudWiped, cloudReady, cloudEpoch, cloudSyncedAt } from './core/cloudsave.js';
+import { initCloud, cloudSave, wipeCloud, cloudWiped, cloudReady, cloudEpoch,
+  cloudSyncedAt, cloudLastUpload, forceUpload } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
@@ -7389,7 +7390,7 @@ function bootTapToStart() {
       else if (a === 'diag') {
         const box = $('#stDiag');
         if (!box) return;
-        if (!box.hidden) { box.hidden = true; return; }
+        if (!box.hidden) { box.hidden = true; $('#stPush').hidden = true; return; }
         box.hidden = false;
         // 서버를 안 기다리고 먼저 아는 것부터 그린다 — 응답이 늦어도 화면이 빈다
         const local = [
@@ -7399,7 +7400,13 @@ function bootTapToStart() {
           `verse     ${currentVerse() || '—'}`,
           `세대      ${cloudEpoch()}`,
           `마지막동기  ${cloudSyncedAt() ? new Date(cloudSyncedAt()).toLocaleString() : '없음'}`,
+          `마지막업로드 ${(() => {
+            const u = cloudLastUpload();
+            if (!u.at) return '아직 없음';
+            return `${u.ok ? '성공' : '거부: ' + (u.reason || '?')} (${new Date(u.at).toLocaleTimeString()})`;
+          })()}`,
         ];
+        $('#stPush').hidden = false;
         box.textContent = local.join('\n') + '\n서버      …';
         const when = ms => (ms ? new Date(ms).toLocaleString() : '없음');
         live.raw('serverInfo', [])
@@ -7419,6 +7426,18 @@ function bootTapToStart() {
           .catch(e => {
             box.textContent = [...local, `서버      ${e && e.message || e}`].join('\n');
           });
+      }
+      // 손으로 한 번 올려 보고 **서버 응답을 그대로 보여 준다.** 자동 업로드가
+      // 거부되고 있어도 화면에 표시가 없어서, 저장이 서버에 닿는지를 확인할
+      // 방법이 없었다 (단장 재현 2026-08-28)
+      else if (a === 'pushnow') {
+        const btn = $('#stPush'), box = $('#stDiag');
+        if (!btn || !box) return;
+        btn.disabled = true; btn.textContent = '올리는 중…';
+        forceUpload().then(r => {
+          btn.disabled = false; btn.textContent = '지금 서버에 올리기';
+          box.textContent += `\n── 수동 업로드 ──\n${JSON.stringify(r)}`;
+        });
       }
       else if (a === 'discord') {
         const url = D.ui.links?.discord;

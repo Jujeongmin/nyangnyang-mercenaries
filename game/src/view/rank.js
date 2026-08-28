@@ -318,6 +318,7 @@ export class SettingsScreen {
       <div class="st-row link" data-a="diag"><span>${t('버전')}</span>
         <b>v${D.ui.meta.version} ›</b></div>
       <pre id="stDiag" class="st-diag" hidden></pre>
+      <button id="stPush" class="st-diagbtn" data-a="pushnow" hidden>지금 서버에 올리기</button>
       <!-- 확률 공시 안내문은 뺐다 (단장 지시 2026-08-25). 확률은 이미 소환·제작대
            화면에 실제 표로 공시되고 있어서, 여기 문장은 그 사실을 말로 한 번 더
            적은 개발 메모였다. 의무 자체는 그 표가 지킨다 (gacha.json 단일 소스) -->

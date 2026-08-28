@@ -16,10 +16,20 @@ import { findServer } from '../net/live.js';
 //     충돌이 실제로 관측되면 붙인다. 지금은 "더 앞선 쪽이 이긴다"가 규칙이다.
 
 const SAVE_VERSION = 1;
-const UPLOAD_INTERVAL = 30_000;
+// 30초였다. **30초를 못 채우고 창을 닫으면 그 세션의 진행이 통째로 사라졌다** —
+// 주기 업로드가 한 번도 안 돌고, 닫을 때의 마지막 밀어넣기는 needResponse:false 라
+// 소켓이 먼저 닫히면 그냥 없어진다. 그래서 짧게 놀다 끈 PC 의 진행이 폰에 안 왔다
+// (단장 재현 2026-08-28). remoteFunction 예산은 초당 10회라 10초에 한 번은 싸다.
+const UPLOAD_INTERVAL = 10_000;
+
+// 진행이 실제로 늘었으면 스로틀을 안 기다린다. progressScore 는 스테이지·제작대·
+// 훈련소·소환·퀘스트를 담고 있어 "지금 저장 안 되면 아까운 것" 과 거의 겹친다.
+// 다만 이것도 하한은 둔다 — 소환 10연이 한 프레임에 여러 번 올리면 예산이 샌다.
+const MILESTONE_MIN_GAP = 3_000;
 
 let server = null;          // Verse8 server 객체 (remoteFunction 보유)
 let lastUpload = 0;
+let lastScore = null;       // 마지막으로 올린 진행도. null 이면 아직 안 올렸다
 let pending = false;
 let getState = null;        // () => S — 통합부가 준다
 let wiping = false;         // 초기화 중 — flush·업로드가 지운 것을 되살리면 안 된다
@@ -75,6 +85,30 @@ export const cloudEpoch = () => epoch;
 
 /** 마지막으로 서버와 맞춘 시각(서버 시계). 0 이면 아직 한 번도 못 맞췄다 */
 export const cloudSyncedAt = () => readSync();
+
+// **마지막 업로드의 결과를 남긴다.** upload() 가 거부 응답을 조용히 삼키고
+// 있어서, 저장이 서버에 안 닿아도 화면에 아무 표시가 없었다 — "PC 진행이 폰에
+// 안 온다" 를 여기서 못 갈랐다 (단장 재현 2026-08-28)
+let lastUp = { at: 0, ok: null, reason: null, note: null };
+export const cloudLastUpload = () => lastUp;
+
+/**
+ * 지금 당장 한 번 올리고 **서버 응답을 그대로 돌려준다.** 진단 화면의
+ * [지금 서버에 올리기] 가 쓴다. 스로틀도 무시한다 — 손으로 누른 것이다.
+ */
+export async function forceUpload() {
+  if (!server) return { ok: false, reason: 'no_server' };
+  try {
+    const res = await server.remoteFunction('saveState',
+      [{ v: SAVE_VERSION, s: getState(), epoch }, false]);
+    lastUp = { at: Date.now(), ok: !!(res && res.ok), reason: (res && res.reason) || null, note: 'manual' };
+    if (res && res.ok && res.savedAt) writeSync(res.savedAt);
+    return res;
+  } catch (e) {
+    lastUp = { at: Date.now(), ok: false, reason: String(e && e.message || e), note: 'manual' };
+    return { ok: false, reason: lastUp.reason };
+  }
+}
 
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
 export function progressScore(s) {
@@ -174,13 +208,26 @@ export async function initCloud(stateGetter, injected) {
 }
 
 /**
- * 저장 훅. main 의 save() 가 부른다. 스로틀 — 마지막 업로드에서 30초 안이면
- * 예약만 걸고, 창이 닫혀도 pagehide flush 가 있어 유실 창은 짧다.
+ * 저장 훅. main 의 save() 가 부른다.
+ *
+ * 세 갈래다:
+ *   1. 손으로 시킨 것(immediate) — 바로 올린다
+ *   2. **진행이 늘었다** — 스로틀을 안 기다리고 바로 올린다 (하한 3초).
+ *      스테이지를 깨고 30초 안에 창을 닫으면 그 진행이 사라지던 구멍이 여기다.
+ *   3. 그 밖 — 10초 스로틀. 예약 타이머로 마지막 상태 하나가 올라간다
  */
 export function cloudSave(immediate = false) {
   if (!server) return;
   const now = Date.now();
-  if (!immediate && now - lastUpload < UPLOAD_INTERVAL) {
+
+  // 진행도가 늘었나 — getState 가 없을 리 없지만 부팅 경합에서 방어한다
+  let bumped = false;
+  try {
+    const sc = progressScore(getState());
+    bumped = lastScore != null && sc > lastScore && now - lastUpload >= MILESTONE_MIN_GAP;
+  } catch { bumped = false; }
+
+  if (!immediate && !bumped && now - lastUpload < UPLOAD_INTERVAL) {
     if (!pending) {
       pending = true;
       setTimeout(() => { pending = false; upload(); },
@@ -194,9 +241,14 @@ export function cloudSave(immediate = false) {
 async function upload(force = false) {
   if (!server) return;
   lastUpload = Date.now();
+  try { lastScore = progressScore(getState()); } catch { /* 부팅 경합 */ }
   try {
     const S = getState();
     const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false]);
+    lastUp = { at: Date.now(), ok: !!(res && res.ok), reason: (res && res.reason) || null, note: 'auto' };
+    // 거부는 조용히 넘기지 않는다. 아래 두 분기(wiped·regression)가 아닌
+    // 이유로 거부되면 지금까지 아무 데도 안 남아 저장이 멈춘 줄을 몰랐다
+    if (res && res.ok === false) console.warn('[cloud] 저장 거부됨:', res.reason, res);
     // 서버가 남긴 시각을 그대로 받아 둔다 — 다음 부팅에 "내가 올린 것"과
     // "남이 올린 것"을 가르는 기준이다 (SYNC_KEY 주석)
     if (res && res.ok && res.savedAt) writeSync(res.savedAt);
@@ -222,6 +274,7 @@ async function upload(force = false) {
       }
     }
   } catch (e) {
+    lastUp = { at: Date.now(), ok: false, reason: String(e && e.message || e), note: 'auto' };
     console.warn('[cloud] save 실패 — 다음 주기에 재시도', e);
   }
 }
