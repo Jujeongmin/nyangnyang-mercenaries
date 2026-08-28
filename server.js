@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 19;
+const SERVER_REV = 20;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -370,6 +370,22 @@ async function qItems(collection, opts = {}) {
   return opts.limit ? rows.slice(0, opts.limit) : rows;
 }
 
+/**
+ * 한 연합의 **실제 단원 수**. alliances.members 는 표시용 캐시라 못 믿는다.
+ *
+ * countCollectionItems 로 세면 안 된다 — 이 플랫폼은 filters 를 못 먹고
+ * "filters is not iterable" 로 던진다 (sortedTop·myProfileRank 주석과 같은 이유).
+ * 연합 가입·탈퇴가 그걸 그대로 쓰고 있어서, 던지는 순간 정원 검사와 빈 연합
+ * 정리가 통째로 건너뛰어졌다 (단장 지적 2026-08-28: 초기화한 뒤 빈 연합이 남음).
+ */
+async function countMembers(allianceId) {
+  const rows = await qItems('allyMembers', {
+    filters: [{ field: 'allianceId', operator: '==', value: allianceId }],
+    limit: MAX_MEMBERS,
+  });
+  return rows.length;
+}
+
 async function oneByAccount(collection, account) {
   const rows = await qItems(collection, {
     filters: [{ field: 'account', operator: '==', value: account }],
@@ -510,10 +526,28 @@ class Server {
         await $global.deleteCollectionItem('allyMembers', it.__id);
         const al = it.allianceId && await $global.getCollectionItem('alliances', it.allianceId);
         if (al && al.__id) {
-          const left = await $global.countCollectionItems('allyMembers', {
-            filters: [{ field: 'allianceId', operator: '==', value: it.allianceId }],
-          });
-          await $global.updateCollectionItem('alliances', { ...al, members: Math.max(0, left) });
+          const left = await countMembers(it.allianceId);
+          // **비면 연합 자체를 지운다.** 예전에는 인원 캐시만 0 으로 낮춰서,
+          // 초기화한 계정이 만들었던 연합이 단원 0 인 채로 목록에 남았다
+          if (left <= 0) {
+            await $global.deleteCollectionItem('alliances', al.__id);
+          } else {
+            const patch = { ...al, members: left };
+            // 단장이 초기화했으면 가장 오래 있은 사람이 잇는다 — 빈 단장 자리를
+            // 두면 그 연합은 공지도 추방도 영영 못 한다 (allianceLeave 와 같은 규칙)
+            if (al.leader === me) {
+              const rest = await qItems('allyMembers', {
+                filters: [{ field: 'allianceId', operator: '==', value: it.allianceId }],
+                limit: MAX_MEMBERS,
+              });
+              const heir = rest.sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))[0];
+              if (heir) {
+                patch.leader = heir.account;
+                await $global.updateCollectionItem('allyMembers', { ...heir, role: 'leader' });
+              }
+            }
+            await $global.updateCollectionItem('alliances', patch);
+          }
         }
       }
       n.allyMembers = mem.length;
@@ -823,10 +857,34 @@ class Server {
   }
 
   // -- 연합 --------------------------------------------------
-  /** 목록. 정원이 찬 연합도 보여 준다 - 안 보이면 "왜 안 뜨지" 가 된다 */
+  /**
+   * 목록. 정원이 찬 연합도 보여 준다 - 안 보이면 "왜 안 뜨지" 가 된다.
+   *
+   * **단원이 0인 연합은 감추고 그 자리에서 지운다.** alliances.members 는
+   * 표시용 캐시라 실제와 어긋날 수 있고, 초기화·탈퇴가 실패한 흔적이 빈
+   * 연합으로 남는다 (단장 지적 2026-08-28: 만들었다 초기화한 연합이 그대로 뜸).
+   * 여기가 유일하게 모든 연합을 훑는 자리라 청소를 같이 한다 — 따로 도는
+   * 정리 작업을 두지 않는다.
+   *
+   * 단원 표는 **한 번만** 받아 JS 에서 센다. 연합마다 세면 N+1 이다.
+   */
   async allianceList(limit) {
     const n = Math.min(30, Math.max(1, limit | 0 || 20));
-    return sortedTop('alliances', {}, 'weekly', n);
+    const rows = await sortedTop('alliances', {}, 'weekly', n);
+    if (!rows.length) return rows;
+
+    const mems = await qItems('allyMembers', { limit: 500 });
+    const cnt = new Map();
+    for (const m of mems) cnt.set(m.allianceId, (cnt.get(m.allianceId) || 0) + 1);
+
+    const live = [];
+    for (const al of rows) {
+      const c = cnt.get(al.__id) || 0;
+      if (c > 0) { live.push(c === al.members ? al : { ...al, members: c }); continue; }
+      // 빈 연합 — 지운다. 실패해도 목록에서는 빠지므로 화면은 깨끗하다
+      try { await $global.deleteCollectionItem('alliances', al.__id); } catch (e) { /* 다음에 */ }
+    }
+    return live;
   }
 
   /** 내 소속. 없으면 null */
@@ -834,7 +892,13 @@ class Server {
     const mem = await oneByAccount('allyMembers', $sender.account);
     if (!mem) return null;
     const al = await $global.getCollectionItem('alliances', mem.allianceId);
-    if (!al || !al.__id) return null;
+    // **연합은 사라졌는데 단원 행만 남은 경우** — 그대로 두면 allianceJoin 과
+    // allianceCreate 가 "이미 소속돼 있다" 로 막아 영영 아무 데도 못 들어간다.
+    // 가리키는 곳이 없는 행이므로 여기서 치운다
+    if (!al || !al.__id) {
+      try { await $global.deleteCollectionItem('allyMembers', mem.__id); } catch (e) { /* 다음에 */ }
+      return null;
+    }
     const members = await qItems('allyMembers', {
       filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
       limit: MAX_MEMBERS,
@@ -880,9 +944,7 @@ class Server {
     if (!al || !al.__id) return { ok: false, reason: 'gone' };
     // 정원은 **행을 세어서** 판단한다. alliances.members 는 표시용 캐시라
     // 동시 가입에서 어긋날 수 있다
-    const n = await $global.countCollectionItems('allyMembers', {
-      filters: [{ field: 'allianceId', operator: '==', value: allianceId }],
-    });
+    const n = await countMembers(allianceId);
     if (n >= MAX_MEMBERS) return { ok: false, reason: 'full' };
     await $global.addCollectionItem('allyMembers', {
       allianceId, account: $sender.account, role: 'member',
@@ -899,9 +961,7 @@ class Server {
     await $global.deleteCollectionItem('allyMembers', mem.__id);
     const al = await $global.getCollectionItem('alliances', mem.allianceId);
     if (al && al.__id) {
-      const n = await $global.countCollectionItems('allyMembers', {
-        filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
-      });
+      const n = await countMembers(mem.allianceId);
       // 마지막 한 명이 나가면 연합을 지운다 - 빈 연합이 목록을 채우면
       // 신규 유저가 들어갈 곳을 못 찾는다
       if (n <= 0) {
