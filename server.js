@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 9;
+const SERVER_REV = 10;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -270,9 +270,36 @@ async function pruneChat(room) {
 }
 
 /** 계정의 표시 이름. 공개 프로필이 단일 소스다 (submitProfile) */
+/**
+ * '단장' 을 표시하지 않는다 — 계정에서 결정적으로 만든 자동 닉으로 바꾼다.
+ *
+ * publicProfile 버그 시절(2026-08-27 이전)의 행은 nickname 이 전부 '단장'
+ * 인데, 그 유저가 재접속해야 진짜 닉이 올라온다. 그때까지 랭킹·친구가
+ * '단장' 으로 도배되면 안 된다 (단장 지적 2026-08-27). 목록은 클라의
+ * profile.json > autoAssign 과 같은 것 — 계정 해시가 시드라 어디서 봐도
+ * 같은 이름이고, 진짜 닉이 오면 그걸로 대체된다.
+ */
+const NICK_ADJ = ['용감한', '날쌘', '귀여운', '든든한', '엉뚱한', '단단한',
+  '반짝', '느긋한', '까칠한', '포근한', '씩씩한', '해맑은'];
+const NICK_ANI = ['냥이', '멍뭉', '햄찌', '토깽', '너굴', '펭귄',
+  '여우', '곰돌', '다람', '두더지', '박쥐', '고슴'];
+function fallbackNick(account) {
+  let h = 0;
+  for (const c of String(account || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const n = String(h % 99 + 1).padStart(2, '0');
+  return NICK_ADJ[h % 12] + NICK_ANI[((h / 12) | 0) % 12] + n;
+}
+/** 행의 nickname 을 표시용으로 확정한다 — 빈 값·'단장' 은 자동 닉으로 */
+function fixNick(r) {
+  if (!r) return r;
+  const n = String(r.nickname || '');
+  return (!n || n === '단장') ? { ...r, nickname: fallbackNick(r.account) } : r;
+}
+
 async function nickOf(account) {
   const p = await oneByAccount('profiles', account);
-  return p ? String(p.nickname || '').slice(0, 15) : '';
+  const n = p ? String(p.nickname || '').slice(0, 15) : '';
+  return (!n || n === '단장') ? fallbackNick(account) : n;
 }
 
 /**
@@ -468,7 +495,7 @@ class Server {
       limit: Math.min(50, Math.max(1, limit | 0)),
     });
     // 본인은 뺀다 — 자기 자신과 싸우거나 친구 신청하게 되면 안 된다
-    return rows.filter(r => r.account !== $sender.account);
+    return rows.filter(r => r.account !== $sender.account).map(fixNick);
   }
 
   // -- 랭킹 조회 --------------------------------------------
@@ -506,7 +533,7 @@ class Server {
     const uniq = [...seen.values()].sort((a, b) => (b[f] || 0) - (a[f] || 0)).slice(0, n);
     // 그 보드 점수가 0 인 사람은 아직 순위에 낄 자격이 없다 — 스테이지 0,
     // 아레나 무기록이 상위에 섞이면 표가 거짓이 된다
-    return uniq.filter(r => (r[f] || 0) > 0).map(r => ({ ...r, score: r[f] || 0 }));
+    return uniq.filter(r => (r[f] || 0) > 0).map(r => fixNick({ ...r, score: r[f] || 0 }));
   }
 
   /**
@@ -620,9 +647,9 @@ class Server {
     const out = [];
     for (const e of edges) {
       const prof = await oneByAccount('profiles', e.friend);
-      out.push(prof
+      out.push(fixNick(prof
         ? { ...prof, since: e.since }
-        : { account: e.friend, nickname: e.nick, cp: 0, since: e.since });
+        : { account: e.friend, nickname: e.nick, cp: 0, since: e.since }));
     }
     return out;
   }
