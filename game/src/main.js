@@ -12,7 +12,7 @@
 
 import { loadData, D } from './core/data.js';
 import { num, numExact, dur, cpNum } from './core/fmt.js';
-import { initCloud, cloudSave, wipeCloud } from './core/cloudsave.js';
+import { initCloud, cloudSave, wipeCloud, cloudWiped } from './core/cloudsave.js';
 import { passiveAgg, passiveAtkMult } from './core/passives.js';
 import { initSfx, setSfxVolume, sfx, sfxBatch } from './core/sfx.js';
 import { initBgm, setBgmVolume, want as bgmWant } from './core/bgm.js';
@@ -7850,6 +7850,14 @@ function bootTapToStart() {
   // 필드 단위 병합은 안 한다 — 세이브는 통짜가 원칙이다)
   try {
     const adopted = await initCloud(() => S, gs);
+    // 다른 기기에서 저장 데이터를 초기화했다. 이 기기가 들고 있는 로컬은 이미
+    // 지워진 세대라, 그대로 두면 30초 업로드가 그것을 클라우드에 도로 살린다.
+    // 여기서 버리고 새로 뜬다 (cloudsave 의 세대 주석 참고)
+    if (cloudWiped()) {
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+      return;
+    }
     if (adopted) {
       localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, lastSeenAt: Date.now(), s: adopted }));
       location.reload();

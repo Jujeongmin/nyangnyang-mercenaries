@@ -24,6 +24,27 @@ let pending = false;
 let getState = null;        // () => S — 통합부가 준다
 let wiping = false;         // 초기화 중 — flush·업로드가 지운 것을 되살리면 안 된다
 
+// **세대(epoch).** 초기화할 때마다 서버가 1 올린다. 이 기기가 마지막으로 본
+// 세대를 로컬에 남겨 두고, 부팅 때 서버 세대와 비교한다. 뒤처져 있으면 이
+// 기기의 로컬 세이브는 이미 남이 지운 것이라 버려야 한다 — 안 그러면 이
+// 기기가 30초 업로드로 그것을 도로 살려낸다 (단장 재현 2026-08-28:
+// PC 초기화 -> 폰이 그대로 -> PC 재접속하면 옛 캐릭터가 돌아옴)
+const EPOCH_KEY = 'nyang:cloud:epoch';
+let epoch = 0;
+let wipedElsewhere = false;
+
+const readEpoch = () => {
+  try { return Math.max(0, +(localStorage.getItem(EPOCH_KEY) || 0) || 0); }
+  catch { return 0; }
+};
+const writeEpoch = n => {
+  epoch = n;
+  try { localStorage.setItem(EPOCH_KEY, String(n)); } catch { /* 시크릿 모드 */ }
+};
+
+/** 다른 기기에서 초기화됐나 — initCloud 직후에 본다. 참이면 로컬을 버려야 한다 */
+export const cloudWiped = () => wipedElsewhere;
+
 /** server/server.js 의 progressScore 와 반드시 같은 식 */
 export function progressScore(s) {
   if (!s || typeof s !== 'object') return 0;
@@ -54,7 +75,7 @@ export async function initCloud(stateGetter, injected) {
     if (wiping) return;     // 초기화 직후의 reload 가 옛 상태를 도로 올린다
     try {
       const S = getState();
-      server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S }, false],
+      server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false],
         { needResponse: false });
     } catch { /* 떠나는 중 — 실패해도 다음 접속의 스로틀 업로드가 만회한다 */ }
   };
@@ -64,7 +85,24 @@ export async function initCloud(stateGetter, injected) {
   });
 
   try {
-    const cloud = await server.remoteFunction('loadState', []);
+    const res = await server.remoteFunction('loadState', []);
+    // 서버는 { save, epoch } 로 준다 (SERVER_REV 16~). 낡은 서버는 세이브를
+    // 그대로 주므로 그 모양도 받아 준다 — 배포 순서가 어긋나도 안 죽는다
+    const wrapped = res && typeof res === 'object' && 'epoch' in res;
+    const cloud = wrapped ? res.save : res;
+    const serverEpoch = wrapped ? (res.epoch | 0) : 0;
+    const localEpoch = readEpoch();
+
+    if (serverEpoch > localEpoch) {
+      // 다른 기기가 초기화했다. 이 기기의 로컬은 죽은 세대다 — 올리지 말고 버린다.
+      // 세대를 먼저 기록해야 재부팅 뒤에 같은 판정이 또 나지 않는다
+      writeEpoch(serverEpoch);
+      wipedElsewhere = true;
+      wiping = true;            // 이 세션의 flush·업로드를 막는다
+      return null;
+    }
+    writeEpoch(serverEpoch);
+
     if (!cloud) return null;                       // 신규 계정 — 로컬이 곧 진실
     if (cloud.v !== SAVE_VERSION) return null;     // 다른 버전 — 마이그레이션 전까지 무시
     const local = getState();
@@ -101,7 +139,16 @@ async function upload(force = false) {
   lastUpload = Date.now();
   try {
     const S = getState();
-    const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S }, false]);
+    const res = await server.remoteFunction('saveState', [{ v: SAVE_VERSION, s: S, epoch }, false]);
+    if (res && res.ok === false && res.reason === 'wiped') {
+      // 이 기기가 도는 사이에 다른 기기가 초기화했다. 더 올리지 않고 로컬을
+      // 버린 뒤 새로 뜬다 — 안 그러면 계속 옛 세이브를 밀어 넣는다
+      writeEpoch(res.epoch | 0);
+      wiping = true;
+      try { localStorage.removeItem('nyang:proto:v1'); } catch {}
+      location.reload();
+      return;
+    }
     if (res && res.ok === false && res.reason === 'regression') {
       // 서버본이 훨씬 앞서 있다 — 이 기기가 낡았다. 서버본을 받아 로컬을 갱신한다.
       // (기기 교체 직후의 빈 로컬이 여기로 들어온다)
@@ -127,6 +174,11 @@ export async function wipeCloud() {
   // 로컬만 지우고 "초기화됐다" 로 끝났고, 다음 접속에서 클라우드가 도로
   // 살려 놓아 초기화가 안 먹은 것처럼 보였다 (단장 지적 2026-08-28)
   if (!server) return false;
-  try { await server.remoteFunction('wipeState', []); return true; }
-  catch (e) { console.warn('[cloud] wipe 실패', e); return false; }
+  try {
+    const res = await server.remoteFunction('wipeState', []);
+    // 새 세대를 이 기기에 기록해 둔다. 안 그러면 재부팅 때 자기가 올린 초기화를
+    // "남이 했다" 로 읽고 한 번 더 로컬을 지우려 든다 (결과는 같지만 소란스럽다)
+    if (res && res.epoch != null) writeEpoch(res.epoch | 0);
+    return true;
+  } catch (e) { console.warn('[cloud] wipe 실패', e); return false; }
 }

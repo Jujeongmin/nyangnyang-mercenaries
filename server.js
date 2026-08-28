@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 15;
+const SERVER_REV = 16;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -387,6 +387,15 @@ class Server {
   async saveState(payload, force) {
     validate(payload);
     const cur = await $global.getMyState();
+    // **세대 가드.** 초기화는 saveEpoch 를 올린다. 옛 세대를 들고 있는 다른
+    // 기기가(로컬 세이브가 그대로 살아 있다) 30초 주기 업로드나 pagehide flush 로
+    // 지운 세이브를 도로 올려놨다 — PC 에서 초기화해도 폰이 되살려서, PC 로
+    // 돌아오면 옛 캐릭터가 그대로였다 (단장 재현 2026-08-28).
+    // 서버가 막아야 한다. 클라의 협조에 기댈 수 없다 (flush 는 응답도 안 받는다).
+    const epoch = cur && cur.saveEpoch || 0;
+    if (payload.epoch != null && payload.epoch < epoch) {
+      return { ok: false, reason: 'wiped', epoch };
+    }
     if (cur && cur.save && !force) {
       const oldScore = progressScore(cur.save.s);
       const newScore = progressScore(payload.s);
@@ -396,8 +405,9 @@ class Server {
     }
     await $global.updateMyState({
       save: { v: payload.v, s: payload.s, savedAt: Date.now() },   // ★ 서버 시각
+      saveEpoch: epoch,
     });
-    return { ok: true, savedAt: Date.now() };
+    return { ok: true, savedAt: Date.now(), epoch };
   }
 
   /**
@@ -410,8 +420,15 @@ class Server {
   async wipeState() {
     const me = $sender.account;
     // 세이브와 서버쪽 개인 상태(아레나 갱신 쿨타임·연합 탈퇴 쿨타임 등)를 같이 비운다.
-    // srv 를 남기면 초기화한 계정에 쿨타임만 유령처럼 붙어 있다
-    await $global.updateMyState({ save: null, srv: {} });
+    // srv 를 남기면 초기화한 계정에 쿨타임만 유령처럼 붙어 있다.
+    //
+    // **saveEpoch 를 올리는 게 핵심이다.** 이게 없으면 같은 계정의 다른 기기가
+    // 아직 들고 있는 옛 로컬 세이브를 도로 올려서 초기화가 무효가 된다.
+    // 올린 뒤로 옛 세대의 업로드는 saveState 가 거부하고, 그 기기는 부팅 때
+    // loadState 의 epoch 를 보고 자기 로컬을 버린다
+    const cur = await $global.getMyState();
+    const epoch = ((cur && cur.saveEpoch) || 0) + 1;
+    await $global.updateMyState({ save: null, srv: {}, saveEpoch: epoch });
 
     /** 한 컬렉션에서 내가 걸린 행을 전부 지운다. 필드가 여럿이면 각각 훑는다 */
     const purge = async (col, fields) => {
@@ -460,13 +477,16 @@ class Server {
       n.allyMembers = mem.length;
     } catch { n.allyMembers = -1; }
 
-    return { ok: true, deleted: n };
+    return { ok: true, epoch, deleted: n };
   }
 
   /** 세이브 복원. 없으면 null — 신규 계정이다. */
   async loadState() {
     const cur = await $global.getMyState();
-    return cur && cur.save ? cur.save : null;
+    // **{save, epoch} 로 감싸서 준다.** 세대를 같이 줘야 클라가 자기 로컬이
+    // 죽은 세대인지 안다. 옛 클라(감싸기 전)는 v 가 없어 "다른 버전"으로
+    // 보고 로컬을 쓰므로, 지금까지의 동작에서 나빠지지는 않는다
+    return { save: (cur && cur.save) || null, epoch: (cur && cur.saveEpoch) || 0 };
   }
 
   /** 랭킹 제출 (best-only). net/verse8.js SERVER_REFERENCE 의 패턴 그대로. */
