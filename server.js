@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 18;
+const SERVER_REV = 19;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -174,7 +174,15 @@ const CHAT_KEEP = 120;
 
 const KST = 9 * 3600e3;
 /** KST 기준 날짜 번호. 일일 상한은 서버 시각으로만 센다 - 클라 시계는 못 믿는다 */
-function dayIdx(t) { return Math.floor((t + KST) / 86400e3); }
+/**
+ * 일 번호. **리셋은 05:00 KST** — 클라(main.js > dayIdx)와 같은 식이어야 한다.
+ *
+ * 예전에는 -5h 오프셋이 빠져 자정 KST 로 굴렀다. 바로 아래 weekIdx 에는 있는데
+ * 여기만 없었다. 그래서 00:00~05:00 사이에는 서버가 "새 날", 클라가 "어제" 로
+ * 갈려서, 친구 선물의 하루 한 번과 연합 기부 단계가 그 창에서 어긋났다
+ * (단장 지적 2026-08-28: 폰에서 보냈는데 PC 에서 또 보내짐).
+ */
+function dayIdx(t) { return Math.floor((t + KST - 5 * 3600e3) / 86400e3); }
 /** 주 번호. 리셋은 월요일 05:00 KST (alliance.json > boss.resetAt) */
 function weekIdx(t) { return Math.floor((t + KST - 5 * 3600e3 - 4 * 86400e3) / (7 * 86400e3)); }
 
@@ -1029,17 +1037,26 @@ class Server {
     });
     if (!pair.length) return { ok: false, reason: 'not_friend' };
     const day = dayIdx(Date.now());
-    const dup = await qItems('gifts', {
-      filters: [{ field: 'from', operator: '==', value: $sender.account },
-                { field: 'to', operator: '==', value: toAccount },
-                { field: 'day', operator: '==', value: day }],
-      limit: 1,
-    });
-    if (dup.length) return { ok: false, reason: 'already_sent' };
+
+    // **오늘 누구에게 보냈나는 계정 상태에 적는다.**
+    //
+    // 예전에는 gifts 컬렉션을 (from, to, day) 로 뒤져서 중복을 걸렀다. 그런데
+    // 필터가 셋이라 qItems 가 풀스캔 경로를 타고, 그 경로는 컬렉션을 최대
+    // 500줄만 긁어 JS 로 거른다 — 행이 그 페이지 밖이면 중복을 못 찾는다.
+    // 그래서 폰에서 보낸 뒤 PC 에서 또 보낼 수 있었다 (단장 지적 2026-08-28).
+    // getMyState 는 이 계정을 직접 읽으므로 기기가 몇 대든 어긋나지 않고,
+    // 500줄 스캔도 사라져 보내기가 빨라진다.
+    const srv = await srvState();
+    const sentTo = srv.giftDay === day ? (srv.giftTo || []) : [];
+    if (sentTo.includes(toAccount)) return { ok: false, reason: 'already_sent' };
+
     await $global.addCollectionItem('gifts', {
       from: $sender.account, to: toAccount,
       fromNick: await nickOf($sender.account), day, at: Date.now(),
     });
+    // 행을 넣은 **뒤에** 기록한다. 먼저 적고 넣기가 실패하면 상대 선물함에는
+    // 아무것도 없는데 오늘은 이미 보낸 것이 된다
+    await srvPatch({ giftDay: day, giftTo: [...sentTo, toAccount] });
     return { ok: true };
   }
 
@@ -1052,12 +1069,11 @@ class Server {
    */
   async friendGiftBox() {
     const day = dayIdx(Date.now());
-    const [mine, inbox] = await Promise.all([
-      qItems('gifts', {
-        filters: [{ field: 'from', operator: '==', value: $sender.account },
-                  { field: 'day', operator: '==', value: day }],
-        limit: 60,
-      }),
+    // 보낸 목록도 **계정 상태에서** 읽는다 (friendGift 주석). 컬렉션을 두 필터로
+    // 뒤지면 풀스캔이라 늦고, 놓치면 화면의 [선물] 버튼이 도로 눌리는 상태가 된다.
+    // 받은 목록은 to== 하나뿐이라 네이티브 필터가 그대로 먹는다
+    const [srv, inbox] = await Promise.all([
+      srvState(),
       qItems('gifts', {
         filters: [{ field: 'to', operator: '==', value: $sender.account }],
         limit: 60,
@@ -1069,7 +1085,7 @@ class Server {
       else fresh.push(g);
     }
     return {
-      sent: mine.map(g => g.to),
+      sent: srv.giftDay === day ? (srv.giftTo || []) : [],
       inbox: fresh.map(g => ({ id: g.__id, from: g.from, fromNick: g.fromNick, day: g.day })),
     };
   }
