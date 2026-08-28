@@ -312,11 +312,13 @@ export class SettingsScreen {
            **이 블록은 템플릿 문자열 안이다 — 백틱을 쓰면 문자열이 끊긴다** -->
       <!-- 커밋 해시는 화면에서 뺐다 (단장 지시 2026-08-27) — 버전 숫자만.
            배포 확인은 이제 이 버전을 올려서 한다. 해시는 콘솔([냥냥] build)에 남는다 -->
-      <!-- 버전 줄을 누르면 접속 진단이 펼쳐진다. 폰에는 콘솔을 열 방법이
-           마땅치 않아 "서버에 붙었나", "리비전이 몇인가" 를 물어볼 수가 없었다
-           (단장 지적 2026-08-28). 평소에는 접혀 있어 눈에 안 띈다 -->
-      <div class="st-row link" data-a="diag"><span>${t('버전')}</span>
-        <b>v${D.ui.meta.version} ›</b></div>
+      <!-- 접속 진단은 **버전 줄을 빠르게 5번** 눌러야 열린다 (main.js > 'diag').
+           폰에는 콘솔을 열 방법이 마땅치 않아 진단 창구가 꼭 필요한데, 그렇다고
+           유저 설정 화면에 verse·계정 주소가 상시로 서 있으면 안 된다
+           (단장 지시 2026-08-28). 그래서 겉보기는 평범한 버전 줄 그대로다 —
+           .link 도 › 도 붙이지 않는다. 눌러도 되는 줄로 보이면 안 된다. -->
+      <div class="st-row" data-a="diag"><span>${t('버전')}</span>
+        <b>v${D.ui.meta.version}</b></div>
       <pre id="stDiag" class="st-diag" hidden></pre>
       <button id="stPush" class="st-diagbtn" data-a="pushnow" hidden>지금 서버에 올리기</button>
       <!-- 확률 공시 안내문은 뺐다 (단장 지시 2026-08-25). 확률은 이미 소환·제작대

@@ -7340,6 +7340,8 @@ function bootTapToStart() {
       Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
     },
   });
+  // 버전 줄 연타 카운터 — 진단을 여는 제스처에 쓴다 (action 'diag')
+  let diagTaps = 0, diagTapAt = 0;
   settings = new SettingsScreen($('#app'), {
     state: S, data: D, playerCode,
     set: (k, v) => {
@@ -7390,7 +7392,17 @@ function bootTapToStart() {
       else if (a === 'diag') {
         const box = $('#stDiag');
         if (!box) return;
-        if (!box.hidden) { box.hidden = true; $('#stPush').hidden = true; return; }
+        // 열려 있으면 한 번 눌러 닫는다
+        if (!box.hidden) { box.hidden = true; $('#stPush').hidden = true; diagTaps = 0; return; }
+        // **빠르게 5번 눌러야 열린다.** 진단에는 verse 와 계정 주소가 실려 있어
+        // 유저 설정 화면에 상시로 서 있으면 안 된다 (단장 지시 2026-08-28).
+        // 그렇다고 지우면 폰에서 서버 상태를 물어볼 창구가 없어진다 — 이 패널이
+        // "PC 진행이 폰에 안 온다" 의 원인을 실제로 갈랐다. 그래서 숨기기만 한다.
+        const now = Date.now();
+        if (now - diagTapAt > 2500) diagTaps = 0;
+        diagTapAt = now;
+        if (++diagTaps < 5) return;
+        diagTaps = 0;
         box.hidden = false;
         // 서버를 안 기다리고 먼저 아는 것부터 그린다 — 응답이 늦어도 화면이 빈다
         const local = [
