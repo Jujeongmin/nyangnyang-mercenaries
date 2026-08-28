@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 12;
+const SERVER_REV = 13;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -279,6 +279,17 @@ function fallbackNick(account) {
   const n = String(h % 99 + 1).padStart(2, '0');
   return NICK_ADJ[h % 12] + NICK_ANI[((h / 12) | 0) % 12] + n;
 }
+/** 계정당 한 행 — submitProfile 경합이 남긴 중복 방어 (updatedAt 최신이 진짜) */
+function dedupAcc(rows) {
+  const seen = new Map();
+  for (const r of rows) {
+    const cur = seen.get(r.account);
+    if (!cur || (r.updatedAt || 0) > (cur.updatedAt || 0)) seen.set(r.account, r);
+  }
+  // Map 은 삽입 순서를 지키므로 정렬 순서가 유지된다
+  return [...seen.values()];
+}
+
 /** 행의 nickname 을 표시용으로 확정한다 — 빈 값·'단장' 은 자동 닉으로 */
 function fixNick(r) {
   if (!r) return r;
@@ -484,34 +495,36 @@ class Server {
    * 상대 후보. 아레나는 내 전투력 주변에서, 친구 찾기는 아무나 뽑는다.
    * 실매칭이 아니라 **표본**이다 — 정교한 매칭은 서버 부하가 커서 나중에.
    */
-  async findProfiles({ minCp = 0, maxCp = Number.MAX_SAFE_INTEGER, limit = 12 } = {}) {
+  /**
+   * 아레나 상대 표본 — **경쟁 점수(arenaScore)가 가까운 순**이다 (단장 확정
+   * 2026-08-27). CP 로 거르지 않는다: 색도 얻는 점수도 전부 점수 기준으로
+   * 통일했는데 목록만 CP 면 화면과 매칭이 따로 논다. 범위 조건도 없다 —
+   * 초반 서버는 인구가 적어 구간을 걸면 그대로 빈 화면이 된다.
+   */
+  async findArenaFoes(myScore = 1000, limit = 12) {
     const n = Math.min(50, Math.max(1, limit | 0));
-    const lo = Math.max(0, minCp | 0);
-    let rows = await qItems('profiles', {
-      filters: [
-        { field: 'cp', operator: '>=', value: lo },
-        { field: 'cp', operator: '<=', value: maxCp },
-      ],
-      limit: n,
-    });
-    // 본인은 뺀다 — 자기 자신과 싸우거나 친구 신청하게 되면 안 된다
-    rows = rows.filter(r => r.account !== $sender.account);
-    // **구간에 인원이 모자라면 범위를 버리고 CP 가 가까운 순으로 채운다**
-    // (arena.json > fallback — 기획만 있고 구현이 없었다). 초반 서버는
-    // 인구가 적어 내 주변 구간이 텅 비기 일쑤다 — 그때 아레나·친구 추천이
-    // 통째로 빈 화면이 됐다 (단장 확인 2026-08-27)
-    if (rows.length < Math.min(3, n)) {
-      const mid = (lo + Math.min(maxCp, lo * 2 + 1000)) / 2;
-      const all = (await qItems('profiles', { limit: 500 }))
-        .filter(r => r.account !== $sender.account && (r.cp || 0) > 0);
-      all.sort((a, b) => Math.abs((a.cp || 0) - mid) - Math.abs((b.cp || 0) - mid));
-      const seen = new Set(rows.map(r => r.account));
-      for (const r of all) {
-        if (rows.length >= n) break;
-        if (!seen.has(r.account)) { seen.add(r.account); rows.push(r); }
-      }
-    }
-    return rows.map(fixNick);
+    const all = (await qItems('profiles', { limit: 500 }))
+      .filter(r => r.account !== $sender.account);
+    all.sort((a, b) =>
+      Math.abs((a.arenaScore || 0) - myScore) - Math.abs((b.arenaScore || 0) - myScore));
+    return dedupAcc(all).slice(0, n).map(fixNick);
+  }
+
+  /**
+   * 친구 추천 — 조건 없이 **최근에 논 사람부터**다 (단장 확정 2026-08-27:
+   * 친구에 CP 조건을 건 적 없다). updatedAt 이 곧 활동 신호다.
+   */
+  async findFriendCands(limit = 12) {
+    const n = Math.min(50, Math.max(1, limit | 0));
+    const all = (await qItems('profiles', { limit: 500 }))
+      .filter(r => r.account !== $sender.account);
+    all.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    return dedupAcc(all).slice(0, n).map(fixNick);
+  }
+
+  /** 구버전 클라 호환 — 새 함수로 넘긴다 */
+  async findProfiles({ limit = 12 } = {}) {
+    return this.findFriendCands(limit);
   }
 
   // -- 랭킹 조회 --------------------------------------------

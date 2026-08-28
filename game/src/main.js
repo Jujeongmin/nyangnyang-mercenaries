@@ -4111,7 +4111,7 @@ function friendRefresh(force = false) {
     // 신선하다고 판단해 그대로 돌아온다
     live.invalidate('friendCands', 'friendReqs');
     const redraw = () => { if ($('#ov').classList.contains('show')) openFriendRequests(); };
-    live.pullFriendCands(totalCp(), redraw);
+    live.pullFriendCands(redraw);
     live.pullFriendReqs(redraw);
     return 0;
   }
@@ -4168,7 +4168,7 @@ function openFriendRequests() {
       openFriendRequests();
     }
   };
-  live.pullFriendCands(totalCp(), frRedraw);
+  live.pullFriendCands(frRedraw);
   live.pullFriendReqs(frRedraw);
 
   $('#ovt').textContent = t('친구 신청');
@@ -4763,8 +4763,11 @@ function publicProfile() {
 function arenaFoes() {
   const rows = live.get('arenaFoes');
   if (rows?.length) {
-    const my = totalCp();
-    const sorted = [...rows].sort((a, b) => Math.abs(a.cp - my) - Math.abs(b.cp - my));
+    // **점수 기준이다** (단장 확정 2026-08-27) — 색·얻는 점수·서버 표본이
+    // 전부 경쟁 점수로 통일됐는데 여기만 CP 면 매칭이 화면과 따로 논다
+    const my = S.arenaScore || 1000;
+    const scoreOf = r => r.arenaScore || 0;
+    const sorted = [...rows].sort((a, b) => Math.abs(scoreOf(a) - my) - Math.abs(scoreOf(b) - my));
     // **새로 고침이 서버 표본에서도 먹혀야 한다** (단장 지적 2026-08-27).
     // 예전에는 세 바구니의 맨 앞만 집어서, 표본 12명이 그대로면 눌러도 늘 같은
     // 셋이 나왔다 — foeSeed 는 데모 경로에서만 쓰이는 값이었다. 이제 바구니마다
@@ -4772,8 +4775,8 @@ function arenaFoes() {
     const k = S.arena?.foeSeed || 0;
     // 이름을 rotate 로 둔다 — 모듈 위쪽의 pick(무작위 하나) 과 가리면 헷갈린다
     const rotate = (arr, i) => (arr.length ? arr[i % arr.length] : undefined);
-    const weak = rotate([...rows].filter(r => r.cp < my).sort((a, b) => b.cp - a.cp), k);
-    const strong = rotate([...rows].filter(r => r.cp > my).sort((a, b) => a.cp - b.cp), k);
+    const weak = rotate([...rows].filter(r => scoreOf(r) < my).sort((a, b) => scoreOf(b) - scoreOf(a)), k);
+    const strong = rotate([...rows].filter(r => scoreOf(r) > my).sort((a, b) => scoreOf(b) - scoreOf(a)).reverse(), k);
     // 같은 계정이 두 칸에 앉으면 "다른 상대" 로 안 읽힌다.
     // 겹쳐서 셋이 안 되면 **남은 표본으로 채운다** — 두 칸짜리 아레나는 고장으로 보인다
     const seen = new Set();
@@ -5025,7 +5028,8 @@ function openArena(view) {
   const day = dayIdx(Date.now());
   const foes = arenaFoes();
   // 표본이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 더미)로 즉시 뜬다
-  live.pullArenaFoes(my, () => {
+  // 표본은 경쟁 점수 기준이다 — my(CP)가 아니라 내 점수를 넘긴다
+  live.pullArenaFoes(S.arenaScore || 1000, () => {
     if ($('#ov').classList.contains('show') && $('#ovt').textContent === '아레나') openArena();
   });
   const left = arenaLeft();
@@ -7737,7 +7741,7 @@ function bootTapToStart() {
       await live.pushProfile(publicProfile());
     } catch (e) { console.warn('[live] 프로필 제출 실패', e); }
     try {
-      await live.warmup(Math.round(totalCp()));
+      await live.warmup(S.arenaScore || 1000);
       syncAllyFromServer();
       chatBarSync();
     } catch (e) { console.warn('[live] 예열 실패 — 화면마다 다시 받는다', e); }

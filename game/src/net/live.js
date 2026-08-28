@@ -176,10 +176,9 @@ export const getMyBoardRank = board => cache[MYRANK_KEY[board]] || null;
  * 아레나 상대. 내 CP 의 ±40% 대역에서 표본을 받는다 — 정교한 매칭이 아니라
  * **표본**이다 (server.js > findProfiles). 대역이 비면 화면은 데모로 떨어진다.
  */
-export const pullArenaFoes = (myCp, onDone) => pull('arenaFoes',
-  () => call('findProfiles', [{
-    minCp: Math.floor(myCp * 0.6), maxCp: Math.ceil(myCp * 1.4), limit: 12,
-  }]), onDone);
+// 아레나는 **경쟁 점수**가 가까운 사람을 부른다 (단장 확정 2026-08-27)
+export const pullArenaFoes = (myScore, onDone) => pull('arenaFoes',
+  () => call('findArenaFoes', [myScore, 12]), onDone);
 
 // ── 상태를 바꾸는 것 ──────────────────────────────────────
 // 전부 **서버 판정**이다. 클라는 요청만 하고 결과를 받는다.
@@ -253,7 +252,7 @@ export const removeFriend = account => call('friendRemove', [account]);
  * 하나가 실패해도 나머지는 그대로 간다 (pull 이 각자 삼킨다). 못 받은 것은
  * 해당 화면이 열릴 때 다시 받고, 그때까지는 데모가 자리를 지킨다.
  */
-export async function warmup(myCp = 0) {
+export async function warmup(myScore = 1000) {
   if (!server) return false;
   // **화면이 여는 모든 표를 부팅에서 다 받는다** (단장 확정 2026-08-27:
   // 로딩이 끝났으면 데이터도 다 있어야 한다). remoteFunction 은 초당 약
@@ -263,10 +262,8 @@ export async function warmup(myCp = 0) {
     pull('topPower', () => call('topProfiles', ['power', 20])),
     pull('topStage', () => call('topProfiles', ['stage', 20])),
     pull('topArena', () => call('topProfiles', ['arena', 20])),
-    pull('arenaFoes', () => call('findProfiles', [{
-      minCp: Math.floor(myCp * 0.6), maxCp: Math.ceil(myCp * 1.4), limit: 12 }])),
-    pull('friendCands', () => call('findProfiles', [{
-      minCp: Math.floor(myCp * 0.2), maxCp: Math.ceil(myCp * 5), limit: 12 }])),
+    pull('arenaFoes', () => call('findArenaFoes', [myScore, 12])),
+    pull('friendCands', () => call('findFriendCands', [12])),
     pull('friends', () => call('friendList')),
     pull('friendReqs', () => call('friendRequests')),
     pull('giftBox', () => call('friendGiftBox')),
@@ -292,10 +289,9 @@ export async function warmup(myCp = 0) {
  * 친구 추천. 아레나보다 **훨씬 넓은 대역**을 본다 — 친구는 이겨야 하는 상대가
  * 아니라 매일 선물을 주고받을 사람이라 CP 가 비슷할 이유가 없다.
  */
-export const pullFriendCands = (myCp, onDone) => pull('friendCands',
-  () => call('findProfiles', [{
-    minCp: Math.floor(myCp * 0.2), maxCp: Math.ceil(myCp * 5), limit: 12,
-  }]), onDone);
+// 친구 추천은 조건 없이 최근 활동 순 (단장 확정 2026-08-27)
+export const pullFriendCands = onDone => pull('friendCands',
+  () => call('findFriendCands', [12]), onDone);
 
 /** 화면을 떠나거나 편성이 크게 바뀌면 캐시를 버린다 */
 export function invalidate(...keys) {
