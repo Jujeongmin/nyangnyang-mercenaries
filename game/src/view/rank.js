@@ -94,9 +94,12 @@ export class RankScreen {
         name: r.nickname || '단장',
         // 대표 용병은 **그 사람 편성의 첫 자리**다. 예전에는 등수로 고른
         // 장식이라 남의 조합과 아무 상관이 없었다
+        // 편성이 비어 있으면(옛 세대 행) 지어내지 않는다 — merc 를 비우면
+        // 아래 렌더가 그 사람 단장 초상으로 그린다 (단장 지적 2026-08-27:
+        // "실제 착용한 프로필이 아니다")
         merc: (r.party || []).map(m => m.id)
-          .find(id => D.characters.characters.some(c => c.id === id))
-          || FEATURED[i % FEATURED.length],
+          .find(id => D.characters.characters.some(c => c.id === id)) || null,
+        capCls: r.capCls || 'warrior',
         title: r.title || '',
         frame: P.profileFrame.unlocks.find(f => f.id === r.frame)?.color
           || P.profileFrame.unlocks[Math.max(0, 3 - Math.floor(i / 6))]?.color || '#9E9E9E',
@@ -173,7 +176,8 @@ export class RankScreen {
         <span class="rk-n rk-${r.rank <= 3 ? r.rank : 'x'}">${r.rank}</span>
         <span class="rk-ava" style="border-color:${r.frame}"${
           r.account ? ` data-rkacc="${r.account}"` : ''}>
-          <img src="/assets/char/${r.merc}.webp" alt="">
+          <img src="${r.merc ? `/assets/char/${r.merc}.webp`
+            : `/assets/captain/captain_${r.capCls || 'warrior'}.png`}" alt="">
         </span>
         <span class="rk-who">
           <b>${r.name}</b>

@@ -255,22 +255,34 @@ export const removeFriend = account => call('friendRemove', [account]);
  */
 export async function warmup(myCp = 0) {
   if (!server) return false;
+  // **화면이 여는 모든 표를 부팅에서 다 받는다** (단장 확정 2026-08-27:
+  // 로딩이 끝났으면 데이터도 다 있어야 한다). remoteFunction 은 초당 약
+  // 10회 제한이라 한꺼번에 쏘지 않고 두 묶음으로 나눈다 — 첫 묶음이
+  // 화면에 먼저 보이는 것들이다.
   await Promise.all([
-    pull('alliances', () => call('allianceList', [20])),
-    pull('myAlliance', () => call('allianceMy')),
-    pull('boss', () => call('allianceBoss')),
-    pull('bossLog', () => call('allianceBossLog')),
-    pull('friends', () => call('friendList')),
-    pull('friendReqs', () => call('friendRequests')),
-    pull('rankTop', () => call('getTopRankings', [20])),
-    pull('myRank', () => call('getMyBestRank')),
+    pull('topPower', () => call('topProfiles', ['power', 20])),
+    pull('topStage', () => call('topProfiles', ['stage', 20])),
+    pull('topArena', () => call('topProfiles', ['arena', 20])),
     pull('arenaFoes', () => call('findProfiles', [{
       minCp: Math.floor(myCp * 0.6), maxCp: Math.ceil(myCp * 1.4), limit: 12 }])),
     pull('friendCands', () => call('findProfiles', [{
       minCp: Math.floor(myCp * 0.2), maxCp: Math.ceil(myCp * 5), limit: 12 }])),
+    pull('friends', () => call('friendList')),
+    pull('friendReqs', () => call('friendRequests')),
     pull('giftBox', () => call('friendGiftBox')),
     pull('chatRooms', () => call('chatRooms')),
     pull('chatWorld', () => call('getChat', ['world', 40])),
+  ]);
+  await Promise.all([
+    pull('myRankPower', () => call('myProfileRank', ['power'])),
+    pull('myRankStage', () => call('myProfileRank', ['stage'])),
+    pull('myRankArena', () => call('myProfileRank', ['arena'])),
+    pull('alliances', () => call('allianceList', [20])),
+    pull('myAlliance', () => call('allianceMy')),
+    pull('boss', () => call('allianceBoss')),
+    pull('bossLog', () => call('allianceBossLog')),
+    pull('rankTop', () => call('getTopRankings', [20])),
+    pull('myRank', () => call('getMyBestRank')),
     pull('chatAlly', () => call('getChat', ['ally', 40])),
   ]);
   return true;

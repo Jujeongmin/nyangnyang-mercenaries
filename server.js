@@ -162,7 +162,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 10;
+const SERVER_REV = 11;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -203,20 +203,10 @@ async function srvPatch(patch) {
  * 상한이 작아서(채팅 CHAT_KEEP, 랭킹·연합 수십) 통째로 받아도 부담이 없다.
  */
 async function sortedTop(collection, opts, field, n) {
-  let rows;
-  try {
-    rows = await $global.getCollectionItems(collection, {
-      ...opts, orderBy: [{ field, direction: 'desc' }], limit: n,
-    });
-  } catch (e) {
-    // 정렬 조회가 **필드에 따라 예외를 던진다** (인덱스가 없는 필드).
-    // arenaScore 는 되는데 cp·stage 는 죽어서, 경쟁점수 보드만 뜨고
-    // 전투력·스테이지가 통째로 비었다 (단장 지적 2026-08-27). 예외도
-    // "빈 결과" 와 같게 폴백으로 흘린다 — 이 컬렉션들은 상한이 작다
-    rows = null;
-  }
-  if (rows && rows.length) return rows;
-  rows = (await $global.getCollectionItems(collection, opts)) || [];
+  // orderBy 는 필드에 따라 죽는다 (인덱스 없는 cp·stage). 시도했다 실패하면
+  // 왕복이 두 번이라, 처음부터 통째로 받아 여기서 정렬한다 — 이 컬렉션들은
+  // 상한이 작아 풀스캔이 더 빠르고 늘 같은 시간이 걸린다
+  const rows = (await $global.getCollectionItems(collection, opts)) || [];
   rows.sort((a, b) => (b[field] || 0) - (a[field] || 0));
   return rows.slice(0, n);
 }
@@ -312,14 +302,21 @@ async function nickOf(account) {
  * 이 게임의 컬렉션들은 상한이 작아 풀스캔이 감당된다.
  */
 async function qItems(collection, opts = {}) {
-  try {
-    const rows = await $global.getCollectionItems(collection, opts);
-    if (rows && rows.length) return rows;
-  } catch (e) { /* 아래 폴백 */ }
+  const fs0 = opts.filters || [];
+  // **단일 == 필터만 네이티브로 간다** — account== 패턴은 처음부터 잘 동작해
+  // 온 유일한 모양이다. 복합·범위·정렬 필터는 시도해 봐야 죽거나 비므로,
+  // 시도-실패-풀스캔의 왕복 두 번이 화면 지연으로 그대로 보였다
+  // (단장 확인 2026-08-27: 아레나·친구·랭킹이 늦게 뜨거나 안 뜸).
+  if (fs0.length === 1 && fs0[0].operator === '==' && !opts.orderBy) {
+    try {
+      const rows = await $global.getCollectionItems(collection, opts);
+      if (rows) return rows;
+    } catch (e) { /* 아래 풀스캔 */ }
+  }
   let all;
   try {
     all = (await $global.getCollectionItems(collection, {
-      limit: Math.max(300, (opts.limit || 0) * 10),
+      limit: Math.max(500, (opts.limit || 0) * 10),
     })) || [];
   } catch (e) { return []; }
   const fs = opts.filters || [];
@@ -644,14 +641,17 @@ class Server {
       filters: [{ field: 'account', operator: '==', value: $sender.account }],
       limit: 60,
     });
-    const out = [];
-    for (const e of edges) {
-      const prof = await oneByAccount('profiles', e.friend);
-      out.push(fixNick(prof
+    if (!edges.length) return [];
+    // 친구마다 프로필을 한 명씩 조회하면(N+1) 목록이 친구 수에 비례해
+    // 느려진다 — profiles 를 한 번 받아 여기서 잇는다
+    const profs = await qItems('profiles', { limit: 500 });
+    const byAcc = new Map(profs.map(p => [p.account, p]));
+    return edges.map(e => {
+      const prof = byAcc.get(e.friend);
+      return fixNick(prof
         ? { ...prof, since: e.since }
-        : { account: e.friend, nickname: e.nick, cp: 0, since: e.since }));
-    }
-    return out;
+        : { account: e.friend, nickname: e.nick, cp: 0, since: e.since });
+    });
   }
 
   /** 친구 끊기 - 양쪽 행을 다 지운다. 한쪽만 지우면 상대 목록에 유령이 남는다 */
