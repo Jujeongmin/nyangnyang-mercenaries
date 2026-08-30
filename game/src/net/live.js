@@ -95,6 +95,14 @@ export function initLive(injected) {
 
 export const liveReady = () => !!server;
 
+/**
+ * 내 계정 주소. **연합에 안 들어가도 알 수 있어야 한다** — 예전에는
+ * `get('myAlliance').me.account` 로만 알았는데, 무소속이면 그게 null 이라
+ * 내가 친 채팅 줄을 내 것으로 못 알아봤다 (닉네임 변경이 내 옛 줄에 반영이
+ * 안 되던 원인, 단장 지적 2026-08-30). 접속 객체가 이미 들고 있다.
+ */
+export const myAccount = () => { try { return (server && server.account) || null; } catch { return null; } };
+
 /** 캐시 읽기. 서버가 없거나 아직 안 왔으면 null — 부르는 쪽이 데모로 떨어진다 */
 export const get = key => cache[key];
 

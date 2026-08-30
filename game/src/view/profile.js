@@ -10,6 +10,8 @@
 //   닉네임은 Verse8 leaderboard 제약으로 1~15자다. 초과하면 서버가 거부한다.
 
 const GC = { N: '#b5a69a', R: '#4CAF50', SR: '#2196F3', SSR: '#9C27B0', UR: '#FF9800', LR: '#E91E63' };
+/** 등급 서열 — 대표 용병 후보를 높은 등급부터 세운다 (main.js 의 것과 같은 순서) */
+const GRADE_ORDER = ['N', 'R', 'SR', 'SSR', 'UR', 'LR'];
 import { cpNum, num } from '../core/fmt.js';
 
 
@@ -117,6 +119,16 @@ export class ProfileScreen {
 
     const codexPct = (S.codex.mercenary.length / D.codex.mercenary.totalEntries * 100).toFixed(0);
 
+    // 대표 용병 후보 — **해금한 것 전부.** 예전에는 앞 12개만 잘라 보여 줘서,
+    // 열세 번째부터 해금해도 후보에 안 떴다 (단장 지적 2026-08-30). 도감은
+    // 획득 순으로 쌓이므로 자르면 새로 얻은 것이 늘 잘리는 쪽이었다.
+    // 등급 높은 순으로 세운다 — 걸고 싶은 것이 위에 온다. 칸이 늘면 CSS 가
+    // 세로로 스크롤한다 (.pf-mercs).
+    const mercs = S.codex.mercenary
+      .map(id => D.characters.characters.find(x => x.id === id))
+      .filter(Boolean)
+      .sort((a, b) => GRADE_ORDER.indexOf(b.grade) - GRADE_ORDER.indexOf(a.grade));
+
     const c = this.api.nickCost ? this.api.nickCost() : { free: false, dia: 0, waitDays: 0 };
     const locked = P.titles.list.length - owned.length;
 
@@ -150,14 +162,12 @@ export class ProfileScreen {
       }).join('') || '<div class="sh-note">아직 얻은 칭호가 없습니다.</div>'}</div>
       ${locked ? `<div class="sh-note">잠긴 칭호 ${locked}개</div>` : ''}
 
-      <div class="sh-h2">대표 용병</div>
-      <div class="pf-mercs">${S.codex.mercenary.slice(0, 12).map(id => {
-        const ch = D.characters.characters.find(x => x.id === id);
-        if (!ch) return '';
-        return `<button class="pf-m g-${ch.grade}${featured === id ? ' on' : ''}" data-merc="${id}"
+      <div class="sh-h2">대표 용병 <span class="cx-cnt">${mercs.length}</span></div>
+      <div class="pf-mercs">${mercs.map(ch =>
+        `<button class="pf-m g-${ch.grade}${featured === ch.id ? ' on' : ''}" data-merc="${ch.id}"
           title="${ch.nameKo}">
-          <img src="/assets/char/${id}.webp" alt=""></button>`;
-      }).join('') || '<div class="sh-note">용병을 소환하면 여기에 걸 수 있습니다.</div>'}</div>`;
+          <img src="/assets/char/${ch.id}.webp" alt=""></button>`
+      ).join('') || '<div class="sh-note">용병을 소환하면 여기에 걸 수 있습니다.</div>'}</div>`;
 
     // 닉네임 변경 — 게임 안 입력 모달 (main.js > askText). prompt() 는
     // 모바일 WebView 가 막아 변경이 통째로 죽었다 (단장 지적 2026-08-27)

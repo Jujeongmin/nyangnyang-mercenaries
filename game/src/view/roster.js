@@ -96,9 +96,9 @@ export class RosterSheet {
     const isSkill = this.track === 'skill';
 
     // ── 프리셋 바 ────────────────────────────────────────────
-    // 번호를 누르면 그 칸이 **선택되고, 저장된 것이 있으면 바로 불러온다.**
-    // 비어 있는 칸은 선택만 된다 — 불러올 것이 없으니 편성을 건드릴 이유도 없다.
-    // 지금 편성을 그 칸에 넣으려면 [저장] 을 누른다.
+    // 번호를 누르면 그 칸을 **불러온다.** [저장] 은 없앴다 (단장 지시 2026-08-30)
+    // — 고른 칸이 곧 지금 편성이고, 편성을 바꾸면 그 칸에 바로 굳는다
+    // (main.js > autoPreset). 저장이 유저의 할 일이면 안 누른 유저는 반드시 잃는다.
     // 프리셋은 **탭마다 따로다** — 용병 탭에서는 용병 편성만, 스킬 탭에서는
     // 스킬 편성만 담고 불러온다 (단장 확정 2026-08-25)
     const preKind = isSkill ? 'skill' : 'mercenary';
@@ -109,18 +109,13 @@ export class RosterSheet {
     pre.innerHTML = [0, 1, 2].map(i =>
       `<button class="pr${book[i] ? ' has' : ''}${i === cur ? ' on' : ''}"
          data-pre="${i}" title="${t('프리셋')} ${i + 1}${book[i] ? '' : ` (${t('비어 있음')})`}"
-         >${i + 1}</button>`).join('')
-      + `<button class="pr-save" data-presave>${t('저장')}</button>`;
+         >${i + 1}</button>`).join('');
     pre.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => {
       const i = +b.dataset.pre;
-      S.presetSel[preKind] = i;
       // **빈 칸을 눌러도 적용한다** — 그 칸은 "아무것도 안 낀 편성" 이다.
-      // 예전처럼 선택만 하면 1번을 저장한 뒤 2번을 눌러도 1번이 그대로 남아
-      // 두 칸이 같은 편성으로 보였다 (단장 지적)
+      // 고른 칸 기록은 loadPreset 이 한다 (부르는 곳마다 챙기면 한 곳이 빠진다)
       this.api.loadPreset(preKind, i);
     }));
-    pre.querySelector('[data-presave]').addEventListener('click', () =>
-      this.api.savePreset(preKind, S.presetSel[preKind] ?? 0));
 
     // ── 장착 줄 ──────────────────────────────────────────────
     const eq = this.equipped();                       // null = 빈 칸, 'lock' = 미해금

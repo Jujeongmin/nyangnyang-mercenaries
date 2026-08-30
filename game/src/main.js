@@ -634,6 +634,10 @@ function setNickname(name) {
   save(); renderTop(); profile.render();
   // 새 이름을 서버에도 바로 올린다 — 안 올리면 랭킹·채팅에는 옛 이름이 남는다
   Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+  // **화면도 그 자리에서 갈아 준다.** 서버에 올리는 것만으로는 이미 그려진
+  // 채팅 줄·하단 바가 안 바뀐다 — 유저 눈에는 변경이 안 먹은 것으로 보인다
+  // (단장 지적 2026-08-30). 내 줄은 chatNick 이 지금 이름으로 덮어 그린다.
+  chatRedraw();
   toast(c.free ? '닉네임을 정했습니다' : `닉네임 변경 · 다이아 -${num(c.dia)}`);
 }
 
@@ -2019,6 +2023,8 @@ function renderRosterDots() {
 
 /** 편성이 바뀐 뒤 전투 화면·상단바를 다시 맞춘다 */
 function refreshParty() {
+  // 편성 변경은 전부 이 함수를 지난다 — 자동 저장을 걸 자리가 여기 하나뿐이다
+  autoPreset();
   renderSkills();
   renderCsChip();
   scene.activeSkills = S.skills.active.filter(Boolean);
@@ -2403,17 +2409,33 @@ function presetBook(kind) {
   return S.presets[kind];
 }
 
-function savePreset(kind, n) {
-  const book = presetBook(kind);
-  book[n] = kind === 'skill'
+/** 지금 편성을 프리셋 한 칸 모양으로 뜬다 */
+function presetSnap(kind) {
+  return kind === 'skill'
     ? { active: S.skills.active.map(x => x && x.id),
         passive: S.skills.passive.map(x => x && x.id) }
     // **빈 칸을 그대로 담는다.** filter(Boolean) 로 접으면 3인 편성이 3칸짜리
     // 배열이 되어 자리 정보가 사라진다
     : { party: S.party.map(x => x && x.id) };
+}
+
+/**
+ * 프리셋 자동 저장 — **[저장] 단추를 없앴다** (단장 지시 2026-08-30).
+ *
+ * 예전에는 편성을 바꾸고 저장을 안 누른 채 다른 칸을 누르면 그 변경이 통째로
+ * 날아갔다. 저장이 유저의 할 일이면 안 누른 유저는 반드시 잃는다. 이제 고른
+ * 칸이 곧 지금 편성이다 — 편성이 바뀔 때마다 그 칸에 굳힌다.
+ *
+ * 부팅 중에는 안 돈다. 세이브를 복원하기 전의 빈 편성이 칸을 지워 버린다.
+ */
+let presetAuto = false;
+function autoPreset() {
+  if (!presetAuto) return;
+  S.presetSel = S.presetSel || {};
+  for (const kind of ['mercenary', 'skill']) {
+    presetBook(kind)[S.presetSel[kind] ?? 0] = presetSnap(kind);
+  }
   save();
-  toast(`${kind === 'skill' ? t('스킬') : t('용병')} ${t('프리셋')} ${n + 1} ${t('저장')}`);
-  if (roster.isOpen) roster.render();
 }
 
 /** 지금 장착분 + 보유함을 한 통에 합친다 — 프리셋 id 를 여기서 다시 찾는다 */
@@ -2424,6 +2446,11 @@ function presetPool(kind) {
 }
 
 function loadPreset(kind, n) {
+  // **고른 칸을 여기서 기록한다.** 아레나는 presetSel 을 안 건드리고 불러오기만
+  // 했는데, 자동 저장이 붙은 뒤로는 그러면 방금 불러온 편성이 **옛 칸**에
+  // 덮여 쓰인다 (refreshParty → autoPreset). 부르는 곳마다 챙기게 두지 않는다.
+  S.presetSel = S.presetSel || {};
+  S.presetSel[kind] = n;
   const p = presetBook(kind)[n];
   const pool = presetPool(kind);
   const take = id => {
@@ -4641,7 +4668,30 @@ const chatRows = () => {
   chatMarkBase(chatScope, all);
   return all.filter(r => (r.at || 0) > (chatBase[chatScope] ?? 0));
 };
-const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.account;
+/**
+ * 내 계정. 접속 객체가 먼저고, 없으면 연합의 내 행을 본다 — **무소속이면
+ * 후자가 null 이라** 예전에는 내가 친 줄을 내 것으로 못 알아봤다.
+ */
+const meAcc = () => live.myAccount() || live.get('myAlliance')?.me?.account || null;
+const chatMine = m => !!m.account && m.account === meAcc();
+
+/**
+ * 줄에 띄울 이름. **내 줄은 지금 닉네임으로 덮는다.**
+ *
+ * 서버는 보낼 때의 닉네임을 줄에 굳혀 담는다 (server.js > sendChat) — 지난
+ * 대화를 보존하려면 그게 맞다. 그런데 그러면 개명한 뒤 내 옛 줄이 옛 이름으로
+ * 남아서, 유저에게는 "닉네임 변경이 채팅에 반영이 안 된다" 로 보였다
+ * (단장 지적 2026-08-30). 남의 줄은 그대로 둔다 — 남의 지금 이름을 우리가
+ * 알 길이 없고, 알아도 그 사람이 그때 쓴 이름을 바꿔 칠 이유가 없다.
+ */
+const chatNick = m => (chatMine(m) ? (S.nickname || autoNickname())
+  : (m.nickname || autoNickOf(m.account)));
+
+/** 줄에 띄울 직군. 내 줄은 지금 직군으로 덮는다 (개명과 같은 이유 — 전직) */
+const chatCls = m => {
+  const c = chatMine(m) ? (S.promoClass || 'warrior') : m.capCls;
+  return ['warrior', 'archer', 'mage'].includes(c) ? c : 'warrior';
+};
 
 /**
  * 채팅 한 줄. **프로필 카드는 아바타를 눌러야 뜬다** (단장 확정 2026-08-26).
@@ -4651,10 +4701,9 @@ const chatMine = m => m.account && m.account === live.get('myAlliance')?.me?.acc
  * 위임으로 받는다 (chatRedraw 마다 리스너를 다시 달지 않아도 된다).
  */
 const chatLineHtml = m => `<div class="ch-line${chatMine(m) ? ' me' : ''}">
-    <img class="ch-av" src="/assets/captain/captain_${
-      ['warrior', 'archer', 'mage'].includes(m.capCls) ? m.capCls : 'warrior'}.png"
+    <img class="ch-av" src="/assets/captain/captain_${chatCls(m)}.png"
       alt="" data-chacc="${esc(m.account || '')}" onerror="this.remove()">
-    <b>${esc(m.nickname || autoNickOf(m.account))}</b>
+    <b>${esc(chatNick(m))}</b>
     <span>${esc(m.text || '')}</span>
     <i>${chatTime(m.at)}</i></div>`;
 
@@ -4865,7 +4914,7 @@ function chatBarSync() {
   // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
   // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다
   if (!last) { if (who) who.textContent = ''; line.textContent = ''; return; }
-  if (who) who.textContent = esc(last.nickname || autoNickOf(last.account));
+  if (who) who.textContent = esc(chatNick(last));
   line.textContent = last.text || '';
 }
 
@@ -7465,7 +7514,7 @@ function bootTapToStart() {
   }, 1000);
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
-    state: S, data: D, cpOf, skillCp, toast, openUnitInfo, savePreset, loadPreset,
+    state: S, data: D, cpOf, skillCp, toast, openUnitInfo, loadPreset,
     enhance: autoEnhance, equip: applyAutoEquip, canEquip: canAutoEquip,
     dungeonHtml, bindDungeons, slotsOf, tellSlotLock,
   });
@@ -8181,6 +8230,10 @@ function bootTapToStart() {
     };
     setTimeout(retry, wait);
   }
+
+  // 프리셋 자동 저장을 연다 — 세이브 복원이 다 끝난 지금부터다. 이보다
+  // 앞서 열면 복원 전의 빈 편성이 프리셋 칸을 지운다
+  presetAuto = true;
 
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));

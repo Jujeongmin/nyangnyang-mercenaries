@@ -2678,7 +2678,10 @@
   .pf-t span{font-size:9px;color:var(--dim)}
   .pf-t.on{border-color:var(--gold);background:#221c0c}
   .pf-t.lock{opacity:.4;cursor:default}
-  .pf-mercs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  /* 후보를 안 자른다 — 해금한 용병 전부가 온다. 많아지면 세로로 스크롤한다
+     (예전에는 12개만 잘라서 열세 번째부터 후보에 안 떴다) */
+  .pf-mercs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
+    max-height:46vh;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
   .pf-m{aspect-ratio:1;border:2px solid var(--line);border-radius:9px;overflow:hidden;
     background:var(--card);cursor:pointer;padding:0}
   .pf-m img{width:130%;height:130%;object-fit:contain;object-position:center 25%;margin:-15%}
@@ -3535,13 +3538,7 @@
     cursor:pointer;font-family:inherit}
   #shPre .pr.has,.ar-pre .pr.has{color:var(--txt);border-color:var(--line)}
   #shPre .pr.on,.ar-pre .pr.on{border-color:var(--gold);color:var(--gold)}
-  /* 두 개가 나란히 선다 — [불러오기] 와 [N번에 저장]. 첫 번째만 오른쪽으로 민다 */
-  #shPre .pr-save{font-size:10px;padding:4px 8px;background:none;
-    border:1px dashed #6b543a;border-radius:7px;color:var(--dim);cursor:pointer;font-family:inherit}
-  #shPre .pr-save[data-preload]{margin-left:auto}
-  /* 저장은 **누르는 쪽**이라 실선·금색으로 한 단계 앞에 둔다 */
-  #shPre .pr-save[data-presave]{border-style:solid;border-color:var(--brass);color:var(--gold)}
-  #shPre .pr-save:disabled{opacity:.38;cursor:default}
+  /* .pr-save 는 걷어냈다 — 저장 단추가 없어졌다 (자동 저장, 2026-08-30) */
   #shT{flex:1;font-size:15px;font-weight:900;color:var(--gold);text-shadow:0 1px 3px #000}
   #shT i{font-style:normal;font-size:11px;font-weight:700;color:var(--dim);margin-left:6px}
   #shX{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--txt);
@@ -4265,7 +4262,8 @@
         onerror="this.onerror=null;this.src='/assets/ui/IC-TRAIN.png'"></button>
       <button id="shX">닫기</button>
     </div>
-    <!-- 프리셋 3칸 — 탭하면 불러오고 [저장]으로 현재 편성을 기록한다 -->
+    <!-- 프리셋 3칸 — 탭하면 불러온다. 저장 단추는 없다: 고른 칸이 곧 지금
+         편성이라, 편성을 바꾸면 그 칸에 바로 굳는다 (main.js > autoPreset) -->
     <div id="shPre"></div>
     <div id="shEq"></div>
     <div id="shBody"></div>
