@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "출석 / 일일 퀘스트 / 광고 보상 / 무료 소환. 리텐션 담당.",
   "faucetShare": 0.1,
-  "faucetNote": "economy.json > faucetDistribution.dailyAndAds 와 대응. 총 배출의 10%."
+  "faucetNote": "economy.json > faucetDistribution.dailyAndAds 와 대응. 총 배출의 10%. | 2026-08-30: 임무(일일·주간) 포인트 보상의 골드를 1/5 로 내렸다 — 일일 200,000 → 40,000, 주간 3,000,000 → 600,000 (단장 지시). 골드 배출 설계는 economy.json > faucetDistribution.gold 에서 스테이지·방치 85% · 골드광산 15% 이고 임무는 아예 항목에 없다. 그런데 일일 하나가 f2pDailyYield day1 골드(120,000)의 1.7배를 줘서, 초반에는 임무가 골드 배출을 통째로 대신하고 있었다. 출석(60,000)·신규7일(100,000)은 임무가 아니라 그대로 뒀다."
  },
  "attendance": {
   "cycle": {
@@ -151,7 +151,7 @@
     "points": 40,
     "grant": {
      "diamond": 100,
-     "gold": 200000
+     "gold": 40000
     }
    },
    {
@@ -380,7 +380,7 @@
     "points": 75,
     "grant": {
      "diamond": 800,
-     "gold": 3000000,
+     "gold": 600000,
      "equip_ticket": 120
     }
    },

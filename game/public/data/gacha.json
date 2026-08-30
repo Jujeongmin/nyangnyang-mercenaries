@@ -160,8 +160,8 @@
       "rates": {
         "N": 5.154,
         "R": 83.5667,
-        "SR": 10.3633,
-        "SSR": 0.916,
+        "SR": 11.2793,
+        "SSR": 0,
         "UR": 0,
         "LR": 0
       }
@@ -172,8 +172,8 @@
       "rates": {
         "N": 4.1232,
         "R": 80.7996,
-        "SR": 13.8471,
-        "SSR": 1.2301,
+        "SR": 15.0772,
+        "SSR": 0,
         "UR": 0,
         "LR": 0
       }
@@ -184,8 +184,8 @@
       "rates": {
         "N": 3.2985,
         "R": 76.9067,
-        "SR": 18.1458,
-        "SSR": 1.649,
+        "SR": 19.7948,
+        "SSR": 0,
         "UR": 0,
         "LR": 0
       }
@@ -196,8 +196,8 @@
       "rates": {
         "N": 0,
         "R": 74.5677,
-        "SR": 23.2269,
-        "SSR": 2.2054,
+        "SR": 25.4323,
+        "SSR": 0,
         "UR": 0,
         "LR": 0
       }
@@ -1142,32 +1142,32 @@
         {
           "fromLevel": 1,
           "toLevel": 10,
-          "pullsPerLevel": 10,
-          "cumulativeAtEnd": 90
+          "pullsPerLevel": 14,
+          "cumulativeAtEnd": 126
         },
         {
           "fromLevel": 10,
           "toLevel": 20,
-          "pullsPerLevel": 25,
-          "cumulativeAtEnd": 340
+          "pullsPerLevel": 35,
+          "cumulativeAtEnd": 476
         },
         {
           "fromLevel": 20,
           "toLevel": 30,
           "pullsPerLevel": 50,
-          "cumulativeAtEnd": 840
+          "cumulativeAtEnd": 976
         },
         {
           "fromLevel": 30,
           "toLevel": 40,
           "pullsPerLevel": 100,
-          "cumulativeAtEnd": 1840
+          "cumulativeAtEnd": 1976
         },
         {
           "fromLevel": 40,
           "toLevel": 50,
           "pullsPerLevel": 200,
-          "cumulativeAtEnd": 3840
+          "cumulativeAtEnd": 3976
         }
       ],
       "levelReward": {
@@ -1215,32 +1215,32 @@
         {
           "fromLevel": 1,
           "toLevel": 10,
-          "pullsPerLevel": 10,
-          "cumulativeAtEnd": 90
+          "pullsPerLevel": 14,
+          "cumulativeAtEnd": 126
         },
         {
           "fromLevel": 10,
           "toLevel": 20,
-          "pullsPerLevel": 25,
-          "cumulativeAtEnd": 340
+          "pullsPerLevel": 35,
+          "cumulativeAtEnd": 476
         },
         {
           "fromLevel": 20,
           "toLevel": 30,
           "pullsPerLevel": 50,
-          "cumulativeAtEnd": 840
+          "cumulativeAtEnd": 976
         },
         {
           "fromLevel": 30,
           "toLevel": 40,
           "pullsPerLevel": 100,
-          "cumulativeAtEnd": 1840
+          "cumulativeAtEnd": 1976
         },
         {
           "fromLevel": 40,
           "toLevel": 50,
           "pullsPerLevel": 200,
-          "cumulativeAtEnd": 3840
+          "cumulativeAtEnd": 3976
         }
       ],
       "levelReward": {
@@ -1357,7 +1357,7 @@
     "N": 1,
     "R": 1,
     "SR": 5,
-    "SSR": 12,
+    "SSR": 16,
     "UR": 20,
     "LR": 28
   },
@@ -1367,7 +1367,7 @@
     "SR": 38,
     "SSR": 46
   },
-  "gradeUnlockNote": "등급이 풀에 들어오는 레벨 / 빠지는 레벨. Lv1~4 는 N·R 뿐이다 — 초반 뽑기는 전력이 아니라 캐스케이드 재료를 준다. 빠진 등급은 사라지지 않고 removedGradeHandling 대로 캐스케이드로 이관된다.",
+  "gradeUnlockNote": "등급이 풀에 들어오는 레벨 / 빠지는 레벨. Lv1~4 는 N·R 뿐이다 — 초반 뽑기는 전력이 아니라 캐스케이드 재료를 준다. 빠진 등급은 사라지지 않고 removedGradeHandling 대로 캐스케이드로 이관된다. | 2026-08-30: SSR 해금을 Lv12 → Lv16 으로 올리고 소환 레벨 계단(Lv1~20)을 늦췄다 (10→14 · 25→35). **하루 만에 SSR 이 나왔다** (단장 지적) — 옛 계단으로 Lv12 는 누적 140뽑인데, free1000 이 스테이지 진도만으로 첫날 그만큼을 준다(St1~30 에 merc 104장 + 튜토 40뽑). 이제 Lv16 = 누적 336뽑이라 첫 SSR 은 3일쯤이다. Lv20 이후 구간은 계단을 안 건드렸으므로 장기 진도는 누적 +136뽑 만큼만 밀린다.",
   "tutorialBoost": {
     "id": "tutorial_boost",
     "trigger": "튜토리얼",
