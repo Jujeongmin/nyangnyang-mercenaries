@@ -34,7 +34,12 @@ Vite `root` 가 `game/` 이다 (`vite.config.js`). **게임에 들어갈 것은 
 런타임에 `fetch` 로 읽으므로 JSON 만 고쳐 배포할 수 있다. `import` 로 바꾸면 번들에
 박혀서 그 길이 막힌다. 코드에서는 절대경로(`/assets/...` · `/data/...`)로 참조한다.
 
-## 배포 verse 고정 (새로 클론했으면 한 번 돌린다)
+## 배포 verse 고정
+
+새로 클론했으면 **`npm install` 만 하면 된다** — `prepare` 가 `tools/setup-hooks.mjs`
+를 돌려 훅 경로를 잡는다 (`core.hooksPath` 는 저장소마다의 로컬 설정이라 클론에
+딸려오지 않는다). git 이 없는 자리(에디터 컨테이너)에서는 건너뛰고 설치를 계속한다.
+손으로 잡으려면:
 
 ```bash
 git config core.hooksPath tools/githooks
@@ -46,8 +51,7 @@ git config core.hooksPath tools/githooks
 
 그래서 못박은 값을 `tools/verse.pin` 에 두고, `tools/githooks/pre-push` 가 밀기 직전에
 **미는 커밋 안의 값**과 대조해 다르면 막는다. 작업본이 아니라 커밋을 보는 이유는 실제로
-나가는 것이 커밋이라서다. 훅은 저장소에 들어있지만 `core.hooksPath` 는 클론마다 로컬
-설정이라 위 한 줄이 필요하다.
+나가는 것이 커밋이라서다.
 
 verse 를 일부러 바꿔야 하면 `.env` · `.agent8.lock` · `tools/verse.pin` 셋을 같은 값으로
 고쳐 함께 커밋한다.

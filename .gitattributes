@@ -1,2 +1,3 @@
 tools/githooks/** text eol=lf
 tools/verse.pin text eol=lf
+tools/*.mjs text eol=lf
