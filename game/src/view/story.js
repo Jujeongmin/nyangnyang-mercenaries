@@ -105,8 +105,11 @@ export class StoryViewer {
       line.textContent = this.api.t(cut.narr);
     } else if (cut.say) {
       box.className = 'say';
+      // **닉네임을 안 쓴다** (단장 지시 2026-08-30). 이야기 속 화자는 유저가
+      // 붙인 단 이름이 아니라 주인공 그 자신이다 — 자동 배정된 "날쌘펭귄73" 이
+      // 대사 앞에 붙으면 그 순간 이야기가 아니라 게임 UI 가 된다.
       who.textContent = cut.say.who === 'captain'
-        ? (this.api.state.nickname || this.api.t('단장')) : this.api.t(cut.say.who || '');
+        ? this.api.t('냥이단장') : this.api.t(cut.say.who || '');
       line.textContent = this.api.t(cut.say.ko);
     } else {
       box.className = 'none';
