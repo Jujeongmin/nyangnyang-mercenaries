@@ -679,6 +679,23 @@
     50%{transform:translateY(-5px) scaleX(var(--fx,1))}}
   #alCap.walk.flip img{--fx:-1}
   #alCap.flip img{transform:scaleX(-1)}
+  /* 연합원 — 실제 접속 중인 단원이 대표 용병 얼굴로 선다 (2026-08-30).
+     좌표는 계정 해시로 정해지고 8초마다 제자리 근처를 어슬렁거린다.
+     transition 이 그 이동을 걸음으로 보이게 한다 — 순간이동하면 유령이다 */
+  .al-vil{position:absolute;width:52px;margin-left:-26px;pointer-events:none;
+    filter:drop-shadow(0 3px 6px #0008);
+    transition:left 2.4s linear, top 2.4s linear}
+  .al-vil img{width:100%;display:block}
+  .al-vil.flip img{transform:scaleX(-1)}
+  /* 이름표. 마을이 밝아서 글자만 얹으면 안 읽힌다 — 어두운 판을 깐다 */
+  .al-vil b{display:block;font-size:9px;font-weight:800;text-align:center;
+    color:#f5ece4;background:#17120fcc;border:1px solid #ffffff1f;border-radius:6px;
+    padding:1px 3px;margin-top:-2px;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  /* 연합장은 이름표를 금색으로 — 마을에서 누가 장인지 한눈에 갈린다 */
+  .al-vil.leader b{color:var(--gold);border-color:#ffd75e55}
+  @media (prefers-reduced-motion:reduce){ .al-vil{transition:none} }
+
   .al-bot{position:absolute;width:40px;margin-left:-20px;pointer-events:none;opacity:.92}
   .al-bot img{width:100%;display:block}
   .al-bot.flip img{transform:scaleX(-1)}

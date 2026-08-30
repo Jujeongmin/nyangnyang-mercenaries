@@ -33,6 +33,7 @@ const cache = {
   topArena: null,
   myRank: null,        // { bestEntry, rank }
   giftBox: null,       // { sent:[account], inbox:[{id, from, fromNick, day}] }
+  allyVillage: null,   // 연합 마을에 세울 사람들 (프로필 붙은 단원 목록)
   chatRooms: null,     // { world, ally } 구독할 컬렉션 이름
   chatWorld: null,     // 최근 대화 (전체)
   chatAlly: null,      // 최근 대화 (연합)
@@ -150,6 +151,19 @@ export const pullAlliances = onDone => pull('alliances', () => call('allianceLis
 export const pullMyAlliance = onDone => pull('myAlliance', () => call('allianceMy'), onDone);
 export const pullBoss = onDone => pull('boss', () => call('allianceBoss'), onDone);
 export const pullBossLog = onDone => pull('bossLog', () => call('allianceBossLog'), onDone);
+/**
+ * 연합 마을의 사람들. **캐시를 안 쓴다** — 마을은 열려 있는 동안 계속 새로
+ * 받아야 하는 화면이고, pull() 의 20초 신선도에 걸리면 방금 접속한 단원이
+ * 다음 20초 동안 안 보인다. 부르는 쪽(마을 화면)이 주기를 정한다.
+ */
+export const pullAllyVillage = async () => {
+  if (!server) return null;
+  try {
+    const rows = await call('allianceVillage');
+    if (Array.isArray(rows)) cache.allyVillage = rows;
+    return cache.allyVillage;
+  } catch { return cache.allyVillage; }
+};
 export const pullFriends = onDone => pull('friends', () => call('friendList'), onDone);
 export const pullFriendReqs = onDone => pull('friendReqs', () => call('friendRequests'), onDone);
 export const pullGiftBox = onDone => pull('giftBox', () => call('friendGiftBox'), onDone);

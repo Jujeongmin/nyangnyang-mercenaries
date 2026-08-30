@@ -522,7 +522,7 @@ function renderCaptain() {
   // 프로필에서 고른 대표가 메인에도 랭킹에도 보여야 한다). 없으면 단장 초상
   const fm = S.profile?.featuredMercId;
   $('#cap').src = fm ? `/assets/char/${fm}.webp`
-    : `/assets/captain/captain_${S.promoClass || 'warrior'}.png`;
+    : `/assets/captain/captain_${S.promoClass || 'warrior'}.webp`;
   $('#cap').onerror = () => { $('#cap').onerror = null;
     $('#cap').src = '/assets/captain/captain_warrior.webp'; };
   $('#caplv').textContent = S.capLv;
@@ -4070,7 +4070,7 @@ function faceSrc(x) {
   if (has(x?.featured)) return `/assets/char/${x.featured}.webp`;
   const first = (x?.party || []).map(m => m.id || m).find(has);
   if (first) return `/assets/char/${first}.webp`;
-  return `/assets/captain/captain_${x?.capCls || 'warrior'}.png`;
+  return `/assets/captain/captain_${x?.capCls || 'warrior'}.webp`;
 }
 
 const friendAvatar = (i, px, frame) => `
@@ -4701,7 +4701,7 @@ const chatCls = m => {
  * 위임으로 받는다 (chatRedraw 마다 리스너를 다시 달지 않아도 된다).
  */
 const chatLineHtml = m => `<div class="ch-line${chatMine(m) ? ' me' : ''}">
-    <img class="ch-av" src="/assets/captain/captain_${chatCls(m)}.png"
+    <img class="ch-av" src="/assets/captain/captain_${chatCls(m)}.webp"
       alt="" data-chacc="${esc(m.account || '')}" onerror="this.remove()">
     <b>${esc(chatNick(m))}</b>
     <span>${esc(m.text || '')}</span>
@@ -5198,8 +5198,8 @@ async function playArenaMatch(foe, win, myCp) {
 
 /** 아레나 VS 컷. 보스전 것과 같은 #vs 를 쓰되 오른쪽이 상대 단장이다 */
 function showVs(foe) {
-  $('#vsBossImg').src = `/assets/captain/captain_${foe.capCls || 'warrior'}.png`;
-  $('#vsCapImg').src = `/assets/captain/captain_${S.promoClass || 'warrior'}.png`;
+  $('#vsBossImg').src = `/assets/captain/captain_${foe.capCls || 'warrior'}.webp`;
+  $('#vsCapImg').src = `/assets/captain/captain_${S.promoClass || 'warrior'}.webp`;
   const v = $('#vs');
   v.classList.remove('show'); void v.offsetWidth;
   v.classList.add('show');

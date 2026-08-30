@@ -906,6 +906,45 @@ class Server {
     return { alliance: al, me: mem, members };
   }
 
+  /**
+   * 연합 마을에 세울 사람들. **단원 행에는 얼굴 정보가 없다** — allyMembers 는
+   * 닉네임·전투력만 담는다. 마을은 각자의 **대표 용병**으로 서야 하므로
+   * (단장 지시 2026-08-30) 그 정보가 있는 profiles 를 같이 읽어 붙인다.
+   *
+   * 계정마다 한 번씩 읽는다. 정원이 30이라 최악이 30읽기인데, 단일 == 필터라
+   * 네이티브 경로로 가고(qItems 주석) 서로 독립이라 한꺼번에 던진다.
+   * profiles 를 통째로 훑는 쪽이 왕복은 한 번이지만, 유저가 늘면 그쪽이 먼저
+   * 무너진다 — 남의 행까지 500개씩 끌어오게 된다.
+   *
+   * updatedAt 을 그대로 넘긴다. **"접속 중"의 판정은 클라가 한다** — 얼마나
+   * 최근이어야 접속으로 볼지는 화면의 문제이고, 서버가 정하면 그 값을 바꿀 때마다
+   * 서버를 다시 올려야 한다.
+   */
+  async allianceVillage() {
+    const mem = await oneByAccount('allyMembers', $sender.account);
+    if (!mem) return null;
+    const members = await qItems('allyMembers', {
+      filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
+      limit: MAX_MEMBERS,
+    });
+    const rows = await Promise.all(members.map(async m => {
+      const p = await oneByAccount('profiles', m.account).catch(() => null);
+      return {
+        account: m.account,
+        role: m.role || 'member',
+        // 이름은 프로필이 먼저다 — 단원 행의 닉네임은 가입 시점에 굳은 값이라
+        // 개명이 반영되지 않는다
+        nickname: (p && String(p.nickname || '').slice(0, 15)) || m.nickname || fallbackNick(m.account),
+        capCls: (p && p.capCls) || 'warrior',
+        capTier: (p && p.capTier) || 1,
+        featured: (p && p.featured) || '',
+        cp: (p && p.cp) || m.cp || 0,
+        updatedAt: (p && p.updatedAt) || 0,
+      };
+    }));
+    return rows;
+  }
+
   async allianceCreate(name, myStage, myCp) {
     if (!name || name.length < 2 || name.length > 12) throw new Error('name');
     if ((myStage | 0) < JOIN_MIN_STAGE) return { ok: false, reason: 'stage' };

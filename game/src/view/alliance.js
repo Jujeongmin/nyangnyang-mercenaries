@@ -150,9 +150,103 @@ export class AllianceVillage {
   open() {
     this.el.classList.add('show');
     this.render();
+    this.faceMe();
     this.place(this.cap, this.capPos.x, this.capPos.y);
     this.updateCamera(true);
+    this.startVillagers();
+  }
 
+  /** 내 단장 얼굴 — 대표 용병 > 편성 첫 자리 > 직군 초상 (main.js > faceSrc) */
+  faceMe() {
+    const img = $(this.cap, 'img');
+    const src = this.api.faceOf?.(this.api.me?.());
+    if (img && src) img.src = src;
+  }
+
+  /**
+   * ── 마을에 남을 세운다 ────────────────────────────────
+   *
+   * **폴링이다.** 실시간 좌표 동기화(roomState)를 쓰면 서로의 걸음이 그대로
+   * 보이지만 서버에 방·좌표 동기화를 새로 짜야 하고 폰 부하도 는다. 마을에
+   * 필요한 것은 "지금 누가 접속해 있고 어떤 얼굴인가" 까지다 — 그건 8초마다
+   * 한 번 받으면 충분하다 (단장 확정 2026-08-30).
+   *
+   * 좌표는 **계정에서 뽑는다.** 서버가 위치를 안 들고 있으므로 매번 새로
+   * 뽑으면 받을 때마다 사람들이 순간이동한다. 계정 해시로 자리를 정하면 같은
+   * 사람은 늘 같은 자리에 있고, 그 자리 근처에서만 어슬렁거린다.
+   */
+  startVillagers() {
+    this.syncVillagers();
+    clearInterval(this.botTimer);
+    this.botTimer = setInterval(() => {
+      if (!this.el.classList.contains('show')) return;
+      this.api.pullVillagers?.();
+      this.syncVillagers();
+      this.wander();
+    }, 8000);
+    // 처음 한 번은 바로 받는다 — 8초를 기다리면 마을이 빈 채로 열린다
+    Promise.resolve(this.api.pullVillagers?.()).then(() => this.syncVillagers()).catch(() => {});
+  }
+
+  /** 계정 문자열 → 0~1 두 개. 같은 계정이면 늘 같은 자리다 */
+  seed(acc) {
+    let h = 2166136261;
+    for (let i = 0; i < acc.length; i++) { h ^= acc.charCodeAt(i); h = Math.imul(h, 16777619); }
+    const a = ((h >>> 0) % 1000) / 1000;
+    const b = ((Math.imul(h, 48271) >>> 0) % 1000) / 1000;
+    return [a, b];
+  }
+
+  /** 접속으로 볼 시간 — 프로필은 활동할 때 올라간다 (main.js > pushPublic) */
+  static get ONLINE_MS() { return 15 * 60 * 1000; }
+
+  syncVillagers() {
+    const rows = this.api.villagers?.() || [];
+    const me = this.api.myAccount?.();
+    const now = Date.now();
+    const live = rows.filter(r => r.account && r.account !== me
+      && now - (r.updatedAt || 0) < AllianceVillage.ONLINE_MS);
+
+    // 사라진 사람은 지운다
+    const keep = new Set(live.map(r => r.account));
+    this.bots = this.bots.filter(b => {
+      if (keep.has(b.account)) return true;
+      b.el.remove();
+      return false;
+    });
+
+    for (const r of live) {
+      let bot = this.bots.find(b => b.account === r.account);
+      if (!bot) {
+        const [a, b2] = this.seed(r.account);
+        // 광장 둘레에 흩는다. 건물 자리(위 16% · 좌우 끝)는 피한다
+        const home = { x: 18 + a * 64, y: 34 + b2 * 46 };
+        const el = document.createElement('div');
+        el.className = 'al-vil';
+        el.innerHTML = `<img alt="" onerror="this.remove()"><b></b>`;
+        this.world.appendChild(el);
+        bot = { account: r.account, el, home, pos: { ...home } };
+        this.bots.push(bot);
+        this.place(el, home.x, home.y);
+      }
+      // 얼굴·이름은 매번 맞춘다 — 대표 용병을 바꾸거나 개명하면 따라와야 한다
+      const img = $(bot.el, 'img'), name = $(bot.el, 'b');
+      const src = this.api.faceOf?.(r);
+      if (img && src && img.getAttribute('src') !== src) img.src = src;
+      if (name && name.textContent !== r.nickname) name.textContent = r.nickname;
+      bot.el.classList.toggle('leader', r.role === 'leader');
+    }
+  }
+
+  /** 제자리 근처를 어슬렁거린다. CSS transition 이 걸음을 대신한다 */
+  wander() {
+    for (const b of this.bots) {
+      const nx = Math.max(6, Math.min(94, b.home.x + (Math.random() - 0.5) * 14));
+      const ny = Math.max(26, Math.min(90, b.home.y + (Math.random() - 0.5) * 10));
+      b.el.classList.toggle('flip', nx < b.pos.x);
+      b.pos = { x: nx, y: ny };
+      this.place(b.el, nx, ny);
+    }
   }
 
   /**

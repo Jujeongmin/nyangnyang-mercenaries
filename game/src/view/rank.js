@@ -180,7 +180,7 @@ export class RankScreen {
         <span class="rk-ava" style="border-color:${r.frame}"${
           r.account ? ` data-rkacc="${r.account}"` : ''}>
           <img src="${r.merc ? `/assets/char/${r.merc}.webp`
-            : `/assets/captain/captain_${r.capCls || 'warrior'}.png`}" alt="">
+            : `/assets/captain/captain_${r.capCls || 'warrior'}.webp`}" alt="">
         </span>
         <span class="rk-who">
           <b>${r.name}</b>
