@@ -28,7 +28,7 @@ import { resolve, basename } from 'node:path';
 
 // 어느 에셋 폴더로 떨어뜨릴지는 ?dir= 로 받는다. 목록에 없는 폴더는 거부한다
 const ROOT = resolve(import.meta.dirname, '../game/public/assets');
-const DIRS = ['ui', 'boss', 'enemy', 'char', 'captain', 'bg', 'fx', 'skill', 'equip', 'dungeon', 'alliance', 'art', 'cur', 'ui/9s'];
+const DIRS = ['ui', 'boss', 'enemy', 'char', 'captain', 'bg', 'fx', 'skill', 'equip', 'dungeon', 'alliance', 'art', 'cur', 'story', 'ui/9s'];
 const PORT = 5199;
 
 createServer(async (req, res) => {
