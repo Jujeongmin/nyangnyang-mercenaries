@@ -10,7 +10,13 @@
 # 그래서 밀기 직전에, **미는 커밋 안의 값**이 못박은 값(tools/verse.pin)과
 # 같은지 본다. 작업본이 아니라 커밋을 보는 이유는 실제로 나가는 것이 커밋이라서다.
 #
-# 값을 일부러 바꿔야 하면 tools/verse.pin 을 새 값으로 고치고 함께 커밋한다.
+# **2026-08-30: 막지 않고 알리기만 한다.** 배포 대상은 이 파일이 아니라 배포
+# 창의 선택([Update existing game])이 정한다는 것이 드러났고, 에디터 컨테이너가
+# 배포할 때마다 락을 제 값으로 되돌리기 때문에 막으면 일이 안 된다.
+# 그래도 값이 흔들린 것은 알아야 하므로 경고는 남긴다.
+#
+# 기준값을 바꾸려면 tools/verse.pin 을 고친다 — 지금은 **서비스 중인 게임의
+# verse** 를 담는다 (컨테이너가 저장소에 써 넣는 값과 다를 수 있다).
 
 PIN_FILE="tools/verse.pin"
 [ -f "$PIN_FILE" ] || exit 0
@@ -30,7 +36,7 @@ while read -r _local_ref local_sha _remote_ref _remote_sha; do
     val=$(git show "$local_sha:$f" 2>/dev/null | sed -n 's/^VITE_AGENT8_VERSE=//p' | tr -d ' \t\r')
     [ -n "$val" ] || continue
     if [ "$val" != "$PIN" ]; then
-      echo "밀기 중단 — $f 의 verse 가 못박은 값과 다르다." >&2
+      echo "⚠ verse 가 흔들렸다 — $f 의 값이 못박은 값과 다르다." >&2
       echo "  커밋 $(git rev-parse --short "$local_sha") : $val" >&2
       echo "  $PIN_FILE          : $PIN" >&2
       fail=1
@@ -40,11 +46,16 @@ done
 
 if [ "$fail" = 1 ]; then
   echo "" >&2
-  echo "이대로 밀면 배포링크가 바뀐다." >&2
-  echo "고치는 길:" >&2
-  echo "  · 옛 값이 섞인 것이면  → 값을 $PIN 으로 되돌려 커밋한 뒤 다시 민다" >&2
-  echo "  · 새 verse 가 맞는 것이면 → $PIN_FILE 을 그 값으로 고쳐 함께 커밋한다" >&2
-  exit 1
+  echo "※ 막지는 않는다 — 배포 대상은 이 파일이 아니라 배포 창의 선택이 정한다." >&2
+  echo "  Verse8 에디터 컨테이너가 배포할 때마다 .env/.agent8.lock 을 제 값으로" >&2
+  echo "  되돌린다. 그때마다 푸시를 막으면 일이 안 되므로 알리기만 한다." >&2
+  echo "" >&2
+  echo "  ▶ 배포 창에서는 반드시 [Update existing game] 을 고른다." >&2
+  echo "    [Publish as new game] 은 락에 든 verse 로 새 게임을 만들려 하고," >&2
+  echo "    그 값이 이미 쓰이고 있으면 \"already in use\" 로 막힌다." >&2
+  echo "" >&2
+  echo "  지금 서비스 중인 게임의 verse: $PIN" >&2
+  echo "  (https://verse8.io/R7N5n3y — 유저 세이브가 여기 쌓여 있다)" >&2
 fi
 
 exit 0
