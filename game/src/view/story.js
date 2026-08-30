@@ -85,12 +85,24 @@ export class StoryViewer {
     cutEl.classList.add('in');
 
     // 컷 그림. byClass 인 컷은 **고른 직업**으로 갈린다 — 방금 누른 선택이
-    // 그대로 그림으로 돌아오는 자리다
-    const id = cut.byClass ? `${cut.art}-${this.api.captainClass?.() || 'warrior'}` : cut.art;
+    // 그대로 그림으로 돌아오는 자리다.
+    //
+    // 직업별 그림이 아직 없으면 **공용 그림으로 물러선다.** 그래서 세 장을
+    // 나중에 넣어도 데이터를 안 고쳐도 되고, 한 직업 것만 먼저 넣어도 나머지는
+    // 공용으로 뜬다. 그마저 없으면 검은 판에 글만 뜬다.
     const img = $(this.el, '#stBg');
+    const url = n => `/assets/story/${n}.webp`;
     img.classList.remove('gone');
-    img.onerror = () => img.classList.add('gone');   // 없으면 검은 판 + 글만
-    img.src = `/assets/story/${id}.webp`;
+    if (cut.byClass) {
+      img.onerror = () => {
+        img.onerror = () => img.classList.add('gone');
+        img.src = url(cut.art);
+      };
+      img.src = url(`${cut.art}-${this.api.captainClass?.() || 'warrior'}`);
+    } else {
+      img.onerror = () => img.classList.add('gone');
+      img.src = url(cut.art);
+    }
 
     // 오버레이(어둠·화이트아웃)만 레이어로 남는다. 인물은 컷 그림 안에 있다
     $(this.el, '#stLayers').innerHTML = (cut.layers || [])

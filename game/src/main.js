@@ -3513,12 +3513,18 @@ function queueStory(trigger, waited = 0) {
  * 것은 기록 보관함의 몫이다. 데이터가 없거나 뷰어가 아직 없으면 조용히
  * 넘어간다: 이야기가 없다고 게임이 멈추면 안 된다.
  */
+let storyBusy = false;
 async function playStory(id) {
   const ep = D.story?.episodes?.find(e => e.id === id);
   if (!ep || !story) return;
   S.story = S.story || { seen: [], skipped: [] };
   if (S.story.seen.includes(id) || S.story.skipped.includes(id)) return;
+  // **끝날 때까지 잠근다.** 화면이 떠 있는지만 보면 안 된다 — needs 게이트에서
+  // 웹툰이 잠깐 감춰지고 직업 선택이 뜨는데, 그 틈에 코치마크가 올라와
+  // 선택 창을 가렸다 (단장 지적 2026-08-30). 이야기는 마지막 컷까지 한 덩어리다.
+  storyBusy = true;
   try { await story.play(ep); } catch (e) { console.warn('[story] 재생 실패', e); }
+  storyBusy = false;
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
@@ -7184,9 +7190,14 @@ const TAP_TARGET = {
  */
 const ONBOARDING_UNTIL = 8;
 function maybeOnboardHint() {
-  // **이야기가 떠 있으면 안내는 기다린다.** 웹툰 위에 손과 말풍선이 겹치면
-  // 둘 다 안 읽힌다 — 순서는 이야기가 먼저다 (단장 지시 2026-08-30)
-  if ($('#story')?.classList.contains('show')) { hideCoach(); return hideTapHint(); }
+  // **이야기가 끝나기 전에는 안내가 안 뜬다.** 웹툰 위에 손과 말풍선이 겹치면
+  // 둘 다 안 읽힌다 — 순서는 이야기가 먼저다 (단장 지시 2026-08-30).
+  // 화면이 떠 있는지가 아니라 storyBusy 를 본다: 중간의 직업 선택 구간에는
+  // 웹툰이 감춰져 있어서, 화면만 보면 그 틈에 코치마크가 올라온다
+  if (storyBusy || $('#story')?.classList.contains('show')) { hideCoach(); return hideTapHint(); }
+  // 길을 고르는 동안에도 안 뜬다 — 선택 창(#ov.forced)은 유일하게 못 넘기는
+  // 판이라, 그 위에 다른 안내가 겹치면 유저가 무엇을 눌러야 할지 갈린다
+  if ($('#ov')?.classList.contains('forced')) { hideCoach(); return hideTapHint(); }
   if ((S.quest || 1) > ONBOARDING_UNTIL) { hideCoach(); return hideTapHint(); }
   // 코치마크는 손과 **같이** 뜬다. 손은 어디를, 말풍선은 왜를 말한다.
   // 단계가 없는 퀘스트에서는 예전처럼 손만 뜬다
