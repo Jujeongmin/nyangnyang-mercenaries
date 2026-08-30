@@ -3428,8 +3428,13 @@ function doPromote(cls) {
  * 선택 = 전직 경로 고정이다. 여기서 고른 직군만 훈련소를 채워 2·3차로
  * 오른다 (promote 의 "한 길만" 차단). 바꾸려면 전직 초기화 뿐이다.
  */
+let classSelectP = null;
 function openClassSelect() {
-  return new Promise(done => {
+  // **두 번 열지 않는다.** 겹쳐 부르면 뒤엣것이 버튼을 다시 그려서 **앞 약속을
+  // 풀 손이 사라진다** — 그 약속을 기다리던 쪽(웹툰의 needs 게이트)이 영영
+  // 멈춘다. 이미 열려 있으면 그 약속을 그대로 돌려준다.
+  if (classSelectP) return classSelectP;
+  classSelectP = new Promise(done => {
     $('#ovt').textContent = t('길을 선택하세요');
     setSkin('promo');
     $('#ovb').innerHTML = `<div class="cls-note">${t('단장의 길은 하나뿐입니다. 훈련소를 키우면 그 길의 끝까지 오릅니다.')}</div>`
@@ -3455,8 +3460,10 @@ function openClassSelect() {
         save(); refreshParty(); renderTop();
         $('#ov').classList.remove('show', 'forced');
         toast(`${CLASS_KO[cls]} ${t('의 길을 걷습니다')}`);
-        // 편성이 다 선 뒤에 약속을 푼다 — 부팅·초기화가 그 뒤에 runStage 한다
-        applyCaptainClass().then(done);
+        // 편성이 다 선 뒤에 약속을 푼다 — 부팅·초기화가 그 뒤에 runStage 한다.
+        // **실패해도 푼다** — 전투 장면을 못 세웠다고 기다리는 쪽이 멈추면 안 된다
+        applyCaptainClass().catch(e => console.warn('[냥냥] 직업 반영 실패', e))
+          .then(() => { classSelectP = null; done(); });
       }));
     $('#ov').classList.add('show', 'forced');
   });
@@ -3512,23 +3519,6 @@ async function playStory(id) {
   S.story = S.story || { seen: [], skipped: [] };
   if (S.story.seen.includes(id) || S.story.skipped.includes(id)) return;
   try { await story.play(ep); } catch (e) { console.warn('[story] 재생 실패', e); }
-}
-
-/**
- * 웹툰 컷에 세울 단장 그림.
- *
- * **웹툰용으로 따로 그린 스탠딩이다** (에셋 지시서 26절 `ST-CAP-<직업>-<포즈>`).
- * 처음에는 게임 스프라이트(`captain_*`)를 그대로 얹었는데, 그건 2등신 치비라
- * 컷 안에서 톤이 안 맞았다 (단장 지적 2026-08-30).
- *
- * 그림이 아직 없으면 **게임 스프라이트로 물러선다** — 그림이 들어오는 대로
- * 저절로 갈린다 (파일만 story/ 에 놓으면 된다). 그때까지 컷이 비지 않는다.
- */
-function storyCaptain(cls, pose = 'stand') {
-  return {
-    src: `/assets/story/ST-CAP-${cls}-${pose}.webp`,
-    alt: `/assets/captain/captain_${cls}.webp`,
-  };
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
@@ -7777,9 +7767,9 @@ function bootTapToStart() {
   });
   story = new StoryViewer(document.body, {
     state: S, data: D, t,
-    // 컷의 단장은 **유저가 고른 직업**이다. 방금 누른 선택이 몇 초 뒤 그림으로
-    // 돌아오는 것이 이 화의 값어치다 (story.json > EP0.triggerNote)
-    captainSrc: pose => storyCaptain(S.promoClass || 'warrior', pose),
+    // byClass 인 컷은 **유저가 고른 직업**으로 갈린다. 방금 누른 선택이 몇 초 뒤
+    // 그림으로 돌아오는 것이 이 화의 값어치다 (story.json > EP0.triggerNote)
+    captainClass: () => S.promoClass || 'warrior',
     /**
      * 컷이 요구하는 것을 채운다 (story.js > draw 의 needs).
      * 지금은 'class' 하나 — 세계관 두 컷 뒤에 길을 고르게 한다.

@@ -533,6 +533,8 @@
   #stCut{position:relative;width:100%;max-width:520px;aspect-ratio:4/3;overflow:hidden;
     background:#0b0805}
   #stBg{width:100%;height:100%;object-fit:cover;display:block}
+  /* 그림이 아직 없는 컷 — 검은 판에 글만 뜬다. 이야기가 안 깨진다 */
+  #stBg.gone{visibility:hidden}
   #stLayers{position:absolute;inset:0}
   /* 인물 — y 가 발끝이라 transform 으로 올려 앉힌다 (story.js draw) */
   .st-l{position:absolute;width:auto;filter:drop-shadow(0 6px 14px #000a)}
