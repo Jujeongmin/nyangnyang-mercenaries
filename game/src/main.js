@@ -7254,6 +7254,63 @@ function bootStep(pct, msg) {
 }
 
 /**
+ * 에셋을 **로딩에서 전부 받아 둔다** (단장 지시 2026-08-30 — "로딩이 오래 걸려도 됨").
+ *
+ * 예전에는 화면이 열릴 때 그 화면의 그림을 받았다. 그래서 상점을 처음 열면
+ * 상품 그림이 한 장씩 뒤늦게 떠올랐고, 전투에 처음 들어가면 스프라이트가
+ * 없는 채로 한 프레임이 지나갔다. 받는 시점을 전부 로딩으로 옮긴다.
+ *
+ * **브라우저 캐시만 데운다 — 디코드는 안 한다.** 61MB 를 전부 비트맵으로
+ * 풀어 들고 있으면 폰 메모리가 감당 못 하고, 그건 곧 프레임 드랍이다.
+ * 받아만 두면 실제로 쓸 때 망을 안 타고 디스크에서 바로 온다.
+ *
+ * 목록은 빌드가 구운 `assets/manifest.json` 이다 (tools/gen-asset-manifest.mjs).
+ * 목록이 없거나 받다가 실패하면 **조용히 넘어간다** — 예전처럼 그때그때 받을
+ * 뿐이고, 그림 때문에 게임이 안 열리면 안 된다.
+ */
+const PRELOAD_CONC = 6;          // 동시에 받는 수. 더 늘리면 폰에서 서로 느려진다
+const PRELOAD_CAP_MS = 240_000;  // 전체 상한. 망이 죽었을 때 로딩이 영영 안 끝나는 것만 막는다
+async function preloadAssets(onFrac) {
+  // **개발 서버에서는 건너뛴다.** vite dev 는 응답에 Cache-Control: no-store 를
+  // 달아서(vite.config.js — 프리뷰가 옛 모듈을 붙드는 것을 막느라) 미리 받아도
+  // 캐시에 안 남는다. 새로고침마다 12초를 그냥 버리는 셈이다.
+  // 손으로 확인하고 싶으면 주소에 ?preload=1 을 붙인다.
+  if (import.meta.env?.DEV && !/[?&]preload=1/.test(location.search)) {
+    console.log('[냥냥] 선로딩 건너뜀 (dev — ?preload=1 로 켠다)');
+    return;
+  }
+  let list = null;
+  try {
+    const r = await fetch('/assets/manifest.json', { cache: 'no-cache' });
+    if (r.ok) list = (await r.json()).files;
+  } catch { /* 목록이 없다 — 아래에서 건너뛴다 */ }
+  if (!Array.isArray(list) || !list.length) return;
+
+  // 바이트로 잰다. 파일 수로 재면 3KB 아이콘 200개에 막대가 확 찼다가
+  // 2MB 짜리 걷는 시트에서 한참 멈춘다
+  const total = list.reduce((n, f) => n + (f.s || 0), 0) || list.length;
+  let got = 0, stop = false;
+  const timer = setTimeout(() => { stop = true; }, PRELOAD_CAP_MS);
+
+  let next = 0;
+  const worker = async () => {
+    while (!stop && next < list.length) {
+      const f = list[next++];
+      try {
+        // **본문을 끝까지 읽어야 한다.** 응답만 받고 버리면 그 연결이 붙들려
+        // 다음 파일이 안 나간다 — 그리고 캐시에도 안 들어간다
+        const r = await fetch(f.p, { cache: 'force-cache' });
+        if (r.ok) await r.arrayBuffer();
+      } catch { /* 한 장 못 받았다고 로딩을 세우지 않는다 */ }
+      got += f.s || 1;
+      onFrac(Math.min(1, got / total));
+    }
+  };
+  await Promise.all(Array.from({ length: PRELOAD_CONC }, worker));
+  clearTimeout(timer);
+}
+
+/**
  * 언어 선택 — 첫 실행(세이브에 lang 없음)에만 로딩 끝에 뜬다.
  * 실제 번역은 아직 없다 — 지금은 선택을 저장만 하고 전부 한국어로 그린다.
  * 문구를 t() 로 감싸는 i18n 작업은 별도 결정(보류 목록) 뒤에 한다.
@@ -7499,6 +7556,15 @@ function bootTapToStart() {
   // 옛 세이브는 그대로 둔다 — 이미 받은 용병을 빼앗지 않는다.
 
   bootStep(38);
+
+  // ── 에셋을 전부 받아 둔다 ────────────────────────────────
+  // 로딩에서 가장 오래 걸리는 자리다. 그래서 막대의 가장 넓은 구간(40~78%)을
+  // 준다 — 좁게 주면 막대가 40 에서 몇 십 초 동안 안 움직여 멈춘 것으로 보인다
+  bootStep(40, t('그림과 소리를 받는 중…'));
+  await preloadAssets(frac => {
+    bootStep(40 + Math.round(frac * 38), t('그림과 소리를 받는 중… {0}%', Math.round(frac * 100)));
+  });
+
   // 효과음. **부팅을 막지 않는다** — 파일이 없어도 조용히 넘어간다 (core/sfx.js)
   initSfx(D, { volume: S.sfx ?? 0.9 });
   initBgm({ volume: S.bgm ?? 0.7, tracks: D.sound.bgm });
@@ -7782,7 +7848,7 @@ function bootTapToStart() {
     const pane = panes[panes.length - 1];
     if (pane) pane.scrollTop += e.deltaY;
   }, { passive: true });
-  bootStep(55);
+  bootStep(80);
   scene = new BattleScene($('#cv'), { data: D, onEvent });
   // 단장의 고정 피해. **1스테이지 보스를 제한시간 안에 겨우 잡는 크기**로 잡는다.
   // 절대값으로 박으면 밸런스를 고칠 때마다 이 숫자를 따로 기억해야 하므로
