@@ -2682,6 +2682,9 @@
      (예전에는 12개만 잘라서 열세 번째부터 후보에 안 떴다) */
   .pf-mercs{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
     max-height:46vh;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
+  /* 빈 안내는 한 칸이 아니라 **한 줄**이다 — 안 펴면 6칸 중 한 칸에 갇혀
+     글자가 세로로 꺾인다 (한 글자씩 내려 찍혔다) */
+  .pf-mercs .sh-note{grid-column:1/-1}
   .pf-m{aspect-ratio:1;border:2px solid var(--line);border-radius:9px;overflow:hidden;
     background:var(--card);cursor:pointer;padding:0}
   .pf-m img{width:130%;height:130%;object-fit:contain;object-position:center 25%;margin:-15%}
