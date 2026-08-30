@@ -267,6 +267,28 @@ export class BattleScene {
     fit();
   }
 
+  /**
+   * 지금 들고 있는 텍스처의 무게. **폰에서 진단 화면이 읽는다.**
+   *
+   * 파일 크기가 아니라 **푼 뒤의 크기**를 잰다 — 2.3MB 짜리 WebP 한 장이
+   * GPU 에서는 4048x504x4 = 7.8MB 다. 프레임이 떨어질 때 범인이 그리는 양인지
+   * 들고 있는 양인지를 이 숫자가 가른다.
+   */
+  texStats() {
+    let n = 0, bytes = 0;
+    for (const t of this.tex.values()) {
+      if (!t) continue;
+      n++;
+      try {
+        const src = t.source || t.baseTexture || t;
+        const w = src.pixelWidth || src.width || t.width || 0;
+        const h = src.pixelHeight || src.height || t.height || 0;
+        bytes += w * h * 4;
+      } catch { /* 못 재는 것은 센 수에만 남는다 */ }
+    }
+    return { count: n, mb: +(bytes / 1048576).toFixed(1) };
+  }
+
   /** assets/trim.json — 원화별 불투명 영역. 크기·발밑 기준이 된다. */
   async loadTrim() {
     if (this._trim) return this._trim;

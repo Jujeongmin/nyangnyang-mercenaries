@@ -120,6 +120,7 @@ const S = {
   // 웹툰 — 완독한 화 / 건너뛴 화. 어느 쪽이든 **다시 안 뜬다** (첫 시작에 한 번).
   // 둘을 가르는 이유는 나중에 완독률을 보려면 이 구분이 유일한 근거라서다
   story: { seen: [], skipped: [] },
+  perfHud: false,                          // 성능 진단 HUD (설정 > 진단에서 켠다)
   presets: { mercenary: [null, null, null], skill: [null, null, null] },
   presetSel: {},
   // 연합 코인 — 프로토타입은 로컬 보유. 서버 연동 시 net/backend.js 로 옮긴다
@@ -6997,6 +6998,77 @@ function showTapHint(sel, ms = 6000) {
 }
 
 /**
+ * ── 성능 진단 HUD ─────────────────────────────────────────
+ *
+ * **추측으로 최적화하지 않으려고 만든 자다.** 폰에서 프레임이 떨어질 때
+ * 범인이 그리는 양(해상도·fps)인지 들고 있는 양(텍스처 MB)인지를 가른다 —
+ * 폰에는 콘솔이 없어서 그 숫자를 화면에 직접 찍는 수밖에 없다.
+ *
+ * 켜는 길은 설정 > 버전 줄 다섯 번(진단) > [성능 표시] 다. 세이브에 남긴다 —
+ * 실기에서 재는 동안 새로고침이 여러 번 일어나는데 그때마다 다시 켜면
+ * 재는 사람이 지친다.
+ *
+ * **재는 값이 스스로를 느리게 만들면 안 된다.** 화면 갱신은 0.5초에 한 번,
+ * 텍스처 합산은 2초에 한 번만 돈다 (텍스처 순회는 장수만큼 든다).
+ */
+let perfRaf = 0, perfFrames = 0, perfT0 = 0, perfWorst = 0, perfLast = 0;
+let perfTexAt = 0, perfTex = { count: 0, mb: 0 }, perfDrawAt = 0;
+
+function perfHudOn() { return !!S.perfHud; }
+
+function togglePerfHud() {
+  S.perfHud = !S.perfHud;
+  save();
+  const box = $('#perfHud');
+  if (!box) return;
+  box.hidden = !S.perfHud;
+  if (S.perfHud) startPerfHud(); else if (perfRaf) { cancelAnimationFrame(perfRaf); perfRaf = 0; }
+  toast(S.perfHud ? t('성능 표시 켬') : t('성능 표시 끔'));
+}
+
+function startPerfHud() {
+  if (perfRaf) return;
+  perfT0 = perfLast = performance.now(); perfFrames = 0; perfWorst = 0;
+  const step = now => {
+    perfRaf = requestAnimationFrame(step);
+    const dt = now - perfLast; perfLast = now;
+    // 첫 프레임과 탭 복귀 직후의 큰 값은 성능이 아니다 — 버린다
+    if (dt < 500) { perfFrames++; if (dt > perfWorst) perfWorst = dt; }
+    if (now - perfDrawAt < 500) return;
+    perfDrawAt = now;
+
+    const secs = (now - perfT0) / 1000;
+    const fps = secs > 0 ? perfFrames / secs : 0;
+    // 창을 2초마다 접는다 — 안 접으면 평균이 굳어 지금 상태를 안 보여 준다
+    if (secs >= 2) { perfT0 = now; perfFrames = 0; perfWorst = 0; }
+
+    if (now - perfTexAt > 2000) { perfTexAt = now; perfTex = scene?.texStats?.() || perfTex; }
+
+    const r = scene?.app?.renderer;
+    const res = r?.resolution ?? 0;
+    const bw = Math.round((r?.width || 0) * res), bh = Math.round((r?.height || 0) * res);
+    const mem = performance.memory
+      ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+    // 나쁜 값은 색으로 먼저 읽힌다 — 숫자를 세기 전에 눈이 안다
+    const mark = (v, warn, bad) => (v >= bad ? 'i' : v >= warn ? 'b' : null);
+    const wrap = (txt, tag) => (tag ? `<${tag}>${txt}</${tag}>` : txt);
+
+    $('#perfHud').innerHTML = [
+      `fps  ${wrap(fps.toFixed(0).padStart(3), fps < 30 ? 'i' : fps < 45 ? 'b' : null)}` +
+        `  worst ${wrap(perfWorst.toFixed(0).padStart(3) + 'ms', mark(perfWorst, 40, 80))}`,
+      `res  ${res.toFixed(2)}  ${bw}x${bh}`,
+      `tex  ${String(perfTex.count).padStart(3)}장 ` +
+        `${wrap(perfTex.mb.toFixed(0) + 'MB', mark(perfTex.mb, 120, 220))}`,
+      `dom  ${document.getElementsByTagName('*').length}` +
+        (mem == null ? '' : `  heap ${wrap(mem + 'MB', mark(mem, 250, 400))}`),
+      `dpr ${devicePixelRatio}  cpu ${navigator.hardwareConcurrency || '?'}` +
+        `  ram ${navigator.deviceMemory ? navigator.deviceMemory + 'G' : '?'}`,
+    ].join('\n');
+  };
+  perfRaf = requestAnimationFrame(step);
+}
+
+/**
  * ── 코치마크 ────────────────────────────────────────────────
  *
  * 손가락만으로는 **어디를 누를지는 알지만 왜 누르는지는 모른다.**
@@ -7875,13 +7947,17 @@ function bootTapToStart() {
       // 돌 수 있고, sandbox 에 allow-popups 가 없으면 window.open 이 조용히
       // null 을 준다. 그때는 주소를 복사해 주고 직접 붙여 넣게 한다 —
       // "눌렀는데 아무 일도 없다" 로 끝나면 안 된다
+      // 성능 표시 — 진단을 연 뒤에만 보이는 버튼이다 (일반 유저에게는 숫자판이
+      // 필요 없다). 켠 상태는 세이브에 남는다 — 재는 동안 새로고침이 여러 번
+      // 일어나는데 그때마다 다시 켜면 재는 사람이 지친다
+      else if (a === 'perf') { togglePerfHud(); }
       // 접속 진단 — 설정의 버전 줄. 폰에서 콘솔을 열 수가 없어서 화면에 띄운다
       // (단장 지적 2026-08-28). 접혀 있다가 누르면 펴진다.
       else if (a === 'diag') {
         const box = $('#stDiag');
         if (!box) return;
         // 열려 있으면 한 번 눌러 닫는다
-        if (!box.hidden) { box.hidden = true; $('#stPush').hidden = true; diagTaps = 0; return; }
+        if (!box.hidden) { box.hidden = true; $('#stPush').hidden = true; $('#stPerf').hidden = true; diagTaps = 0; return; }
         // **빠르게 5번 눌러야 열린다.** 진단에는 verse 와 계정 주소가 실려 있어
         // 유저 설정 화면에 상시로 서 있으면 안 된다 (단장 지시 2026-08-28).
         // 그렇다고 지우면 폰에서 서버 상태를 물어볼 창구가 없어진다 — 이 패널이
@@ -7907,6 +7983,7 @@ function bootTapToStart() {
           })()}`,
         ];
         $('#stPush').hidden = false;
+        $('#stPerf').hidden = false;
         box.textContent = local.join('\n') + '\n서버      …';
         const when = ms => (ms ? new Date(ms).toLocaleString() : '없음');
         live.raw('serverInfo', [])
@@ -8502,6 +8579,9 @@ function bootTapToStart() {
     };
     setTimeout(retry, wait);
   }
+
+  // 성능 HUD 는 세이브를 따라 되살아난다 (설정 > 진단 > 성능 표시)
+  if (S.perfHud) { const b = $('#perfHud'); if (b) b.hidden = false; startPerfHud(); }
 
   // 프리셋 자동 저장을 연다 — 세이브 복원이 다 끝난 지금부터다. 이보다
   // 앞서 열면 복원 전의 빈 편성이 프리셋 칸을 지운다

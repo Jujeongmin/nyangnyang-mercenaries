@@ -561,6 +561,16 @@
   @keyframes stBlink{0%,100%{opacity:.35}50%{opacity:.9}}
   @media (prefers-reduced-motion:reduce){ #stCut.in{animation:none} #stNext{animation:none} }
 
+  /* 성능 HUD — 전투 위에 얹히는 작은 숫자판. 손가락을 막지 않는다 */
+  #perfHud{position:fixed;left:6px;top:calc(6px + env(safe-area-inset-top));z-index:260;
+    margin:0;padding:5px 7px;background:#000000b8;border:1px solid #ffffff2a;border-radius:7px;
+    color:#9ef7b0;font:600 9.5px/1.45 ui-monospace,Menlo,Consolas,monospace;
+    white-space:pre;pointer-events:none;letter-spacing:-.01em}
+  #perfHud[hidden]{display:none}
+  /* 값이 나쁘면 색으로 먼저 읽힌다 — 숫자를 세기 전에 눈이 안다 */
+  #perfHud b{color:#ffd75e;font-weight:800}
+  #perfHud i{color:#ff8a7a;font-style:normal;font-weight:800}
+
   /* ── 코치마크 ──
      z 200 — #ov(100)보다 위, 입력 모달(300)보다 아래. 스토리가 나중에 250 을 쓴다.
      막 자체는 pointer-events:none 이고 **판 넷만** 클릭을 먹는다. 그래서
@@ -4514,6 +4524,12 @@
 
      **#app 밖에 둔다.** 처음에 #battle 안에 뒀더니 그 판(z-index:0)이 만드는
      쌓임 맥락에 갇혀서, z 200 인데도 장비 판과 하단 네비를 못 덮었다. -->
+<!-- 성능 진단 HUD — 폰에는 콘솔이 없어서 숫자를 화면에 찍는다.
+     설정 > 버전 줄을 다섯 번 눌러 진단을 연 뒤 [성능 표시] 로 켠다.
+     **추측으로 최적화하지 않기 위한 자다** — 프레임이 떨어질 때 범인이
+     그리는 양(해상도·fps)인지 들고 있는 양(텍스처 MB)인지를 가른다. -->
+<pre id="perfHud" hidden></pre>
+
 <div id="coach" aria-hidden="true">
   <div class="cc-dim" data-d="t"></div><div class="cc-dim" data-d="b"></div>
   <div class="cc-dim" data-d="l"></div><div class="cc-dim" data-d="r"></div>
