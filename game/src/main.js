@@ -7436,6 +7436,22 @@ function bootTapToStart() {
       box.removeEventListener('pointerdown', start);
       window.removeEventListener('keydown', start);
       box.classList.add('hide');
+      // **시작 탭이 아래 버튼까지 누르던 것을 막는다** (단장 지적 2026-08-30).
+      //
+      // 시작 판정은 pointerdown 인데, 그 손가락은 곧 pointerup·click 을 잇달아
+      // 낸다. 그 사이 덮개는 이미 `.hide`(pointer-events:none)라 뒤따르는
+      // 이벤트가 **밑에 있던 버튼에 그대로 꽂혔다** — 게임에 들어오자마자
+      // 임무창이 열리거나 소환이 눌리는 일이 그것이다.
+      //
+      // 그래서 덮개가 걷히는 동안(0.4s) 창 전체에서 입력을 삼킨다. 캡처
+      // 단계라 어떤 화면 요소보다 먼저 받고, passive:false 라 touchend 도
+      // 실제로 막힌다. 시작하려고 두드린 손가락이 몇백 ms 안에 낸 입력은
+      // 어차피 유저가 의도한 조작이 아니다.
+      const EVS = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'];
+      const eat = e => { e.stopPropagation(); e.preventDefault(); };
+      const opt = { capture: true, passive: false };
+      EVS.forEach(t => window.addEventListener(t, eat, opt));
+      setTimeout(() => EVS.forEach(t => window.removeEventListener(t, eat, opt)), 450);
       setTimeout(() => box.remove(), 500);  // CSS 의 opacity .4s 가 끝난 뒤
       res();
     };
@@ -7589,6 +7605,17 @@ function bootTapToStart() {
     state: S, data: D, toast, num,
     // 건물 → 패널. 마을(fullscr z70)이 열려 있으므로 패널을 그 위로 띄운다
     openPanel: b => { $('#ov').classList.add('over-alli'); openAlliance(b); },
+    // ── 마을에 설 사람들 ──────────────────────────────────
+    // 마을이 비어 보이던 것을 메운다 (단장 지적 2026-08-30). 데모 주민을 뺀
+    // 2026-08-27 이후로 마을에는 나 혼자였다 — presence 를 안 붙였기 때문이다.
+    // 서버가 단원 목록에 프로필(대표 용병·직군)을 붙여 준다 (allianceVillage).
+    villagers: () => live.get('allyVillage') || [],
+    pullVillagers: () => live.pullAllyVillage(),
+    myAccount: () => meAcc(),
+    // 내 얼굴도 같은 규칙으로 고른다 — 마을에서만 늘 전사 초상이면
+    // 남들은 대표 용병으로 서는데 나만 딴 사람이 된다
+    faceOf: x => faceSrc(x),
+    me: () => publicProfile(),
   });
   rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp,
     // 스테이지 번호를 화면에서 쓰는 표기(일반 2-6)로 바꿔 준다
