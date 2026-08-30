@@ -1,8 +1,12 @@
 // 웹툰 뷰어 — 배경 한 장 위에 기존 캐릭터 그림을 얹어 컷을 만든다.
 //
 // **통짜 삽화를 안 그린다.** 44컷을 통짜로 그리면 44장이 필요한데, 배경 위에
-// 로스터의 `-ART`·단장 초상을 합성하면 새 그림이 배경 8장으로 끝난다.
-// 덤으로 컷이 **그 유저의 편성**을 보여 준다 — 남의 이야기가 아니게 된다.
+// 인물을 합성하면 배경 8장 + 단장 스탠딩 9장으로 끝난다.
+//
+// 인물은 **웹툰용으로 따로 그린 것**이다 (assets/story/ST-CAP-*). 처음에는
+// 게임 스프라이트를 그대로 얹었는데 2등신 치비라 컷 톤과 안 맞았다
+// (단장 지적 2026-08-30). 편성 등장(내 용병이 컷에 서는 것)도 같은 이유로 뺐다 —
+// 그림체가 한 결로 가는 쪽을 골랐다.
 //
 // 규칙 셋 (기획서 0절 — tutorial.json > antiPatterns 의 "시네마틱 오프닝 금지"와
 // 부딪히지 않으려고 못 박은 것들):
@@ -125,25 +129,20 @@ export class StoryViewer {
    * 것보다 한 명 덜 서는 편이 낫다 — 시작 편성은 비어 있는 것이 정상이다.
    */
   layerHtml(L) {
-    const one = (src, x, y, h, flip) => (!src ? '' : `<img class="st-l" src="${src}" alt=""
+    // 못 찾으면 한 단계 물러선다 — 웹툰 그림이 아직 없으면 게임 스프라이트로
+    // 버틴다. 그림이 들어오는 대로 저절로 갈린다 (파일만 놓으면 된다)
+    const one = ({ src, alt }, x, y, h, flip) => (!src ? '' : `<img class="st-l" src="${src}" alt=""
         style="left:${x * 100}%;top:${y * 100}%;height:${h * 100}%;
                transform:translate(-50%,-100%)${flip ? ' scaleX(-1)' : ''}"
-        onerror="this.remove()">`);
+        onerror="${alt ? `this.onerror=null;this.src='${alt}'` : 'this.remove()'}">`);
     const x = L.x ?? 0.5, y = L.y ?? 0.93, h = L.h ?? 0.55;
 
-    if (L.type === 'captain') return [one(this.api.captainSrc(L.tier || 1), x, y, h, L.flip)];
-    if (L.type === 'party') return [one(this.api.partySrc?.(L.slot || 0), x, y, h, L.flip)];
-    if (L.type === 'partyBest') return [one(this.api.partyBestSrc?.(), x, y, h, L.flip)];
-    if (L.type === 'skill') return [one(this.api.skillSrc?.(L.slot || 0), x, y, h, L.flip)];
-
-    // 편성 전원 — 가로로 늘어세운다. 인원이 몇이든 가운데를 기준으로 벌어진다
-    if (L.type === 'partyAll') {
-      const list = (this.api.partyAllSrc?.() || []).slice(0, L.max || 5);
-      if (!list.length) return [];
-      const gap = L.gap ?? 0.17;
-      const from = x - gap * (list.length - 1) / 2;
-      return list.map((src, i) => one(src, from + gap * i, y, h, L.flip));
-    }
+    // 단장 — 웹툰용으로 따로 그린 스탠딩이다 (에셋 지시서 26절 ST-CAP-*).
+    // 게임 스프라이트는 2등신 치비라 컷 안에서 톤이 안 맞았다 (단장 지적)
+    if (L.type === 'captain') return [one(this.api.captainSrc(L.pose || 'stand'), x, y, h, L.flip)];
+    // 조연 실루엣 — 얼굴을 그리지 않는다. 특정 용병을 그리면 그 용병을 못 뽑은
+    // 유저에게 낯선 얼굴이 되고, 로스터가 늘 때마다 다시 그려야 한다
+    if (L.type === 'sil') return [one({ src: `/assets/story/${L.id}.webp` }, x, y, h, L.flip)];
 
     // 오버레이 — 화이트아웃·어둠. 그림이 아니라 판이라 img 가 아니다
     if (L.type === 'fx') {

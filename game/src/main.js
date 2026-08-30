@@ -3515,14 +3515,20 @@ async function playStory(id) {
 }
 
 /**
- * 웹툰 컷에 세울 단장 그림. 걷는 시트가 아니라 **정지 초상**이다.
- * 이름 규칙은 전투 장면과 같다 (scene.js > captainAsset):
- *   1차   captain_<직군>        2·3차  PR-<직군>-<단계>
- * 없는 조합이면 1차로 내린다 — 승급 그림이 빠져도 컷이 비지 않는다.
+ * 웹툰 컷에 세울 단장 그림.
+ *
+ * **웹툰용으로 따로 그린 스탠딩이다** (에셋 지시서 26절 `ST-CAP-<직업>-<포즈>`).
+ * 처음에는 게임 스프라이트(`captain_*`)를 그대로 얹었는데, 그건 2등신 치비라
+ * 컷 안에서 톤이 안 맞았다 (단장 지적 2026-08-30).
+ *
+ * 그림이 아직 없으면 **게임 스프라이트로 물러선다** — 그림이 들어오는 대로
+ * 저절로 갈린다 (파일만 story/ 에 놓으면 된다). 그때까지 컷이 비지 않는다.
  */
-function captainArt(cls, tier) {
-  const id = tier > 1 ? `PR-${cls}-${tier}` : `captain_${cls}`;
-  return `/assets/captain/${id}.webp`;
+function storyCaptain(cls, pose = 'stand') {
+  return {
+    src: `/assets/story/ST-CAP-${cls}-${pose}.webp`,
+    alt: `/assets/captain/captain_${cls}.webp`,
+  };
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
@@ -7773,16 +7779,7 @@ function bootTapToStart() {
     state: S, data: D, t,
     // 컷의 단장은 **유저가 고른 직업**이다. 방금 누른 선택이 몇 초 뒤 그림으로
     // 돌아오는 것이 이 화의 값어치다 (story.json > EP0.triggerNote)
-    captainSrc: tier => captainArt(S.promoClass || 'warrior', tier),
-    // 편성 그림 — 로스터·마을·랭킹이 쓰는 그 투명 스프라이트다
-    partySrc: i => { const u = S.party?.[i]; return u ? `/assets/char/${u.id}.webp` : null; },
-    partyBestSrc: () => {
-      const best = S.party?.filter(Boolean).slice()
-        .sort((a, b) => cpOf(b) - cpOf(a))[0];
-      return best ? `/assets/char/${best.id}.webp` : null;
-    },
-    partyAllSrc: () => (S.party || []).filter(Boolean).map(u => `/assets/char/${u.id}.webp`),
-    skillSrc: i => { const k = S.skills?.active?.[i]; return k ? `/assets/skill/${k.id}.png` : null; },
+    captainSrc: pose => storyCaptain(S.promoClass || 'warrior', pose),
     /**
      * 컷이 요구하는 것을 채운다 (story.js > draw 의 needs).
      * 지금은 'class' 하나 — 세계관 두 컷 뒤에 길을 고르게 한다.
