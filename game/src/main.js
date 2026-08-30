@@ -29,6 +29,7 @@ import { questAt, questProgress, QUEST_TYPE } from './view/quest.js';
 import { TowerScreen, towerCp, towerClear } from './view/tower.js';
 import { RosterSheet } from './view/roster.js';
 import { AllianceVillage } from './view/alliance.js';
+import { StoryViewer } from './view/story.js';
 import { t, tn, loadLang, LANGS, watchDom } from './core/i18n.js';
 import { initVXShop, vxBuy, vxLive, vxPrice } from './net/vxshop.js';
 import { showRewarded, initAds, setAdSdk, AD_OK, AD_SKIPPED, AD_IDLE_DOUBLE, AD_INSTANT_CLAIM,
@@ -116,6 +117,9 @@ const S = {
   // 실객체를 넣으면 레벨업·캐스케이드 뒤 프리셋 속 사본이 낡는다
   // 프리셋은 용병·스킬이 따로다 (presetBook 참고). 옛 세이브의 배열 모양은
   // 읽는 순간 이 모양으로 옮겨진다
+  // 웹툰 — 완독한 화 / 건너뛴 화. 둘을 가르는 이유는 기록 보관함에서
+  // "안 읽은 것" 을 골라 보여 주기 위해서다 (건너뛴 화도 다시 읽을 수 있다)
+  story: { seen: [], skipped: [] },
   presets: { mercenary: [null, null, null], skill: [null, null, null] },
   presetSel: {},
   // 연합 코인 — 프로토타입은 로컬 보유. 서버 연동 시 net/backend.js 로 옮긴다
@@ -166,7 +170,7 @@ const S = {
   idle: { lastClaimAt: Date.now(), freeUsed: 0, adUsed: 0, resetAt: Date.now() },
 };
 
-let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, alli;
+let scene, reveal, shop, codex, rank, settings, mail, profile, tower, roster, alli, story;
 
 // --- CP ---
 // 전직 배수는 **그 용병의 직군**에서 온다 (goldsinks > training_camp.promotion).
@@ -3472,6 +3476,30 @@ function resetPromotion() {
   applyCaptainClass()
     .then(() => openClassSelect())
     .then(() => runStage());
+}
+
+/**
+ * 화 하나를 띄운다. **이미 본(또는 건너뛴) 화는 다시 안 뜬다** — 다시 읽는
+ * 것은 기록 보관함의 몫이다. 데이터가 없거나 뷰어가 아직 없으면 조용히
+ * 넘어간다: 이야기가 없다고 게임이 멈추면 안 된다.
+ */
+async function playStory(id) {
+  const ep = D.story?.episodes?.find(e => e.id === id);
+  if (!ep || !story) return;
+  S.story = S.story || { seen: [], skipped: [] };
+  if (S.story.seen.includes(id) || S.story.skipped.includes(id)) return;
+  try { await story.play(ep); } catch (e) { console.warn('[story] 재생 실패', e); }
+}
+
+/**
+ * 웹툰 컷에 세울 단장 그림. 걷는 시트가 아니라 **정지 초상**이다.
+ * 이름 규칙은 전투 장면과 같다 (scene.js > captainAsset):
+ *   1차   captain_<직군>        2·3차  PR-<직군>-<단계>
+ * 없는 조합이면 1차로 내린다 — 승급 그림이 빠져도 컷이 비지 않는다.
+ */
+function captainArt(cls, tier) {
+  const id = tier > 1 ? `PR-${cls}-${tier}` : `captain_${cls}`;
+  return `/assets/captain/${id}.webp`;
 }
 
 /** 단장 모습·모션을 전직 직업으로. 전투 장면을 다시 세운다 */
@@ -7715,6 +7743,19 @@ function bootTapToStart() {
     faceOf: x => faceSrc(x),
     me: () => publicProfile(),
   });
+  story = new StoryViewer(document.body, {
+    state: S, data: D, t,
+    // 컷의 단장은 **유저가 고른 직업**이다. 방금 누른 선택이 몇 초 뒤 그림으로
+    // 돌아오는 것이 이 화의 값어치다 (story.json > EP0.triggerNote)
+    captainSrc: tier => captainArt(S.promoClass || 'warrior', tier),
+    onDone: (id, r) => {
+      S.story = S.story || { seen: [], skipped: [] };
+      const bag = r.skipped ? S.story.skipped : S.story.seen;
+      if (!bag.includes(id)) bag.push(id);
+      save();
+    },
+  });
+
   rank = new RankScreen($('#app'), { state: S, data: D, cp: totalCp,
     // 스테이지 번호를 화면에서 쓰는 표기(일반 2-6)로 바꿔 준다
     stageText: n => stageLabel(n).text,
@@ -8047,6 +8088,8 @@ function bootTapToStart() {
       return out;
     },
     openAllianceGate, openAlliance, openArena, openFriends, openChat,
+    // 웹툰 — 손으로 한 화를 다시 띄워 본다 (본 화도 다시 뜨게 seen 을 비운다)
+    playStory, replayStory: id => { S.story = { seen: [], skipped: [] }; return playStory(id); },
     // 전직 경로 — 보스·아레나 중 초기화 같은 상태 전이를 콘솔에서 재현한다
     doPromote, resetPromotion, leaveSpecialModes,
     // 공개 프로필 제출 — 랜킹에 언제 반영되는지 손으로 확인하는 자리
@@ -8436,6 +8479,12 @@ function bootTapToStart() {
   setTimeout(maybeOnboardHint, 500);
   // 직업이 없으면 첫 판보다 먼저 길을 고른다 — 새 유저와 구버전 미전직
   // 세이브 모두 여기로 들어온다
-  if (!S.promoClass) await openClassSelect();
+  if (!S.promoClass) {
+    await openClassSelect();
+    // **프롤로그는 직업을 고른 직후다** (story.json > EP0.trigger). 방금 누른
+    // 선택이 세 컷 뒤 그림으로 돌아온다. 첫 판(runStage)보다 앞이지만 3컷이라
+    // 첫 90초를 건드리지 않고, 우상단 [건너뛰기]가 첫 컷부터 떠 있다.
+    await playStory('EP0');
+  }
   await runStage();
 })();

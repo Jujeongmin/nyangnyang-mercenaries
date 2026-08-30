@@ -13,6 +13,8 @@ const FILES = [
   // 효과음 큐 → 실제 파일명·들리는 길이. sound.json 은 "무엇을 언제 내는가",
   // 이 파일은 "어느 파일을 어디까지 재생하는가" 다 (core/sfx.js)
   'sfx-manifest',
+  // 웹툰 스토리 — 화별 컷·대사. 지금은 EP0 뿐이다 (view/story.js)
+  'story',
 ];
 
 // 빌드 표식 (vite.config.js > define). 테스트 등 define 이 없는 환경도 있다
