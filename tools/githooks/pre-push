@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# 배포링크가 밀 때마다 바뀌던 것을 막는다.
+#
+# 배포 주소는 `VITE_AGENT8_VERSE` 로 갈린다. 그 값은 `.env` 와 `.agent8.lock`
+# 두 곳에 있고 둘 다 저장소에 들어간다. Verse8 에디터 컨테이너가 이따금 새
+# 값을 찍어 커밋하는데(2026-08-25~26 사이만 네 번), 옛 값이 든 판을 밀면
+# 배포가 딴 주소로 나간다.
+#
+# 그래서 밀기 직전에, **미는 커밋 안의 값**이 못박은 값(tools/verse.pin)과
+# 같은지 본다. 작업본이 아니라 커밋을 보는 이유는 실제로 나가는 것이 커밋이라서다.
+#
+# 값을 일부러 바꿔야 하면 tools/verse.pin 을 새 값으로 고치고 함께 커밋한다.
+
+PIN_FILE="tools/verse.pin"
+[ -f "$PIN_FILE" ] || exit 0
+PIN=$(tr -d ' \t\r\n' < "$PIN_FILE")
+[ -n "$PIN" ] || exit 0
+
+fail=0
+
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  # 브랜치 삭제 push — 볼 것이 없다
+  case "$local_sha" in
+    *[!0]*) ;;
+    *) continue ;;
+  esac
+
+  for f in .env .agent8.lock; do
+    val=$(git show "$local_sha:$f" 2>/dev/null | sed -n 's/^VITE_AGENT8_VERSE=//p' | tr -d ' \t\r')
+    [ -n "$val" ] || continue
+    if [ "$val" != "$PIN" ]; then
+      echo "밀기 중단 — $f 의 verse 가 못박은 값과 다르다." >&2
+      echo "  커밋 $(git rev-parse --short "$local_sha") : $val" >&2
+      echo "  $PIN_FILE          : $PIN" >&2
+      fail=1
+    fi
+  done
+done
+
+if [ "$fail" = 1 ]; then
+  echo "" >&2
+  echo "이대로 밀면 배포링크가 바뀐다." >&2
+  echo "고치는 길:" >&2
+  echo "  · 옛 값이 섞인 것이면  → 값을 $PIN 으로 되돌려 커밋한 뒤 다시 민다" >&2
+  echo "  · 새 verse 가 맞는 것이면 → $PIN_FILE 을 그 값으로 고쳐 함께 커밋한다" >&2
+  exit 1
+fi
+
+exit 0

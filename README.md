@@ -34,6 +34,24 @@ Vite `root` 가 `game/` 이다 (`vite.config.js`). **게임에 들어갈 것은 
 런타임에 `fetch` 로 읽으므로 JSON 만 고쳐 배포할 수 있다. `import` 로 바꾸면 번들에
 박혀서 그 길이 막힌다. 코드에서는 절대경로(`/assets/...` · `/data/...`)로 참조한다.
 
+## 배포 verse 고정 (새로 클론했으면 한 번 돌린다)
+
+```bash
+git config core.hooksPath tools/githooks
+```
+
+배포 주소는 `VITE_AGENT8_VERSE` 로 갈린다. 그 값은 `.env` 와 `.agent8.lock` 두 곳에
+있고 둘 다 저장소에 들어간다. Verse8 에디터 컨테이너가 이따금 새 값을 찍어 커밋하는
+탓에(2026-08-25~26 사이만 네 번), 옛 값이 든 판을 밀면 **배포가 딴 주소로 나간다.**
+
+그래서 못박은 값을 `tools/verse.pin` 에 두고, `tools/githooks/pre-push` 가 밀기 직전에
+**미는 커밋 안의 값**과 대조해 다르면 막는다. 작업본이 아니라 커밋을 보는 이유는 실제로
+나가는 것이 커밋이라서다. 훅은 저장소에 들어있지만 `core.hooksPath` 는 클론마다 로컬
+설정이라 위 한 줄이 필요하다.
+
+verse 를 일부러 바꿔야 하면 `.env` · `.agent8.lock` · `tools/verse.pin` 셋을 같은 값으로
+고쳐 함께 커밋한다.
+
 ## 도구 (수정했으면 반드시 돌린다)
 
 ```bash
