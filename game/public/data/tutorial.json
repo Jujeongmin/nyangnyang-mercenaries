@@ -189,5 +189,118 @@
  "todo": [
   "각 페이즈 실제 소요 시간 실측 - 90초는 목표치이며 첫 소환 도달이 30초를 넘으면 재설계",
   "튜토리얼 완주율 측정 지표 정의 (페이즈별 이탈률)"
- ]
+ ],
+ "coachSteps": [
+  {
+   "id": "c1_forge",
+   "when": {
+    "quest": 1,
+    "phase": "start"
+   },
+   "target": "#fgObj",
+   "sayKo": "여기서 장비를 만든다.\n다섯 번만 두드려 보자.",
+   "force": true
+  },
+  {
+   "id": "c1_claim",
+   "when": {
+    "quest": 1,
+    "phase": "done"
+   },
+   "target": "#quest",
+   "sayKo": "다 했다. 보상을 받자.",
+   "force": true
+  },
+  {
+   "id": "c2_summon",
+   "when": {
+    "quest": 2,
+    "phase": "start"
+   },
+   "target": ".sh-summon .sh-pull",
+   "sayKo": "소환권 10장이 들어왔다.\n용병을 불러 보자.",
+   "force": true
+  },
+  {
+   "id": "c2_tab",
+   "when": {
+    "quest": 2,
+    "phase": "done"
+   },
+   "target": ".nv[data-tab=\"merc\"]",
+   "sayKo": "뽑은 용병은 아직 대기 중이다.",
+   "force": true
+  },
+  {
+   "id": "c2_equip",
+   "when": {
+    "quest": 2,
+    "phase": "sheetOpen"
+   },
+   "target": "#shEqBtn",
+   "sayKo": "[자동장착] 을 누르면\n제일 센 다섯이 앞에 선다.",
+   "force": true
+  },
+  {
+   "id": "c3_summon",
+   "when": {
+    "quest": 3,
+    "phase": "start"
+   },
+   "target": ".sh-summon .sh-pull",
+   "sayKo": "스킬은 용병단 전체에 걸린다.",
+   "force": false
+  },
+  {
+   "id": "c3_equip",
+   "when": {
+    "quest": 3,
+    "phase": "sheetOpen"
+   },
+   "target": "#shEqBtn",
+   "sayKo": "스킬도 장착해야 붙는다.",
+   "force": true
+  },
+  {
+   "id": "c4_idle",
+   "when": {
+    "quest": 4,
+    "phase": "start"
+   },
+   "target": "#quest",
+   "sayKo": "눌러 둘 것 없다.\n알아서 싸운다.",
+   "force": false
+  },
+  {
+   "id": "c6_forge_lv",
+   "when": {
+    "quest": 6,
+    "phase": "start"
+   },
+   "target": "#fgLv",
+   "sayKo": "레벨을 올리면\n더 좋은 등급이 열린다.",
+   "force": false
+  },
+  {
+   "id": "c7_dungeon",
+   "when": {
+    "quest": 7,
+    "phase": "start"
+   },
+   "target": ".nv[data-tab=\"dungeon\"]",
+   "sayKo": "층을 뚫을수록\n매일 받는 양이 는다.",
+   "force": false
+  },
+  {
+   "id": "c8_training",
+   "when": {
+    "quest": 8,
+    "phase": "start"
+   },
+   "target": "#tcUp",
+   "sayKo": "골드는 여기서 전투력이 된다.",
+   "force": false
+  }
+ ],
+ "coachStepsNote": "단계를 코드가 아니라 데이터로 둔다 — 문구를 코드에 박으면 번역과 밸런스 조정이 서로 발목을 잡는다. when 은 함수가 아니라 선언이고 main.js 가 해석한다 (coachPick). phase: start(목표 미달) · done(목표 달성) · sheetOpen(편성 시트 열림). force 는 화이트리스트로만 켠다 — 전부 강제하면 유저가 화면을 못 만진다. Q1~Q3 의 핵심 조작(제작·자동장착)만 true 다. sayKo 는 2줄 이내 (uiTechniques.textBubble) — 3줄이면 그건 툴팁이지 코치마크가 아니다. 기획: docs/superpowers/specs/2026-08-28-story-webtoon-and-coach-tutorial.md 6절"
 }

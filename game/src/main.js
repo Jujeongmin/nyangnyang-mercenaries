@@ -6943,6 +6943,100 @@ function showTapHint(sel, ms = 6000) {
   if (ms > 0) tapHintT = setTimeout(hideTapHint, ms);
 }
 
+/**
+ * ── 코치마크 ────────────────────────────────────────────────
+ *
+ * 손가락만으로는 **어디를 누를지는 알지만 왜 누르는지는 모른다.**
+ * tutorial.json > uiTechniques 가 highlight·textBubble·forceTouch 셋을
+ * 약속해 놓고 구현이 없었다. 어두운 막에 구멍을 뚫고 말풍선을 붙인다.
+ *
+ * 단계는 데이터다 (tutorial.json > coachSteps). 문구를 코드에 박으면 번역과
+ * 밸런스 조정이 서로 발목을 잡는다.
+ */
+let coachEl = null, coachStep = null, coachTarget = null, coachRaf = 0;
+const coachNode = () => (coachEl ||= $('#coach'));
+
+/** 지금 국면 — 단계의 when.phase 와 맞춘다 */
+function coachPhase(def) {
+  if ($('#sheet')?.classList.contains('show')) return 'sheetOpen';
+  return qProgress(def) >= def.target ? 'done' : 'start';
+}
+
+/** 지금 띄울 단계 하나. 없으면 null */
+function coachPick() {
+  const steps = D.tutorial?.coachSteps;
+  if (!Array.isArray(steps)) return null;
+  const def = questAt(D, S.quest);
+  const phase = coachPhase(def);
+  return steps.find(st => st.when?.quest === S.quest
+    && (!st.when.phase || st.when.phase === phase)) || null;
+}
+
+/**
+ * 막·링·말풍선을 목표 사각형에 맞춘다.
+ *
+ * **매 프레임 다시 재지 않는다.** 대신 자리가 실제로 바뀌는 신호(리사이즈·
+ * 스크롤·트랜지션 끝)에만 다시 잰다 — 시트가 올라오는 0.24초 동안은 자리가
+ * 계속 움직이므로 그 끝을 기다린다.
+ */
+function coachPlace() {
+  const box = coachNode();
+  if (!box || !coachTarget) return;
+  const r = coachTarget.getBoundingClientRect();
+  // 목표가 사라졌거나 아직 자리를 못 잡았다 — 다음 신호를 기다린다
+  if (!r.width || !r.height) return hideCoach();
+  const PAD = 6;
+  const x = r.left - PAD, y = r.top - PAD, w = r.width + PAD * 2, h = r.height + PAD * 2;
+  const W = innerWidth, H = innerHeight;
+  const set = (el, css) => Object.assign(el.style, css);
+  const dim = d => box.querySelector(`.cc-dim[data-d="${d}"]`);
+  set(dim('t'), { left: '0px', top: '0px', width: W + 'px', height: Math.max(0, y) + 'px' });
+  set(dim('b'), { left: '0px', top: (y + h) + 'px', width: W + 'px', height: Math.max(0, H - y - h) + 'px' });
+  set(dim('l'), { left: '0px', top: y + 'px', width: Math.max(0, x) + 'px', height: h + 'px' });
+  set(dim('r'), { left: (x + w) + 'px', top: y + 'px', width: Math.max(0, W - x - w) + 'px', height: h + 'px' });
+  set(box.querySelector('.cc-ring'), { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+
+  // 말풍선은 **목표를 안 가리는 쪽**에 붙는다. 목표가 화면 위쪽이면 아래에,
+  // 아래쪽이면 위에 — 가리면 무엇을 누르라는 안내인지가 사라진다
+  const say = box.querySelector('.cc-say');
+  const below = r.top < H * 0.5;
+  say.classList.toggle('below', below);
+  say.classList.toggle('above', !below);
+  say.style.left = '0px'; say.style.top = '0px';       // 폭을 먼저 재게 한다
+  const sw = say.offsetWidth, sh = say.offsetHeight;
+  const cx = Math.min(W - sw / 2 - 8, Math.max(sw / 2 + 8, r.left + r.width / 2));
+  say.style.left = Math.round(cx - sw / 2) + 'px';
+  say.style.top = Math.round(below ? y + h + 14 : y - sh - 14) + 'px';
+}
+
+function showCoach(step) {
+  const box = coachNode();
+  const el = $(step.target);
+  if (!box || !el) return hideCoach();
+  // 덮개 뒤에 숨은 목표는 가리켜 봐야 안 보인다 (showTapHint 와 같은 판정)
+  if (coverOpen(el)) return hideCoach();
+  if (!el.getBoundingClientRect().width) return hideCoach();
+  coachStep = step; coachTarget = el;
+  box.querySelector('.cc-say').textContent = t(step.sayKo);
+  box.classList.toggle('force', !!step.force);
+  box.classList.add('show');
+  coachPlace();
+  // 목표를 누르면 역할이 끝났다 — 다음 렌더가 다음 단계를 고른다
+  el.addEventListener('click', () => hideCoach(), { once: true });
+  if (!coachRaf) {
+    coachRaf = 1;
+    addEventListener('resize', coachPlace);
+    addEventListener('scroll', coachPlace, true);
+    addEventListener('transitionend', coachPlace, true);
+  }
+}
+
+function hideCoach() {
+  const box = coachNode();
+  coachStep = null; coachTarget = null;
+  if (box) { box.classList.remove('show', 'force'); }
+}
+
 function hideTapHint() {
   clearTimeout(tapHintT);
   tapHintSel = null;
@@ -7043,7 +7137,11 @@ const TAP_TARGET = {
  */
 const ONBOARDING_UNTIL = 8;
 function maybeOnboardHint() {
-  if ((S.quest || 1) > ONBOARDING_UNTIL) return hideTapHint();
+  if ((S.quest || 1) > ONBOARDING_UNTIL) { hideCoach(); return hideTapHint(); }
+  // 코치마크는 손과 **같이** 뜬다. 손은 어디를, 말풍선은 왜를 말한다.
+  // 단계가 없는 퀘스트에서는 예전처럼 손만 뜬다
+  const st = coachPick();
+  if (st) showCoach(st); else hideCoach();
   const def = questAt(D, S.quest);
   // **다 채웠으면 목표가 아니라 퀘스트 배너를 가리킨다.** 예전에는 목표만 봐서,
   // Q1 을 다 깨고 나서도 손이 모루 위에서 계속 두드렸다 — 그 시점에 눌러야 할
