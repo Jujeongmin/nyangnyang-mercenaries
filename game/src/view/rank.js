@@ -200,7 +200,7 @@ export class RankScreen {
         <span class="rk-n">${myRank ?? '—'}</span>
         <span class="rk-ava" style="border-color:${myFrame?.color || '#9E9E9E'}">
           <img src="${myMerc ? `/assets/char/${myMerc}.webp`
-                             : '/assets/captain/captain_warrior.png'}" alt="">
+                             : '/assets/captain/captain_warrior.webp'}" alt="">
         </span>
         <span class="rk-who">
           <b>${S.nickname || t('단장')}</b>

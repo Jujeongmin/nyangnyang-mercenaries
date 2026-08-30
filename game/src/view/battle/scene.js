@@ -249,6 +249,9 @@ export class BattleScene {
     });
     app.renderer.on('resize', () => this.layout());
 
+    // 폰이면 실제 프레임을 재고, 못 따라가면 해상도를 한 단계 내린다
+    if (MOBILE) this.watchFps();
+
     // 창 resize 이벤트만 믿으면 안 된다. 탭이 숨어 있거나 모바일 주소창이
     // 접혔다 펴질 때 이벤트가 안 오거나 CSS 반영 전에 와서 백버퍼가 어긋난다.
     // 그러면 캔버스가 실제 박스보다 커진 채 남아 화면이 잘려 보인다.
@@ -475,8 +478,10 @@ export class BattleScene {
         const wingAsset = this.captainWing === 'wing_launch'
           ? 'EV-WING1'
           : `EV-${this.captainWing.toUpperCase()}`;
-        const wtex = await this.load(`/assets/captain/${wingAsset}.png`)
-          .catch(() => null);
+        // loadSprite 로 부른다 — .webp 를 먼저 보고 없으면 .png 다. 직접
+        // `.png` 를 박아 두면 WebP 로 구운 뒤 날개만 404 가 된다 (2026-08-30)
+        const wtex = (await this.loadSprite(`/assets/captain/${wingAsset}`)
+          .catch(() => ({ tex: null }))).tex;
         if (wtex) {
           const w = new (PIXI().Sprite)(wtex);
           // 어깨에서 나오는 크기·높이. 1.25배는 몸을 삼켜서 "따로 붙인" 느낌이었다
@@ -715,6 +720,55 @@ export class BattleScene {
     // 화면 자체를 안 그린다. 덮개가 어차피 캔버스를 가리므로 GPU 는 클리어만
     // 하게 두는 것이 배터리에 최선이다. 시뮬(tick)은 stage 가림과 무관하게 돈다
     this.app.stage.visible = !on;
+  }
+
+  /**
+   * **폰에서 프레임을 재고, 못 따라가면 해상도를 내린다.**
+   *
+   * 폰마다 성능이 열 배씩 차이 나는데 해상도는 한 값으로 박혀 있었다 —
+   * 1.5 는 좋은 폰에는 낮고 싼 폰에는 여전히 높다. 어느 쪽이 맞는지는
+   * **그 기기에서 재 봐야만 안다.** 그래서 추측 대신 잰다.
+   *
+   * 재는 자리는 전투가 실제로 도는 첫 3초다. 그 구간의 평균이 45fps 밑이면
+   * resolution 을 1.0 으로 내린다 — 칠할 픽셀이 56% 로 줄어든다 (1.5² → 1²).
+   * 한 번만 내리고 끝낸다: 오르내리기를 반복하면 해상도가 춤춘다.
+   *
+   * 세이브에 남기지 않는다. 같은 기기라도 배터리·발열·다른 앱에 따라 달라지고,
+   * 무엇보다 한 번 낮게 재였다고 그 기기가 영영 낮은 것으로 굳으면 안 된다.
+   */
+  watchFps() {
+    if (this._fpsWatched) return;
+    this._fpsWatched = true;
+    let frames = 0, t0 = 0;
+    const tick = () => {
+      // 안 재는 자리들. 여기서 잰 값은 성능이 아니라 딴 것을 재는 것이다:
+      //   · 절전 — maxFPS 가 10 으로 묶여 있다
+      //   · 탭이 뒤에 있음 — 브라우저가 rAF 를 초당 1회까지 눌러 0fps 로 읽힌다.
+      //     이걸 성능으로 읽으면 **뒤에서 뜬 게임이 영영 낮은 해상도로 굳는다**
+      //   · 일시정지 — 전투가 안 돌면 잴 부하가 없다
+      if (this.app.ticker.maxFPS === 10 || document.hidden || this.paused) {
+        t0 = 0; frames = 0; return;
+      }
+      const now = performance.now();
+      if (!t0) { t0 = now; frames = 0; return; }
+      frames++;
+      if (now - t0 < 3000) return;
+      const fps = frames / ((now - t0) / 1000);
+      // **15fps 밑은 성능이 아니라 딴 것을 잰 값이다.** 창이 뒤에 있거나 포커스를
+      // 잃으면 브라우저가 rAF 를 초당 몇 회까지 누른다 — 실제로 2fps 로 재였다.
+      // 아무리 느린 폰도 이 게임을 15fps 밑으로 그리지는 않는다. 다시 잰다.
+      if (fps < 15) { t0 = 0; frames = 0; return; }
+      this.app.ticker.remove(tick);
+      if (fps < 45 && this.app.renderer.resolution > 1) {
+        console.log(`[scene] ${fps.toFixed(0)}fps — 해상도를 1.0 으로 내린다`);
+        this.app.renderer.resolution = 1;
+        // 해상도를 바꾸면 백버퍼 크기가 달라진다. 같은 크기로 다시 잡아 줘야
+        // 캔버스가 늘어난 채로 남지 않는다
+        this.app.renderer.resize(this.app.renderer.width, this.app.renderer.height);
+        this.layout();
+      }
+    };
+    this.app.ticker.add(tick);
   }
 
   tick(rawMs) {

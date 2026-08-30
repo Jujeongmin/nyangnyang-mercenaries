@@ -524,7 +524,7 @@ function renderCaptain() {
   $('#cap').src = fm ? `/assets/char/${fm}.webp`
     : `/assets/captain/captain_${S.promoClass || 'warrior'}.png`;
   $('#cap').onerror = () => { $('#cap').onerror = null;
-    $('#cap').src = '/assets/captain/captain_warrior.png'; };
+    $('#cap').src = '/assets/captain/captain_warrior.webp'; };
   $('#caplv').textContent = S.capLv;
   renderMailDot();
   const need = capNeed(S.capLv);
@@ -1471,7 +1471,7 @@ function renderEquip() {
       d.className = 'slot wing-on fre-3';
       d.style.setProperty('--au', t10.color);
       d.style.setProperty('--aw', '1');
-      d.innerHTML = `<img src="/assets/captain/EV-WING1.png" alt=""
+      d.innerHTML = `<img src="/assets/captain/EV-WING1.webp" alt=""
           onerror="this.remove()"><b style="color:${t10.color}">${nm}</b>`;
       d.title = '축제의 날개 — 장착 중';
       d.addEventListener('click', () => {
@@ -2834,7 +2834,7 @@ function openPrizeInfo(i) {
   const got = r.title ? S.profile.ownedTitles.includes(r.title)
     : r.profile_frame ? (S.profile.ownedFrames || []).includes(r.profile_frame)
     : S.cosmetics.owned.includes(r.cosmetic);
-  const img = r.cosmetic ? '/assets/captain/EV-WING1.png'
+  const img = r.cosmetic ? '/assets/captain/EV-WING1.webp'
     : r.profile_frame ? '/assets/ui/PF-S1.png' : '/assets/ui/IC-QUEST.png';
   const ttl = $('#smTitle'); if (ttl) ttl.textContent = t('한정 상품');
   $('#smBody').innerHTML = `
@@ -2979,7 +2979,7 @@ function renderDiceBoard() {
         onerror="this.replaceWith('🎲')"></i><b>+1</b>`;
     } else if (c.type === 'wing') {
       // 날개 얼리 잭팟 — 확률은 공시 의무 대상이라 칸에 바로 적는다
-      inner = `<i><img src="/assets/captain/EV-WING1.png" alt="🪽"
+      inner = `<i><img src="/assets/captain/EV-WING1.webp" alt="🪽"
         onerror="this.replaceWith('🪽')"></i><b>${(c.chance * 100).toFixed(1)}%</b>`;
     } else {
       inner = `<b>${t('출발')}</b>`;
@@ -2988,7 +2988,7 @@ function renderDiceBoard() {
         corner ? ' corner' : ''}${c.jackpot ? ' jackpot' : ''}"
         style="grid-row:${r + 1};grid-column:${col + 1}">
       ${inner}
-      ${here ? `<img class="dc-tok" src="/assets/captain/captain_face_normal.png" alt=""
+      ${here ? `<img class="dc-tok" src="/assets/captain/captain_face_normal.webp" alt=""
         onerror="this.remove()">` : ''}
     </div>`;
   }).join('');
@@ -3430,7 +3430,7 @@ function openClassSelect() {
       + ['warrior', 'archer', 'mage'].map(c => {
         const sk = csDef().skills[c];
         return `<button class="cls-card" data-cls="${c}">
-          <img src="/assets/captain/captain_${c}.png" alt="">
+          <img src="/assets/captain/captain_${c}.webp" alt="">
           <b>${CLASS_KO[c]}</b>
           <span>${t(sk.nameKo)}</span>
           <i>${sk.descKo.replace('{v}', (sk.perLevel * 100).toFixed(1).replace(/.0$/, '') + '%')} /${t('레벨')}</i>
@@ -3519,8 +3519,8 @@ const PROMO_COL = { 1: '#b09a7e', 2: '#5ad8ff', 3: '#ffc94a' };
 
 /** 단계별 전용 그림(PR-cls-t). 아직 없으면 직군 기본 그림으로 떨어진다 */
 const promoImg = (cls, tier) =>
-  `<img src="/assets/captain/PR-${cls}-${tier}.png" alt=""
-    onerror="this.onerror=null;this.src='/assets/captain/${CLASS_IMG[cls]}.png'">`;
+  `<img src="/assets/captain/PR-${cls}-${tier}.webp" alt=""
+    onerror="this.onerror=null;this.src='/assets/captain/${CLASS_IMG[cls]}.webp'">`;
 
 /**
  * 전직 — 직군 카드 3장 + **단계 여정**. 지금 모습만 보여 주면 "다음이 있다"가
@@ -4075,7 +4075,7 @@ function faceSrc(x) {
 
 const friendAvatar = (i, px, frame) => `
   <span class="fr-av" style="width:${px}px;height:${px}px">
-    <img class="fr-face" src="/assets/captain/captain_face_${FR_FACES[i % 4]}.png" alt="">
+    <img class="fr-face" src="/assets/captain/captain_face_${FR_FACES[i % 4]}.webp" alt="">
     <img class="fr-ring" src="/assets/ui/PFRAME-0${((frame ?? i) % 4) + 1}.png" alt=""
       onerror="this.remove()">
   </span>`;
@@ -4317,7 +4317,7 @@ function openFriendRequests() {
   const row = (x, i, kind) => `<div class="frow fr-row" style="padding:7px 9px;margin-bottom:5px">
       <span class="fr-av" style="width:40px;height:40px">
         <img class="fr-face" src="${faceSrc(x)}" alt=""
-          onerror="this.src='/assets/captain/captain_warrior.png'">
+          onerror="this.src='/assets/captain/captain_warrior.webp'">
         <img class="fr-ring" src="/assets/ui/PFRAME-0${((x.frame ?? i) % 4) + 1}.png" alt=""
           onerror="this.remove()"></span>
       <span style="flex:1;min-width:0"><b style="font-size:12px">${x.name}</b>
@@ -4848,7 +4848,7 @@ async function openChatProfile(account) {
   const asked = (f.req || []).includes(account);
   $('#smBody').innerHTML = `
     <div class="af-hero">
-      <img src="/assets/captain/captain_${cls}.png" alt="" onerror="this.remove()">
+      <img src="/assets/captain/captain_${cls}.webp" alt="" onerror="this.remove()">
       <div>
         <b>${esc(nick)}</b>
         <span>${CLASS_KO[cls]} ${t('단장')}${x ? ` · ${t('전투력')} ${num(x.cp || 0)}` : ''}</span>
@@ -5425,7 +5425,7 @@ function openFoeInfo(i) {
   const ttl = $('#smTitle'); if (ttl) ttl.textContent = f.name;
   $('#smBody').innerHTML = `
     <div class="af-hero">
-      <img src="/assets/captain/captain_${f.capCls}.png" alt="" onerror="this.remove()">
+      <img src="/assets/captain/captain_${f.capCls}.webp" alt="" onerror="this.remove()">
       <div>
         <b>${f.name}</b>
         <span>${CLASS_KO[f.capCls]} ${t('단장')} · ${t('전투력')} ${num(f.cp)}</span>
@@ -5767,7 +5767,7 @@ function openAlliance(tab = 'home') {
     const real = allyMembers();
     const list = real
       ? real.map(m => `<div class="al-mem${m.account === live.get('myAlliance')?.me?.account ? ' me' : ''}">
-         <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
+         <span class="rk-ava"><img src="/assets/captain/captain_warrior.webp" alt=""></span>
          <span class="al-mem-t"><b>${m.account === live.get('myAlliance')?.me?.account
            ? (S.nickname || '나')
            : (m.nickname || shortAcc(m.account))}</b>
@@ -5775,7 +5775,7 @@ function openAlliance(tab = 'home') {
          <span class="al-mem-c">${coin}${num(m.coin || 0)}</span></div>`).join('')
       // 서버가 없을 때. 화면 문법만 세워 두는 데모 주민이다
       : `<div class="al-mem me">
-         <span class="rk-ava"><img src="/assets/captain/captain_warrior.png" alt=""></span>
+         <span class="rk-ava"><img src="/assets/captain/captain_warrior.webp" alt=""></span>
          <span class="al-mem-t"><b>${S.nickname || '나'}</b><i>단장</i></span>
          <span class="al-mem-c">${coin}${num(S.allyCoin || 0)}</span>
          <span class="al-on">접속 중</span></div>`
@@ -6861,7 +6861,7 @@ async function challengeBoss() {
   const id = scene.bossAssetId();
   const b = D.stages.bosses.find(x => x.stage === S.stage);
   $('#vsBossImg').src = `/assets/boss/${id}.webp`;
-  $('#vsCapImg').src = '/assets/captain/captain_warrior.png';
+  $('#vsCapImg').src = '/assets/captain/captain_warrior.webp';
   // 보스 이름은 안 띄운다. 그림과 체력바로 충분하다.
   $('#bossGo').classList.remove('show');
 
@@ -7534,7 +7534,7 @@ function bootTapToStart() {
   watchDom();     // 외국어면 이후 붙는 모든 화면 글자를 사전으로 치환한다 (ko 는 no-op)
   fitBootTitle(); // watchDom 이 방금 간판 글자를 번역했다 — 넘치면 여기서 줄인다
   await loadData('/data');
-  $('#cap').src = '/assets/captain/captain_warrior.png';
+  $('#cap').src = '/assets/captain/captain_warrior.webp';
 
   // load() 는 위(언어 선택 앞)에서 이미 했다. 아래는 읽은 값의 유효성 검사다.
   // 배속 오염 방어. NaN 이 JSON 을 거치면 null 이 되고, 그대로 scene.speed 에

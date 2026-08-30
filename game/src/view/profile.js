@@ -137,7 +137,7 @@ export class ProfileScreen {
         <div class="pf-ava pfr-${frame.tier || 1}" title="${frame.nameKo}"
           ${frame.asset ? `style="--pfr-img:url(/assets/ui/${frame.asset}.png)"` : ''}>
           ${fc ? `<img src="/assets/char/${fc.id}.webp" alt="">`
-               : `<img src="/assets/captain/captain_warrior.png" alt="">`}
+               : `<img src="/assets/captain/captain_warrior.webp" alt="">`}
         </div>
         <div class="pf-nick">
           <b>${S.nickname || '단장'}</b>

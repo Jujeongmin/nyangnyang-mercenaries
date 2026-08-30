@@ -48,7 +48,7 @@ export class AllianceVillage {
         <div class="al-bd" data-b="member" style="left:86%;top:41%">
           <img src="/assets/alliance/AL-04.png" alt="" onerror="this.remove()">
           <b>게시판</b></div>
-        <div id="alCap"><img src="/assets/captain/captain_warrior.png" alt=""></div>
+        <div id="alCap"><img src="/assets/captain/captain_warrior.webp" alt=""></div>
         </div>
         <!-- 데모 주민은 뺐다 (단장 지시 2026-08-27) — 마을에는 실제 단장만 선다.
              접속 연합원 산책은 서버 presence 가 붙을 때 실제 데이터로 넣는다 -->

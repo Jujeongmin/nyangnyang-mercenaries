@@ -12,7 +12,7 @@ const $ = s => document.querySelector(s);
 
 // 무기 종류별로 한 명씩 세운다
 const ALLIES = [
-  { src: '/assets/captain/captain_warrior.png', motion: 'slash', label: '전사 · 베기', size: 150 },
+  { src: '/assets/captain/captain_warrior.webp', motion: 'slash', label: '전사 · 베기', size: 150 },
   { src: '/assets/char/SR-06.webp', motion: 'draw', label: '궁수 · 활', size: 146 },
   { src: '/assets/char/SR-05.webp', motion: 'cast', label: '마법사 · 지팡이', size: 150 },
 ];
