@@ -1,0 +1,2 @@
+tools/githooks/** text eol=lf
+tools/verse.pin text eol=lf
