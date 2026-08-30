@@ -536,6 +536,8 @@
   #stLayers{position:absolute;inset:0}
   /* 인물 — y 가 발끝이라 transform 으로 올려 앉힌다 (story.js draw) */
   .st-l{position:absolute;width:auto;filter:drop-shadow(0 6px 14px #000a)}
+  /* 오버레이 — 화이트아웃·어둠. 컷 전체를 덮는다 (레이어 순서대로 쌓인다) */
+  .st-fx{position:absolute;inset:0;display:block}
   /* 아래에서 밀려 올라오는 읽기 방향 */
   #stCut.in{animation:stIn .34s cubic-bezier(.2,.9,.3,1)}
   @keyframes stIn{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}

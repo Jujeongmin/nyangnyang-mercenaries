@@ -902,6 +902,8 @@ function claimQuest() {
   // 퀘스트 5 를 넘기면 2배속이 열린다 (quests.json > speedUnlockQuests)
   syncSpeedBtns();
   renderNavLocks();
+  // 마일스톤 웹툰 — 방금 넘긴 퀘스트 번호로 찾는다 (story.json > trigger)
+  queueStory({ type: 'questClaimed', quest: S.quest - 1 });
   // 퀘스트는 **아무 팝업도 안 띄운다.** 보상이 배너에 이미 아이콘+개수로 떠 있고
   // 수령하면 그 자리가 다음 퀘스트로 바뀐다 — 그게 곧 "받았다"는 신호다.
   // 상단 획득 배너까지 띄우면 화면 중앙이 매 퀘스트마다 가려진다
@@ -3476,6 +3478,27 @@ function resetPromotion() {
   applyCaptainClass()
     .then(() => openClassSelect())
     .then(() => runStage());
+}
+
+/**
+ * 트리거에 걸린 화를 **띄울 수 있을 때** 띄운다.
+ *
+ * 트리거 순간에 다른 판(소환 연출·보스 결과)이 떠 있을 수 있다. 그때 바로
+ * 띄우면 겹친다 — 판이 닫힐 때까지 기다렸다 띄운다. 영영 안 닫히는 경우를
+ * 대비해 상한을 둔다: 못 띄우면 그 화는 그냥 넘어간다 (기록에서 읽으면 된다).
+ */
+function queueStory(trigger, waited = 0) {
+  const ep = D.story?.episodes?.find(e =>
+    e.trigger?.type === trigger.type && (e.trigger.quest ?? trigger.quest) === trigger.quest);
+  if (!ep) return;
+  if (S.story?.seen?.includes(ep.id) || S.story?.skipped?.includes(ep.id)) return;
+  const busy = $('#ov')?.classList.contains('show') || $('#sheet')?.classList.contains('show')
+    || $('#story')?.classList.contains('show');
+  if (busy) {
+    if (waited > 30_000) return;
+    return void setTimeout(() => queueStory(trigger, waited + 600), 600);
+  }
+  playStory(ep.id);
 }
 
 /**
@@ -7165,6 +7188,9 @@ const TAP_TARGET = {
  */
 const ONBOARDING_UNTIL = 8;
 function maybeOnboardHint() {
+  // **이야기가 떠 있으면 안내는 기다린다.** 웹툰 위에 손과 말풍선이 겹치면
+  // 둘 다 안 읽힌다 — 순서는 이야기가 먼저다 (단장 지시 2026-08-30)
+  if ($('#story')?.classList.contains('show')) { hideCoach(); return hideTapHint(); }
   if ((S.quest || 1) > ONBOARDING_UNTIL) { hideCoach(); return hideTapHint(); }
   // 코치마크는 손과 **같이** 뜬다. 손은 어디를, 말풍선은 왜를 말한다.
   // 단계가 없는 퀘스트에서는 예전처럼 손만 뜬다
@@ -7748,6 +7774,20 @@ function bootTapToStart() {
     // 컷의 단장은 **유저가 고른 직업**이다. 방금 누른 선택이 몇 초 뒤 그림으로
     // 돌아오는 것이 이 화의 값어치다 (story.json > EP0.triggerNote)
     captainSrc: tier => captainArt(S.promoClass || 'warrior', tier),
+    // 편성 그림 — 로스터·마을·랭킹이 쓰는 그 투명 스프라이트다
+    partySrc: i => { const u = S.party?.[i]; return u ? `/assets/char/${u.id}.webp` : null; },
+    partyBestSrc: () => {
+      const best = S.party?.filter(Boolean).slice()
+        .sort((a, b) => cpOf(b) - cpOf(a))[0];
+      return best ? `/assets/char/${best.id}.webp` : null;
+    },
+    partyAllSrc: () => (S.party || []).filter(Boolean).map(u => `/assets/char/${u.id}.webp`),
+    skillSrc: i => { const k = S.skills?.active?.[i]; return k ? `/assets/skill/${k.id}.png` : null; },
+    /**
+     * 컷이 요구하는 것을 채운다 (story.js > draw 의 needs).
+     * 지금은 'class' 하나 — 세계관 두 컷 뒤에 길을 고르게 한다.
+     */
+    ensure: async need => { if (need === 'class' && !S.promoClass) await openClassSelect(); },
     onDone: (id, r) => {
       S.story = S.story || { seen: [], skipped: [] };
       const bag = r.skipped ? S.story.skipped : S.story.seen;
@@ -8472,19 +8512,19 @@ function bootTapToStart() {
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));
   await bootTapToStart();
+  // ── 프롤로그가 맨 앞이다 ──────────────────────────────
+  // **무슨 세계인지 모르고 길부터 고르게 하지 않는다** (단장 지시 2026-08-30).
+  // 세계관 두 컷 → (3컷이 needs:class 라 여기서) 직업 선택 → 고른 직업의 단장으로
+  // 마지막 컷. 코치마크는 그 뒤다 — 이야기보다 먼저 손이 뜨면 유저는 자기가
+  // 어디에 있는지 모르는 채로 버튼부터 누른다.
+  await playStory('EP0');
+  // 프롤로그를 건너뛰었어도 직업은 있어야 한다 — 그것 없이는 게임이 안 선다
+  if (!S.promoClass) await openClassSelect();
+
   // 타이틀이 걷힌 **뒤에** 온보딩 손을 판단한다. renderQuest 안에서만 부르면
   // 그 렌더는 타이틀이 아직 화면을 덮고 있을 때 이미 지나갔고, 걷힌 다음에는
   // 진행도가 바뀌기 전까지 다시 안 돌아서 첫 손이 영영 안 떴다
   // (단장 지적 2026-08-25). 걷히는 애니메이션(0.4s)이 끝나고 잰다
   setTimeout(maybeOnboardHint, 500);
-  // 직업이 없으면 첫 판보다 먼저 길을 고른다 — 새 유저와 구버전 미전직
-  // 세이브 모두 여기로 들어온다
-  if (!S.promoClass) {
-    await openClassSelect();
-    // **프롤로그는 직업을 고른 직후다** (story.json > EP0.trigger). 방금 누른
-    // 선택이 세 컷 뒤 그림으로 돌아온다. 첫 판(runStage)보다 앞이지만 3컷이라
-    // 첫 90초를 건드리지 않고, 우상단 [건너뛰기]가 첫 컷부터 떠 있다.
-    await playStory('EP0');
-  }
   await runStage();
 })();

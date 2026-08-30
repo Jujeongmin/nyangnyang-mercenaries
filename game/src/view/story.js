@@ -6,7 +6,7 @@
 //
 // 규칙 셋 (기획서 0절 — tutorial.json > antiPatterns 의 "시네마틱 오프닝 금지"와
 // 부딪히지 않으려고 못 박은 것들):
-//   1. 스토리는 첫 90초를 건드리지 않는다 — 프롤로그 3컷뿐이고 나머지는 마일스톤 뒤다
+//   1. 스토리는 첫 90초를 건드리지 않는다 — 프롤로그가 3컷뿐이고 나머지는 마일스톤 뒤다
 //   2. 언제나 건너뛸 수 있다. 건너뛰어도 보상은 그대로다
 //   3. 전투를 멈추지 않는다 — 뒤에서 계속 돈다
 //
@@ -56,9 +56,25 @@ export class StoryViewer {
     });
   }
 
-  draw() {
+  /**
+   * 한 컷을 그린다.
+   *
+   * **컷이 무엇을 요구하면 먼저 채운다** (`needs`). EP0 의 3컷은 "고른 직업의
+   * 단장" 이라 직업이 없으면 그릴 수 없다 — 그때 화를 잠시 접고 직업 선택을
+   * 띄운 뒤 이어서 그린다. 세계관(1·2컷)을 먼저 보여 주고 길을 고르게 하려면
+   * 이 갈라짐이 필요하다 (단장 지시 2026-08-30).
+   */
+  async draw() {
     const cut = this.ep?.cuts?.[this.i];
     if (!cut) return this.close(false);
+    if (cut.needs && this.api.ensure) {
+      // 화를 덮개째 감춘다 — 직업 선택 창이 스토리 위에 겹쳐 뜨면 둘 다 안 읽힌다
+      this.el.classList.remove('show');
+      try { await this.api.ensure(cut.needs); } catch { /* 못 채웠으면 그냥 그린다 */ }
+      // 건너뛰기가 그 사이에 눌렸으면 이미 닫혔다
+      if (!this.ep) return;
+      this.el.classList.add('show');
+    }
     const cutEl = $(this.el, '#stCut');
     // 아래에서 밀려 올라오는 읽기 방향 — 세로 스크롤 웹툰의 그 움직임이다.
     // 클래스를 껐다 켜야 애니메이션이 매 컷 다시 돈다
@@ -66,21 +82,14 @@ export class StoryViewer {
     void cutEl.offsetWidth;
     cutEl.classList.add('in');
 
-    $(this.el, '#stBg').src = `/assets/story/${cut.bg}.webp`;
+    // 배경은 두 곳에서 온다 — 웹툰 전용 컷(CUT-*)은 story/, 전투 배경을
+    // 빌려 쓰는 컷(BG-*)은 bg/ 다. 있는 그림을 빌리는 것이 새로 그리는 것보다 늘 싸다
+    const dir = cut.bg.startsWith('CUT-') ? 'story' : 'bg';
+    $(this.el, '#stBg').src = `/assets/${dir}/${cut.bg}.webp`;
 
-    // ── 레이어 ──
-    // 지금 쓰는 것은 captain 하나다. party·boss·text 는 EP1 이후에 온다 —
-    // 쓰지도 않는 타입을 미리 만들어 두면 첫 화가 그만큼 늦어진다.
+    // ── 레이어 ── (layerHtml 이 타입별로 갈라 그린다)
     const layers = $(this.el, '#stLayers');
-    layers.innerHTML = (cut.layers || []).map(L => {
-      const src = L.type === 'captain' ? this.api.captainSrc(L.tier || 1) : null;
-      if (!src) return '';
-      // y 는 **발끝**이다 — 인물 높이의 절반만큼 위로 올려 앉힌다
-      return `<img class="st-l" src="${src}" alt=""
-        style="left:${L.x * 100}%;top:${L.y * 100}%;height:${L.h * 100}%;
-               transform:translate(-50%,-100%)${L.flip ? ' scaleX(-1)' : ''}"
-        onerror="this.remove()">`;
-    }).join('');
+    layers.innerHTML = (cut.layers || []).flatMap(L => this.layerHtml(L)).join('');
 
     // ── 글 ──
     // 나레이션은 이름이 없다. 대사는 누가 말하는지가 붙는다
@@ -103,6 +112,45 @@ export class StoryViewer {
     // 마지막 컷에서는 "다음" 표시를 바꾼다 — 한 번 더 탭하면 닫힌다
     $(this.el, '#stNext').textContent = this.i >= this.ep.cuts.length - 1
       ? this.api.t('탭하면 끝') : this.api.t('탭하면 다음');
+  }
+
+  /**
+   * 레이어 한 장(또는 여럿) → HTML.
+   *
+   * **인물은 `char/*.webp` 를 쓴다** — 도감 일러(`-ART`)는 배경이 딸려 있어
+   * 원형 마스크로 잘라야 하고, 그러면 무기 끝이 잘린다 (기획서 9절 열린 질문 2).
+   * 로스터·마을·랭킹이 이미 쓰는 그 투명 스프라이트가 합성에는 더 맞다.
+   *
+   * 편성이 비었거나 모자라면 **그 레이어만 빠진다** (기획서 3.3). 컷이 안 뜨는
+   * 것보다 한 명 덜 서는 편이 낫다 — 시작 편성은 비어 있는 것이 정상이다.
+   */
+  layerHtml(L) {
+    const one = (src, x, y, h, flip) => (!src ? '' : `<img class="st-l" src="${src}" alt=""
+        style="left:${x * 100}%;top:${y * 100}%;height:${h * 100}%;
+               transform:translate(-50%,-100%)${flip ? ' scaleX(-1)' : ''}"
+        onerror="this.remove()">`);
+    const x = L.x ?? 0.5, y = L.y ?? 0.93, h = L.h ?? 0.55;
+
+    if (L.type === 'captain') return [one(this.api.captainSrc(L.tier || 1), x, y, h, L.flip)];
+    if (L.type === 'party') return [one(this.api.partySrc?.(L.slot || 0), x, y, h, L.flip)];
+    if (L.type === 'partyBest') return [one(this.api.partyBestSrc?.(), x, y, h, L.flip)];
+    if (L.type === 'skill') return [one(this.api.skillSrc?.(L.slot || 0), x, y, h, L.flip)];
+
+    // 편성 전원 — 가로로 늘어세운다. 인원이 몇이든 가운데를 기준으로 벌어진다
+    if (L.type === 'partyAll') {
+      const list = (this.api.partyAllSrc?.() || []).slice(0, L.max || 5);
+      if (!list.length) return [];
+      const gap = L.gap ?? 0.17;
+      const from = x - gap * (list.length - 1) / 2;
+      return list.map((src, i) => one(src, from + gap * i, y, h, L.flip));
+    }
+
+    // 오버레이 — 화이트아웃·어둠. 그림이 아니라 판이라 img 가 아니다
+    if (L.type === 'fx') {
+      const bg = L.fx === 'whiteout' ? '#fff' : '#000';
+      return [`<i class="st-fx" style="background:${bg};opacity:${L.amount ?? 0.5}"></i>`];
+    }
+    return [];
   }
 
   next() {
