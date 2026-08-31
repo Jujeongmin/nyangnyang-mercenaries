@@ -4738,13 +4738,61 @@ const chatMine = m => !!m.account && m.account === meAcc();
  * 남아서, 유저에게는 "닉네임 변경이 채팅에 반영이 안 된다" 로 보였다
  * (단장 지적 2026-08-30). 남의 줄은 그대로 둔다 — 남의 지금 이름을 우리가
  * 알 길이 없고, 알아도 그 사람이 그때 쓴 이름을 바꿔 칠 이유가 없다.
+ *
+ * **남의 줄도 덮는다** (2026-08-31). 위 문단의 "알 길이 없다" 가 틀렸다 —
+ * 아래 이름 장부가 안다. 플레이어 A 가 개명하면 A 화면에서는 바뀌는데 B 화면에는
+ * 옛 이름이 남아, 같은 사람이 두 이름으로 보였다 (단장 지적 2026-08-31).
  */
-const chatNick = m => (chatMine(m) ? (S.nickname || autoNickname())
-  : (m.nickname || autoNickOf(m.account)));
+
+/**
+ * 이름 장부 — account → { nick, cls, at }.
+ *
+ * **왜 클라에 두나.** 서버가 getChat 에서 이름을 지금 값으로 이어 주는데도
+ * 그것만으로는 안 된다: 채팅은 구독(subscribeGlobalCollection)으로 도는데,
+ * 구독은 **저장된 원본 행**을 통째로 준다. 그래서 새 메시지가 하나만 와도
+ * 서버가 고쳐 준 이름이 다시 옛 값으로 덮인다.
+ *
+ * 판정은 **증거의 시각**으로 한다. 줄에 굳은 이름은 그 줄을 보낸 순간의
+ * 사실이고, 프로필에서 읽은 이름은 지금의 사실이다. 더 나중 것이 이긴다 —
+ * 그래서 누가 개명하고 한 마디만 하면 그 사람의 지난 줄까지 새 이름이 된다.
+ */
+const chatNickBook = new Map();
+
+/** 장부에 적는다. at 이 더 최신일 때만 덮는다 */
+function chatLearn(account, nick, cls, at) {
+  if (!account || !nick) return;
+  const cur = chatNickBook.get(account);
+  if (cur && (cur.at || 0) >= (at || 0)) return;
+  chatNickBook.set(account, { nick: String(nick).slice(0, 15), cls, at: at || 0 });
+}
+
+/**
+ * 지금 화면이 들고 있는 **프로필 기반** 목록에서 이름을 걷는다.
+ * 랭킹·친구·아레나 상대·연합 단원은 전부 서버가 profiles 에서 읽어 준 것이라
+ * 지금의 이름이다 — 그래서 시각을 now 로 찍어 채팅 줄의 굳은 이름을 이긴다.
+ */
+function chatLearnFromProfiles() {
+  const now = Date.now();
+  const take = arr => (Array.isArray(arr) ? arr : []).forEach(p =>
+    chatLearn(p.account, p.nickname, p.capCls, now));
+  for (const k of ['topPower', 'topStage', 'topArena', 'friends', 'friendCands', 'arenaFoes']) {
+    take(live.get(k));
+  }
+  take(live.get('myAlliance')?.members);
+}
+
+const chatNick = m => {
+  if (chatMine(m)) return S.nickname || autoNickname();
+  const b = chatNickBook.get(m.account);
+  if (b && (b.at || 0) >= (m.at || 0)) return b.nick;
+  return m.nickname || autoNickOf(m.account);
+};
 
 /** 줄에 띄울 직군. 내 줄은 지금 직군으로 덮는다 (개명과 같은 이유 — 전직) */
 const chatCls = m => {
-  const c = chatMine(m) ? (S.promoClass || 'warrior') : m.capCls;
+  const b = chatMine(m) ? null : chatNickBook.get(m.account);
+  const c = chatMine(m) ? (S.promoClass || 'warrior')
+    : (b && (b.at || 0) >= (m.at || 0) && b.cls) || m.capCls;
   return ['warrior', 'archer', 'mage'].includes(c) ? c : 'warrior';
 };
 
@@ -4826,6 +4874,17 @@ function openChat(scope) {
     if (!subbed) live.fetchChat(chatScope).then(r => {
       if (r) { live.setChat(chatScope, r); chatRedraw(); }
     }).catch(() => {});
+    // **구독 중이어도 열 때 한 번은 받는다** — 캐시를 갈아 끼우려는 게 아니라
+    // *이름*을 걷으려는 것이다. getChat 은 서버에서 profiles 를 이어 붙여
+    // 지금 이름을 돌려주는데, 구독은 저장된 원본 행을 주므로 그 값이 없다.
+    // 받은 줄로 장부만 채우고 캐시는 구독에게 맡긴다 (두 곳이 같은 배열을
+    // 서로 덮으면 새 줄이 사라지는 창이 생긴다)
+    else live.fetchChat(chatScope).then(r => {
+      if (!Array.isArray(r)) return;
+      const now = Date.now();
+      for (const m of r) chatLearn(m.account, m.nickname, m.capCls, now);
+      chatRedraw();
+    }).catch(() => {});
   }
 
   const send = async () => {
@@ -4886,13 +4945,18 @@ async function openChatProfile(account) {
   // 나를 누르면 내 프로필 화면이 낫다 — 남 카드 모양으로 나를 보여 줄 이유가 없다
   if (account === live.get('myAlliance')?.me?.account) return;
   const line = chatRows().find(m => m.account === account);
-  const ttl = $('#smTitle'); if (ttl) ttl.textContent = line?.nickname || autoNickOf(account);
+  // 카드 제목은 **장부가 먼저**다 — 줄에 굳은 이름은 그 줄을 보낼 때의 값이다
+  const ttl = $('#smTitle');
+  if (ttl) ttl.textContent = chatNickBook.get(account)?.nick || line?.nickname || autoNickOf(account);
   $('#smBody').innerHTML = `<div class="sh-note">${t('불러오는 중…')}</div>`;
   $('#smPop').classList.add('show');
 
   const x = await live.fetchProfile(account).catch(() => null);
   // 기다리는 사이 카드를 닫았거나 다른 카드를 열었으면 그리지 않는다
   if (!$('#smPop').classList.contains('show')) return;
+  // 방금 받은 프로필이 지금의 사실이다 — 장부에도 적어 두면 그 사람의 채팅 줄이
+  // 카드를 닫는 순간 새 이름으로 갈린다
+  if (x?.nickname) chatLearn(account, x.nickname, x.capCls, Date.now());
   const nick = x?.nickname || line?.nickname || autoNickOf(account);
   const cls = ['warrior', 'archer', 'mage'].includes(x?.capCls || line?.capCls)
     ? (x?.capCls || line?.capCls) : 'warrior';
@@ -4940,9 +5004,14 @@ async function openChatProfile(account) {
 function chatRedraw() {
   const el = $('#chBody');
   if (!el) return;
+  const rows = chatRows();
+  // 줄에 굳은 이름도 증거다 — **보낸 순간의 사실**이라 그 시각으로 적는다.
+  // 개명 뒤 한 마디만 해도 그 사람의 지난 줄까지 새 이름으로 갈린다
+  for (const m of rows) chatLearn(m.account, m.nickname, m.capCls, m.at || 0);
+  chatLearnFromProfiles();
   // 비어 있으면 아무것도 안 띄운다 — openChat 과 같은 규칙이다.
   // 두 곳에 같은 문장이 있어서 한쪽만 지웠다가 그대로 남았다 (2026-08-26)
-  el.innerHTML = chatRows().map(chatLineHtml).join('');
+  el.innerHTML = rows.map(chatLineHtml).join('');
   chatToBottom();
   chatBarSync();
 }
@@ -8258,6 +8327,8 @@ function bootTapToStart() {
   // 한 방 진단 — 배포본 콘솔에서 __dbg.diag() 를 치면 서버 상태가 다 나온다.
   // 폰에서 재현되는 문제를 PC 배포본에서 특정하는 용도다 (단장 워크플로)
   window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live, connectGameServer,
+    // 이름 장부 — 개명이 남의 화면에 반영되는지 확인할 때 들여다본다
+    chatNickBook, chatLearn, chatNick,
     // 밸런스 실측용 — 연합 보스 HP 계수와 서버 상한이 이 값들 위에 서 있다
     totalCp, partyDps, allyBossFight,
     diag: async () => {
