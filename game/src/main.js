@@ -199,7 +199,16 @@ const skillCp = s => D.skills.gradeCoef[s.grade] * (1 + ((s.level || 1) - 1) * 0
  * 대신 "바탕이 크면 장비도 세진다" 가 사라졌으므로, 그 몫은 **등급을 올려서**
  * 가져간다 — 한 등급에 3.2~4.2 배다 (단장 확정 2026-08-25).
  */
-const eqCpOf = it => (it ? (D.equipment.flatCpByTier?.[it.tier] || 0) : 0);
+/**
+ * 장비 한 장의 전투력. 티어가 **기본값**을 정하고, 굴림값 `r` 이 그 둘레로 흔든다
+ * (equipment.json > roll — ±10%). 같은 등급이 글자 그대로 똑같으면 두 번째로
+ * 뽑은 T7 을 볼 이유가 없다 (단장 지적 2026-08-31).
+ *
+ * `r` 이 없는 옛 장비는 1.0 이다 — 기존 세이브의 전투력이 안 변한다.
+ */
+const eqCpOf = it => (it
+  ? Math.round((D.equipment.flatCpByTier?.[it.tier] || 0) * (it.r || 1))
+  : 0);
 
 /** codex.json > cpIntegration 의 곱연산 항을 그대로 따른다 */
 function codexBonus() {
@@ -1320,11 +1329,15 @@ const eqIcon = (slot, tier) => slot.assetPrefix.replace('equip_EQ', 'EQ-')
 const eqImg = (slot, tier) => `<img src="/assets/equip/${eqIcon(slot, tier)}.png" alt=""`
   + ` onerror="this.onerror=null;this.src='/assets/equip/${eqIcon(slot)}.png'"`;
 
-/** 인벤토리에서 해당 부위의 최고 등급 대기품 */
+/**
+ * 인벤토리에서 해당 부위의 최고 대기품. **전투력으로 고른다.**
+ * 예전에는 티어만 봤는데, 장비마다 굴림값이 붙은 뒤로는 같은 티어끼리도
+ * 우열이 있다 (equipment.json > roll.compareNote)
+ */
 function bestPending(slotId) {
   const list = S.inv.filter(x => x.slot === slotId);
   if (!list.length) return null;
-  return list.reduce((a, b) => (b.tier > a.tier ? b : a));
+  return list.reduce((a, b) => (eqCpOf(b) > eqCpOf(a) ? b : a));
 }
 
 /**
@@ -1441,7 +1454,7 @@ function renderEquip() {
   for (const s of D.equipment.slots) {
     const it = S.equip[s.id];
     const best = bestPending(s.id);
-    const up = best && (!it || best.tier > it.tier);
+    const up = best && (!it || eqCpOf(best) > eqCpOf(it));
     if (up) ups++;
     const d = document.createElement('div');
     d.className = 'slot' + (up ? ' up' : '');
@@ -6821,13 +6834,25 @@ function equipRoll() {
   let r = Math.random() * sum;
   let tier = +w[0][0];
   for (const [t, v] of w) { r -= v; if (r <= 0) { tier = +t; break; } }
-  return { slot, tier };
+  return { slot, tier, r: eqRollValue() };
 }
 
-/** 장비 한 장의 전투력 기여율. equipment.json > grades[].slotBonus */
-function eqBonusOf(it) {
-  return it ? D.equipment.grades[it.tier - 1].slotBonus : 0;
+/**
+ * 한 장의 굴림값. 티어가 정한 기본값에 곱해진다 (equipment.json > roll).
+ *
+ * **난수 둘의 평균**이다 — 균등분포면 최고 굴림과 평타가 똑같이 흔해서
+ * "잘 나왔다" 가 안 생긴다. 가운데가 두껍고 양 끝이 얇아야 상위 굴림이 드물다.
+ *
+ * 소수 셋째 자리까지만 남긴다: 세이브에 장비마다 붙는 숫자라 자릿수가 곧 용량이고,
+ * 0.001 은 T10(84.5만)에서도 845 라 화면에서 구별되는 최소 단위다.
+ */
+function eqRollValue() {
+  const spread = D.equipment.roll?.spread || 0;
+  if (!spread) return 1;
+  const u = (Math.random() + Math.random()) / 2;      // 삼각분포
+  return Math.round((1 + (u * 2 - 1) * spread) * 1000) / 1000;
 }
+
 
 /**
  * 그 장비를 끼웠을 때의 총 전투력.
@@ -6998,8 +7023,10 @@ function summonEquip(n, isAuto) {
     if (isAuto && it.tier < minTier) { S.gold += scrapGold(it.tier); scrapped++; continue; }
     const cur = S.equip[it.slot];
     const best = bestPending(it.slot);
-    // 장착품·대기품보다 못하면 즉시 분해 (duplicateHandling)
-    if ((cur && it.tier <= cur.tier) || (best && it.tier <= best.tier) || S.inv.length >= cap) {
+    // 장착품·대기품보다 못하면 즉시 분해 (duplicateHandling).
+    // **전투력으로 잰다** — 티어만 보면 같은 티어의 더 좋은 굴림을 그냥 버린다
+    if ((cur && eqCpOf(it) <= eqCpOf(cur)) || (best && eqCpOf(it) <= eqCpOf(best))
+        || S.inv.length >= cap) {
       S.gold += scrapGold(it.tier); scrapped++; continue;
     }
     if (best) { S.inv.splice(S.inv.indexOf(best), 1); S.gold += scrapGold(best.tier); }
@@ -7010,7 +7037,7 @@ function summonEquip(n, isAuto) {
     // 전투력이 오르는지로 본다. 등급 비교와 결과는 같지만 기준이 화면 문구와 일치한다 —
     // 나중에 강화·세트 보너스가 붙어도 이 식이 그대로 맞다.
     const stopNow = isAuto && (S.autoStopTier === -1
-      ? eqBonusOf(it) > eqBonusOf(cur)
+      ? eqCpOf(it) > eqCpOf(cur)
       : (S.autoStopTier > 0 && it.tier >= S.autoStopTier));
     if (stopNow) {
       S.inv.splice(S.inv.indexOf(it), 1);
