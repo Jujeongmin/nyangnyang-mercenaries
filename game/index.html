@@ -197,6 +197,10 @@
     display:inline-block;animation:farmSpin 1.3s linear infinite}
   @keyframes farmSpin{to{transform:rotate(360deg)}}
   #hudC.farm #enc{display:none}
+  /* 탑·연합 보스 — 스테이지 진행도가 없는 판이다. 점은 숨기고 이름표만 남긴다.
+     던전의 .in-dungeon 은 hudC 를 통째로 감추는데(층 간판이 따로 있다), 여기는
+     "무한의 탑 12층" / "연합 보스 1단계" 라벨이 화면의 유일한 안내라 남겨야 한다 */
+  #hudC.solo #enc{visibility:hidden}
   #hudC.farm #farmLoop{display:flex}
   .dotw{width:9px;height:9px;border-radius:50%;background:#705b4a;border:1px solid #0007}
   .dotw.on{background:var(--gold)}
@@ -587,11 +591,27 @@
   @keyframes ccPulse{0%,100%{box-shadow:0 0 0 3px #ffd75e33,0 0 14px #ffd75e66}
     50%{box-shadow:0 0 0 6px #ffd75e22,0 0 22px #ffd75e99}}
   /* 말풍선. 2줄 이내가 규칙이라 폭을 넉넉히 주고 줄바꿈만 따른다 */
-  .cc-say{position:fixed;max-width:min(268px,72vw);padding:9px 12px;
+  /* 말풍선은 **단장이 하는 말**이다 (단장 확정 2026-08-31). 예전에는 글만
+     떠서 누가 알려주는지가 없었다 — 게임의 얼굴이 있는데 튜토리얼에는 안 나왔다.
+     단장은 **말풍선 좌측 위에 걸쳐 선다** — 동그란 창에 가두면 프로필 아이콘으로
+     읽히고, 상자 밖으로 걸치면 그 자리에 와서 말을 거는 것이 된다 */
+  /* 상자는 **글에 맞춰 줄어든다** — min-width 로 붙들면 한 줄짜리 안내에도
+     빈 상자가 남는다. max-content 라 줄바꿈(
+)만 그대로 따른다 */
+  .cc-say{position:fixed;width:max-content;max-width:min(288px,78vw);
+    padding:12px 14px 10px;
     background:#1d1610f2;border:1px solid var(--brass);border-radius:12px;
     color:#f6ece2;font-size:12.5px;line-height:1.45;font-weight:700;
-    white-space:pre-line;text-align:center;pointer-events:none;
-    box-shadow:0 6px 18px #000a}
+    text-align:center;pointer-events:none;box-shadow:0 6px 18px #000a}
+  /* 틀도 배경도 없다 — 그림만 걸친다. 대부분이 상자 위로 나가고 발끝만 안쪽에
+     닿아 "상자 모서리에 서 있다" 로 읽힌다. 넘쳐 나간 몫은 coachPlace 가
+     실제로 재서 화면 밖으로 안 밀리게 한다 (상수를 두 곳에 박지 않는다) */
+  .cc-cap{position:absolute;left:4px;top:-62px;width:66px;height:74px;
+    display:block;pointer-events:none}
+  .cc-cap img{width:100%;height:100%;object-fit:contain;object-position:bottom center;
+    filter:drop-shadow(0 3px 7px #000c)}
+  .cc-txt{display:block;min-width:0}
+  .cc-line{display:block;white-space:pre-line}
   /* 꼬리 — 위/아래 어느 쪽에 붙었는지에 따라 방향이 뒤집힌다 */
   .cc-say::after{content:"";position:absolute;left:50%;margin-left:-7px;
     border:7px solid transparent}
@@ -2948,62 +2968,82 @@
   #twCard span{display:block;font-size:11px;color:var(--dim);margin-top:2px}
   #twCard i{margin-left:auto;font-style:normal;font-size:12px;font-weight:900;color:var(--gold)}
 
-  /* 무한의 탑 */
-  .tw-hero{background:linear-gradient(#2a1840,#161022);border:1px solid #7a4ac0;
-    border-radius:14px;padding:16px;text-align:center;box-shadow:0 8px 26px #0008}
-  .tw-best{font-size:11px;font-weight:900;color:#c9a6ff;letter-spacing:1px}
-  .tw-now{font-family:"Black Han Sans",system-ui,sans-serif;font-size:38px;color:#fff;line-height:1.1}
-  .tw-now span{font-size:14px;color:var(--dim);margin-left:4px}
-  .tw-need{font-size:12px;color:var(--dim);margin:6px 0 12px}
-  .tw-need b.ok{color:var(--up)} .tw-need b.no{color:var(--warn)}
-  .tw-need span{display:block;font-size:11px;opacity:.8;margin-top:2px}
-  .tw-go{width:100%;padding:12px;border-radius:10px;font-size:13px;font-weight:800;
-    cursor:pointer;font-family:inherit;border:1px solid #a06ae0;
-    background:linear-gradient(#7a4ac0,#4a2a80);color:#fff}
-  .tw-go:disabled{opacity:.4;cursor:default}
-  .tw-reach{font-size:11px;color:var(--dim);margin-top:9px}
-  .tw-reach b{color:var(--gold)}
-  .tw-row{display:flex;align-items:center;gap:8px;padding:9px 11px;margin-bottom:6px;
-    background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:12px}
-  .tw-row.now{border-color:#a06ae0;background:#1e1630}
-  .tw-row.lock{opacity:.45}
-  .tw-f{font-weight:900;width:46px;flex:0 0 auto}
-  .tw-cp{color:var(--dim);flex:1 1 auto}
-  .tw-rw-box{display:flex;gap:7px;flex:0 0 auto}
-  .tw-rw{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:800;color:var(--gold)}
-  .tw-rw img{width:13px;height:13px;object-fit:contain}
-
-  /* 층 카드 — 보스 얼굴 · 요구 전투력 · 보상 · 도전이 한 줄이다.
-     예전 .tw-row 는 숫자 세 개뿐이라 "다음 층에 뭐가 나오나" 가 화면에 없었다 */
-  .tw-fl{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;
-    background:var(--card);border:1px solid var(--line);border-radius:12px}
-  .tw-fl.now{border-color:#a06ae0;background:linear-gradient(#241a3a,#171126);
-    box-shadow:0 4px 14px #0007}
-  .tw-fl.hard{opacity:.62}
-  .tw-fl.now.hard{opacity:1}
-  .tw-face{position:relative;width:52px;height:52px;flex:0 0 auto;border-radius:10px;
-    background:radial-gradient(circle at 50% 35%,#3a2450,#140e22);border:1px solid #4a3568;
-    display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px}
-  .tw-face img{width:100%;height:100%;object-fit:contain;object-position:center 42%;
-    transform:scale(1.35)}
-  .tw-fl.ms .tw-face{border-color:var(--gold);box-shadow:0 0 10px #ffc94a55}
-  .tw-ms{position:absolute;right:0;bottom:0;font-style:normal;font-size:8px;font-weight:900;
-    background:var(--gold);color:#2a1a00;padding:1px 3px;border-radius:4px 0 0 0}
-  .tw-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-  .tw-info>b{font-size:13px;font-weight:900}
-  .tw-info>b em{font-style:normal;font-size:9px;font-weight:800;color:#c9a6ff;
-    border:1px solid #7a4ac0;border-radius:5px;padding:0 4px;margin-left:4px;vertical-align:2px}
-  .tw-fl .tw-cp{font-size:11px}
-  .tw-fl .tw-cp.ok{color:var(--up)} .tw-fl .tw-cp.no{color:var(--warn)}
-  .tw-fl .tw-rw-box{flex-wrap:wrap}
-  .tw-btn{flex:0 0 auto;min-width:58px;padding:8px 6px;border-radius:9px;cursor:pointer;
-    font-family:inherit;font-size:11px;font-weight:900;line-height:1.15;text-align:center;
-    border:1px solid #a06ae0;background:linear-gradient(#7a4ac0,#4a2a80);color:#fff}
-  .tw-btn i{display:block;font-style:normal;font-size:9px;font-weight:700;opacity:.85}
-  .tw-btn.off{background:none;border-color:transparent;color:var(--dim);cursor:default;
-    font-weight:700;font-size:10px}
+  /* 무한의 탑 — 화면이 탑이다. 층이 아래에서 위로 쌓이고 맨 아래가 지금 층.
+     층 폭은 전부 같다 (단장 확정: 위로 좁히면 보상·보스 칸이 같이 줄어 안 읽힌다).
+     **한 화면에 3~4층**만 보이게 띠를 크게 잡는다 — 12줄이 다 보이면 목록이고,
+     서너 층만 보이면 "올라가는 중" 이 된다 (단장 확정 2026-08-31) */
+  /* 최고층·전투력 줄. **바탕이 없다** — 띠를 깔면 배너 밑에 머리글이 하나 더
+     생긴 꼴이 된다. 글자만 탑 위에 얹고, 대신 그림자를 세게 줘서 어느 층 그림
+     위로 지나가도 읽힌다. .sh-body 의 12px 여백은 음수 마진으로 걷어낸다 */
+  .tw-line{position:sticky;top:-12px;z-index:2;display:flex;align-items:baseline;gap:8px;
+    margin:-12px -12px 6px;padding:7px 12px;font-size:11px;color:#cbbfe0;
+    background:none;pointer-events:none;
+    text-shadow:0 1px 3px #000,0 0 8px #000c}
+  .tw-line>b{font-size:12px;color:#c9a6ff;font-weight:900}
+  .tw-line span b{color:var(--gold)}
+  /* 탑 몸통 — 좌우 벽이 층을 꿰고 있어야 "쌓인다" 로 읽힌다 */
+  .tw-tower{border:2px solid #4a3568;border-radius:14px 14px 5px 5px;overflow:hidden;
+    background:#120c1e}
+  /* 층 띠 배경은 에셋이다 (TW-FLOOR-01~03 을 층마다 순환 — 에셋_생성_프롬프트.md
+     STEP 6-C). 파일이 없으면 밑에 깔린 색만 보이고 화면은 그대로 선다 */
+  .tw-fl{display:flex;align-items:center;gap:10px;padding:10px 12px;
+    border-bottom:2px solid #2c2044;min-height:clamp(118px,24vh,300px);
+    background-color:#1a1230;background-size:cover;background-position:center;
+    background-image:var(--tw-band)}
+  .tw-fl:last-child{border-bottom:none}
+  /* 그림이 깔리면 글자가 묻는다 — 띠 위에 어두운 막을 한 겹 덮는다 */
+  .tw-fl::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,#0b0716cc,#0b071666 45%,#0b071699)}
+  .tw-fl{position:relative}
+  .tw-fl>*{position:relative;z-index:1}
+  .tw-fl.now{box-shadow:inset 0 0 0 2px #a06ae0, inset 0 0 26px #a06ae055}
+  /* 층 번호 — 띠 **좌측 위 모서리**에 새긴다. 줄 안에 칸으로 두면 단장·보상·보스
+     셋이 쓸 가로폭을 번호가 갉아먹는다. 모서리에 얹으면 그림은 바닥에, 번호는
+     천장 쪽에 있어 서로 안 부딪힌다 */
+  .tw-f{position:absolute;left:11px;top:8px;z-index:2;white-space:nowrap;
+    font-size:21px;font-weight:900;color:#a992cf;line-height:1;
+    text-shadow:0 2px 5px #000c}
+  .tw-f i{font-style:normal;font-size:12px;opacity:.7;margin-left:1px}
+  .tw-fl.now .tw-f{color:var(--gold)}
+  /* 단장 칸 — 지금 층에만 선다. 빈 칸도 자리를 지켜야 줄이 안 흔들린다 */
+  .tw-me{flex:0 0 auto;width:clamp(58px,15vw,104px);height:clamp(58px,15vh,120px);
+    display:flex;align-items:flex-end;justify-content:center}
+  .tw-me img{width:100%;height:100%;object-fit:contain;
+    filter:drop-shadow(0 4px 7px #000b);animation:twBob 1.6s ease-in-out infinite}
+  @keyframes twBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  /* 보상 칸 — 가운데. 줄바꿈해도 보스 칸을 밀지 않는다 */
+  .tw-fl .tw-rw-box{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;gap:8px;
+    justify-content:center}
+  .tw-rw{display:flex;align-items:center;gap:5px;font-size:17px;font-weight:900;
+    color:var(--gold);text-shadow:0 2px 4px #000d}
+  .tw-rw img{width:clamp(26px,7vw,38px);height:clamp(26px,7vw,38px);object-fit:contain;
+    filter:drop-shadow(0 2px 4px #0009)}
+  /* 보스 칸 — 오른쪽. 얼굴 아래에 요구 전투력 */
+  .tw-boss{position:relative;flex:0 0 auto;width:clamp(86px,23vw,152px);
+    display:flex;flex-direction:column;align-items:center;gap:2px}
+  /* 단장과 같은 숨쉬기. **주기와 위상을 다르게** 준다 — 같은 박자로 흔들리면
+     둘이 한 덩어리로 보여 대치 구도가 죽는다. 층마다 시작점도 어긋뜨린다 */
+  .tw-boss img{width:100%;height:clamp(70px,18vh,142px);object-fit:contain;
+    object-position:center 42%;filter:drop-shadow(0 4px 8px #000b);
+    animation:twBobBoss 2.1s ease-in-out infinite;
+    animation-delay:calc(var(--tw-i,0) * -0.37s)}
+  @keyframes twBobBoss{0%,100%{transform:translateY(0) scale(1)}
+    50%{transform:translateY(-5px) scale(1.03)}}
+  .tw-boss i{font-style:normal;font-size:12px;font-weight:900;line-height:1;
+    text-shadow:0 1px 3px #000c}
+  .tw-boss i.ok{color:var(--up)} .tw-boss i.no{color:var(--warn)}
+  .tw-fl.ms .tw-boss img{filter:drop-shadow(0 0 8px #ffc94a99)}
+  .tw-ms{position:absolute;right:-4px;top:-4px;font-style:normal;font-size:9px;font-weight:900;
+    background:var(--gold);color:#2a1a00;padding:1px 4px;border-radius:5px}
+  /* 도전 — 지금 층 띠 오른쪽 끝에만 */
+  .tw-btn{flex:0 0 auto;width:clamp(56px,15vw,80px);padding:14px 6px;border-radius:11px;
+    cursor:pointer;font-family:inherit;font-size:13px;font-weight:900;line-height:1.15;
+    text-align:center;border:1px solid #a06ae0;
+    background:linear-gradient(#7a4ac0,#4a2a80);color:#fff;box-shadow:0 3px 10px #0008}
+  .tw-btn i{display:block;font-style:normal;font-size:10px;font-weight:700;opacity:.85}
+  .tw-btn.off{background:none;border-color:transparent;cursor:default;padding:0;box-shadow:none}
   /* 미달 도전 — 막지 않는다. 잃는 것이 없으니 색으로만 경고한다 */
-  .tw-btn.risky,.tw-go.risky{border-color:#c06a4a;background:linear-gradient(#a0522a,#5a2a18)}
+  .tw-btn.risky{border-color:#c06a4a;background:linear-gradient(#a0522a,#5a2a18)}
 
   /* 안내 pill — 화면 중하단. 시선(전투·버튼)과 겹치지 않는 자리다.
      중앙 상단 큰 토스트는 전부 여기로 왔다 — 그 자리는 연출(레벨업·VS)의 것 */
@@ -3247,30 +3287,27 @@
        보조 행동                → UI-BTN
        비활성                   → UI-BTN-OFF
   */
-  .fgbtn,.tw-go{background:none;border-style:solid;border-width:12px;border-radius:0;
+  .fgbtn{background:none;border-style:solid;border-width:12px;border-radius:0;
     border-image:var(--f-go) 159 209 fill stretch;color:#2a1c05;
     text-shadow:0 1px 0 #ffe9a880;padding:2px 6px;width:100%}
-  .fgbtn img,.tw-go img{filter:drop-shadow(0 1px 1px #0006)}
+  .fgbtn img{filter:drop-shadow(0 1px 1px #0006)}
   .fgbtn.warn{border-image:var(--f-btn) 127 163 fill stretch;color:var(--txt);
     text-shadow:0 1px 2px #0009}
-  .fgbtn:disabled,.tw-go:disabled{opacity:1;
+  .fgbtn:disabled{opacity:1;
     border-image:var(--f-off) 120 fill stretch;color:var(--dim);text-shadow:none}
 
   /* 목록 한 줄 — .frow 와 같은 역할이므로 같은 카드 프레임 */
-  .st-row,.tw-row,.tw-fl,.pf-stats div,.pf-t{background:none;border-style:solid;border-width:10px;
+  .st-row,.pf-stats div,.pf-t{background:none;border-style:solid;border-width:10px;
     border-radius:0;border-image:var(--f-card) 122 fill stretch;margin-bottom:5px}
   /* 설정 줄만 간격을 더 조인다 — 한 화면에 다 들어가야 한다 (단장 확정
      2026-08-25). **바로 위 규칙이 .st-row 를 5px 로 덮고 있어서**, 앞쪽
      기본 규칙에서 margin 을 줄여 봐야 여기서 다시 5px 이 된다 */
   .st-row{padding:2px 3px;margin-bottom:2px}
-  .tw-row{padding:1px 3px}
-  /* 층 카드는 보스 얼굴(52px)이 들어가 있어 프레임 안쪽을 조금 더 준다 */
-  .tw-fl{padding:3px 6px;gap:9px}
   .pf-stats div{padding:2px 4px;margin-bottom:0}
   .pf-t{padding:1px 2px}
   /* 선택·현재 표시는 프레임을 바꾸지 않고 금색 글자 + 발광으로 준다 */
-  .tw-row.now,.tw-fl.now,.pf-t.on{filter:drop-shadow(0 0 6px #ffc94a66)}
-  .tw-row.now b,.tw-fl.now>.tw-info>b,.pf-t.on b{color:var(--gold)}
+  .pf-t.on{filter:drop-shadow(0 0 6px #ffc94a66)}
+  .pf-t.on b{color:var(--gold)}
 
   /* 도감 칸 · 인벤토리 칸 · 편성 시트의 장착 칸 — 전부 같은 소켓이다.
      장착 줄만 2px 실선으로 두면 같은 화면에 테두리가 두 종류가 되고,
@@ -4568,7 +4605,10 @@
   <div class="cc-dim" data-d="t"></div><div class="cc-dim" data-d="b"></div>
   <div class="cc-dim" data-d="l"></div><div class="cc-dim" data-d="r"></div>
   <i class="cc-ring"></i>
-  <div class="cc-say"></div>
+  <div class="cc-say">
+    <span class="cc-cap"><img alt=""></span>
+    <span class="cc-txt"><span class="cc-line"></span></span>
+  </div>
 </div>
 
 <div id="txtDlg"><div class="td-box">

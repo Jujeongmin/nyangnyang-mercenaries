@@ -5973,6 +5973,7 @@ async function allyBossFight() {
   roster.close();
   $('#ov').classList.remove('show', 'forced');
   $('#stg').innerHTML = `연합 보스<i>${bs.tier}단계</i>`;
+  $('#hudC').classList.add('solo');
   markEncounter(-1);
 
   try {
@@ -6928,6 +6929,8 @@ async function runTowerFloor(floor) {
   await scene.setBackground('BG-06');
   await scene.setParty(S.party);
   $('#stg').innerHTML = `무한의 탑<i>${floor}층</i>`;
+  // 스테이지 진행도 점은 탑에서 뜻이 없다 — 층 하나가 곧 한 판이다
+  $('#hudC').classList.add('solo');
   markEncounter(-1);
   scene.activeSkills = S.skills.active.filter(Boolean);
   // 패시브는 연출용이다 — 판정은 전투력에만 반영된다
@@ -6945,6 +6948,7 @@ async function runStage() {
   if (dgRun || abRun) return;
   // 던전에서 돌아왔다 — 스테이지 진행도를 되살린다
   $('#app').classList.remove('in-dungeon');
+  $('#hudC').classList.remove('solo');   // 탑·연합 보스가 감춰 둔 진행도 점을 되살린다
   const bgId = bgFor(S.stage);
   await scene.setBackground(bgId);
   scene.captainClass = S.promoClass || 'warrior';
@@ -7192,9 +7196,17 @@ function coachPlace() {
   say.classList.toggle('above', !below);
   say.style.left = '0px'; say.style.top = '0px';       // 폭을 먼저 재게 한다
   const sw = say.offsetWidth, sh = say.offsetHeight;
+  // 단장 초상은 말풍선 **위로 넘쳐 나간다**. 그 몫을 CSS 에서 베끼지 않고
+  // 여기서 직접 잰다 — 상수로 박으면 초상 크기를 바꿀 때마다 두 곳을 고쳐야 하고,
+  // 한쪽만 고치면 화면 위쪽에서 단장 머리가 잘린다
+  const capBox = box.querySelector('.cc-cap')?.getBoundingClientRect();
+  const over = capBox ? Math.max(0, say.getBoundingClientRect().top - capBox.top) : 0;
   const cx = Math.min(W - sw / 2 - 8, Math.max(sw / 2 + 8, r.left + r.width / 2));
   say.style.left = Math.round(cx - sw / 2) + 'px';
-  say.style.top = Math.round(below ? y + h + 14 : y - sh - 14) + 'px';
+  // 위쪽에 붙을 때는 초상까지 얹힐 자리를 비워 준다. 그래도 화면을 벗어나면
+  // 넘쳐 나간 만큼 아래로 내린다
+  const top = below ? y + h + 14 + over : y - sh - 14;
+  say.style.top = Math.round(Math.max(over + 8, top)) + 'px';
 }
 
 function showCoach(step) {
@@ -7205,7 +7217,13 @@ function showCoach(step) {
   if (coverOpen(el)) return hideCoach();
   if (!el.getBoundingClientRect().width) return hideCoach();
   coachStep = step; coachTarget = el;
-  box.querySelector('.cc-say').textContent = t(step.sayKo);
+  box.querySelector('.cc-line').textContent = t(step.sayKo);
+  // 말하는 사람은 **내가 고른 단장**이다. 직업을 고르기 전(EP0 중간)에는 전사로 —
+  // 그 시점에는 아직 아무 길도 안 걷고 있다
+  const capImg = box.querySelector('.cc-cap img');
+  capImg.src = `/assets/captain/captain_${S.promoClass || 'warrior'}.webp`;
+  capImg.onerror = () => { capImg.onerror = null;
+    capImg.src = '/assets/captain/captain_warrior.webp'; };
   box.classList.toggle('force', !!step.force);
   box.classList.add('show');
   coachPlace();
@@ -7885,10 +7903,15 @@ function bootTapToStart() {
   // 하나를 빠뜨린다 — 팝업 소리에서 이미 배운 것과 같은 이유다.
   // 우선순위: 상점(소환 포함) > 아레나(패널이 열려 있거나 전투 중) > 메인
   setInterval(() => {
+    // 웹툰이 제일 위다. 프롤로그는 게임에서 유일하게 손이 멈추는 구간이라
+    // 소리가 먼저 바뀌어야 "이야기가 시작됐다" 가 생긴다. storyBusy 까지 보는
+    // 이유는 중간의 직업 선택 구간에는 웹툰 화면이 잠깐 감춰지기 때문이다 —
+    // 그 몇 초 동안 전투 곡이 끼어들면 한 편이 두 동강 난다
+    const story = storyBusy || $('#story')?.classList.contains('show');
     const shop = $('#shop')?.classList.contains('show');
     const arena = arRun
       || ($('#ov')?.classList.contains('show') && $('#ovt')?.textContent === t('아레나'));
-    bgmWant(shop ? 'bgm_shop' : arena ? 'bgm_arena' : 'bgm_main');
+    bgmWant(story ? 'bgm_story' : shop ? 'bgm_shop' : arena ? 'bgm_arena' : 'bgm_main');
   }, 1000);
   reveal = new SummonReveal($('#app'));
   roster = new RosterSheet({
