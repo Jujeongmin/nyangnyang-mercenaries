@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 23;
+const SERVER_REV = 24;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -314,6 +314,27 @@ function fixSenderNick(r, accField, nickField) {
   const n = String(r[nickField] || '');
   if (n && n !== '단장') return r;
   return { ...r, [nickField]: fallbackNick(r[accField]) };
+}
+
+/**
+ * 보낸 사람 이름을 **지금 프로필로** 이어 준다.
+ *
+ * 친구 신청·선물은 보낼 때의 이름을 행에 굳혀 담는다 (받는 쪽이 프로필을
+ * 조회하지 않아도 누구인지 보이게 하려고). 그런데 그 뒤 그 사람이 개명하면
+ * 신청함·선물함에만 옛 이름이 남아, 같은 사람이 친구 목록과 다른 이름으로
+ * 보인다 (2026-08-31). 채팅과 같은 병이다 — 읽을 때 잇는다.
+ *
+ * 프로필은 **한 번만** 받아 잇는다 (friendList 와 같은 방식).
+ */
+async function relinkSenderNick(rows, accField, nickField) {
+  if (!rows.length) return rows;
+  const profs = await qItems('profiles', { limit: 500 }).catch(() => []);
+  const byAcc = new Map(profs.map(x => [x.account, String(x.nickname || '').slice(0, 15)]));
+  return rows.map(r => {
+    const now = byAcc.get(r[accField]);
+    const row = now ? { ...r, [nickField]: now } : r;
+    return fixSenderNick(row, accField, nickField);
+  });
 }
 
 /** 행의 nickname 을 표시용으로 확정한다 — 빈 값·'단장' 은 자동 닉으로 */
@@ -798,14 +819,15 @@ class Server {
     return { ok: true };
   }
 
-  /** 나에게 온 신청 목록. **fromNick 은 읽을 때 한 번 더 고친다** — 예전 행에
-   *  '단장' 이 그대로 박제돼 있어 목록이 전부 같은 이름으로 보였다 */
+  /** 나에게 온 신청 목록. **fromNick 은 읽을 때 지금 프로필로 잇는다** — 신청
+   *  행의 이름은 보낼 때 굳은 값이라 개명이 반영 안 되고, 예전 행에는 '단장' 이
+   *  그대로 박제돼 있어 목록이 전부 같은 이름으로 보였다 */
   async friendRequests() {
     const rows = await qItems('friendReq', {
       filters: [{ field: 'to', operator: '==', value: $sender.account }],
       limit: 30,
     });
-    return rows.map(r => fixSenderNick(r, 'from', 'fromNick'));
+    return relinkSenderNick(rows, 'from', 'fromNick');
   }
 
   /**
@@ -1215,12 +1237,12 @@ class Server {
       if (g.day < day - 1) await $global.deleteCollectionItem('gifts', g.__id);
       else fresh.push(g);
     }
+    // 보낸 사람 이름은 지금 프로필로 잇는다 — 굳은 값만 쓰면 개명이 선물함에만
+    // 반영 안 돼 같은 사람이 친구 목록과 다른 이름으로 보인다
+    const named = await relinkSenderNick(fresh, 'from', 'fromNick');
     return {
       sent: srv.giftDay === day ? (srv.giftTo || []) : [],
-      inbox: fresh.map(g => {
-        const f = fixSenderNick(g, 'from', 'fromNick');
-        return { id: g.__id, from: g.from, fromNick: f.fromNick, day: g.day };
-      }),
+      inbox: named.map(g => ({ id: g.__id, from: g.from, fromNick: g.fromNick, day: g.day })),
     };
   }
 
