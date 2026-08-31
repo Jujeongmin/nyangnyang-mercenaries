@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "prepare": "node tools/setup-hooks.mjs",
     "assets:manifest": "node tools/gen-asset-manifest.mjs",
     "predev": "node tools/gen-asset-manifest.mjs",
     "dev": "vite",
