@@ -7211,7 +7211,13 @@ function coachPlace() {
   say.style.left = Math.round(cx - sw / 2) + 'px';
   // 위쪽에 붙을 때는 초상까지 얹힐 자리를 비워 준다. 그래도 화면을 벗어나면
   // 넘쳐 나간 만큼 아래로 내린다
-  const top = below ? y + h + 14 + over : y - sh - 14;
+  let top = below ? y + h + 14 + over : y - sh - 14;
+  // **하단 패널 안을 가리키면 말풍선을 패널 밖으로 올린다** (단장 지적 2026-08-31).
+  // 퀘스트 배너 바로 위가 장비 6칸이라, 그 자리에 띄우면 "보상을 받자" 가
+  // 방금 만든 장비를 덮는다. 패널 위(전투 화면)는 비어 있으니 거기로 올리면
+  // 가리는 것이 없고, 구멍·링은 그대로라 어디를 누르라는지도 안 흐려진다.
+  const panel = coachTarget.closest('#bottom');
+  if (panel && !below) top = Math.min(top, panel.getBoundingClientRect().top - sh - 10);
   say.style.top = Math.round(Math.max(over + 8, top)) + 'px';
 }
 
