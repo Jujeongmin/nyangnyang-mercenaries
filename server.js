@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 22;
+const SERVER_REV = 23;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1280,7 +1280,18 @@ class Server {
     return { ok: true, item };
   }
 
-  /** 최근 대화. 오래된 것이 위로 오게 뒤집어 준다 - 화면은 아래가 최신이다 */
+  /**
+   * 최근 대화. 오래된 것이 위로 오게 뒤집어 준다 - 화면은 아래가 최신이다.
+   *
+   * **이름과 직군은 지금 프로필로 덮어 돌려준다** (2026-08-31). 줄에 굳혀
+   * 담긴 값은 보낸 순간의 것이라, 그 사람이 개명·전직하면 지난 대화가 통째로
+   * 옛 이름으로 남았다 — 내 줄만 클라가 덮고 있어서 남의 이름만 안 바뀌었다
+   * (단장 지적 2026-08-31). 로그를 고쳐 쓰는 것이 아니라 **읽을 때** 잇는다.
+   *
+   * 프로필은 한 번만 받아 잇는다 (친구 목록과 같은 방식) — 줄마다 조회하면
+   * 40줄 = 40번이다. 이 함수는 부팅과 방 전환에서만 불린다: 그 뒤의 새 줄은
+   * 구독으로 오는데, sendChat 이 보낼 때 프로필에서 읽어 담으므로 이미 최신이다.
+   */
   async getChat(scope, limit) {
     const room = await chatRoomOf(scope);
     if (!room) return [];
@@ -1288,7 +1299,18 @@ class Server {
     // 최신이 먼저 오게 받아서 뒤집는다 — 화면은 아래가 최신이다.
     // orderBy 를 못 믿는 이유는 sortedTop 설명 참고
     const rows = await sortedTop(room, {}, 'at', n);
-    return rows.reverse();
+    const profs = await qItems('profiles', { limit: 500 }).catch(() => []);
+    const byAcc = new Map(profs.map(x => [x.account, x]));
+    return rows.reverse().map(r => {
+      const p2 = byAcc.get(r.account);
+      if (!p2) return r;                      // 프로필을 아직 안 올린 계정 — 굳은 값 그대로
+      const nick = String(p2.nickname || '').slice(0, 15);
+      return {
+        ...r,
+        nickname: nick || r.nickname,
+        capCls: ['warrior', 'archer', 'mage'].includes(p2.capCls) ? p2.capCls : r.capCls,
+      };
+    });
   }
 
   /**
@@ -1321,13 +1343,16 @@ class Server {
     });
     const byAcc = new Map();
     for (const r of rows) byAcc.set(r.account, (byAcc.get(r.account) || 0) + r.damage);
-    // 이름은 단원 행에서 가져온다 — 딜 로그마다 닉네임을 복사해 두면 개명이
-    // 반영되지 않고, leaf 수만 늘어난다
+    // 이름은 **프로필이 먼저**다 (2026-08-31). 딜 로그마다 닉네임을 복사해 두면
+    // leaf 수만 늘어나고, 단원 행의 닉네임은 가입 시점에 굳은 값이라 개명이
+    // 반영되지 않는다 — allianceMembers 가 쓰는 것과 같은 순서로 맞춘다
     const members = await qItems('allyMembers', {
       filters: [{ field: 'allianceId', operator: '==', value: mem.allianceId }],
       limit: MAX_MEMBERS,
     });
-    const nameOf = new Map(members.map(m => [m.account, m.nickname]));
+    const profs = await qItems('profiles', { limit: 500 }).catch(() => []);
+    const nickByAcc = new Map(profs.map(x => [x.account, String(x.nickname || '').slice(0, 15)]));
+    const nameOf = new Map(members.map(m => [m.account, nickByAcc.get(m.account) || m.nickname]));
     return [...byAcc]
       .map(pair => ({ account: pair[0], nickname: nameOf.get(pair[0]) || '', damage: pair[1] }))
       .sort((a, b) => b.damage - a.damage);

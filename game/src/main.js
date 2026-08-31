@@ -120,6 +120,7 @@ const S = {
   // 웹툰 — 완독한 화 / 건너뛴 화. 어느 쪽이든 **다시 안 뜬다** (첫 시작에 한 번).
   // 둘을 가르는 이유는 나중에 완독률을 보려면 이 구분이 유일한 근거라서다
   story: { seen: [], skipped: [] },
+  coachSeen: [],                           // 이미 눌러 본 코치마크 단계 id
   perfHud: false,                          // 성능 진단 HUD (설정 > 진단에서 켠다)
   presets: { mercenary: [null, null, null], skill: [null, null, null] },
   presetSel: {},
@@ -7160,8 +7161,13 @@ function coachPick() {
   if (!Array.isArray(steps)) return null;
   const def = questAt(D, S.quest);
   const phase = coachPhase(def);
+  // **한 번 눌러 본 단계는 다시 안 뜬다** (단장 지시 2026-08-31). 예전에는
+  // 목표를 눌러도 다음 렌더가 같은 단계를 또 골랐다 — 제작대는 다섯 번을
+  // 두드려야 해서 두드릴 때마다 같은 말풍선이 되살아났다.
+  const seen = S.coachSeen || (S.coachSeen = []);
   return steps.find(st => st.when?.quest === S.quest
-    && (!st.when.phase || st.when.phase === phase)) || null;
+    && (!st.when.phase || st.when.phase === phase)
+    && !seen.includes(st.id)) || null;
 }
 
 /**
@@ -7227,8 +7233,12 @@ function showCoach(step) {
   box.classList.toggle('force', !!step.force);
   box.classList.add('show');
   coachPlace();
-  // 목표를 누르면 역할이 끝났다 — 다음 렌더가 다음 단계를 고른다
-  el.addEventListener('click', () => hideCoach(), { once: true });
+  // 목표를 누르면 역할이 끝났다 — 배웠다는 뜻이므로 그 단계는 세이브에 접어 둔다
+  el.addEventListener('click', () => {
+    (S.coachSeen || (S.coachSeen = [])).includes(step.id) || S.coachSeen.push(step.id);
+    save();
+    hideCoach();
+  }, { once: true });
   if (!coachRaf) {
     coachRaf = 1;
     addEventListener('resize', coachPlace);

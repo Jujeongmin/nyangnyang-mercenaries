@@ -1106,6 +1106,14 @@
   /* 장비 */
   /* 반드시 골라야 하는 화면 — 닫기·ⓘ 를 숨긴다 */
   #ov.forced #ovx, #ov.forced #ovi{display:none}
+  /* **반드시 골라야 하는 판이 떠 있는 동안은 퀘스트 배너를 접는다.**
+     #ov 가 화면을 덮고 있어 배너는 이미 못 누르는데, 초록 테두리에 노란
+     [보상 받기] 라 어두운 막 너머로도 눈에 띈다 — 장비를 고르는 중에
+     누를 것이 두 개로 보여 무엇이 먼저인지가 사라졌다 (단장 지적 2026-08-31).
+     forced 가 아닌 판(정보 창 등)에서는 그대로 둔다: 닫고 누르면 되는 것이라
+     순서를 강요할 이유가 없다 */
+  #app:has(> #ov.show.forced) #quest{opacity:0;pointer-events:none;
+    transition:opacity .15s}
   /* 텍스트 입력 모달 — prompt() 대용. 모바일 WebView 는 prompt 를 막는
      경우가 있어 닉네임 변경이 통째로 죽었다 (단장 지적 2026-08-27) */
   #txtDlg{position:fixed;inset:0;z-index:300;display:none;align-items:center;
