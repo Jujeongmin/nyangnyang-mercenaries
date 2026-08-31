@@ -4781,6 +4781,54 @@ function chatLearnFromProfiles() {
   take(live.get('myAlliance')?.members);
 }
 
+/** 그 계정의 이름을 마지막으로 프로필에서 확인한 시각 */
+const chatVerifiedAt = new Map();
+const CHAT_NICK_TTL = 60_000;
+let chatVerifyRunning = false;
+
+/**
+ * 채팅에 보이는 계정들의 이름을 **프로필에서 직접** 확인한다.
+ *
+ * 위 chatLearnFromProfiles 는 이미 화면에 있는 목록(랭킹·친구·아레나)만 훑는데,
+ * 채팅 상대가 그 목록 어디에도 없을 수 있다 — 그러면 줄에 굳은 옛 이름이 그대로
+ * 남는다. 그래서 보이는 계정을 하나씩 `getProfile` 로 짚는다.
+ *
+ * **왜 getChat 에 기대지 않나.** 서버는 getChat 에서 이름을 이어 주지만 그건
+ * 서버가 그 판으로 배포돼 있을 때만이다. 옛 서버는 굳은 이름을 그대로 주는데,
+ * 그걸 "지금 확인한 값"으로 도장 찍으면 오히려 옛 이름이 더 세게 이긴다.
+ * getProfile 은 계정 하나를 그때그때 읽는 함수라 서버 판과 무관하게 지금 값이다.
+ *
+ * 줄은 40개지만 **사람은 몇 안 된다** — 계정으로 묶고 60초 안에 확인한 것은
+ * 건너뛰므로, 대화가 쏟아져도 조회가 늘지 않는다.
+ */
+async function chatVerifyNames(rows) {
+  if (!live.liveReady() || chatVerifyRunning) return;
+  const me = meAcc();
+  const now = Date.now();
+  const todo = [...new Set((rows || []).map(m => m.account).filter(Boolean))]
+    .filter(a => a !== me && now - (chatVerifiedAt.get(a) || 0) > CHAT_NICK_TTL)
+    .slice(0, 12);                       // 한 번에 열둘까지 — 나머지는 다음 열 때
+  if (!todo.length) return;
+  chatVerifyRunning = true;
+  let changed = false;
+  try {
+    const got = await Promise.all(todo.map(a =>
+      live.fetchProfile(a).then(x => [a, x]).catch(() => [a, null])));
+    for (const [a, x] of got) {
+      chatVerifiedAt.set(a, Date.now());
+      if (!x?.nickname) continue;
+      const before = chatNickBook.get(a)?.nick;
+      chatLearn(a, x.nickname, x.capCls, Date.now());
+      if (chatNickBook.get(a)?.nick !== before) changed = true;
+    }
+  } finally {
+    chatVerifyRunning = false;
+  }
+  // 바뀐 것이 있을 때만 다시 그린다 — 안 그러면 이 함수를 부른 chatRedraw 와
+  // 서로를 부르는 고리가 된다
+  if (changed) chatRedraw();
+}
+
 const chatNick = m => {
   if (chatMine(m)) return S.nickname || autoNickname();
   const b = chatNickBook.get(m.account);
@@ -4875,15 +4923,16 @@ function openChat(scope) {
       if (r) { live.setChat(chatScope, r); chatRedraw(); }
     }).catch(() => {});
     // **구독 중이어도 열 때 한 번은 받는다** — 캐시를 갈아 끼우려는 게 아니라
-    // *이름*을 걷으려는 것이다. getChat 은 서버에서 profiles 를 이어 붙여
-    // 지금 이름을 돌려주는데, 구독은 저장된 원본 행을 주므로 그 값이 없다.
-    // 받은 줄로 장부만 채우고 캐시는 구독에게 맡긴다 (두 곳이 같은 배열을
-    // 서로 덮으면 새 줄이 사라지는 창이 생긴다)
+    // 대화에 누가 있었는지를 알려는 것이다. 구독은 지금 방의 줄만 주고,
+    // 그 이름은 chatVerifyNames 가 프로필에서 다시 짚는다.
+    //
+    // **줄의 이름을 now 로 도장 찍지 않는다.** 서버가 getChat 에서 이름을
+    // 이어 주는 것은 그 판으로 배포됐을 때뿐인데, 옛 서버는 굳은 옛 이름을
+    // 그대로 준다 — 그걸 지금 값으로 적으면 옛 이름이 더 세게 이긴다.
     else live.fetchChat(chatScope).then(r => {
       if (!Array.isArray(r)) return;
-      const now = Date.now();
-      for (const m of r) chatLearn(m.account, m.nickname, m.capCls, now);
-      chatRedraw();
+      for (const m of r) chatLearn(m.account, m.nickname, m.capCls, m.at || 0);
+      chatVerifyNames(r);
     }).catch(() => {});
   }
 
@@ -5009,6 +5058,7 @@ function chatRedraw() {
   // 개명 뒤 한 마디만 해도 그 사람의 지난 줄까지 새 이름으로 갈린다
   for (const m of rows) chatLearn(m.account, m.nickname, m.capCls, m.at || 0);
   chatLearnFromProfiles();
+  chatVerifyNames(rows);          // 60초 캐시라 여기서 매번 불러도 조회가 안 는다
   // 비어 있으면 아무것도 안 띄운다 — openChat 과 같은 규칙이다.
   // 두 곳에 같은 문장이 있어서 한쪽만 지웠다가 그대로 남았다 (2026-08-26)
   el.innerHTML = rows.map(chatLineHtml).join('');
@@ -5038,6 +5088,10 @@ function chatBarSync() {
   // 대화가 없으면 **비운다.** 예전에는 그냥 돌아가서 초기 문구가 남았는데,
   // 가짜 공지를 걷어낸 지금은 그 자리에 아무것도 없어야 맞다
   if (!last) { if (who) who.textContent = ''; line.textContent = ''; return; }
+  // 하단 바도 사람 이름을 띄운다 — 채팅창을 안 열어도 여기서 먼저 보이므로
+  // 마지막으로 말한 사람의 이름은 여기서도 확인해 둔다 (60초 캐시)
+  chatLearn(last.account, last.nickname, last.capCls, last.at || 0);
+  chatVerifyNames([last]);
   if (who) who.textContent = esc(chatNick(last));
   line.textContent = last.text || '';
 }
@@ -8328,7 +8382,7 @@ function bootTapToStart() {
   // 폰에서 재현되는 문제를 PC 배포본에서 특정하는 용도다 (단장 워크플로)
   window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live, connectGameServer,
     // 이름 장부 — 개명이 남의 화면에 반영되는지 확인할 때 들여다본다
-    chatNickBook, chatLearn, chatNick,
+    chatNickBook, chatLearn, chatNick, chatVerifyNames, chatVerifiedAt,
     // 밸런스 실측용 — 연합 보스 HP 계수와 서버 상한이 이 값들 위에 서 있다
     totalCp, partyDps, allyBossFight,
     diag: async () => {
