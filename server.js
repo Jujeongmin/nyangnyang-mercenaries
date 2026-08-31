@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 24;
+const SERVER_REV = 25;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -663,8 +663,19 @@ class Server {
       for (const it of mine.slice(1)) {
         try { await $global.deleteCollectionItem('profiles', it.__id); } catch (e) {}
       }
-      await $global.updateCollectionItem('profiles', keep.__id, item);
-      return { ...item, __id: keep.__id };
+      // **인자는 (컬렉션, 아이템) 둘이다** — `__id` 는 아이템 안에 담는다.
+      //
+      // 여기만 `(컬렉션, id, 아이템)` 세 인자로 부르고 있었다 (이 파일의 다른
+      // 열 곳은 전부 두 인자다). 그래서 갱신이 아무 일도 안 했고, 아래 return 이
+      // **성공한 척**을 돌려줘서 실패한 줄도 몰랐다.
+      //
+      // 증상은 닉네임만이 아니었다: profiles 는 처음 addCollectionItem 으로
+      // 쓰인 값에서 영영 안 바뀌었다 — 남의 화면에 뜨는 내 이름·전투력·스테이지·
+      // 편성·칭호가 전부 계정 만든 날 그대로였다 (단장 진단 2026-08-31,
+      // 개명해도 남에게는 자동 닉이 보인다에서 출발해 여기까지 왔다).
+      const next = { ...keep, ...item };
+      await $global.updateCollectionItem('profiles', next);
+      return next;
     }
     return $global.addCollectionItem('profiles', item);
   }

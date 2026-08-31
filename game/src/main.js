@@ -639,7 +639,10 @@ function setNickname(name) {
   S.nickChangedAt = Date.now();
   save(); renderTop(); profile.render();
   // 새 이름을 서버에도 바로 올린다 — 안 올리면 랭킹·채팅에는 옛 이름이 남는다
-  Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+  Promise.resolve(live.pushProfile(publicProfile()))
+    // **삼키지 않는다.** 여기가 조용히 실패하면 남의 화면에 내 옛 이름이
+    // 영영 남는데, 아무 흔적이 없어 원인을 찾을 수가 없었다 (2026-08-31)
+    .catch(e => console.warn("[live] 프로필 제출 실패 — 남에게는 옛 이름이 보인다", e));
   // **화면도 그 자리에서 갈아 준다.** 서버에 올리는 것만으로는 이미 그려진
   // 채팅 줄·하단 바가 안 바뀐다 — 유저 눈에는 변경이 안 먹은 것으로 보인다
   // (단장 지적 2026-08-30). 내 줄은 chatNick 이 지금 이름으로 덮어 그린다.
@@ -4914,7 +4917,10 @@ function openChat(scope) {
   // **약속으로 들고 있다가 보낼 때 기다린다.** 던져 놓기만 하면, 채팅창을 열고
   // 곧바로 친 말은 프로필이 저장되기 전에 서버가 읽어서 닉네임·직군이 빈 채로
   // 굳는다 — 내 줄만 이름과 얼굴이 안 맞던 원인이다 (단장 지적 2026-08-28).
-  if (ready) chatProfileReady = Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+  if (ready) chatProfileReady = Promise.resolve(live.pushProfile(publicProfile()))
+    // **삼키지 않는다.** 여기가 조용히 실패하면 남의 화면에 내 옛 이름이
+    // 영영 남는데, 아무 흔적이 없어 원인을 찾을 수가 없었다 (2026-08-31)
+    .catch(e => console.warn("[live] 프로필 제출 실패 — 남에게는 옛 이름이 보인다", e));
   if (ready) {
     // 부팅에서 이미 걸어 두었으면 그대로 쓴다 (chatSubs 주석)
     const subbed = chatSubscribe(chatScope);
@@ -8124,7 +8130,10 @@ function bootTapToStart() {
       S.profile = S.profile || {}; S.profile[k] = v; save(); renderCaptain();
       // 대표 용병·칭호·액자는 남에게 보이는 값이다 — 바꾼 즉시 서버에 올린다
       // (pushPublic 의 60초 debounce 를 기다리면 랭킹에 옛 모습이 남는다)
-      Promise.resolve(live.pushProfile(publicProfile())).catch(() => {});
+      Promise.resolve(live.pushProfile(publicProfile()))
+    // **삼키지 않는다.** 여기가 조용히 실패하면 남의 화면에 내 옛 이름이
+    // 영영 남는데, 아무 흔적이 없어 원인을 찾을 수가 없었다 (2026-08-31)
+    .catch(e => console.warn("[live] 프로필 제출 실패 — 남에게는 옛 이름이 보인다", e));
     },
   });
   // 버전 줄 연타 카운터 — 진단을 여는 제스처에 쓴다 (action 'diag')
