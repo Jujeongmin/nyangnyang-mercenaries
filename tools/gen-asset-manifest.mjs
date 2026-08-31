@@ -21,7 +21,10 @@ const OUT = join(ASSETS, 'manifest.json');
 
 // 목록에 안 넣는 것들. 화면이 절대 안 부르는 파일을 미리 받으면 로딩만 길어진다
 const SKIP_DIR = new Set(['_pick']);
-const SKIP_FILE = /^(manifest\.json|\.DS_Store|Thumbs\.db)$/;
+// 백업·임시 파일도 뺀다 (`.bak` `.orig` `.tmp` `~`). 화면이 절대 안 부르는데
+// 목록에 끼면 로딩이 그만큼 길어지고, 매니페스트가 사람마다 달라져 커밋이 흔들린다
+// — `trim.json.bak` 10KB 가 실제로 그랬다 (2026-08-31, 지웠다).
+const SKIP_FILE = /^(manifest\.json|\.DS_Store|Thumbs\.db)$|\.(bak|orig|tmp)$|~$/;
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
