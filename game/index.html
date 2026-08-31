@@ -2973,6 +2973,38 @@
   .tw-rw{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:800;color:var(--gold)}
   .tw-rw img{width:13px;height:13px;object-fit:contain}
 
+  /* 층 카드 — 보스 얼굴 · 요구 전투력 · 보상 · 도전이 한 줄이다.
+     예전 .tw-row 는 숫자 세 개뿐이라 "다음 층에 뭐가 나오나" 가 화면에 없었다 */
+  .tw-fl{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .tw-fl.now{border-color:#a06ae0;background:linear-gradient(#241a3a,#171126);
+    box-shadow:0 4px 14px #0007}
+  .tw-fl.hard{opacity:.62}
+  .tw-fl.now.hard{opacity:1}
+  .tw-face{position:relative;width:52px;height:52px;flex:0 0 auto;border-radius:10px;
+    background:radial-gradient(circle at 50% 35%,#3a2450,#140e22);border:1px solid #4a3568;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px}
+  .tw-face img{width:100%;height:100%;object-fit:contain;object-position:center 42%;
+    transform:scale(1.35)}
+  .tw-fl.ms .tw-face{border-color:var(--gold);box-shadow:0 0 10px #ffc94a55}
+  .tw-ms{position:absolute;right:0;bottom:0;font-style:normal;font-size:8px;font-weight:900;
+    background:var(--gold);color:#2a1a00;padding:1px 3px;border-radius:4px 0 0 0}
+  .tw-info{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .tw-info>b{font-size:13px;font-weight:900}
+  .tw-info>b em{font-style:normal;font-size:9px;font-weight:800;color:#c9a6ff;
+    border:1px solid #7a4ac0;border-radius:5px;padding:0 4px;margin-left:4px;vertical-align:2px}
+  .tw-fl .tw-cp{font-size:11px}
+  .tw-fl .tw-cp.ok{color:var(--up)} .tw-fl .tw-cp.no{color:var(--warn)}
+  .tw-fl .tw-rw-box{flex-wrap:wrap}
+  .tw-btn{flex:0 0 auto;min-width:58px;padding:8px 6px;border-radius:9px;cursor:pointer;
+    font-family:inherit;font-size:11px;font-weight:900;line-height:1.15;text-align:center;
+    border:1px solid #a06ae0;background:linear-gradient(#7a4ac0,#4a2a80);color:#fff}
+  .tw-btn i{display:block;font-style:normal;font-size:9px;font-weight:700;opacity:.85}
+  .tw-btn.off{background:none;border-color:transparent;color:var(--dim);cursor:default;
+    font-weight:700;font-size:10px}
+  /* 미달 도전 — 막지 않는다. 잃는 것이 없으니 색으로만 경고한다 */
+  .tw-btn.risky,.tw-go.risky{border-color:#c06a4a;background:linear-gradient(#a0522a,#5a2a18)}
+
   /* 안내 pill — 화면 중하단. 시선(전투·버튼)과 겹치지 않는 자리다.
      중앙 상단 큰 토스트는 전부 여기로 왔다 — 그 자리는 연출(레벨업·VS)의 것 */
   #toast{position:absolute;left:50%;bottom:33%;transform:translateX(-50%) translateY(6px);
@@ -3225,18 +3257,20 @@
     border-image:var(--f-off) 120 fill stretch;color:var(--dim);text-shadow:none}
 
   /* 목록 한 줄 — .frow 와 같은 역할이므로 같은 카드 프레임 */
-  .st-row,.tw-row,.pf-stats div,.pf-t{background:none;border-style:solid;border-width:10px;
+  .st-row,.tw-row,.tw-fl,.pf-stats div,.pf-t{background:none;border-style:solid;border-width:10px;
     border-radius:0;border-image:var(--f-card) 122 fill stretch;margin-bottom:5px}
   /* 설정 줄만 간격을 더 조인다 — 한 화면에 다 들어가야 한다 (단장 확정
      2026-08-25). **바로 위 규칙이 .st-row 를 5px 로 덮고 있어서**, 앞쪽
      기본 규칙에서 margin 을 줄여 봐야 여기서 다시 5px 이 된다 */
   .st-row{padding:2px 3px;margin-bottom:2px}
   .tw-row{padding:1px 3px}
+  /* 층 카드는 보스 얼굴(52px)이 들어가 있어 프레임 안쪽을 조금 더 준다 */
+  .tw-fl{padding:3px 6px;gap:9px}
   .pf-stats div{padding:2px 4px;margin-bottom:0}
   .pf-t{padding:1px 2px}
   /* 선택·현재 표시는 프레임을 바꾸지 않고 금색 글자 + 발광으로 준다 */
-  .tw-row.now,.pf-t.on{filter:drop-shadow(0 0 6px #ffc94a66)}
-  .tw-row.now b,.pf-t.on b{color:var(--gold)}
+  .tw-row.now,.tw-fl.now,.pf-t.on{filter:drop-shadow(0 0 6px #ffc94a66)}
+  .tw-row.now b,.tw-fl.now>.tw-info>b,.pf-t.on b{color:var(--gold)}
 
   /* 도감 칸 · 인벤토리 칸 · 편성 시트의 장착 칸 — 전부 같은 소켓이다.
      장착 줄만 2px 실선으로 두면 같은 화면에 테두리가 두 종류가 되고,

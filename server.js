@@ -126,9 +126,15 @@ const JOIN_MIN_STAGE = 30;           // membership.joinRequirement.minStage
 const LEAVE_COOLDOWN_MS = 24 * 3600e3;
 const CREATE_COST_DIA = 1000;
 const DAILY_COIN_CAP = 95;           // contribution.dailyCoinCap (5단계 합)
-const BOSS_ATTEMPTS = 3;             // boss.attemptsPerWeek
+const BOSS_ATTEMPTS = 6;             // boss.attemptsPerWeek (구 3 — HP 10배와 같이 올렸다)
 const BOSS_TIERS = [1, 1.35, 1.8, 2.4, 3.2];
-const BOSS_HP_COEF = 0.5;
+// boss.hp.coefficient. 0.5 -> 10.0 (2026-08-31). 0.5 에서는 한 사람의 한 번이
+// 1단계 HP 를 통째로 넘겨서 단원이 적은 연합은 보스를 한 방에 눕혔다.
+// 시도딜이 화면 전투 실측(cp x 3.6)으로 바뀐 것까지 합쳐 10.0 이 "체감 10배" 다.
+// 만근 연합이 주 6회를 다 써서 1단계를 잡는다 — 사다리는 주간이 아니라 시즌 단위로 오른다.
+const BOSS_HP_COEF = 10.0;
+// 딜 상한 배수. 화면 전투 실측(cp x 3.6)의 약 2배 — allianceBossHit 주석 참조
+const BOSS_DMG_CAP_PER_CP = 7.5;
 
 // 기부 5단계. **비용도 서버가 안다** - 클라가 "얼마 냈다"를 보내면 0원 기부가 된다
 const DONATE_STEPS = [
@@ -162,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 21;
+const SERVER_REV = 22;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1064,8 +1070,12 @@ class Server {
   }
 
   /**
-   * 연합 보스 상태. HP 는 **단원 CP 합 x 0.5 x 단계배수** 다
-   * (alliance.json > boss.hp.formula). 주가 바뀌면 새로 연다.
+   * 연합 보스 상태. HP 는 **단원 CP 합 x 10.0 x 단계배수** 다
+   * (alliance.json > boss.hp.formula). 주가 바뀌면 HP 를 새로 채운다.
+   *
+   * **단계는 주가 바뀌어도 안 내려간다** (2026-08-31). HP 10배 뒤로는 한 주에
+   * 한 단계가 한계라, 매주 1단계로 되돌리면 2~5단계가 데이터에만 있고 화면에는
+   * 영영 안 나온다 (alliance.json > boss.hp.tierNote).
    */
   async allianceBoss() {
     const mem = await oneByAccount('allyMembers', $sender.account);
@@ -1079,7 +1089,7 @@ class Server {
         limit: MAX_MEMBERS,
       });
       const sumCp = rows.reduce((a, r) => a + (r.cp || 0), 0);
-      const tier = al.bossWeek === wk ? (al.bossTier || 1) : 1;   // 주가 바뀌면 1단계로
+      const tier = al.bossTier || 1;      // 주가 바뀌어도 단계는 그대로 — HP 만 다시 찬다
       const max = Math.max(1, Math.round(sumCp * BOSS_HP_COEF * BOSS_TIERS[tier - 1]));
       al = { ...al, bossWeek: wk, bossTier: tier, bossMax: max, bossHp: max,
              weekly: al.bossWeek === wk ? al.weekly : 0 };
@@ -1095,8 +1105,12 @@ class Server {
    * 30명이 실시간으로 밀어 넣으면 초당 10회를 넘긴다).
    *
    * 딜량은 클라가 계산해서 보낸다. 1단계 통짜 저장과 같은 신뢰 모델이라 이게 상한이고,
-   * 대신 **파티 CP 의 배수로 자른다** - 시도딜 기준이 파티 CP x 1.723 이므로
-   * (sim/alliance-boss.js) 3.5배면 정상 편차는 다 통과하고 조작만 걸린다.
+   * 대신 **파티 CP 의 배수로 자른다**.
+   *
+   * 3.5 -> 7.5 (2026-08-31). 화면 전투를 붙이면서 시도딜이 추정치 cp x 1.723 에서
+   * 실측 cp x 3.6 (측정 3.21~4.06) 으로 올랐다 — 3.5 를 그대로 두면 **정상 도전을
+   * 거의 다 잘라먹는다**. 실측 평균의 약 2배로 두면 편차·패시브·장비는 다 통과하고
+   * 조작만 걸린다 (옛 3.5/1.723 과 같은 여유 비율이다).
    */
   async allianceBossHit(damage, myCp) {
     const mem = await oneByAccount('allyMembers', $sender.account);
@@ -1114,7 +1128,7 @@ class Server {
     // 단계가 공짜로 오른다 — 테스트에서 실제로 tier 1 -> 5 로 뛰었다.
     // 클라는 allianceBoss() 를 먼저 불러 새 단계를 개장한 뒤 도전한다.
     if (!al.bossMax || (al.bossHp || 0) <= 0) return { ok: false, reason: 'closed' };
-    const cap = Math.max(0, myCp | 0) * 3.5;
+    const cap = Math.max(0, myCp | 0) * BOSS_DMG_CAP_PER_CP;
     const dmg = Math.min(damage, cap);
     const hp = Math.max(0, (al.bossHp || 0) - dmg);
     const killed = hp <= 0;

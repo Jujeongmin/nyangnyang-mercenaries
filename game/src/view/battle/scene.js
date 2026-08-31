@@ -903,6 +903,13 @@ export class BattleScene {
       if (this.timeLeft != null) {
         this.timeLeft -= s;
         if (this.timeLeft <= 0) {
+          if (this.mode === 'ally') {
+            this.bossFight = false; this.timeLeft = null;
+            this.phase = 'done';
+            this.onEvent({ type: 'allyBossEnd', damage: this.allyDealt || 0,
+                           killed: false, reason: 'timeout' });
+            return;
+          }
           if (this.mode === 'tower' || this.mode === 'dungeon') {
             this.bossFight = false; this.timeLeft = null;
             this.phase = 'done';
@@ -1115,7 +1122,10 @@ export class BattleScene {
   damageParty(foe) {
     if (this.partyHp == null) return;
     const R = this.D.combat.stageRules;
-    const scale = foe.boss ? (R.bossDamageScale ?? 1) : (R.mobDamageScale ?? 0.05);
+    let scale = foe.boss ? (R.bossDamageScale ?? 1) : (R.mobDamageScale ?? 0.05);
+    // 연합 보스는 60초를 버티는 것이 절반이다. 스테이지 보스와 같은 배율이면
+    // 45초쯤에 전멸해 제한시간이 장식이 된다 — alliance.json 이 배율을 따로 준다
+    if (this.mode === 'ally') scale *= (this.allyDmgScale ?? 1);
     // 가시 오라 — 맞는 순간 적에게 되돌린다. 잡몹도 때리므로 스테이지에서
     // 실제 딜이 된다 (예전 '반사' 는 받은 피해 비례라 0.05 배 앞에서 무력했다)
     if (this.pas?.thorns && foe.hp > 0) {
@@ -1141,6 +1151,11 @@ export class BattleScene {
       this.timeLeft = null;
       // 전멸. 모드마다 뒤처리가 다르므로(스테이지는 잡몹 재개, 탑·던전은 목록으로)
       // 이벤트를 갈라 보낸다. 재시작의 주인은 어느 쪽이든 main 하나다
+      if (this.mode === 'ally') {
+        this.onEvent({ type: 'allyBossEnd', damage: this.allyDealt || 0,
+                       killed: false, reason: 'wipe' });
+        return;
+      }
       const e = { tower: 'towerLose', dungeon: 'dungeonLose' }[this.mode] || 'lose';
       this.onEvent({ type: e, floor: this.stage, reason: 'wipe' });
     }
@@ -1545,6 +1560,10 @@ export class BattleScene {
     // 있고 여기 타격은 그림일 뿐이다. 깎게 두면 arenaStep 이 매 프레임 되돌려
     // 놓는 줄다리기가 되고, 운 나쁘면 그 사이 killFoe 가 먼저 터진다
     if (this.mode !== 'arena') foe.hp -= dmg;
+    // 연합 보스의 결과는 승패가 아니라 **넣은 딜의 총합**이다 (전투가 끝나면
+    // 이 값 하나를 서버에 올린다). 남은 HP 를 넘겨 때린 몫도 그대로 센다 —
+    // 자르는 것은 서버의 몫이고, 여기서 자르면 막타를 넣은 사람만 손해를 본다
+    if (this.mode === 'ally') this.allyDealt = (this.allyDealt || 0) + dmg;
     // 즉사 — 체력이 문턱 아래로 떨어진 적을 확률로 끝낸다. 남은 피가 적을수록
     // 판정이 자주 열리므로 **피해를 넣은 뒤에** 본다
     if (this.mode !== 'arena' && P.execChance && foe.hp > 0
@@ -1677,6 +1696,14 @@ export class BattleScene {
 
   async onWaveClear() {
     const S = this.D.stages.enemyDerivation;
+    if (this.mode === 'ally') {
+      this.bossFight = false;
+      this.phase = 'done';
+      this.timeLeft = null;
+      this.onEvent({ type: 'allyBossEnd', damage: this.allyDealt || 0,
+                     killed: true, reason: 'kill' });
+      return;
+    }
     if (this.mode === 'tower' || this.mode === 'dungeon') {
       this.bossFight = false;
       this.phase = 'done';
@@ -1783,6 +1810,58 @@ export class BattleScene {
     this.phaseT = 0;
   }
 
+  /**
+   * 연합 보스 한 판. **탑·던전과 결정적으로 다른 것은 보스가 보통 안 죽는다는 점이다** —
+   * 체력이 연합 30명의 공유분이라 한 사람의 60초로는 일부만 깎인다. 그래서 이 모드의
+   * 결과는 승패가 아니라 **넣은 딜의 총합**(allyDealt)이고, 그 값 하나를 전투가 끝난
+   * 뒤 서버에 한 번 올린다 (alliance.json > verse8.rateLimit — 30명이 실시간으로
+   * 밀어 넣으면 초당 10회를 넘긴다).
+   *
+   * 체력바 눈금은 **연합 전체 최대 HP** 다. 내 60초가 전체의 몇 %를 깎았는지가
+   * 보여야 "같이 두들긴다" 가 된다 — 내 몫만 100% 로 그리면 혼자 잡은 것처럼 보인다.
+   *
+   * 판정은 여기서 실제로 난다 (아레나와 반대다). 아레나는 승패가 순위에 직접
+   * 꽂혀 결정론이 필요했지만, 여기는 딜의 총합이라 기기 편차가 순위를 뒤집지
+   * 않고 서버가 상한으로 한 번 더 자른다.
+   *
+   * @param o.hp       지금 남은 연합 보스 HP (서버가 준 값)
+   * @param o.max      이번 단계의 최대 HP — 체력바 눈금
+   * @param o.tier     단계. 보스 그림이 여기서 갈린다
+   * @param o.seconds  제한시간
+   * @param o.myCp     내 전투력 — 파티 체력 기준선
+   * @param o.partyDps
+   * @param o.dmgScale 보스가 파티에 넣는 피해 배율 (alliance.json > boss.partyDamageScale)
+   */
+  async startAllianceBoss(o) {
+    // 판 번호. 이전 판이 예약해 둔 지연 콜백을 무효로 만든다
+    this.runId = (this.runId || 0) + 1;
+    this.mode = 'ally';
+    this.stage = o.tier;
+    this.requiredCp = o.myCp;
+    this.partyDps = o.partyDps;
+    this.encounter = 0;
+    this.bossFight = true;
+    this.bossPending = true;
+    this.allyDealt = 0;
+    this.allyDmgScale = o.dmgScale ?? 1;
+    this.killStacks = 0;
+    this.shield = 0;
+    this.partyMaxHp = Math.max(1, o.myCp * 1.6);
+    this.partyHp = this.partyMaxHp;
+    this.clearFoes();
+
+    const b = 'B-0' + Math.min(6, Math.max(1, o.tier | 0));
+    await this.spawnWave('boss', [b], Math.max(1, o.hp), { fallback: 'B-01' });
+    // spawnWave 는 hp = maxHp 로 세운다. 연합 보스는 **남은 HP 와 최대 HP 가 다르다** —
+    // 이미 단원들이 깎아 놓은 판에 들어가는 것이라 눈금을 따로 되돌려 준다
+    const f = this.foes[0];
+    if (f) f.maxHp = Math.max(1, o.max || o.hp);
+    this.onEvent({ type: 'wave', encounter: 0, boss: true });
+    this.timeLeft = o.seconds;
+    this.onEvent({ type: 'tick', timeLeft: this.timeLeft });
+    this.phase = 'walk';
+    this.phaseT = 0;
+  }
   /**
    * 아레나 한 판. **arena.json > battle.presentation 의 hp_drain 그대로다.**
    *

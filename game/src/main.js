@@ -5191,7 +5191,7 @@ const arenaWinDelta = foeScore =>
   Math.max(10, Math.min(50, 30 - Math.floor((S.arenaScore - foeScore) / 50)));
 
 function arenaFight(foe) {
-  if (arRun || dgRun) return;
+  if (arRun || dgRun || abRun) return;
   if (arenaLeft() < 1) return toast(t('오늘 입장을 다 썼습니다'));
   arenaState().used++;
   const a = D.arena;
@@ -5771,7 +5771,7 @@ function openAlliance(tab = 'home') {
         <div><span>처치 보상</span><b>${coin}${B.rewards.clearBonus.alliance_coin}</b></div>
       </div>
       <button class="rt-b go" data-al-fight style="width:100%;margin-top:9px"
-        ${bs && bs.triesLeft <= 0 ? 'disabled' : ''}>도전 (60초 전력전)</button>
+        ${bs && bs.triesLeft <= 0 ? 'disabled' : ''}>도전 (${B.fightSeconds}초 전력전)</button>
       ${bossLogRows()}
       <div class="sh-note">${B.rewards.participationNote}</div>`;
   };
@@ -5938,25 +5938,86 @@ const shortAcc = a => !a ? '단장'
   : a.length > 12 ? a.slice(0, 6) + '…' + a.slice(-4) : a;
 const ROLE_KO = { leader: '단장', officer: '부단장', member: '단원' };
 
+/** 진행 중인 연합 보스 판. 던전의 dgRun · 아레나의 arRun 과 같은 이유로 전역이다 */
+let abRun = null;
+
 /**
  * 연합 보스 도전. **판정은 서버가 쥔다** — HP 는 연합 공유라 클라가 깎으면
  * 30명이 서로를 덮어쓴다 (alliance.json > verse8.concurrency).
  * 그래서 전투는 화면에서 돌리고, **끝난 뒤 딜량 한 번만** 올린다.
+ *
+ * 2026-08-31: 예전에는 전투가 아예 없었다 — `cp x 1.723` 을 계산해 바로
+ * 제출했다. 연합 보스는 셋 중 유일한 협동 무대인데 화면에 아무 일도 안
+ * 일어나서, 누르면 토스트만 뜨는 버튼이었다. 이제 스테이지 보스와 같은
+ * 전투를 돌리고 **실제로 넣은 딜**을 낸다 (단장 확정 2026-08-31).
  */
 async function allyBossFight() {
   if (!live.liveReady()) {
     return toast('보스전은 서버 연동 후 열립니다 — 판정이 연합 공유 HP 라 클라 혼자 못 굴린다');
   }
+  if (dgRun || arRun || abRun) return;    // 전투 중 재입장 금지 — 씬이 하나뿐이다
+  // 최신 상태를 받아서 들어간다. 창을 열어 둔 사이 단원들이 깎아 놨을 수 있고,
+  // 죽은 보스를 때리면 서버가 closed 로 되돌린다 (server.js > allianceBossHit)
+  live.invalidate('boss');
+  await live.pullBoss(() => {});
   const bs = live.get('boss');
-  if (bs && bs.triesLeft <= 0) return toast(t('이번 주 도전을 다 썼습니다'));
+  if (!bs) return toast(t('보스 상태를 받지 못했습니다'));
+  if (bs.triesLeft <= 0) return toast(t('이번 주 도전을 다 썼습니다'));
+  if (!bs.max || bs.hp <= 0) return toast(t('보스가 쓰러져 있습니다 — 잠시 뒤 다음 단계가 열립니다'));
+
+  const B = D.alliance.boss;
   const cp = Math.round(totalCp());
-  // 시도딜 기준은 파티 CP x 1.723 이다 (sim/alliance-boss.js). 전투 연출을 붙이기 전까지
-  // 그 값을 그대로 낸다 — 서버가 CP x 3.5 로 자르므로 조작 여지는 여기서 안 생긴다
-  const dmg = Math.round(cp * 1.723 * (0.9 + Math.random() * 0.2));
-  const r = await live.bossHit(dmg, cp)
+  abRun = { cp, tier: bs.tier };
+
+  // 연합 창을 닫아야 전투 화면이 보인다 (아레나와 같은 처리)
+  roster.close();
+  $('#ov').classList.remove('show', 'forced');
+  $('#stg').innerHTML = `연합 보스<i>${bs.tier}단계</i>`;
+  markEncounter(-1);
+
+  try {
+    await scene.setBackground('BG-06');
+    scene.captainClass = S.promoClass || 'warrior';
+    scene.captainTier = (S.promo && S.promo[S.promoClass || 'warrior']) || 1;
+    await scene.setParty(S.party);
+    scene.activeSkills = S.skills.active.filter(Boolean);
+    scene.passiveSkills = S.skills.passive.filter(Boolean);
+    scene.syncPassiveAura?.();
+    await scene.startAllianceBoss({
+      hp: bs.hp, max: bs.max, tier: bs.tier,
+      seconds: B.fightSeconds, myCp: cp, partyDps: partyDps(),
+      dmgScale: B.partyDamageScale,
+    });
+  } catch (e) {
+    // 그림 로딩이 깨지면 abRun 이 걸린 채 남아 **모든 전투가 막힌다** —
+    // 던전·아레나·탑이 전부 이 깃발을 본다. 실패하면 반드시 되돌린다
+    console.warn('[연합보스] 전투를 시작하지 못했다', e);
+    abRun = null;
+    toast(t('전투를 시작하지 못했습니다'));
+    runStage();
+    return;
+  }
+  renderTop();
+}
+
+/**
+ * 전투가 끝났다 — **딜을 한 번만** 올린다. 격파 판정은 서버가 한다:
+ * 여기서 본 "죽었다"는 내가 들어갈 때의 HP 기준이라, 그 사이 다른 단원이
+ * 먼저 눕혔으면 서버가 closed 로 되돌린다.
+ */
+async function allyBossSubmit(dealt) {
+  const r0 = abRun;
+  abRun = null;
+  if (!r0) return;
+  const dmg = Math.max(0, Math.round(dealt));
+  const r = await live.bossHit(dmg, r0.cp)
     .catch(e => ({ ok: false, reason: String(e && e.message || e) }));
+  // 어느 쪽으로 끝나든 방치 전투로 돌아간다 — 전투 화면이 연합 보스로 멈춰 있으면
+  // 나갈 방법이 없다
+  setTimeout(() => { openAlliance('boss'); runStage(); }, 900);
   if (!r?.ok) return toast(t(ALLY_ERR[r?.reason] || '도전하지 못했습니다'));
   live.invalidate('boss', 'bossLog');
+  showResult(r.killed ? '보스 격파' : `${num(r.damage)} 피해`, r.killed ? '#ffc94a' : '#8fd6ff');
   toast(r.killed
     ? t('보스 격파! 다음 단계가 열렸습니다')
     : t('{0} 피해 · 남은 도전 {1}회', num(r.damage), r.triesLeft));
@@ -6056,7 +6117,7 @@ let dgRun = null;
 async function runDungeon(dg) {
   const st = S.dg[dg.id];
   const entries = D.dungeons.entry.dailyKeyGrant;
-  if (dgRun || arRun) return;              // 전투 중 재입장 금지 — 씬이 하나뿐이다
+  if (dgRun || arRun || abRun) return;      // 전투 중 재입장 금지 — 씬이 하나뿐이다
   if (dgKeysOf(dg.id) < 1) return toast(`${dg.nameKo} 열쇠 부족 · 매일 ${entries}개 지급`);
   S.dgKeys[dg.id]--;
   mq('dungeon_enter');
@@ -6863,6 +6924,7 @@ const scrapGold = tier => D.equipment.duplicateHandling.goldByTier[tier] || 0;
 // --- 스테이지 ---
 /** 탑 한 층을 건다. 배경은 마지막 배경대(마왕성)를 쓴다. */
 async function runTowerFloor(floor) {
+  if (dgRun || arRun || abRun) return;   // 전투 중 재입장 금지 — 씬이 하나뿐이다
   await scene.setBackground('BG-06');
   await scene.setParty(S.party);
   $('#stg').innerHTML = `무한의 탑<i>${floor}층</i>`;
@@ -6878,8 +6940,9 @@ async function runTowerFloor(floor) {
 
 async function runStage() {
   // 던전이 도는 중에는 방치 전투로 안 돌아간다. 예약된 setTimeout(runStage) 이
-  // 던전 입장 직후에 터지면 배경·파티·웨이브를 전부 스테이지 것으로 갈아 버린다
-  if (dgRun) return;
+  // 던전 입장 직후에 터지면 배경·파티·웨이브를 전부 스테이지 것으로 갈아 버린다.
+  // 연합 보스도 같다 — 60초짜리 판이라 그 사이 예약이 여러 번 터진다
+  if (dgRun || abRun) return;
   // 던전에서 돌아왔다 — 스테이지 진행도를 되살린다
   $('#app').classList.remove('in-dungeon');
   const bgId = bgFor(S.stage);
@@ -7328,7 +7391,7 @@ function stageGold(n = S.stage) {
 function onEvent(e) {
   // 던전 전투 중에 날아오는 **스테이지 이벤트는 옛 판의 잔여물**이다.
   // 여기서 걸러 내지 않으면 runStage 가 다시 걸려 수문장을 밀어낸다
-  if (dgRun && ['win', 'lose', 'bossReady', 'stage'].includes(e.type)) return;
+  if ((dgRun || abRun) && ['win', 'lose', 'bossReady', 'stage'].includes(e.type)) return;
   if (e.type === 'kill') {
     // 누적 처치. 퀘스트 진행도라 렌더까지 해야 배너가 즉시 찬다
     S.kills = (S.kills || 0) + 1;
@@ -7383,6 +7446,8 @@ function onEvent(e) {
   } else if (e.type === 'towerLose') {
     showResult(`${e.floor}층 실패`, '#ff5a6a');
     setTimeout(() => { tower.open(); runStage(); }, 1200);
+  } else if (e.type === 'allyBossEnd') {
+    allyBossSubmit(e.damage);
   } else if (e.type === 'arenaHp') {
     const el = $('#arBars');
     el.querySelector('.ar-me i').style.width = Math.max(0, e.my * 100) + '%';
@@ -8154,6 +8219,8 @@ function bootTapToStart() {
   // 한 방 진단 — 배포본 콘솔에서 __dbg.diag() 를 치면 서버 상태가 다 나온다.
   // 폰에서 재현되는 문제를 PC 배포본에서 특정하는 용도다 (단장 워크플로)
   window.__dbg = { runStage, runDungeon, arenaFight, arenaFoes, live, connectGameServer,
+    // 밸런스 실측용 — 연합 보스 HP 계수와 서버 상한이 이 값들 위에 서 있다
+    totalCp, partyDps, allyBossFight,
     diag: async () => {
       const out = {};
       const tryCall = async (name, args) => {

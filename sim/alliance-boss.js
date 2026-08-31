@@ -24,7 +24,7 @@ const A = require('fs').existsSync(__dirname + '/../game/public/data/alliance.js
   : null;
 const HP_COEF = A.boss.hp.formula.match(/([\d.]+)/) ? parseFloat(A.boss.hp.formula.match(/\* ([\d.]+) \*/)[1]) : 0.55;
 const TIERS = A.boss.hp.tierMultiplier;      // [1, 1.35, 1.8, 2.4, 3.2]
-const ATTEMPTS_PER_WEEK = A.boss.attemptsPerWeek;   // 3
+const ATTEMPTS_PER_WEEK = A.boss.attemptsPerWeek;   // 6
 
 // ── 개인 60초 총딜 측정 ────────────────────────────────────
 function makeAttacker(classId, grade, level) {
@@ -62,12 +62,15 @@ function attemptDamage(party, bossDef, refAtk, seed) {
 /**
  * 멤버 CP → 60초 시도당 데미지.
  *
- * 틱 시뮬 실측으로 **CP 선형**이 확인됐다 (Lv5/15/30 전부 파티CP x 1.723,
- * 감산은 상대 기준이라 규모에서 소거된다). 그래서 대표 파티를 다시 세우지 않고
- * 계수를 직접 곱한다 — CP 를 레벨로 역산하면 저CP 구간에서 Lv0 바닥에 걸려
- * 소규모 연합의 딜이 2.5배 과대해지는 버그가 있었다.
+ * **화면 전투 실측값이다** (2026-08-31). 연합 보스에 진짜 전투가 붙으면서
+ * 제출 딜이 이 파일의 틱 시뮬 추정치가 아니라 scene.js 가 실제로 넣은 피해가
+ * 됐다. 브라우저에서 60초를 돌려 잰 값은 **파티CP x 3.6** 이다
+ * (SSR Lv30 / SR Lv1 / R Lv10 / 3인 편성 5회, 3.21~4.06 · CP 선형).
+ *
+ * 옛 값 1.723 은 이 파일 위쪽의 틱 시뮬 추정치였다. 화면 전투는 치명타·패시브·
+ * 스킬이 얹히고 단장 몫이 더해져 그 2.1배가 나온다.
  */
-const DMG_PER_CP = 1.723;
+const DMG_PER_CP = 3.6;
 const dmgOfMember = (cp) => cp * DMG_PER_CP;
 
 // ── 연합 주간 시뮬 ────────────────────────────────────────
@@ -85,12 +88,15 @@ function simWeek(nMembers, avgCp, spreadSigma, seed) {
   let tier = 0, hp = hpOf(0);
   const perDmg = members.map(c => dmgOfMember(c));
   const log = [];
-  // 참여 모델: 1~3일차에 하루 1회씩 80% 참여, 4~5일차에 지각분 35%/일 (반딜)
+  // 참여 모델: 주간 시도(ATTEMPTS_PER_WEEK)를 앞쪽 며칠에 나눠 쓴다.
+  // 하루에 몇 번 눌러도 되지만 실제로는 접속한 날에 몰아 쓴다 — 앞 절반은
+  // 80% 참여, 뒤 절반은 지각분 35% 로 잡는다.
+  const half = Math.ceil(ATTEMPTS_PER_WEEK / 2);
   for (let day = 1; day <= 7; day++) {
     for (let i = 0; i < nMembers; i++) {
       let d = 0;
-      if (day <= 3 && rng() < 0.8) d = perDmg[i];
-      else if (day >= 4 && day <= 5 && rng() < 0.35) d = perDmg[i] * 0.5;
+      if (day <= half && rng() < 0.8) d = perDmg[i];
+      else if (day > half && day <= ATTEMPTS_PER_WEEK && rng() < 0.35) d = perDmg[i] * 0.5;
       if (!d) continue;
       hp -= d;
       while (hp <= 0 && tier < TIERS.length - 1) {
@@ -140,7 +146,7 @@ if (process.argv[2] === 'sweep') {
 }
 
 // ── 실행 ──────────────────────────────────────────────────
-console.log(`HP 계수 ${HP_COEF} · 주 ${ATTEMPTS_PER_WEEK}회 · 60초 시도 · 시도딜 = 파티CP x 1.72
+console.log(`HP 계수 ${HP_COEF} · 주 ${ATTEMPTS_PER_WEEK}회 · 60초 시도 · 시도딜 = 파티CP x ${DMG_PER_CP} (화면 전투 실측)
 `);
 const CASES = [
   ['상위 (30명 · 평균 40M · 참여 좋음)', 30, 40e6, 0.5],
