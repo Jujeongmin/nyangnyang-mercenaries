@@ -1,8 +1,8 @@
 {
   "meta": {
     "version": "2.0",
-    "description": "메인 스테이지 200단계 CP 곡선 + 적 스탯 산출 규칙",
-    "totalStages": 200
+    "description": "메인 스테이지 400단계 CP 곡선 + 적 스탯 산출 규칙",
+    "totalStages": 400
   },
   "cpCeiling": {
     "value": 7277310000,
@@ -62,6 +62,12 @@
         "to": 200,
         "growthPerStage": 0.004,
         "intent": "거의 수평. 요구 증가가 전부 벽에 몰려 있다"
+      },
+      {
+        "from": 201,
+        "to": 400,
+        "growthPerStage": 0.006,
+        "intent": "확장 구간 (2026-09-08). 벽이 20스테이지마다 촘촘히 서고 그 사이는 완만하다 — 벽 간격을 40에서 20으로 좁힌 이유는, 최고 스테이지에 닿은 유저가 다음 목표까지 40스테이지를 기다리면 그 구간이 통째로 빈 시간이 되기 때문이다"
       }
     ],
     "walls": {
@@ -112,6 +118,46 @@
         "gates": "전 시스템 만렙 근접",
         "f2pStallDays": 92,
         "reachDay": 226
+      },
+      "220": {
+        "multiplier": 1.3,
+        "gates": "장비 굴림값 상위권 수집 (equipment.json > roll)"
+      },
+      "240": {
+        "multiplier": 1.35,
+        "gates": "훈련소 Lv180+"
+      },
+      "260": {
+        "multiplier": 1.4,
+        "gates": "전직 스킬 1차 만렙"
+      },
+      "280": {
+        "multiplier": 1.42,
+        "gates": "무한 6부위 +10 강화"
+      },
+      "300": {
+        "multiplier": 1.45,
+        "gates": "3차 전직 스킬 만렙"
+      },
+      "320": {
+        "multiplier": 1.48,
+        "gates": "용병/스킬 소환 Lv50"
+      },
+      "340": {
+        "multiplier": 1.5,
+        "gates": "도감 완성 근접"
+      },
+      "360": {
+        "multiplier": 1.55,
+        "gates": "장비 소환 Lv60"
+      },
+      "380": {
+        "multiplier": 1.6,
+        "gates": "전 시스템 만렙"
+      },
+      "400": {
+        "multiplier": 1.65,
+        "gates": "끝. 필요 CP 가 이론 천장(cpCeiling)의 72% 다"
       }
     },
     "wallMultiplierProduct": 48.5,
@@ -238,6 +284,36 @@
       "nameKo": "마왕성",
       "from": 151,
       "to": 200
+    },
+    {
+      "asset": "bg_BG02",
+      "nameKo": "무너진 숲",
+      "from": 201,
+      "to": 240
+    },
+    {
+      "asset": "bg_BG03",
+      "nameKo": "울부짖는 협곡",
+      "from": 241,
+      "to": 280
+    },
+    {
+      "asset": "bg_BG04",
+      "nameKo": "불타는 심장",
+      "from": 281,
+      "to": 320
+    },
+    {
+      "asset": "bg_BG05",
+      "nameKo": "가라앉은 왕도",
+      "from": 321,
+      "to": 360
+    },
+    {
+      "asset": "bg_BG06",
+      "nameKo": "심연의 옥좌",
+      "from": 361,
+      "to": 400
     }
   ],
   "bosses": [
@@ -270,6 +346,36 @@
       "stage": 150,
       "asset": "boss_B06",
       "nameKo": "마룡"
+    },
+    {
+      "stage": 201,
+      "asset": "boss_B02",
+      "nameKo": "잿빛 족장"
+    },
+    {
+      "stage": 241,
+      "asset": "boss_B03",
+      "nameKo": "망각의 리치"
+    },
+    {
+      "stage": 281,
+      "asset": "boss_B04",
+      "nameKo": "잿불 거인"
+    },
+    {
+      "stage": 321,
+      "asset": "boss_B05",
+      "nameKo": "심해의 폭군"
+    },
+    {
+      "stage": 361,
+      "asset": "boss_B06",
+      "nameKo": "흑린의 마룡"
+    },
+    {
+      "stage": 400,
+      "asset": "boss_B06",
+      "nameKo": "심연의 왕"
     }
   ],
   "enemies": [
@@ -322,6 +428,7 @@
       "nameKo": "임프"
     }
   ],
+  "bossZoneNote": "201 부터는 **지역이 새로 한 바퀴 돈다** (마왕성 -> 무너진 숲). 보스 그림도 같이 돌아가되 각 지역의 본래 그림을 쓴다 — 숲이면 B-02, 협곡(동굴)이면 B-03 하는 식이다. 그래서 지역이 바뀌는 자리에서만 얼굴이 바뀌고 한 지역 안에서는 안 흔들린다. 그림은 재사용이고 이름만 새로 붙였다 (2026-09-08).",
   "enemyReuseNote": "12종을 CSS filter: hue-rotate()로 색조 변형해 36종처럼 사용. 이미지 재생성 불필요.",
   "systemUnlocks": {
     "movedTo": "quests.json > trackUnlockQuests",
