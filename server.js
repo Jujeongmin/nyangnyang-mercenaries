@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 25;
+const SERVER_REV = 26;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -723,6 +723,42 @@ class Server {
   async getTopRankings(limit) {
     const n = Math.min(50, Math.max(1, limit | 0 || 20));
     return sortedTop('rankings', {}, 'score', n);
+  }
+
+  /**
+   * **일회용 청소.** `rankings` 컬렉션을 통째로 비운다.
+   *
+   * 순위 세 보드가 전부 profiles 에서 읽도록 바뀐 뒤로 이 컬렉션을 읽는 화면이
+   * 하나도 없다 (rank.js > rows). 클라도 더 이상 쓰지 않으므로 남은 행은 자라지
+   * 않지만, 계정마다 한 줄씩 남아 조회 대상에 계속 낀다.
+   *
+   * **되돌릴 수 없다.** 그래서 둘 다 걸어 둔다:
+   *   · 소유 계정만 부를 수 있다
+   *   · 인자로 'DELETE' 를 정확히 넘겨야 한다
+   *
+   * 다 지우고 나면 이 함수와 getTopRankings·getMyBestRank·submitCp 를 같이
+   * 걷어내면 된다 — 그때는 컬렉션 자체가 없다.
+   */
+  async purgeRankings(confirm) {
+    const OWNER = '0x7b47aa40357441418909f83728da906b7c85d261';
+    if (String($sender.account || '').toLowerCase() !== OWNER) {
+      return { ok: false, reason: 'not_owner' };
+    }
+    if (confirm !== 'DELETE') return { ok: false, reason: 'confirm' };
+    let deleted = 0;
+    // 한 번에 다 못 받을 수 있어 빌 때까지 돈다. 무한루프는 회차로 막는다
+    for (let round = 0; round < 40; round++) {
+      const rows = await qItems('rankings', { limit: 500 }).catch(() => []);
+      if (!rows.length) break;
+      let hit = 0;
+      for (const r of rows) {
+        if (!r || !r.__id) continue;
+        try { await $global.deleteCollectionItem('rankings', r.__id); deleted++; hit++; }
+        catch { /* 이미 없다 */ }
+      }
+      if (!hit) break;                 // 지울 수 있는 것이 없으면 더 돌지 않는다
+    }
+    return { ok: true, deleted };
   }
 
   /**
