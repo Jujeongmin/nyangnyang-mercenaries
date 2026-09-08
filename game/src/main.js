@@ -997,12 +997,12 @@ function pushPublic(mode) {
     _cpToday++;
   }
   _cpAt = now; _pubSig = sig;
-  // 프로필과 랭킹을 같이 올린다. 랭킹 행은 점수만 갖고 있어서, 프로필이 낡으면
-  // 남의 화면에 뜨는 내 편성·칭호가 옛날 것으로 남는다
-  Promise.all([
-    live.pushProfile(prof),
-    live.pushCp(Math.round(prof.cp || 0), prof.nickname),
-  ]).catch(e => console.warn('[live] 제출 실패', e));
+  // **profiles 하나만 올린다.** 예전에는 rankings 컬렉션에도 같이 넣었는데,
+  // 순위 화면 세 보드가 전부 profiles 에서 읽도록 바뀐 뒤로(rank.js > rows)
+  // rankings 를 읽는 화면이 하나도 없다 — 저장할 때마다 아무도 안 보는 행을
+  // 지우고 다시 쓰고 있었다 (2026-09-08).
+  Promise.resolve(live.pushProfile(prof))
+    .catch(e => console.warn('[live] 제출 실패', e));
 }
 
 /**
@@ -7368,12 +7368,10 @@ function coachPlace() {
   // 위쪽에 붙을 때는 초상까지 얹힐 자리를 비워 준다. 그래도 화면을 벗어나면
   // 넘쳐 나간 만큼 아래로 내린다
   let top = below ? y + h + 14 + over : y - sh - 14;
-  // **하단 패널 안을 가리키면 말풍선을 패널 밖으로 올린다** (단장 지적 2026-08-31).
-  // 퀘스트 배너 바로 위가 장비 6칸이라, 그 자리에 띄우면 "보상을 받자" 가
-  // 방금 만든 장비를 덮는다. 패널 위(전투 화면)는 비어 있으니 거기로 올리면
-  // 가리는 것이 없고, 구멍·링은 그대로라 어디를 누르라는지도 안 흐려진다.
-  const panel = coachTarget.closest('#bottom');
-  if (panel && !below) top = Math.min(top, panel.getBoundingClientRect().top - sh - 10);
+  // **말풍선은 목표 곁에 둔다.** 2026-08-31 에 "하단 패널을 가리키면 패널 밖으로
+  // 올린다" 를 넣었다가 되돌렸다 — 패널이 화면의 절반이라 말풍선이 목표에서
+  // 한 화면 떨어져 떠서, 꼬리가 가리키는 곳에 아무것도 없었다 (단장 지적 2026-09-08).
+  // 원래 걱정(말풍선이 장비 칸을 덮는다)은 가리키는 자리를 잃는 것보다 가볍다.
   say.style.top = Math.round(Math.max(over + 8, top)) + 'px';
 }
 
@@ -8131,7 +8129,9 @@ function bootTapToStart() {
     stageText: n => stageLabel(n).text,
     // 순위 아바타를 누르면 뜨는 카드. 채팅이 쓰는 것과 **같은 함수**다 —
     // 카드 문법이 두 벌이 되면 반드시 어긋난다
-    openProfile: acc => openChatProfile(acc) });
+    openProfile: acc => openChatProfile(acc),
+    // 화면을 여는 순간은 60초 간격을 건너뛴다 (rank.js > open)
+    pushNow: () => pushPublic('final') });
   mail = new MailScreen($('#app'), {
     state: S, data: D,
     claim: i => claimMail(i),

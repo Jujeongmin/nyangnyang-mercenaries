@@ -25,14 +25,11 @@ const cache = {
   friendReqs: null,    // 받은 신청
   arenaFoes: null,     // 상대 표본
   friendCands: null,   // 친구 추천 표본 (아레나보다 넓은 대역)
-  rankTop: null,       // 상위 20 (CP — rankings 컬렉션)
   // 보드별 순위. profiles 에서 뽑으므로 party·title·frame 까지 들어 있다 —
   // 순위 행이 곧 프로필 카드다
   topPower: null,
   topStage: null,
-  topArena: null,
-  myRank: null,        // { bestEntry, rank }
-  giftBox: null,       // { sent:[account], inbox:[{id, from, fromNick, day}] }
+  topArena: null,  giftBox: null,       // { sent:[account], inbox:[{id, from, fromNick, day}] }
   allyVillage: null,   // 연합 마을에 세울 사람들 (프로필 붙은 단원 목록)
   chatRooms: null,     // { world, ally } 구독할 컬렉션 이름
   chatWorld: null,     // 최근 대화 (전체)
@@ -167,10 +164,6 @@ export const pullAllyVillage = async () => {
 export const pullFriends = onDone => pull('friends', () => call('friendList'), onDone);
 export const pullFriendReqs = onDone => pull('friendReqs', () => call('friendRequests'), onDone);
 export const pullGiftBox = onDone => pull('giftBox', () => call('friendGiftBox'), onDone);
-export const pullRank = onDone => {
-  pull('rankTop', () => call('getTopRankings', [20]), onDone);
-  pull('myRank', () => call('getMyBestRank'), onDone);
-};
 
 /**
  * 보드별 순위. **profiles 에서 뽑는다** — cp·stage·arenaScore 가 다 거기 있고,
@@ -195,6 +188,12 @@ export const pullMyBoardRank = (board, onDone) => {
 export const getMyBoardRank = board => cache[MYRANK_KEY[board]] || null;
 
 /**
+ * 그 보드가 쓰는 **캐시 키 두 개**. 화면이 "지금 값으로 다시 받아라" 를 할 때
+ * 키 이름을 밖에서 지어내면 오타가 조용히 무동작이 된다 — 표를 아는 쪽이 준다.
+ */
+export const boardKeys = board => [TOP_KEY[board], MYRANK_KEY[board]].filter(Boolean);
+
+/**
  * 아레나 상대. 내 CP 의 ±40% 대역에서 표본을 받는다 — 정교한 매칭이 아니라
  * **표본**이다 (server.js > findProfiles). 대역이 비면 화면은 데모로 떨어진다.
  */
@@ -207,7 +206,6 @@ export const pullArenaFoes = (myScore, onDone) => pull('arenaFoes',
 // 실패는 삼키지 않는다 — 부르는 쪽이 토스트를 띄워야 한다.
 
 export const pushProfile = p => server ? call('submitProfile', [p]) : null;
-export const pushCp = (score, nickname) => server ? call('submitCp', [score, nickname]) : null;
 
 export const createAlliance = (name, stage, cp) => call('allianceCreate', [name, stage, cp]);
 export const joinAlliance = (id, stage, cp) => call('allianceJoin', [id, stage, cp]);
@@ -317,8 +315,6 @@ export async function warmup(myScore = 1000) {
     pull('myAlliance', () => call('allianceMy')),
     pull('boss', () => call('allianceBoss')),
     pull('bossLog', () => call('allianceBossLog')),
-    pull('rankTop', () => call('getTopRankings', [20])),
-    pull('myRank', () => call('getMyBestRank')),
     pull('chatAlly', () => call('getChat', ['ally', 40])),
   ]);
   return true;

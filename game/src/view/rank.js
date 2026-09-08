@@ -57,11 +57,17 @@ export class RankScreen {
   open() {
     this.el.classList.add('show');
     this.render();
-    // 서버 값이 늦게 오면 그때 다시 그린다. 처음엔 캐시(또는 더미)로 즉시 뜬다
+    // **열 때 내 지금 값을 먼저 올린다.** 평소 올리기는 60초 간격으로 묶여 있어
+    // (main.js > PUSH_MIN_GAP), 방금 강해지고 랭킹을 열면 옛 전투력이 그대로였다
+    // (단장 지적 2026-09-08). 화면을 여는 순간은 그 간격을 건너뛴다.
+    this.api.pushNow?.();
+    // 그리고 **캐시를 비우고** 받는다. 20초 신선도(live.js > FRESH_MS)에 걸리면
+    // 방금 올린 값이 아니라 직전 응답이 그대로 다시 그려진다
+    const board = this.tab || 'power';
+    live.invalidate(...live.boardKeys(board));
     const again = () => { if (this.el.classList.contains('show')) this.render(); };
-    live.pullRank(again);
-    live.pullTop(this.tab || 'power', again);
-    live.pullMyBoardRank(this.tab || 'power', again);
+    live.pullTop(board, again);
+    live.pullMyBoardRank(board, again);
   }
   close() { this.el.classList.remove('show'); }
 
