@@ -27,9 +27,10 @@
 // 인프라 스케일링은 플랫폼(관리형) 몫이고, 우리 쪽 병목은 구조상 세 가지다:
 //   1. globalUserState — 계정당 독립 문서라 유저 수에 수평적. 병목 아님.
 //      remoteFunction 레이트리밋(~10/s)도 **유저당**이다.
-//   2. rankings 컬렉션 — 유일한 전역 공유 자원. 유저가 커지면 여기가 먼저 아프다.
-//      대비: 제출은 best-only + 클라 debounce(이미), 조회는 화면 진입 1회 + 캐시,
-//      시즌마다 컬렉션을 새로 판다 (rankings_s1, s2 — 낡은 시즌은 안 긁는다).
+//   2. profiles 컬렉션 — 유일한 전역 공유 자원. 유저가 커지면 여기가 먼저 아프다.
+//      순위 세 보드·아레나 상대·친구 목록이 전부 여기서 읽는다.
+//      대비: 제출은 클라 debounce(이미), 조회는 화면 진입 1회 + 캐시.
+//      시즌 순위가 필요해지면 그때 시즌 컬렉션을 판다 (낡은 시즌은 안 긁는다).
 //   3. 연합 실시간(마을·보스) — roomState 를 쓰게 되면 연합 하나 = 룸 하나다.
 //      연합 정원이 30명이라 룸이 자연 샤드가 된다. 전 유저 단일 룸은 만들지 않는다.
 // 정확한 상한이 필요해지면(동접 1만+) Verse8 지원에 직접 확인할 것 — 추측 금지.
@@ -105,7 +106,6 @@ function validate(payload) {
 //
 // 공유 자원은 전부 컬렉션이다. $global.updateMyState 는 계정 하나만 만질 수 있어
 // 연합처럼 "여러 계정이 같은 값을 더한다" 를 담을 수 없다.
-//   rankings     CP 랭킹 (best-only)
 //   profiles     공개 프로필 - 아레나 상대·친구 목록·랭킹 행이 전부 여기서 읽는다
 //   friendReq    친구 신청 (수락하면 지운다)
 //   friends      성립한 친구. **양방향 2행**으로 넣는다 - 한 행이면 내 친구를
@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 26;
+const SERVER_REV = 27;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -537,7 +537,6 @@ class Server {
     // 따라붙었다 (단장 지적 2026-08-28).
     const n = {};
     n.profiles = await purge('profiles', ['account']);
-    n.rankings = await purge('rankings', ['account']);
     // 보낸 신청(from)과 받은 신청(to) 둘 다
     n.friendReq = await purge('friendReq', ['from', 'to']);
     // 친구는 양방향 2행이라 내 행(account)과 상대가 나를 가리키는 행(friend) 둘 다
@@ -597,25 +596,6 @@ class Server {
       ...(save || {}),                                   // v, s, savedAt — 옛 클라용
       save, epoch: (cur && cur.saveEpoch) || 0,          // 새 클라용
     };
-  }
-
-  /** 랭킹 제출 (best-only). net/verse8.js SERVER_REFERENCE 의 패턴 그대로. */
-  async submitCp(score, nickname) {
-    if (typeof score !== 'number' || score < 0 || !Number.isFinite(score)) throw new Error('score');
-    if (!nickname || nickname.length < 1 || nickname.length > 15) throw new Error('nickname');
-    const mine = await qItems('rankings', {
-      filters: [{ field: 'account', operator: '==', value: $sender.account }],
-    });
-    for (const it of mine) {
-      if (it.score >= score) return it;
-      // 컬렉션 아이템의 식별자는 **`__id`** 다 (globalCollection 문서의 채팅 예제).
-      // `it.id` 로 지우면 undefined 가 넘어가 삭제가 조용히 실패하고, 계정마다
-      // 낡은 기록이 계속 쌓여 best-only 가 아니게 된다
-      await $global.deleteCollectionItem('rankings', it.__id);
-    }
-    return $global.addCollectionItem('rankings', {
-      account: $sender.account, score, nickname, createdAt: Date.now(),
-    });
   }
 
   /**
@@ -716,57 +696,13 @@ class Server {
     return this.findFriendCands(limit);
   }
 
-  // -- 랭킹 조회 --------------------------------------------
-  // leaderboard 문서의 옵션 형태 그대로: orderBy [{field, direction}] · limit · filters.
-  // 상위 100 은 안 준다 - 조회는 컬렉션에서 가장 비싼 축이고, 화면이 실제로
-  // 보여 주는 것은 20행 + 내 순위 하나다 (ranking.json 정정: getTopRankings 는 20 고정)
-  async getTopRankings(limit) {
-    const n = Math.min(50, Math.max(1, limit | 0 || 20));
-    return sortedTop('rankings', {}, 'score', n);
-  }
-
-  /**
-   * **일회용 청소.** `rankings` 컬렉션을 통째로 비운다.
-   *
-   * 순위 세 보드가 전부 profiles 에서 읽도록 바뀐 뒤로 이 컬렉션을 읽는 화면이
-   * 하나도 없다 (rank.js > rows). 클라도 더 이상 쓰지 않으므로 남은 행은 자라지
-   * 않지만, 계정마다 한 줄씩 남아 조회 대상에 계속 낀다.
-   *
-   * **되돌릴 수 없다.** 그래서 둘 다 걸어 둔다:
-   *   · 소유 계정만 부를 수 있다
-   *   · 인자로 'DELETE' 를 정확히 넘겨야 한다
-   *
-   * 다 지우고 나면 이 함수와 getTopRankings·getMyBestRank·submitCp 를 같이
-   * 걷어내면 된다 — 그때는 컬렉션 자체가 없다.
-   */
-  async purgeRankings(confirm) {
-    const OWNER = '0x7b47aa40357441418909f83728da906b7c85d261';
-    if (String($sender.account || '').toLowerCase() !== OWNER) {
-      return { ok: false, reason: 'not_owner' };
-    }
-    if (confirm !== 'DELETE') return { ok: false, reason: 'confirm' };
-    let deleted = 0;
-    // 한 번에 다 못 받을 수 있어 빌 때까지 돈다. 무한루프는 회차로 막는다
-    for (let round = 0; round < 40; round++) {
-      const rows = await qItems('rankings', { limit: 500 }).catch(() => []);
-      if (!rows.length) break;
-      let hit = 0;
-      for (const r of rows) {
-        if (!r || !r.__id) continue;
-        try { await $global.deleteCollectionItem('rankings', r.__id); deleted++; hit++; }
-        catch { /* 이미 없다 */ }
-      }
-      if (!hit) break;                 // 지울 수 있는 것이 없으면 더 돌지 않는다
-    }
-    return { ok: true, deleted };
-  }
-
   /**
    * 보드별 순위를 **profiles 에서** 뽑는다.
    *
-   * rankings 컬렉션은 CP 하나뿐이라, 스테이지·아레나 보드는 화면이 더미를
-   * 지어내고 있었다 (단장 지적 2026-08-26). 보드마다 컬렉션을 새로 파면
-   * 조회가 유일한 전역 공유 자원을 세 배로 때린다.
+   * 예전에는 CP 하나뿐인 rankings 컬렉션을 따로 두어, 스테이지·아레나 보드는
+   * 화면이 더미를 지어내고 있었다 (단장 지적 2026-08-26). 세 보드를 여기로
+   * 합친 뒤 rankings 를 읽는 화면이 하나도 남지 않아 그 컬렉션을 걷어냈다
+   * (2026-09-08). 보드마다 컬렉션을 새로 파면 조회가 세 배가 된다.
    *
    * profiles 에는 이미 cp·stage·arenaScore 가 다 들어 있다 (submitProfile).
    * 게다가 party·title·frame 까지 있어서 **순위 행이 곧 프로필 카드**가 된다 —
@@ -810,22 +746,6 @@ class Server {
     });
     const accs = new Set(above.filter(r => r.account !== $sender.account).map(r => r.account));
     return { rank: accs.size + 1, value: v };
-  }
-
-  /** 내 최고 기록과 등수. 등수는 "나보다 높은 점수의 개수 + 1" 이다 */
-  async getMyBestRank() {
-    const mine = await qItems('rankings', {
-      filters: [{ field: 'account', operator: '==', value: $sender.account }],
-    });
-    if (!mine.length) return { bestEntry: null, rank: -1 };
-    const best = mine.sort((a, b) => b.score - a.score)[0];
-    // countCollectionItems 는 filters 를 못 먹는다 — qItems 로 세고 계정 중복 제거
-    const above = await qItems('rankings', {
-      filters: [{ field: 'score', operator: '>', value: best.score }],
-      limit: 300,
-    });
-    const accs = new Set(above.filter(r => r.account !== $sender.account).map(r => r.account));
-    return { bestEntry: best, rank: accs.size + 1 };
   }
 
   // -- 친구 --------------------------------------------------
