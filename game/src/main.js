@@ -280,6 +280,8 @@ function totalCp() {
     * (1 + trainingBonus(trainDef(), S.trainLv))
     * (1 + S.forgeLv * 0.008)
     * (1 + cosmeticBonus())
+    // 전직 스킬 — 효과마다 CP 에 얹는 몫이 다르다 (csCpMult 주석)
+    * csCpMult()
     + equipFlatCp();
 }
 
@@ -3372,6 +3374,26 @@ const csVal = () => {
   const sk = csMine();
   return sk ? Math.min(sk.max, (S.promoSkillLv || 0) * sk.perLevel) : 0;
 };
+/**
+ * 전직 스킬이 **전투력 숫자에 얹는 몫**.
+ *
+ * 예전에는 딜에만 반영되고 CP 에는 안 들어갔다 — partyDps 는 csDpsMult 를
+ * 곱하는데 totalCp 에는 항이 없었다. 유저 눈에는 "스킬을 올렸는데 전투력이
+ * 그대로" 로 보였고, stages.json > cpCeiling 은 이미 classSkillMult 를 세고
+ * 있어서 설계와도 어긋났다 (단장 지적 2026-09-08).
+ *
+ * 효과마다 몫이 다르다 (goldsinks.json > classSkills.cpShare):
+ * 전사·궁수의 공격력·공속은 전체 DPS 곱이라 그대로 1, 마법사의 스킬 피해는
+ * 스킬이 차지하는 몫(실측 0.72)만큼만 센다. 안 나누면 마법사 CP 가 x3.4 로
+ * 부풀어 아레나에서 실제보다 세게 평가된다.
+ */
+const csCpMult = () => {
+  const sk = csMine();
+  if (!sk) return 1;
+  const share = csDef().cpShare?.[sk.effect] ?? 0;
+  return 1 + csVal() * share;
+};
+
 const csCost = () => Math.round(csDef().goldCost.base
   * Math.pow(csDef().goldCost.growth, S.promoSkillLv || 0));
 
