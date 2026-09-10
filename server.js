@@ -183,6 +183,37 @@ const isOwner = () => String($sender.account || '').toLowerCase() === OWNER_ACCO
  * 주소로 찾을 때는 프로필이 없어도 계정 자체를 돌려준다 — 프로필을 한 번도
  * 안 올린 계정이라도 결제는 할 수 있다.
  */
+/**
+ * 결제 payload 에서 값을 꺼낸다. **필드 이름을 하나로 못 박지 않는다.**
+ *
+ * 대시보드가 보여 준 요청 내용에는 productId·quantity 뿐이고 account 도
+ * purchaseId 도 없었다 (2026-09-10). 이름을 하나로 가정하면 그게 틀렸을 때
+ * 또 통째로 실패한다 — 흔한 이름을 다 받아 보고, 그래도 없으면 만들어 쓴다.
+ */
+const pickField = (data, names) => {
+  for (const k of names) {
+    const v = data && data[k];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return null;
+};
+
+/**
+ * 들어온 payload 를 **운영자 계정에** 남긴다. 최근 5건.
+ *
+ * 계정을 못 알아내면 그 사람 상태에는 못 남긴다 — 그런데 정작 그때가 payload
+ * 모양을 알아야 하는 순간이다. 그래서 운영자 쪽에 쌓는다.
+ * 실패해도 결제 처리를 막지 않는다 — 진단이 본업을 방해하면 안 된다.
+ */
+async function logVxPayload(data, note) {
+  try {
+    const cur = await $global.getUserState(OWNER_ACCOUNT);
+    const srv = (cur && cur.srv) || {};
+    const log = [...(srv.vxDebug || []), { at: Date.now(), note, data }].slice(-5);
+    await $global.updateUserState(OWNER_ACCOUNT, { srv: { ...srv, vxDebug: log } });
+  } catch (e) { /* 진단 실패는 삼킨다 */ }
+}
+
 async function findSupportTargets(who) {
   const q = String(who || '').trim();
   if (!q) return [];
@@ -196,7 +227,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 32;
+const SERVER_REV = 33;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1375,6 +1406,13 @@ class Server {
       .sort((a, b) => b.damage - a.damage);
   }
 
+  /** 최근 결제 payload 5건. 필드 이름이 안 맞아 실패했을 때 진짜 모양을 본다 */
+  async supportVxDebug() {
+    if (!isOwner()) return { ok: false, reason: 'not_owner' };
+    const srv = await srvState();
+    return { ok: true, log: srv.vxDebug || [] };
+  }
+
   /**
    * **최근 계정 훑기.** 구매자 주소를 모를 때 대조하는 용도다.
    *
@@ -1506,12 +1544,26 @@ class Server {
    * (파일 상단 MAX_LEAVES 참조).
    */
   async $onItemPurchased(data) {
-    const account = data && data.account;
-    const purchaseId = data && data.purchaseId;
-    const productId = data && data.productId;
+    // **무엇이 들어왔는지부터 남긴다.** 이름이 안 맞아 실패해도 다음 판단의 근거가 된다
+    await logVxPayload(data, 'onItemPurchased');
+
+    const account = pickField(data, ['account', 'buyer', 'buyerAccount', 'userId', 'user', 'address'])
+      || (typeof $sender !== 'undefined' && $sender && $sender.account) || null;
+    const productId = pickField(data, ['productId', 'itemId', 'sku', 'product']);
+    // **id 가 없으면 만들어 쓴다.** 없다고 지급을 포기하면 유저가 돈만 낸다.
+    // 계정+상품+시각으로 짜면 같은 건의 재시도는 같은 값이 되어 중복 지급이 막힌다.
+    // 시각조차 없으면 분 단위로 뭉갠다 — 같은 분에 같은 상품을 두 번 산 경우만
+    // 한 건으로 합쳐지는데, 그건 못 주는 것보다 낫다
+    const rawId = pickField(data, ['purchaseId', 'orderId', 'transactionId', 'saleId', 'id']);
+    const stamp = pickField(data, ['purchasedAt', 'createdAt', 'timestamp', 'at'])
+      || Math.floor(Date.now() / 60000);
+    const purchaseId = rawId || ('auto:' + productId + ':' + account + ':' + stamp);
     // **이유를 담아 돌려준다.** undefined 를 돌려주면 대시보드에 아무것도 안 남아,
     // 지급이 안 됐을 때 왜 안 됐는지를 코드를 읽어 추측해야 한다
-    if (!account || !purchaseId || !productId) return { ok: false, reason: 'bad_payload' };
+    if (!account || !purchaseId || !productId) {
+      // 실제로 들어온 키 이름을 같이 돌려준다 — 대시보드에서 바로 읽힌다
+      return { ok: false, reason: 'bad_payload', keys: Object.keys(data || {}), account, productId };
+    }
     const p = PRODUCTS[productId];
     if (!p) return { ok: false, reason: 'unknown_product', productId };
 
