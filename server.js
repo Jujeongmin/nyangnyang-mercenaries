@@ -168,7 +168,12 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 28;
+// 운영자 계정. 결제 문의 조회·수동 지급처럼 **남의 계정을 만지는** 함수는
+// 이 계정만 부를 수 있다. 소문자로 비교한다 — 주소 표기가 기기마다 다르다
+const OWNER_ACCOUNT = '0x7b47aa40357441418909f83728da906b7c85d261';
+const isOwner = () => String($sender.account || '').toLowerCase() === OWNER_ACCOUNT;
+
+const SERVER_REV = 29;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1347,6 +1352,78 @@ class Server {
       .sort((a, b) => b.damage - a.damage);
   }
 
+  /**
+   * **결제 문의 조회.** 닉네임으로 그 계정의 재화와 결제 기록을 본다.
+   *
+   * 지급 경로가 둘이라(클라 즉시 지급 / 서버 영수증) "받았나" 를 바깥에서
+   * 알 방법이 없다. 두 번 주는 사고를 막으려면 주기 전에 봐야 한다.
+   *
+   * 세이브 전체를 돌려주지 않는다 — 문의에 필요한 것만 추린다.
+   */
+  async supportLookup(nickname) {
+    if (!isOwner()) return { ok: false, reason: 'not_owner' };
+    const rows = await qItems('profiles', {
+      filters: [{ field: 'nickname', operator: '==', value: String(nickname || '').slice(0, 15) }],
+      limit: 5,
+    });
+    if (!rows.length) return { ok: true, found: [] };
+    const found = [];
+    for (const r of rows) {
+      const cur = await $global.getUserState(r.account).catch(() => null);
+      const sv = cur && cur.save && cur.save.s;
+      const srv = (cur && cur.srv) || {};
+      found.push({
+        account: r.account,
+        nickname: r.nickname,
+        cp: r.cp || 0,
+        stage: r.stage || 0,
+        dia: sv ? (sv.dia || 0) : null,
+        mercTicket: sv ? (sv.mercTicket || 0) : null,
+        skillTicket: sv ? (sv.skillTicket || 0) : null,
+        eqTicket: sv ? (sv.eqTicket || 0) : null,
+        hourglass: sv ? (sv.hourglass || 0) : null,
+        speed3: sv ? !!sv.speed3 : null,
+        savedAt: (cur && cur.save && cur.save.savedAt) || 0,
+        purchases: srv.purchases || [],
+        pendingGrants: srv.pendingGrants || [],
+        onceBought: srv.onceBought || [],
+      });
+    }
+    return { ok: true, found };
+  }
+
+  /**
+   * **수동 지급.** 플랫폼 재시도가 안 되는 건을 손으로 넣는다.
+   *
+   * 지급하지 않고 **영수증만** 쌓는다 — 그래야 클라가 다음 접속에서 제 손으로
+   * 넣고, 서버가 세이브를 덮어써 진행이 날아가는 일이 없다 ($onItemPurchased
+   * 의 이중 지급 방어와 같은 이유다).
+   *
+   * purchaseId 를 직접 받는다. 같은 id 를 두 번 넣으면 두 번째는 막힌다 —
+   * 대시보드의 결제 id 를 그대로 쓰면 중복 지급이 구조적으로 안 난다.
+   */
+  async supportGrant(nickname, productId, purchaseId) {
+    if (!isOwner()) return { ok: false, reason: 'not_owner' };
+    if (!PRODUCTS[productId]) return { ok: false, reason: 'unknown_product' };
+    if (!purchaseId) return { ok: false, reason: 'need_purchase_id' };
+    const rows = await qItems('profiles', {
+      filters: [{ field: 'nickname', operator: '==', value: String(nickname || '').slice(0, 15) }],
+      limit: 2,
+    });
+    if (!rows.length) return { ok: false, reason: 'no_user' };
+    // 같은 닉이 둘이면 손을 뗀다 — 엉뚱한 사람에게 주는 것이 안 주는 것보다 나쁘다
+    if (rows.length > 1) return { ok: false, reason: 'ambiguous' };
+    const account = rows[0].account;
+    const cur = await $global.getUserState(account).catch(() => null);
+    const srv = (cur && cur.srv) || {};
+    const done = srv.purchases || [];
+    if (done.includes(purchaseId)) return { ok: false, reason: 'already' };
+    const pending = [...(srv.pendingGrants || []), { purchaseId, productId, at: Date.now() }].slice(-20);
+    await $global.updateUserState(account, {
+      srv: { ...srv, pendingGrants: pending, purchases: [...done, purchaseId].slice(-50) },
+    });
+    return { ok: true, account, productId, purchaseId };
+  }
   /**
    * **미지급 영수증을 가져간다.** 클라가 부팅 때 한 번 부른다.
    *
