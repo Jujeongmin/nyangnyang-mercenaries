@@ -1074,7 +1074,11 @@
     display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none}
   #skillbar #skills{pointer-events:auto}
   #dpsInfo{font-size:10px;color:#f2e5db;text-shadow:0 1px 3px #000,0 0 6px #000}
-  #skills{max-width:calc(100cqw - 62px);display:flex;justify-content:center;gap:6px}
+  /* **폭 상한을 여기서 못 박지 않는다.** `100cqw - 62px` 은 AUTO + 칩 하나를
+     눈대중으로 뺀 값이라, 전직 스킬이 둘로 늘어 칩이 하나 더 붙자 줄이 그만큼
+     화면 밖으로 밀려났다 (단장 지적 2026-09-10). 칸 폭은 syncSkRowCount 가
+     실제 폭을 재서 정하므로, 여기서 또 재면 두 계산이 어긋날 뿐이다 */
+  #skills{display:flex;justify-content:center;gap:6px;min-width:0;flex-wrap:nowrap}
   /* 칸 폭 = (쓸 수 있는 폭 - 칸 사이 간격) / 칸 수.
      **쓸 수 있는 폭은 좌우 사이드 열을 뺀 값이다** — 그걸 안 빼면 넓은 화면에서
      줄이 사이드 아이콘 밑으로 파고든다 (단장 지적 2026-08-25).
@@ -4065,7 +4069,8 @@
 
   /* ── 참고 배치 (버섯커 스크린샷) ──────────────────────────────────
      스킬바 왼쪽 AUTO · 인벤토리 2줄(아랫줄 = 추후 시스템 잠금 칸). */
-  #skRow{display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:auto}
+  #skRow{display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:auto;
+    max-width:100%;flex-wrap:nowrap}
   /* **스킬 칸과 같은 식으로 큰다.** 40px 고정이면 PC 에서 칸만 64px 로 커지고
      AUTO 는 그대로라 줄 끝이 어긋난다 (단장 지적 2026-08-25).
      .sk 와 같은 clamp 를 쓰되 글자가 들어가야 해서 하한만 조금 높다 */
@@ -4215,7 +4220,7 @@
     /* 스킬 8칸이 이 폭 안에서 최대한 커진다. 96px 을 뺄 이유가 없었다 —
        이 높이에는 좌우 사이드 아이콘 열이 안 내려온다(실측). 56px 이면
        좌우 12px 여백이 남는다 */
-    #skills{max-width:calc(100cqw - 56px);flex-wrap:nowrap}
+    #skills{flex-wrap:nowrap}
     /* 네비 아이콘이 빨간 점 배지 상자를 넘던 것 */
     .nv.hasnew{overflow:visible}
     /* 스킬바 — 8칸이 가로로 안 넘치게. bottom 은 위(배너 자리 확보)에서 정한다 */

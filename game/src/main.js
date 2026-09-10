@@ -1161,11 +1161,23 @@ function requiredCp(n) {
  * 한 챕터 10 스테이지 x 20 챕터 = 200. 지역명은 stages.json > backgrounds 에서 가져온다.
  */
 const CH_SIZE = 10;
+/**
+ * 스테이지 표기 — `하드 3-7` 의 세 조각.
+ *
+ * **챕터 번호는 난이도 구간마다 1 부터 다시 센다.** 201 이 `일반 21-1` 로
+ * 뜨면 200 을 넘은 것이 진도로만 보이고, 난이도가 갈렸다는 것이 이름에서
+ * 안 읽힌다. `하드 1-1` 이면 새 판이 열린 것이 한눈에 보인다.
+ *
+ * 구간은 stages.json 이 정한다 — 401 이후를 열 때 여기를 안 건드리게.
+ */
 function stageLabel(n) {
-  const ch = Math.floor((n - 1) / CH_SIZE) + 1;
-  const sub = ((n - 1) % CH_SIZE) + 1;
+  const tiers = D.stages.difficultyTiers || [];
+  const tier = tiers.find(x => n >= x.from && n <= x.to) || tiers[tiers.length - 1];
+  const base = tier ? tier.from : 1;
+  const ch = Math.floor((n - base) / CH_SIZE) + 1;
+  const sub = ((n - base) % CH_SIZE) + 1;
   const zone = D.stages.backgrounds.find(b => n >= b.from && n <= b.to);
-  return { ch, sub, zone: zone ? zone.nameKo : '', text: `${t('일반')} ${ch}-${sub}` };
+  return { ch, sub, zone: zone ? zone.nameKo : '', text: `${t(tier ? tier.nameKo : '일반')} ${ch}-${sub}` };
 }
 const bgFor = n => {
   const b = D.stages.backgrounds.find(x => n >= x.from && n <= x.to)
@@ -2654,26 +2666,51 @@ function renderCsChip() {
  */
 const SK_PAD = 10;      // 줄 좌우 여백
 const SK_MIN = 22, SK_MAX = 46;
+/** 스킬 줄이 폭을 얻는 순간 한 번 더 잰다. 관찰자는 하나만 둔다 */
+let skRO = null;
+function watchSkRow(box) {
+  if (skRO || !box || typeof ResizeObserver === 'undefined') return;
+  skRO = new ResizeObserver(() => {
+    if ((box.clientWidth || 0) > 0) { skRO.disconnect(); skRO = null; syncSkRowCount(); }
+  });
+  skRO.observe(box);
+}
 function syncSkRowCount() {
   const row = $('#skRow');
   if (!row) return;
-  const vis = el => el && !el.hidden && el.offsetParent !== null;
+  // **보이는지가 아니라 있는지로 센다.** offsetParent 로 재면 전투 화면이
+  // 접혀 있는 동안 칸이 0개로 세어져, 그 값이 그대로 굳는다 — 전직 스킬이
+  // 둘로 늘어난 순간이 대개 다른 화면이라 딱 그 경우다 (단장 지적 2026-09-10)
+  const has = el => el && !el.hidden;
   let n = 0;
-  if (vis($('#skAuto'))) n++;
+  if (has($('#skAuto'))) n++;
   n += document.querySelectorAll('#skills .sk').length;
-  if (vis($('#csChip'))) n++;
-  if (vis($('#csChip2'))) n++;
+  if (has($('#csChip'))) n++;
+  if (has($('#csChip2'))) n++;
   if (!n) return;
   row.style.setProperty('--sk-n', n);
   const avail = (row.parentElement || row).clientWidth;
-  if (!avail) return;                       // 아직 자리를 못 잡았다
+  // 아직 자리를 못 잡았다. **여기서 그냥 돌아가면 안 된다** — 폭을 못 정한
+  // 채로 화면이 열리면 CSS 폴백이 옛 칸 수로 그려서 줄이 밖으로 나간다.
+  // 자리가 잡히는 순간 다시 재도록 관찰자를 걸어 둔다
+  if (!avail) { watchSkRow(row.parentElement || row); return; }
+  // **우리가 지난번에 써 넣은 값을 다시 읽으면 안 된다.** 아래에서 좁은 화면일
+  // 때 --sk-gap 을 줄여 쓰는데, 그걸 그대로 기준으로 삼으면 잴 때마다 값이
+  // 흘러간다. 인라인 값을 걷고 CSS(미디어 쿼리 포함)가 정한 원래 간격을 읽는다
+  row.style.removeProperty('--sk-gap');
   const cs = getComputedStyle(row);
   const gap = parseFloat(cs.getPropertyValue('--sk-gap')) || 6;
   const sg = document.querySelector('#skills .skgap');
   const extra = sg ? sg.getBoundingClientRect().width : 0;
-  const cell = (avail - SK_PAD * 2 - extra - gap * (n - 1)) / n;
-  row.style.setProperty('--sk-cell',
-    Math.floor(Math.max(SK_MIN, Math.min(SK_MAX, cell))) + 'px');
+  const room = avail - SK_PAD * 2 - extra;
+  const cell = Math.floor(Math.max(SK_MIN, Math.min(SK_MAX, (room - gap * (n - 1)) / n)));
+  row.style.setProperty('--sk-cell', cell + 'px');
+  // 칸이 최소치에 걸렸는데도 안 들어가면 **간격을 마저 줄인다.** 칸을 더
+  // 줄이면 아이콘이 뭉개지니, 넘칠 바에는 붙여 놓는 쪽이 낫다 —
+  // 좁은 폭에 칸이 11개(AUTO + 액티브 8 + 전직 칩 2)까지 서는 경우다
+  const need = cell * n + gap * (n - 1);
+  row.style.setProperty('--sk-gap',
+    (need > room ? Math.max(1, Math.floor((room - cell * n) / (n - 1))) : gap) + 'px');
 }
 // 화면이 바뀌면 다시 잰다 — 회전·키보드·창 크기
 window.addEventListener('resize', () => syncSkRowCount());
@@ -8481,7 +8518,7 @@ function bootTapToStart() {
     // 이름 장부 — 개명이 남의 화면에 반영되는지 확인할 때 들여다본다
     chatNickBook, chatLearn, chatNick, chatVerifyNames, chatVerifiedAt,
     // 밸런스 실측용 — 연합 보스 HP 계수와 서버 상한이 이 값들 위에 서 있다
-    totalCp, partyDps, allyBossFight,
+    totalCp, partyDps, allyBossFight, stageLabel,
     diag: async () => {
       const out = {};
       const tryCall = async (name, args) => {
