@@ -168,7 +168,7 @@ const PRODUCTS = {
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
 // serverInfo() 가 이 값을 돌려주므로 클라에서 어느 판이 도는지 바로 보인다.
-const SERVER_REV = 27;
+const SERVER_REV = 28;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1346,6 +1346,94 @@ class Server {
       .map(pair => ({ account: pair[0], nickname: nameOf.get(pair[0]) || '', damage: pair[1] }))
       .sort((a, b) => b.damage - a.damage);
   }
+
+  /**
+   * **미지급 영수증을 가져간다.** 클라가 부팅 때 한 번 부른다.
+   *
+   * 지급은 클라가 한다 ($onItemPurchased 의 주석 참조 — 세이브가 클라 판정
+   * 통짜 저장이라 서버가 같이 얹으면 두 배가 되거나 덮인다). 그래서 서버는
+   * 영수증만 쌓아 두고, 여기서 그것을 넘겨준 뒤 목록을 비운다.
+   *
+   * **넘겨준 순간 비우는 이유**: 두 번 부르면 두 번 지급된다. 넘겨준 뒤에
+   * 클라가 죽으면 그 건은 잃지만, 두 배로 주는 것보다 낫다 — 잃은 건은
+   * purchases 에 id 가 남아 있어 문의가 오면 추적할 수 있다.
+   */
+  async claimPendingGrants() {
+    const srv = await srvState();
+    const pending = srv.pendingGrants || [];
+    if (!pending.length) return [];
+    await srvPatch({ pendingGrants: [] });
+    return pending;
+  }
+  /**
+   * VXShop 결제 완료. 플랫폼이 부른다 - 클라는 이 경로에 못 끼어든다.
+   *
+   * **멱등이어야 한다.** 같은 purchaseId 가 두 번 오면(재시도·중복 웹훅) 두 번
+   * 지급된다. 지급한 id 를 계정 상태에 남겨 두 번째는 무시한다.
+   * 목록이 무한정 자라지 않도록 최근 50건만 남긴다 - Firestore 는 개수로도 죽는다
+   * (파일 상단 MAX_LEAVES 참조).
+   */
+  async $onItemPurchased(data) {
+    const account = data && data.account;
+    const purchaseId = data && data.purchaseId;
+    const productId = data && data.productId;
+    if (!account || !purchaseId || !productId) return;
+    const p = PRODUCTS[productId];
+    if (!p) return;                                  // 우리 상품이 아니다
+
+    const cur = await $global.getUserState(account);
+    const srv = (cur && cur.srv) || {};
+    const done = srv.purchases || [];
+    if (done.includes(purchaseId)) return;           // 이미 지급했다
+    if (p.once && (srv.onceBought || []).includes(productId)) return;
+
+    const s = cur && cur.save && cur.save.s;
+    if (!s) return;                                  // 세이브가 없다 - 접속 전이다
+
+    // ── 이중 지급 방어 (2026-08-26) ──────────────────────────
+    // **지금은 클라가 지급한다** (main.js > onVxPurchased). 세이브가 클라 판정
+    // 통짜 저장이라(1단계) 서버가 여기서 같은 상품을 또 얹으면, 클라 지급분과
+    // 합쳐져 두 배가 되거나 - 클라가 통짜로 덮어써 서버 지급분이 사라지거나 -
+    // 둘 중 하나다. 어느 쪽이든 사고고, 어느 쪽이 이길지는 저장 순서가 정한다.
+    //
+    // 그래서 **접속 중인 계정에는 서버가 지급하지 않고 영수증만 남긴다.**
+    // 클라가 못 받은 경우(결제 직후 앱이 죽었다·다른 기기다)를 위해 미지급
+    // 목록에 쌓아 두고, 클라가 다음 로드에서 그것을 받아 간다.
+    //
+    // 2단계(서버 판정)로 옮기면 이 분기를 지우고 위의 지급 코드만 남긴다 -
+    // 그때는 클라의 onVxPurchased 지급을 걷어내는 것이 같은 작업의 반대쪽이다.
+    const pending = [...(srv.pendingGrants || []), { purchaseId, productId, at: Date.now() }].slice(-20);
+    await $global.updateUserState(account, {
+      srv: {
+        ...srv,
+        pendingGrants: pending,
+        purchases: [...done, purchaseId].slice(-50),
+        onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
+      },
+    });
+    return;
+
+    /* eslint-disable no-unreachable -- 2단계에서 되살릴 지급 코드 */
+    const n = Math.max(1, (data.quantity | 0) || 1);
+    if (p.dia) s.dia = (s.dia || 0) + p.dia * n;
+    if (p.mercTicket) s.mercTicket = (s.mercTicket || 0) + p.mercTicket * n;
+    if (p.skillTicket) s.skillTicket = (s.skillTicket || 0) + p.skillTicket * n;
+    if (p.eqTicket) s.eqTicket = (s.eqTicket || 0) + p.eqTicket * n;
+    if (p.hourglass) s.hourglass = (s.hourglass || 0) + p.hourglass * n;
+    // 해금형 상품 — 수량과 무관하게 플래그다
+    if (p.unlock === 'premium') { s.speed3 = true; s.adFree = true; }
+    if (p.unlock === 'pass') { s.pass = { ...(s.pass || {}), bought: true }; }
+
+    await $global.updateUserState(account, {
+      save: { ...cur.save, s, savedAt: Date.now() },
+      srv: {
+        ...srv,
+        purchases: [...done, purchaseId].slice(-50),
+        onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
+      },
+    });
+    /* eslint-enable no-unreachable */
+  }
 }
 
 // -- 세이브 안의 재화를 서버가 직접 만진다 --------------------
@@ -1375,72 +1463,3 @@ async function spendGold(account, cost) {
   return true;
 }
 
-/**
- * VXShop 결제 완료. 플랫폼이 부른다 - 클라는 이 경로에 못 끼어든다.
- *
- * **멱등이어야 한다.** 같은 purchaseId 가 두 번 오면(재시도·중복 웹훅) 두 번
- * 지급된다. 지급한 id 를 계정 상태에 남겨 두 번째는 무시한다.
- * 목록이 무한정 자라지 않도록 최근 50건만 남긴다 - Firestore 는 개수로도 죽는다
- * (파일 상단 MAX_LEAVES 참조).
- */
-async function $onItemPurchased(data) {
-  const account = data && data.account;
-  const purchaseId = data && data.purchaseId;
-  const productId = data && data.productId;
-  if (!account || !purchaseId || !productId) return;
-  const p = PRODUCTS[productId];
-  if (!p) return;                                  // 우리 상품이 아니다
-
-  const cur = await $global.getUserState(account);
-  const srv = (cur && cur.srv) || {};
-  const done = srv.purchases || [];
-  if (done.includes(purchaseId)) return;           // 이미 지급했다
-  if (p.once && (srv.onceBought || []).includes(productId)) return;
-
-  const s = cur && cur.save && cur.save.s;
-  if (!s) return;                                  // 세이브가 없다 - 접속 전이다
-
-  // ── 이중 지급 방어 (2026-08-26) ──────────────────────────
-  // **지금은 클라가 지급한다** (main.js > onVxPurchased). 세이브가 클라 판정
-  // 통짜 저장이라(1단계) 서버가 여기서 같은 상품을 또 얹으면, 클라 지급분과
-  // 합쳐져 두 배가 되거나 - 클라가 통짜로 덮어써 서버 지급분이 사라지거나 -
-  // 둘 중 하나다. 어느 쪽이든 사고고, 어느 쪽이 이길지는 저장 순서가 정한다.
-  //
-  // 그래서 **접속 중인 계정에는 서버가 지급하지 않고 영수증만 남긴다.**
-  // 클라가 못 받은 경우(결제 직후 앱이 죽었다·다른 기기다)를 위해 미지급
-  // 목록에 쌓아 두고, 클라가 다음 로드에서 그것을 받아 간다.
-  //
-  // 2단계(서버 판정)로 옮기면 이 분기를 지우고 위의 지급 코드만 남긴다 -
-  // 그때는 클라의 onVxPurchased 지급을 걷어내는 것이 같은 작업의 반대쪽이다.
-  const pending = [...(srv.pendingGrants || []), { purchaseId, productId, at: Date.now() }].slice(-20);
-  await $global.updateUserState(account, {
-    srv: {
-      ...srv,
-      pendingGrants: pending,
-      purchases: [...done, purchaseId].slice(-50),
-      onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
-    },
-  });
-  return;
-
-  /* eslint-disable no-unreachable -- 2단계에서 되살릴 지급 코드 */
-  const n = Math.max(1, (data.quantity | 0) || 1);
-  if (p.dia) s.dia = (s.dia || 0) + p.dia * n;
-  if (p.mercTicket) s.mercTicket = (s.mercTicket || 0) + p.mercTicket * n;
-  if (p.skillTicket) s.skillTicket = (s.skillTicket || 0) + p.skillTicket * n;
-  if (p.eqTicket) s.eqTicket = (s.eqTicket || 0) + p.eqTicket * n;
-  if (p.hourglass) s.hourglass = (s.hourglass || 0) + p.hourglass * n;
-  // 해금형 상품 — 수량과 무관하게 플래그다
-  if (p.unlock === 'premium') { s.speed3 = true; s.adFree = true; }
-  if (p.unlock === 'pass') { s.pass = { ...(s.pass || {}), bought: true }; }
-
-  await $global.updateUserState(account, {
-    save: { ...cur.save, s, savedAt: Date.now() },
-    srv: {
-      ...srv,
-      purchases: [...done, purchaseId].slice(-50),
-      onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
-    },
-  });
-  /* eslint-enable no-unreachable */
-}

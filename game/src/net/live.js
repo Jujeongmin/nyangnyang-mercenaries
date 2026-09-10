@@ -268,6 +268,9 @@ export const setChat = (scope, rows) => {
 };
 
 /** 계정 하나의 공개 프로필 — 채팅 프로필 카드가 쓴다. 캐시 없이 그때그때 */
+/** 못 받은 결제 영수증. **받아 가면 서버가 목록을 비운다** — 두 번 부르면 안 된다 */
+export const claimPending = () => server ? call('claimPendingGrants', []) : null;
+
 export const fetchProfile = account => server ? call('getProfile', [account]) : null;
 
 export const searchNick = nick => call('findByNickname', [nick]);

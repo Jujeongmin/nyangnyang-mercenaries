@@ -451,6 +451,28 @@ function grantDiaPack(id) {
  * 지급 판정을 여기 한 곳에 모아 둔다: 상품이 늘어도 여기만 보면 무엇을 주는지
  * 전부 읽힌다. 서버 2단계에서는 server.js 의 $onItemPurchased 가 같은 표를 쥔다.
  */
+/**
+ * 못 받은 결제를 받아 지급한다. 부팅에서 서버 연결이 끝난 뒤 한 번 부른다.
+ *
+ * 지급은 보통 결제창이 닫힐 때 일어나는데(onVxPurchased), 그 순간 앱이
+ * 죽었거나 다른 기기에서 결제했으면 아무 일도 안 일어난다. 서버는 그런 건을
+ * 영수증으로 쌓아 두고(server.js > $onItemPurchased), 여기서 받아 **같은**
+ * 지급 함수에 넣는다 — 지급 경로가 둘이 되면 반드시 어긋난다.
+ *
+ * 수량은 영수증마다 1 로 본다. 플랫폼이 quantity 를 실어 주면 그만큼 돈다.
+ */
+async function claimPurchases() {
+  if (!live.liveReady()) return;
+  const rows = await live.claimPending();
+  if (!Array.isArray(rows) || !rows.length) return;
+  for (const r of rows) {
+    const n = Math.max(1, (r && r.quantity | 0) || 1);
+    for (let i = 0; i < n; i++) onVxPurchased(r.productId);
+  }
+  save();
+  toast(t('못 받은 결제 {0}건이 지급되었습니다', rows.length));
+}
+
 function onVxPurchased(productId) {
   if (productId === 'premium_pack') { grantPremium(); return toast(t('프리미엄이 적용되었습니다')); }
   if (productId === 'starter_pack') return grantStarter();
@@ -8825,6 +8847,11 @@ function bootTapToStart() {
       await live.warmup(S.arenaScore || 1000);
       syncAllyFromServer();
     } catch (e) { console.warn('[live] 예열 실패 — 화면마다 다시 받는다', e); }
+    // **못 받은 결제를 여기서 받는다.** 지급은 결제창이 닫힐 때(onVxPurchased)
+    // 하는데, 그 순간 앱이 죽었거나 다른 기기였으면 아무 일도 안 일어난다.
+    // 서버는 그런 건을 영수증으로 쌓아 두고(server.js > $onItemPurchased),
+    // 여기서 받아 같은 지급 함수에 넣는다 — 지급 경로가 둘이 되면 안 된다.
+    try { await claimPurchases(); } catch (e) { console.warn('[live] 미지급 결제 수령 실패', e); }
     // **채팅을 로딩 안에서 연결한다** (단장 지시 2026-08-28).
     // warmup 이 지난 대화는 이미 받아 왔지만 구독은 채팅창을 열어야 열렸다.
     // 그래서 부팅 직후에는 하단 채팅바가 죽어 있었고, 한 번 열기 전까지는
