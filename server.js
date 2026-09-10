@@ -196,7 +196,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 30;
+const SERVER_REV = 31;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1375,6 +1375,42 @@ class Server {
       .sort((a, b) => b.damage - a.damage);
   }
 
+  /**
+   * **최근 계정 훑기.** 구매자 주소를 모를 때 대조하는 용도다.
+   *
+   * VX Shop 의 구매자 이름은 플랫폼 이름이라 게임 안 닉네임과 안 맞고, 훅이
+   * 안 불린 결제는 서버에 기록이 아예 없다 — 그래서 "누가 샀나" 를 서버가
+   * 알 방법이 없다. 대신 최근 움직인 계정을 시각과 함께 늘어놓고, 결제 시각과
+   * 다이아 잔액으로 사람이 대조한다.
+   *
+   * 프로필을 훑으므로 **프로필을 올린 계정만** 나온다. 한 번도 안 올린 계정은
+   * 여기 없다 — 그때는 대시보드에서 주소를 찾아 supportLookup 에 직접 넣는다.
+   */
+  async supportRecent(limit) {
+    if (!isOwner()) return { ok: false, reason: 'not_owner' };
+    const n = Math.min(50, Math.max(1, limit | 0 || 20));
+    const profs = await qItems('profiles', { limit: 500 }).catch(() => []);
+    const rows = dedupAcc(profs)
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .slice(0, n);
+    const out = [];
+    for (const r of rows) {
+      const cur = await $global.getUserState(r.account).catch(() => null);
+      const sv = cur && cur.save && cur.save.s;
+      const srv = (cur && cur.srv) || {};
+      out.push({
+        account: r.account,
+        nickname: r.nickname || '',
+        dia: sv ? (sv.dia || 0) : null,
+        stage: r.stage || 0,
+        cp: r.cp || 0,
+        savedAt: (cur && cur.save && cur.save.savedAt) || 0,
+        purchases: (srv.purchases || []).length,
+        pending: (srv.pendingGrants || []).length,
+      });
+    }
+    return { ok: true, rows: out };
+  }
   /**
    * **결제 문의 조회.** 닉네임으로 그 계정의 재화와 결제 기록을 본다.
    *
