@@ -173,7 +173,30 @@ const PRODUCTS = {
 const OWNER_ACCOUNT = '0x7b47aa40357441418909f83728da906b7c85d261';
 const isOwner = () => String($sender.account || '').toLowerCase() === OWNER_ACCOUNT;
 
-const SERVER_REV = 29;
+/**
+ * 문의 대상 찾기. **계정 주소도 받고 닉네임도 받는다.**
+ *
+ * VX Shop 의 구매자 이름은 플랫폼 계정 이름이라 게임 안 닉네임(profiles.nickname)과
+ * 다르다 — 닉네임으로만 찾으면 결제한 사람을 못 찾는 일이 생긴다 (2026-09-10).
+ * 0x 로 시작하면 주소로 보고 계정을 직접 집는다.
+ *
+ * 주소로 찾을 때는 프로필이 없어도 계정 자체를 돌려준다 — 프로필을 한 번도
+ * 안 올린 계정이라도 결제는 할 수 있다.
+ */
+async function findSupportTargets(who) {
+  const q = String(who || '').trim();
+  if (!q) return [];
+  if (q.toLowerCase().startsWith('0x')) {
+    const prof = await oneByAccount('profiles', q).catch(() => null);
+    return [prof || { account: q, nickname: '' }];
+  }
+  return qItems('profiles', {
+    filters: [{ field: 'nickname', operator: '==', value: q.slice(0, 15) }],
+    limit: 5,
+  });
+}
+
+const SERVER_REV = 30;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1360,12 +1383,9 @@ class Server {
    *
    * 세이브 전체를 돌려주지 않는다 — 문의에 필요한 것만 추린다.
    */
-  async supportLookup(nickname) {
+  async supportLookup(who) {
     if (!isOwner()) return { ok: false, reason: 'not_owner' };
-    const rows = await qItems('profiles', {
-      filters: [{ field: 'nickname', operator: '==', value: String(nickname || '').slice(0, 15) }],
-      limit: 5,
-    });
+    const rows = await findSupportTargets(who);
     if (!rows.length) return { ok: true, found: [] };
     const found = [];
     for (const r of rows) {
@@ -1402,14 +1422,11 @@ class Server {
    * purchaseId 를 직접 받는다. 같은 id 를 두 번 넣으면 두 번째는 막힌다 —
    * 대시보드의 결제 id 를 그대로 쓰면 중복 지급이 구조적으로 안 난다.
    */
-  async supportGrant(nickname, productId, purchaseId) {
+  async supportGrant(who, productId, purchaseId) {
     if (!isOwner()) return { ok: false, reason: 'not_owner' };
     if (!PRODUCTS[productId]) return { ok: false, reason: 'unknown_product' };
     if (!purchaseId) return { ok: false, reason: 'need_purchase_id' };
-    const rows = await qItems('profiles', {
-      filters: [{ field: 'nickname', operator: '==', value: String(nickname || '').slice(0, 15) }],
-      limit: 2,
-    });
+    const rows = await findSupportTargets(who);
     if (!rows.length) return { ok: false, reason: 'no_user' };
     // 같은 닉이 둘이면 손을 뗀다 — 엉뚱한 사람에게 주는 것이 안 주는 것보다 나쁘다
     if (rows.length > 1) return { ok: false, reason: 'ambiguous' };
