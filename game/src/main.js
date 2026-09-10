@@ -120,6 +120,7 @@ const S = {
   // 웹툰 — 완독한 화 / 건너뛴 화. 어느 쪽이든 **다시 안 뜬다** (첫 시작에 한 번).
   // 둘을 가르는 이유는 나중에 완독률을 보려면 이 구분이 유일한 근거라서다
   story: { seen: [], skipped: [] },
+  vxLog: [],                               // 결제 지급 영수증 (최근 20건)
   coachSeen: [],                           // 이미 눌러 본 코치마크 단계 id
   perfHud: false,                          // 성능 진단 HUD (설정 > 진단에서 켠다)
   presets: { mercenary: [null, null, null], skill: [null, null, null] },
@@ -467,13 +468,29 @@ async function claimPurchases() {
   if (!Array.isArray(rows) || !rows.length) return;
   for (const r of rows) {
     const n = Math.max(1, (r && r.quantity | 0) || 1);
-    for (let i = 0; i < n; i++) onVxPurchased(r.productId);
+    for (let i = 0; i < n; i++) onVxPurchased(r.productId, 'pending');
   }
   save();
   toast(t('못 받은 결제 {0}건이 지급되었습니다', rows.length));
 }
 
-function onVxPurchased(productId) {
+/**
+ * 지급 영수증. **결제 문의에 답할 유일한 근거다.**
+ *
+ * 예전에는 지급이 `S.dia += n` 한 줄이라 아무 흔적이 없었다. 그래서 결제는
+ * 됐는데 지급 훅이 실패한 건이 생겼을 때, 계정을 알아내고도 "이 사람이
+ * 받았나" 를 답할 방법이 없었다 (2026-09-10, pack_xs 건).
+ *
+ * 최근 20건만 남긴다 — 세이브는 개수로도 무거워진다.
+ *
+ * @param via 'client' 결제창이 닫히며 그 자리에서 / 'pending' 못 받았던 것을 뒤늦게
+ */
+function logGrant(productId, via) {
+  S.vxLog = [...(S.vxLog || []), { productId, at: Date.now(), via }].slice(-20);
+}
+
+function onVxPurchased(productId, via) {
+  logGrant(productId, via || 'client');
   if (productId === 'premium_pack') { grantPremium(); return toast(t('프리미엄이 적용되었습니다')); }
   if (productId === 'starter_pack') return grantStarter();
   if (/^growth_pack_/.test(productId)) return grantGrowth(productId);

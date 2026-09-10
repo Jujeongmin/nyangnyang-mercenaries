@@ -196,7 +196,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 31;
+const SERVER_REV = 32;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1443,6 +1443,8 @@ class Server {
         purchases: srv.purchases || [],
         pendingGrants: srv.pendingGrants || [],
         onceBought: srv.onceBought || [],
+        // 클라가 남긴 지급 영수증 — "언제 무엇을 어느 경로로 받았나"
+        vxLog: sv ? (sv.vxLog || []) : null,
       });
     }
     return { ok: true, found };
@@ -1507,18 +1509,27 @@ class Server {
     const account = data && data.account;
     const purchaseId = data && data.purchaseId;
     const productId = data && data.productId;
-    if (!account || !purchaseId || !productId) return;
+    // **이유를 담아 돌려준다.** undefined 를 돌려주면 대시보드에 아무것도 안 남아,
+    // 지급이 안 됐을 때 왜 안 됐는지를 코드를 읽어 추측해야 한다
+    if (!account || !purchaseId || !productId) return { ok: false, reason: 'bad_payload' };
     const p = PRODUCTS[productId];
-    if (!p) return;                                  // 우리 상품이 아니다
+    if (!p) return { ok: false, reason: 'unknown_product', productId };
 
     const cur = await $global.getUserState(account);
     const srv = (cur && cur.srv) || {};
     const done = srv.purchases || [];
-    if (done.includes(purchaseId)) return;           // 이미 지급했다
-    if (p.once && (srv.onceBought || []).includes(productId)) return;
+    // 멱등 — 재시도·중복 웹훅에서 두 번 지급되지 않게. **성공으로** 돌려준다:
+    // 이미 처리된 건이지 실패한 건이 아니다
+    if (done.includes(purchaseId)) return { ok: true, reason: 'already', purchaseId };
+    if (p.once && (srv.onceBought || []).includes(productId)) {
+      return { ok: true, reason: 'once_already', productId };
+    }
 
+    // **세이브가 없어도 영수증은 남긴다.** 결제만 하고 아직 게임에 안 들어온
+    // 계정이 바로 그 경우인데, 예전에는 여기서 그냥 돌아가 버려 그 사람은
+    // 영영 못 받았다 (2026-09-10). 지급은 어차피 클라가 하므로 세이브는
+    // 여기서 필요 없다 — 아래는 영수증만 쌓는 길이다
     const s = cur && cur.save && cur.save.s;
-    if (!s) return;                                  // 세이브가 없다 - 접속 전이다
 
     // ── 이중 지급 방어 (2026-08-26) ──────────────────────────
     // **지금은 클라가 지급한다** (main.js > onVxPurchased). 세이브가 클라 판정
@@ -1541,7 +1552,7 @@ class Server {
         onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
       },
     });
-    return;
+    return { ok: true, reason: 'queued', productId, purchaseId };
 
     /* eslint-disable no-unreachable -- 2단계에서 되살릴 지급 코드 */
     const n = Math.max(1, (data.quantity | 0) || 1);
