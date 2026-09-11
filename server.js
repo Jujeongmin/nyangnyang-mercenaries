@@ -227,7 +227,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 33;
+const SERVER_REV = 34;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -313,12 +313,36 @@ function countOf(v) {
 }
 
 /**
+ * 컬렉션 행 수. **빈 객체를 넘기면 안 된다.**
+ *
+ * `countCollectionItems(room, {})` 는 `filterOptions.filters is not iterable`
+ * 로 던진다 — 옵션에 filters 키가 없으면 플랫폼이 그걸 그대로 순회하려 든다.
+ * 예전에는 그 예외를 -1 로 삼켰는데, 그러면 pruneChat 이 "셀 수 없다" 로 읽고
+ * 매번 그냥 돌아갔다. 결과가 조용했던 것이 더 나쁘다 — CHAT_KEEP 상한이 한
+ * 번도 안 먹어서 채팅 줄이 무한정 쌓였다 (단장 진단 2026-09-11).
+ *
+ * 빈 배열을 명시하는 것이 맞는 호출이다. 그래도 안 되는 플랫폼 판이 있을 수
+ * 있어 직접 세는 길을 마지막에 둔다 — 비싸지만 -1 로 포기하는 것보다 낫다.
+ */
+async function countRows(room) {
+  try {
+    const n = countOf(await $global.countCollectionItems(room, { filters: [] }));
+    if (n >= 0) return n;
+  } catch (e) { /* 아래로 */ }
+  try {
+    const rows = await $global.getCollectionItems(room, {});
+    if (Array.isArray(rows)) return rows.length;
+  } catch (e) { /* 아래로 */ }
+  return -1;
+}
+
+/**
  * 오래된 줄 지우기. **매번 다 세지 않는다** - 보낼 때마다 count + 정렬 조회를
  * 돌리면 채팅 한 줄이 쿼리 세 번이 된다. 여유분(CHAT_KEEP 의 1.5배)을 넘겼을 때만
  * 한 번에 잘라 낸다.
  */
 async function pruneChat(room) {
-  const n = countOf(await $global.countCollectionItems(room, {}));
+  const n = await countRows(room);
   // 셀 수 없으면 **아무것도 지우지 않는다.** 모르는 채로 삭제하면 대화가 통째로
   // 날아간다 — 실제로 그랬다
   if (n < 0 || n <= CHAT_KEEP * 1.5) return;
@@ -496,9 +520,11 @@ class Server {
       chatWorld: CHAT_WORLD,
       // 지금 이 컬렉션에 몇 줄이 있나 — 조회가 비는 게 "없어서"인지
       // "못 읽어서"인지 가른다
-      chatCount: countOf(await $global.countCollectionItems(CHAT_WORLD, {}).catch(() => -1)),
-      // 원본 모양도 같이 준다 — countOf 가 못 알아보는 새 모양이 오면 여기서 보인다
-      chatCountRaw: await $global.countCollectionItems(CHAT_WORLD, {}).catch(e => String(e)),
+      chatCount: await countRows(CHAT_WORLD),
+      // 원본 모양도 같이 준다 — countOf 가 못 알아보는 새 모양이 오면 여기서 보인다.
+      // **빈 객체가 아니라 filters:[] 로 부른다** (countRows 설명 참조)
+      chatCountRaw: await $global.countCollectionItems(CHAT_WORLD, { filters: [] })
+        .catch(e => String(e)),
       chatRows: ((await $global.getCollectionItems(CHAT_WORLD, {})) || []).length,
       account: $sender.account,
       // **서버가 이 계정에 대해 실제로 들고 있는 것.**
@@ -1404,6 +1430,28 @@ class Server {
     return [...byAcc]
       .map(pair => ({ account: pair[0], nickname: nameOf.get(pair[0]) || '', damage: pair[1] }))
       .sort((a, b) => b.damage - a.damage);
+  }
+
+  /**
+   * **밀린 채팅 줄을 손으로 걷어낸다.**
+   *
+   * pruneChat 이 오래 안 돌아 쌓인 것을 한 번에 내리는 용도다 (countRows 설명).
+   * pruneChat 은 한 번에 CHAT_KEEP(120)줄까지만 지우므로, 많이 쌓였으면 여러
+   * 바퀴가 필요하다. 바퀴 수를 받아 그만큼 돈다 — 한 호출에 다 지우려 들면
+   * 삭제가 수천 번이라 그쪽이 먼저 끊긴다.
+   *
+   * 평소에는 부를 일이 없다. 채팅을 보낼 때마다 pruneChat 이 알아서 돈다.
+   */
+  async supportPruneChat(rounds) {
+    if (!isOwner()) return { ok: false, reason: 'not_owner' };
+    const before = await countRows(CHAT_WORLD);
+    let left = Math.min(20, Math.max(1, rounds | 0 || 5));
+    while (left-- > 0) {
+      const n = await countRows(CHAT_WORLD);
+      if (n < 0 || n <= CHAT_KEEP * 1.5) break;
+      await pruneChat(CHAT_WORLD);
+    }
+    return { ok: true, before, after: await countRows(CHAT_WORLD), keep: CHAT_KEEP };
   }
 
   /** 최근 결제 payload 5건. 필드 이름이 안 맞아 실패했을 때 진짜 모양을 본다 */
