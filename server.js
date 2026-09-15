@@ -227,7 +227,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 34;
+const SERVER_REV = 35;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1531,6 +1531,24 @@ class Server {
         onceBought: srv.onceBought || [],
         // 클라가 남긴 지급 영수증 — "언제 무엇을 어느 경로로 받았나"
         vxLog: sv ? (sv.vxLog || []) : null,
+        // ── **과금 없이 가능했나** 를 가르는 근거 (단장 질문 2026-09-15) ──
+        // LR 은 소환 레벨 28(누적 876뽑)부터만 풀에 들어온다. 누적 뽑기 수와
+        // 계정 나이를 같이 봐야 "그 날짜에 그만큼 뽑을 수 있었나" 가 계산된다
+        summonExp: sv ? (sv.summonExp || {}) : null,
+        accountAt: sv ? (sv.accountAt || 0) : null,
+        maxStage: sv ? (sv.maxStage || 0) : null,
+        mercTicketNow: sv ? (sv.mercTicket || 0) : null,
+        lrMercs: sv ? [...(sv.party || []), ...((sv.own && sv.own.mercenary) || [])]
+          .filter(x => x && x.grade === 'LR').map(x => x.id) : null,
+        // 도감은 한 번이라도 뽑은 id 가 남는다 — 보유함에서 사라져도 흔적이 있다
+        lrCodex: sv && sv.codex && Array.isArray(sv.codex.mercenary)
+          ? sv.codex.mercenary.filter(id => /^LR-/.test(String(id))) : null,
+        // 결제로만 켜지는 플래그. vxLog 는 9/10 이후 것만 있으므로
+        // 그 전 결제는 이 플래그로만 흔적이 남는다 (다이아 팩은 흔적이 없다)
+        paidFlags: sv ? {
+          speed3: !!sv.speed3, adFree: !!sv.adFree, starter: !!sv.starterBought,
+          growth: sv.growthBought || [], pass: !!(sv.pass && sv.pass.bought),
+        } : null,
       });
     }
     return { ok: true, found };
