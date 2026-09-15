@@ -2853,8 +2853,15 @@ function diceState() {
   return S.dice;
 }
 
-/** 이벤트 남은 일수. 0 이하면 끝났다. 원점은 첫 접속(S.evStart) */
+/**
+ * 이벤트 남은 일수. 0 이하면 끝났다. 원점은 첫 접속(S.evStart)
+ *
+ * **기간이 없으면(null) 상시다 — Infinity 를 돌려준다.** 끝나는 판정(<= 0)은
+ * 그대로 두고 표시하는 쪽만 isFinite 로 D-day 를 가린다. 이미 14일이 지나
+ * 종료로 보이던 옛 계정도 다시 열린다 — evStart 를 지우지 않아도 된다.
+ */
 function evDaysLeft(durationDays) {
+  if (!durationDays) return Infinity;
   if (!S.evStart) { S.evStart = Date.now(); save(); }
   const passed = Math.floor((Date.now() - S.evStart) / 86400e3);
   return durationDays - passed;
@@ -3213,7 +3220,7 @@ function openEvents() {
   banners.push(`<button class="evb${over ? ' end' : ''}" data-ev="dice"
       style="--img:url(/assets/ui/EV-01.webp)">
     <span class="evb-tag">${over ? t('종료') : t('출시 기념')}</span>
-    ${over ? '' : `<span class="evb-dday">D-${left}</span>`}
+    ${over || !isFinite(left) ? '' : `<span class="evb-dday">D-${left}</span>`}
     <b>${t('냥냥 주사위')}</b>
     <span class="evb-sub">${over ? t('이벤트가 끝났습니다')
       : t('주사위 {0}개 · 누적 {1}회', dd.rolls, num(S.dice.totalRolls || 0))}</span>
@@ -3282,7 +3289,7 @@ function openEventDetail(id) {
     // 둘 다 자리를 먹어 정작 주사위판이 스크롤 밖으로 밀렸다. 남은 기간만 한 줄
     h.push(`<div class="dc-head">
       <b>${t('출시 기념 냥냥 주사위')}</b>
-      <u>${left > 0 ? `D-${left}` : t('종료')}</u>
+      <u>${!isFinite(left) ? t('상시') : left > 0 ? `D-${left}` : t('종료')}</u>
     </div>`);
     // 탭 — 미션이 화면 밑바닥에 있으면 "주사위를 어디서 얻나" 가 안 보인다.
     // 주사위가 없을 때는 미션 쪽을 먼저 펴 준다
