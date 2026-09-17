@@ -653,7 +653,9 @@
   "전투·방치 3배속 영구 해금 · 광고 버튼이 광고 없이 즉시 보상 · 매일 다이아 {0} 우편 지급": "3x speed forever · ad buttons pay out instantly with no ad · {0} diamonds by mail daily",
   "{0} VX": "{0} VX",
   "상시": "Permanent",
-  "하드": "Hard"
+  "하드": "Hard",
+  "결제를 확인하는 중입니다…": "Confirming your purchase…",
+  "결제 확인이 늦어지고 있습니다. 다음 접속 때 지급됩니다": "Purchase confirmation is delayed. It will be delivered next time you log in."
  },
  "data": {
   "N-01": "Tiny Hamzzi",

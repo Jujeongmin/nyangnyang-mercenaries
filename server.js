@@ -227,7 +227,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 35;
+const SERVER_REV = 36;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1581,14 +1581,21 @@ class Server {
     await $global.updateUserState(account, {
       srv: { ...srv, pendingGrants: pending, purchases: [...done, purchaseId].slice(-50) },
     });
+    // 되읽어 확인한다 — 조용히 실패했는데 ok 를 보면 운영자는 넣었다고 믿는다
+    const after = await $global.getUserState(account).catch(() => null);
+    const saved = (after && after.srv) || {};
+    if (!(saved.pendingGrants || []).some(x => x.purchaseId === purchaseId)) {
+      return { ok: false, reason: 'write_not_persisted', account, productId, purchaseId };
+    }
     return { ok: true, account, productId, purchaseId };
   }
   /**
-   * **미지급 영수증을 가져간다.** 클라가 부팅 때 한 번 부른다.
+   * **미지급 영수증을 가져간다.** 클라가 부팅 때, 그리고 결제창이 닫힌 직후
+   * 재시도로 부른다 (main.js > claimPurchases · confirmPurchase).
    *
-   * 지급은 클라가 한다 ($onItemPurchased 의 주석 참조 — 세이브가 클라 판정
-   * 통짜 저장이라 서버가 같이 얹으면 두 배가 되거나 덮인다). 그래서 서버는
-   * 영수증만 쌓아 두고, 여기서 그것을 넘겨준 뒤 목록을 비운다.
+   * 지급은 클라가 이 영수증으로만 한다 ($onItemPurchased 의 주석 참조 — 세이브가
+   * 클라 판정 통짜 저장이라 서버가 같이 얹으면 두 배가 되거나 덮인다). 그래서
+   * 서버는 영수증만 쌓아 두고, 여기서 그것을 넘겨준 뒤 목록을 비운다.
    *
    * **넘겨준 순간 비우는 이유**: 두 번 부르면 두 번 지급된다. 넘겨준 뒤에
    * 클라가 죽으면 그 건은 잃지만, 두 배로 주는 것보다 낫다 — 잃은 건은
@@ -1599,6 +1606,15 @@ class Server {
     const pending = srv.pendingGrants || [];
     if (!pending.length) return [];
     await srvPatch({ pendingGrants: [] });
+    // **비운 게 실제로 들어갔나 되읽는다.** 조용히 실패했는데 넘겨주면 다음
+    // 수령에 같은 영수증이 또 나간다. 클라도 거래 id 로 한 번 더 거르지만
+    // 서버가 먼저 막는다 — 못 비웠으면 이번에는 넘기지 않는다.
+    // (그 사이 훅이 새 영수증을 넣었을 수 있으니 방금 넘길 것만 본다)
+    const after = await srvState();
+    const left = new Set((after.pendingGrants || []).map(x => x.purchaseId));
+    if (pending.some(x => left.has(x.purchaseId))) {
+      return { ok: false, reason: 'clear_not_persisted' };
+    }
     return pending;
   }
   /**
@@ -1649,19 +1665,20 @@ class Server {
     // 여기서 필요 없다 — 아래는 영수증만 쌓는 길이다
     const s = cur && cur.save && cur.save.s;
 
-    // ── 이중 지급 방어 (2026-08-26) ──────────────────────────
-    // **지금은 클라가 지급한다** (main.js > onVxPurchased). 세이브가 클라 판정
-    // 통짜 저장이라(1단계) 서버가 여기서 같은 상품을 또 얹으면, 클라 지급분과
-    // 합쳐져 두 배가 되거나 - 클라가 통짜로 덮어써 서버 지급분이 사라지거나 -
-    // 둘 중 하나다. 어느 쪽이든 사고고, 어느 쪽이 이길지는 저장 순서가 정한다.
+    // ── 서버는 세이브를 안 쓰고 영수증만 쌓는다 ─────────────────
+    // 세이브는 클라가 통짜로 올린다. 서버가 여기서 재화를 얹으면 클라 업로드가
+    // 그걸 덮어쓰거나 진행을 되돌린다 — 어느 쪽이 이길지는 저장 순서가 정한다.
     //
-    // 그래서 **접속 중인 계정에는 서버가 지급하지 않고 영수증만 남긴다.**
-    // 클라가 못 받은 경우(결제 직후 앱이 죽었다·다른 기기다)를 위해 미지급
-    // 목록에 쌓아 두고, 클라가 다음 로드에서 그것을 받아 간다.
+    // 그래서 **모든 결제를 영수증으로만 남기고, 지급은 클라가 영수증을 받아서
+    // 한다** (main.js > claimPurchases). 결제창이 닫힐 때 클라가 따로 주지
+    // 않는다 — 예전에는 거기서도 줘서 정상 결제가 두 번 지급되는 구조였다
+    // (2026-09-17 수정). 지급 경로는 이 영수증 하나다.
     //
-    // 2단계(서버 판정)로 옮기면 이 분기를 지우고 위의 지급 코드만 남긴다 -
-    // 그때는 클라의 onVxPurchased 지급을 걷어내는 것이 같은 작업의 반대쪽이다.
-    const pending = [...(srv.pendingGrants || []), { purchaseId, productId, at: Date.now() }].slice(-20);
+    // 수량: 대시보드 요청 내용에 quantity 가 보였다. 1회 한정 상품은 늘 1이다.
+    const qty = p.once ? 1
+      : Math.min(99, Math.max(1, parseInt(pickField(data, ['quantity', 'qty', 'amount']), 10) || 1));
+    const pending = [...(srv.pendingGrants || []),
+      { purchaseId, productId, quantity: qty, at: Date.now() }].slice(-20);
     await $global.updateUserState(account, {
       srv: {
         ...srv,
@@ -1670,7 +1687,16 @@ class Server {
         onceBought: p.once ? [...(srv.onceBought || []), productId] : (srv.onceBought || []),
       },
     });
-    return { ok: true, reason: 'queued', productId, purchaseId };
+    // **되읽어서 실제로 들어갔나 본다.** 저장소가 가득 차면 예외 없이 조용히
+    // 실패한다 — 그때 ok 를 돌려주면 대시보드는 성공인데 영수증은 없다.
+    // 실패로 돌려주면 대시보드에 Failed 로 남아 운영자가 알 수 있다
+    const after = await $global.getUserState(account);
+    const saved = (after && after.srv) || {};
+    if (!(saved.purchases || []).includes(purchaseId)
+      || !(saved.pendingGrants || []).some(x => x.purchaseId === purchaseId)) {
+      return { ok: false, reason: 'write_not_persisted', productId, purchaseId };
+    }
+    return { ok: true, reason: 'queued', productId, purchaseId, quantity: qty };
 
     /* eslint-disable no-unreachable -- 2단계에서 되살릴 지급 코드 */
     const n = Math.max(1, (data.quantity | 0) || 1);

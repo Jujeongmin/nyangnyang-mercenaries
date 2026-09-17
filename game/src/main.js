@@ -121,6 +121,7 @@ const S = {
   // 둘을 가르는 이유는 나중에 완독률을 보려면 이 구분이 유일한 근거라서다
   story: { seen: [], skipped: [] },
   vxLog: [],                               // 결제 지급 영수증 (최근 20건)
+  vxGranted: [],                           // 지급한 서버 영수증의 거래 id — 중복 지급 방지용 (최근 50건)
   coachSeen: [],                           // 이미 눌러 본 코치마크 단계 id
   perfHud: false,                          // 성능 진단 HUD (설정 > 진단에서 켠다)
   presets: { mercenary: [null, null, null], skill: [null, null, null] },
@@ -453,25 +454,98 @@ function grantDiaPack(id) {
  * 전부 읽힌다. 서버 2단계에서는 server.js 의 $onItemPurchased 가 같은 표를 쥔다.
  */
 /**
- * 못 받은 결제를 받아 지급한다. 부팅에서 서버 연결이 끝난 뒤 한 번 부른다.
+ * 서버 영수증을 받아 지급한다. **결제 지급 경로는 이것 하나다** (2026-09-17).
  *
- * 지급은 보통 결제창이 닫힐 때 일어나는데(onVxPurchased), 그 순간 앱이
- * 죽었거나 다른 기기에서 결제했으면 아무 일도 안 일어난다. 서버는 그런 건을
- * 영수증으로 쌓아 두고(server.js > $onItemPurchased), 여기서 받아 **같은**
- * 지급 함수에 넣는다 — 지급 경로가 둘이 되면 반드시 어긋난다.
+ * 예전에는 결제창이 닫힐 때 클라가 그 자리에서 주고(onClose), 서버 훅도 같은
+ * 결제를 영수증으로 쌓아 다음 접속에 또 줬다 — 정상 결제가 전부 두 번 지급되는
+ * 구조였다 (실결제가 없던 사이에 발견). 이제 결제창이 닫히면 confirmPurchase 가
+ * 이 함수를 재시도로 부르고, 부팅도 이 함수를 부른다.
  *
- * 수량은 영수증마다 1 로 본다. 플랫폼이 quantity 를 실어 주면 그만큼 돈다.
+ * - **한 번에 하나만 돈다.** 부팅 수령과 결제 직후 재시도가 겹치면 서버가 목록을
+ *   비우기 전에 둘 다 같은 영수증을 받아 갈 수 있다.
+ * - **받은 거래 id 를 세이브에 남겨 두 번 주지 않는다** (S.vxGranted). 서버 훅과
+ *   수령이 엇갈려 이미 준 영수증이 되살아나도 여기서 걸러진다. 중복 방지 기록일
+ *   뿐 "샀음" 의 근거가 아니다.
+ * - **시간 초과가 나도 응답을 버리지 않는다.** 서버는 넘겨주는 순간 목록을
+ *   비우므로, 늦게 온 응답을 버리면 그 결제는 영영 사라진다. 늦게 오면 그때 준다.
+ *
+ * @returns 이번에 지급한 상품 id 목록. 서버에 못 붙었거나 실패하면 null
  */
-async function claimPurchases() {
-  if (!live.liveReady()) return;
-  const rows = await live.claimPending();
-  if (!Array.isArray(rows) || !rows.length) return;
-  for (const r of rows) {
-    const n = Math.max(1, (r && r.quantity | 0) || 1);
-    for (let i = 0; i < n; i++) onVxPurchased(r.productId, 'pending');
+const VX_CALL_MS = 15000;
+let claimBusy = null;
+function claimPurchases({ quiet = false } = {}) {
+  if (claimBusy) return claimBusy;
+  claimBusy = (async () => {
+    if (!live.liveReady()) return null;
+    const call = Promise.resolve(live.claimPending());
+    const LATE = {};                          // 시간 초과 표식
+    let timer;
+    const late = new Promise(res => { timer = setTimeout(() => res(LATE), VX_CALL_MS); });
+    let rows;
+    try {
+      rows = await Promise.race([call, late]);
+    } catch (e) {
+      console.warn('[결제] 영수증 수령 실패', e);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (rows === LATE) {
+      console.warn('[결제] 영수증 수령이 ' + VX_CALL_MS + 'ms 안에 안 끝났다 — 응답이 오면 그때 지급한다');
+      call.then(r => grantReceipts(r, quiet))
+        .catch(e => console.warn('[결제] 늦게 온 영수증 수령 실패', e));
+      return null;
+    }
+    return grantReceipts(rows, quiet);
+  })().finally(() => { claimBusy = null; });
+  return claimBusy;
+}
+
+/** 영수증 목록을 지급한다. 동기라 두 응답이 겹쳐도 거래 id 검사가 순서대로 돈다 */
+function grantReceipts(rows, quiet) {
+  if (!Array.isArray(rows)) {
+    console.warn('[결제] 영수증 응답이 목록이 아니다', rows);
+    return null;
   }
-  save();
-  toast(t('못 받은 결제 {0}건이 지급되었습니다', rows.length));
+  S.vxGranted = S.vxGranted || [];
+  const got = [];
+  for (const r of rows) {
+    if (!r || !r.productId) { console.warn('[결제] 상품 id 없는 영수증', r); continue; }
+    if (r.purchaseId && S.vxGranted.includes(r.purchaseId)) {
+      console.warn('[결제] 이미 지급한 영수증이라 건너뛴다', r.purchaseId);
+      continue;
+    }
+    const q = Math.max(1, (r.quantity | 0) || 1);
+    for (let i = 0; i < q; i++) onVxPurchased(r.productId, quiet ? 'purchase' : 'pending');
+    if (r.purchaseId) S.vxGranted = [...S.vxGranted, r.purchaseId].slice(-50);
+    got.push(r.productId);
+  }
+  if (got.length) {
+    save();
+    if (!quiet) toast(t('못 받은 결제 {0}건이 지급되었습니다', got.length));
+  }
+  return got;
+}
+
+/**
+ * 결제창이 "샀다" 로 닫혔다. **여기서는 주지 않는다** — 서버 훅이 영수증을
+ * 쌓을 때까지 기다렸다가 claimPurchases 로 받는다. 훅은 결제 직후 조금 늦게
+ * 돌 수 있어서 간격을 벌려 가며 다시 묻는다 (2·4·8·16·32초, 약 1분).
+ *
+ * 그래도 안 오면 영수증은 서버에 남아 있으니 다음 접속에 받는다. 훅 자체가
+ * 실패했다면 대시보드에 Failed 로 남고, 운영자가 supportGrant 로 넣는다.
+ */
+async function confirmPurchase(productId) {
+  toast(t('결제를 확인하는 중입니다…'));
+  let wait = 2000;
+  for (let i = 0; i < 5; i++) {
+    await new Promise(r => setTimeout(r, wait));
+    const got = await claimPurchases({ quiet: true });
+    if (got && got.includes(productId)) { shop?.render(); renderTop(); return; }
+    wait *= 2;
+  }
+  console.warn('[결제] 1분 안에 서버 영수증이 안 왔다', productId);
+  toast(t('결제 확인이 늦어지고 있습니다. 다음 접속 때 지급됩니다'));
 }
 
 /**
@@ -483,7 +557,8 @@ async function claimPurchases() {
  *
  * 최근 20건만 남긴다 — 세이브는 개수로도 무거워진다.
  *
- * @param via 'client' 결제창이 닫히며 그 자리에서 / 'pending' 못 받았던 것을 뒤늦게
+ * @param via 'purchase' 결제 직후 서버 영수증으로 / 'pending' 못 받았던 것을 뒤늦게
+ *            ('client' 는 2026-09-17 이전, 결제창이 닫히며 바로 주던 옛 경로의 기록)
  */
 function logGrant(productId, via) {
   S.vxLog = [...(S.vxLog || []), { productId, at: Date.now(), via }].slice(-20);
@@ -8127,7 +8202,8 @@ function bootTapToStart() {
   // 핸드셰이크가 unsupported 로 굳을 창이 좁아진다 (net/ads.js > initAds)
   initAds();
   // 결제 창구. 지급은 onVxPurchased 한 곳에서만 한다
-  initVXShop(onVxPurchased, () => shop?.render());
+  // 결제창이 닫히면 **주지 않고 서버 영수증을 기다린다** (confirmPurchase)
+  initVXShop(confirmPurchase, () => shop?.render());
   bootSparks();
 
   bootStep(12);
@@ -8526,6 +8602,8 @@ function bootTapToStart() {
     chatNickBook, chatLearn, chatNick, chatVerifyNames, chatVerifiedAt,
     // 밸런스 실측용 — 연합 보스 HP 계수와 서버 상한이 이 값들 위에 서 있다
     totalCp, partyDps, allyBossFight, stageLabel,
+    // 결제 영수증 수령 — 운영 문의 때 강제로 받게 하거나, 모의 서버로 시험할 때
+    claimPurchases, confirmPurchase,
     diag: async () => {
       const out = {};
       const tryCall = async (name, args) => {
