@@ -1,8 +1,8 @@
 {
  "meta": {
   "version": "1.0",
-  "description": "용병 32종 정의 + 등급/직군/레벨 규칙",
-  "totalCharacters": 32
+  "description": "용병 35종 정의 + 등급/직군/레벨 규칙",
+  "totalCharacters": 35
  },
  "cpWeights": {
   "atk": 2,
@@ -425,18 +425,46 @@
    "class": "warrior",
    "element": "dark",
    "note": "LR 최고 등급. 상시 획득 가능 (gacha.json > lrPolicy)"
+  },
+  {
+   "id": "LR-03",
+   "asset": "char_LR03",
+   "nameKo": "천둥 그리핀 궁신",
+   "grade": "LR",
+   "class": "archer",
+   "element": "light",
+   "note": "v1.4.0 천둥 업데이트. 첫 LR 궁수"
+  },
+  {
+   "id": "LR-04",
+   "asset": "char_LR04",
+   "nameKo": "대지 코뿔소 전쟁군주",
+   "grade": "LR",
+   "class": "warrior",
+   "element": "nature",
+   "note": "v1.4.0 천둥 업데이트. 해태 수호기사(UR-02)와 실루엣이 겹치지 않게 사자 대신 코뿔소"
+  },
+  {
+   "id": "LR-05",
+   "asset": "char_LR05",
+   "nameKo": "심해 고래 대현자",
+   "grade": "LR",
+   "class": "mage",
+   "element": "water",
+   "note": "v1.4.0 천둥 업데이트"
   }
  ],
  "classDistribution": {
-  "warrior": 13,
-  "archer": 9,
-  "mage": 10
+  "warrior": 14,
+  "archer": 10,
+  "mage": 11
  },
  "classDistributionNote": "고르지 않지만 기계적으로 무해하다 - 세 직군은 동일 등급에서 CP와 기대 DPS가 모두 같도록 설계됐다. 시각적 다양성을 원하면 전사 2종을 궁수로 전환할 수 있으나, 해당 캐릭터의 에셋 프롬프트(장비 묘사)도 함께 고쳐야 한다.",
  "codex": {
   "note": "1회 획득 시 영구 등록. 캐스케이드로 소모돼도 등록 유지.",
-  "bonusPerRegistered": 0.01,
-  "maxBonus": 0.32,
+  "bonusPerRegistered": 0.011071428571428571,
+  "maxBonus": 0.3875,
+  "maxBonusNote": "v1.4.0 LR 3종 추가 때 0.32 → 0.3875. LR 개당 +2.25% 를 유지하려고 상한을 올렸다 (codex.json > budget.raiseNote).",
   "bonusTarget": "CP_총합 곱연산 항"
  },
  "captain": {

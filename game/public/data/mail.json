@@ -13,6 +13,14 @@
       "title": "출시 기념 선물",
       "from": "운영팀",
       "grants": { "diamond": 1000, "equip_ticket": 30 }
+    },
+    {
+      "id": "thanks-2026-09",
+      "title": "단장님들께 감사 선물",
+      "from": "운영팀",
+      "grants": { "diamond": 1500 },
+      "expiresAt": 1793458799000,
+      "expiresNote": "2026-10-31 23:59:59 KST. v1.4.0 천둥 업데이트와 함께 보낸 감사 선물 — 그 뒤 새로 시작한 사람에게는 안 간다"
     }
   ]
 }

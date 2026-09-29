@@ -15,6 +15,10 @@ const FILES = [
   'sfx-manifest',
   // 웹툰 스토리 — 화별 컷·대사. 지금은 EP0 뿐이다 (view/story.js)
   'story',
+  // 두 번째 패스 '천둥 원정' (v1.4.0) — 스테이지 패스(pass)와 동시에 돈다
+  'pass2',
+  // 업데이트 안내 패널 — 버전이 바뀐 뒤 첫 접속에 한 번 (main.js > maybeShowPatchNotes)
+  'patchnotes',
 ];
 
 // 빌드 표식 (vite.config.js > define). 테스트 등 define 이 없는 환경도 있다
@@ -163,11 +167,24 @@ export function validate(d) {
   push(eq.slots.length === 6, `장비 부위 ${eq.slots.length}개. 6 이어야 한다`);
   push(eq.setsRemoved !== false, '장비 세트가 부활했다. 부위별 그리디 자동장착이 깨진다');
 
-  // 불변식 10 — 도감 예산 32% 고정
+  // 불변식 10 — 도감 예산 고정. v1.4.0 에 LR 3종을 넣으며 32% → 38.75% 로 한 번
+  // 올렸다 (codex.json > budget.raiseNote). 두 파일의 상한이 어긋나면 안 된다
   const cx = d.characters.codex;
-  push(near(cx.maxBonus, 0.32, 1e-9), `도감 maxBonus ${cx.maxBonus} ≠ 0.32`);
+  push(near(cx.maxBonus, 0.3875, 1e-9), `도감 maxBonus ${cx.maxBonus} ≠ 0.3875`);
+  push(near(d.codex.budget.totalMaxBonus, cx.maxBonus, 1e-9),
+    `도감 상한 불일치: codex.json ${d.codex.budget.totalMaxBonus} vs characters.json ${cx.maxBonus}`);
   push(near(cx.bonusPerRegistered * ch.characters.length, cx.maxBonus, 1e-9),
     `도감 예산 불일치: ${cx.bonusPerRegistered} × ${ch.characters.length} ≠ ${cx.maxBonus}`);
+
+  // 업데이트 안내는 지금 버전의 것이어야 한다. 버전만 올리고 안내를 안 고치면
+  // 지난 판 안내가 새 버전 이름으로 한 번 더 뜬다
+  push(d.patchnotes?.version === d.ui?.meta?.version,
+    `업데이트 안내 ${d.patchnotes?.version} ≠ ui.json 버전 ${d.ui?.meta?.version}`);
+
+  // 두 번째 패스의 상품 id 는 pass_premium 으로 시작하면 안 된다 — 클라가 그 접두사로
+  // 스테이지 패스를 연다 (main.js > onVxPurchased)
+  push(!/^pass_premium/.test(d.pass2?.tracks?.paid?.productId || ''),
+    `pass2 상품 id ${d.pass2?.tracks?.paid?.productId} 가 스테이지 패스 접두사와 겹친다`);
 
   // 스테이지
   push(d.stages != null, 'stages.json 없음');

@@ -323,6 +323,9 @@ export class SettingsScreen {
            유저 설정 화면에 verse·계정 주소가 상시로 서 있으면 안 된다
            (단장 지시 2026-08-28). 그래서 겉보기는 평범한 버전 줄 그대로다 —
            .link 도 › 도 붙이지 않는다. 눌러도 되는 줄로 보이면 안 된다. -->
+      <!-- 업데이트 안내 다시 보기 — 첫 접속 팝업을 닫고 나면 다시 볼 길이 여기뿐이다 -->
+      ${D.patchnotes ? `<div class="st-row link" data-a="patchnotes"><span>${t('업데이트 안내')}</span>
+        <b>v${D.patchnotes.version} ›</b></div>` : ''}
       <div class="st-row" data-a="diag"><span>${t('버전')}</span>
         <b>v${D.ui.meta.version}</b></div>
       <pre id="stDiag" class="st-diag" hidden></pre>

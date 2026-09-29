@@ -208,6 +208,22 @@
     "asset": "PF-S1G",
     "condition": "시즌 1 프리미엄 패스 최종 보상",
     "seasonStamped": true
+   },
+   {
+    "id": "pf_thunder",
+    "nameKo": "천둥 테두리",
+    "tier": 4,
+    "color": "#8FB8FF",
+    "asset": "PF-T1",
+    "condition": "천둥 원정 무료 패스 최종 보상"
+   },
+   {
+    "id": "pf_thunder_gold",
+    "nameKo": "천둥 황금 테두리",
+    "tier": 4,
+    "color": "#FFE066",
+    "asset": "PF-T1G",
+    "condition": "천둥 원정 프리미엄 패스 최종 보상"
    }
   ],
   "permanent": true,

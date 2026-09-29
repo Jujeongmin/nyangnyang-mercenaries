@@ -164,6 +164,10 @@ const PRODUCTS = {
   // 시즌 패스는 시즌마다 새 SKU 다 (pass_premium_s1, s2 …) — once 는 SKU 단위라
   // 새 시즌 상품이 등록되면 그 시즌에 다시 한 번 살 수 있다
   pass_premium_s1: { unlock: 'pass', once: true },
+  // 천둥 원정 — 스테이지 패스와 **동시에 도는 두 번째 패스** (data/pass2.json).
+  // 이름에 pass_premium 을 안 쓰는 이유: 클라가 /^pass_premium/ 로 스테이지 패스를
+  // 여는데, 같은 접두사면 이 상품을 사도 스테이지 패스가 열린다
+  pass_thunder_s1: { unlock: 'pass2', once: true },
 };
 
 // 배포 반영 확인용 표식. **server.js 를 고칠 때마다 올린다.**
@@ -227,7 +231,7 @@ async function findSupportTargets(who) {
   });
 }
 
-const SERVER_REV = 36;
+const SERVER_REV = 37;
 
 const CHAT_WORLD = 'chatWorld';
 const CHAT_ALLY = 'chatAlly_';
@@ -1548,6 +1552,7 @@ class Server {
         paidFlags: sv ? {
           speed3: !!sv.speed3, adFree: !!sv.adFree, starter: !!sv.starterBought,
           growth: sv.growthBought || [], pass: !!(sv.pass && sv.pass.bought),
+          pass2: !!(sv.pass2 && sv.pass2.bought),
         } : null,
       });
     }
@@ -1708,6 +1713,7 @@ class Server {
     // 해금형 상품 — 수량과 무관하게 플래그다
     if (p.unlock === 'premium') { s.speed3 = true; s.adFree = true; }
     if (p.unlock === 'pass') { s.pass = { ...(s.pass || {}), bought: true }; }
+    if (p.unlock === 'pass2') { s.pass2 = { ...(s.pass2 || {}), bought: true }; }
 
     await $global.updateUserState(account, {
       save: { ...cur.save, s, savedAt: Date.now() },

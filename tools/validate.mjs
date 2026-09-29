@@ -12,6 +12,7 @@ const FILES = [
   'characters', 'skills', 'gacha', 'equipment', 'combat', 'stages', 'dungeons',
   'quests', 'economy', 'goldsinks', 'arena', 'alliance', 'ranking', 'codex', 'dailies',
   'free1000', 'events', 'ui', 'shop', 'pass', 'profile', 'tutorial', 'sound', 'save-schema',
+  'pass2', 'patchnotes',
 ];
 
 const D = {};

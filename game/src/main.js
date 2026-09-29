@@ -571,9 +571,15 @@ function onVxPurchased(productId, via) {
   if (/^growth_pack_/.test(productId)) return grantGrowth(productId);
   if (/^pack_/.test(productId)) return grantDiaPack(productId);
   if (/^pass_premium/.test(productId)) {
-    S.pass.bought = true;
-    save(); openPass();
+    passState('stage').bought = true;
+    save(); openPass('stage');
     return toast(t('시즌 패스 프리미엄이 열렸습니다'));
+  }
+  // 천둥 원정 — 스테이지 패스와 따로 사는 두 번째 패스 (pass2.json)
+  if (/^pass_thunder/.test(productId)) {
+    passState('thunder').bought = true;
+    save(); openPass('thunder');
+    return toast(t('천둥 원정 프리미엄이 열렸습니다'));
   }
   console.warn('모르는 상품이 결제되었다', productId);
 }
@@ -583,9 +589,10 @@ function onVxPurchased(productId, via) {
  * 대시보드에서 Lifetime Limit 1 을 걸 수 있는 유일한 방법이고, 그래야 한 시즌에
  * 두 번 팔리지 않는다 — 클라의 "보유 중" 표시는 세이브를 지우면 되살아난다.
  */
-const passProductId = () =>
-  (D.pass.tracks.paid.productId || 'pass_premium_s{seasonId}')
-    .replace('{seasonId}', D.pass.season.id);
+const passProductId = (id = 'stage') => {
+  const P = PASSES[id].def();
+  return (P.tracks.paid.productId || 'pass_premium_s{seasonId}').replace('{seasonId}', P.season.id);
+};
 
 /** 잠긴 배속을 눌렀을 때 무엇을 해야 열리는지 */
 function speedHint(mult) {
@@ -2201,27 +2208,62 @@ function refreshParty() {
 }
 
 /**
- * 시즌 패스. pass.json 이 단일 소스다.
+ * 패스 — **두 벌이 동시에 돈다** (v1.4.0).
+ *   stage   스테이지 패스. pass.json. 진행도 = 최고 스테이지 (5스테이지 = 1티어)
+ *   thunder 천둥 원정.    pass2.json. 진행도 = 이 패스를 만난 뒤 용병 소환 횟수
  *
- * 스테이지 진행도가 곧 패스 진행도다 (5스테이지 = 1티어). 월정액 구독이 아니라
- * 2트랙 배틀패스인 이유 — 구독은 받을 게 자동으로 들어와서 결제한 뒤 잊힌다.
- * 여기서는 무료 칸에 보상이 쌓이는 걸 보면서 옆의 유료 칸이 계속 눈에 들어온다.
+ * 월정액 구독이 아니라 2트랙 배틀패스인 이유 — 구독은 받을 게 자동으로 들어와서
+ * 결제한 뒤 잊힌다. 여기서는 무료 칸에 보상이 쌓이는 걸 보면서 옆의 유료 칸이
+ * 계속 눈에 들어온다.
  *
  * 유료 칸은 미구매 상태에서도 **그대로 보여 준다.** 가리면 뭘 사는지 모른다.
+ *
+ * 두 패스는 같은 화면·같은 코드를 쓰고 **정의(def)·세이브 키·진행도 함수만** 다르다.
+ * 패스를 하나 더 붙일 때는 PASSES 에 한 줄을 더하면 된다.
  */
-function passTier() {
-  const p = D.pass.progress;
-  return Math.min(p.maxTier, Math.floor((S.maxStage || 1) / p.tierEvery));
+const PASSES = {
+  stage: {
+    def: () => D.pass, key: 'pass', tab: '스테이지 패스',
+    progress: () => S.maxStage || 1,
+  },
+  thunder: {
+    def: () => D.pass2, key: 'pass2', tab: '천둥 원정',
+    // 기준점(base) 이후의 소환만 센다 — 오래된 유저가 과거 소환으로 첫날 만렙이 되면
+    // 신규와 출발선이 달라진다 (pass2.json > progress.baseNote)
+    // passState 를 거쳐 읽는다 — 클라우드 세이브가 pass2 없는 옛 판으로 덮어써도
+    // 기준점이 0 으로 읽혀 과거 소환 전부가 진행도로 잡히는 일이 없다
+    progress: () => Math.max(0, (S.summonExp?.mercenary || 0) - passState('thunder').base),
+  },
+};
+const PASS_IDS = Object.keys(PASSES);
+let passTab = 'stage';
+
+/**
+ * 그 패스의 세이브 칸. 없으면 만든다.
+ * 천둥 원정은 **처음 만난 순간의 누적 소환 수를 기준점으로 박는다** — 부트에서
+ * 한 번 불러 두므로(initPasses) 패스 화면을 안 열어도 그 뒤 소환은 다 센다.
+ */
+function passState(id) {
+  const k = PASSES[id].key;
+  S[k] = S[k] || { bought: false, free: [], paid: [] };
+  if (id === 'thunder' && typeof S[k].base !== 'number') S[k].base = S.summonExp?.mercenary || 0;
+  return S[k];
 }
 
-/** 그 티어의 보상. pass.json > rewards.bands 구간을 찾아 돌려준다. */
-function passReward(tier, track) {
-  const r = D.pass.rewards;
-  if (tier === r.milestone.tier) {
-    const band = r.bands.find(b => tier >= b.fromTier && tier <= b.toTier);
-    return { ...(band ? band[track] : {}), ...r.milestone[track] };
-  }
+function initPasses() {
+  for (const id of PASS_IDS) passState(id);
+}
+
+function passTier(id = 'stage') {
+  const p = PASSES[id].def().progress;
+  return Math.min(p.maxTier, Math.floor(PASSES[id].progress() / p.tierEvery));
+}
+
+/** 그 티어의 보상. rewards.bands 구간을 찾아 돌려준다. */
+function passReward(tier, track, id = 'stage') {
+  const r = PASSES[id].def().rewards;
   const band = r.bands.find(b => tier >= b.fromTier && tier <= b.toTier);
+  if (tier === r.milestone.tier) return { ...(band ? band[track] : {}), ...r.milestone[track] };
   return band ? band[track] : {};
 }
 
@@ -2247,29 +2289,38 @@ function passGrant(g) {
   return got;
 }
 
+/** 아직 못 연 티어를 눌렀을 때 — 무엇을 얼마나 더 해야 하나 */
+function passNeedText(tier, id) {
+  const per = PASSES[id].def().progress.tierEvery;
+  return id === 'thunder'
+    ? t('용병 소환 {0}회 필요', tier * per)
+    : `스테이지 ${tier * per} 도달 필요`;
+}
+
 /**
  * 어느 티어의 [받기]를 눌러도 **그 트랙에서 열린 것 전부**를 받는다.
  * 티어를 하나씩 누르게 하면 20티어 = 탭 20번 — 수령이 노동이 된다.
  * 개별 수령이 필요한 경우가 없어 버튼 하나가 곧 일괄이다.
  */
-function passClaim(tier, track) {
-  S.pass = S.pass || { bought: false, free: [], paid: [] };
-  if (track === 'paid' && !S.pass.bought) return toast(t('프리미엄을 구매하면 열립니다'));
-  if (tier > passTier()) return toast(`스테이지 ${tier * D.pass.progress.tierEvery} 도달 필요`);
-  const pairs = claimPassTrack(track);
+function passClaim(tier, track, id = passTab) {
+  const st = passState(id);
+  if (track === 'paid' && !st.bought) return toast(t('프리미엄을 구매하면 열립니다'));
+  if (tier > passTier(id)) return toast(passNeedText(tier, id));
+  const pairs = claimPassTrack(track, id);
   if (!pairs.length) return;
-  save(); renderTop(); openPass();
+  save(); renderTop(); openPass(id);
   gainToast(mergePairs(pairs));
 }
 
 /** 한 트랙의 열린 티어 전부 수령. 받은 [재화, 수량] 목록을 돌려준다 */
-function claimPassTrack(track) {
-  const max = passTier();
+function claimPassTrack(track, id = 'stage') {
+  const st = passState(id);
+  const max = passTier(id);
   const pairs = [];
   for (let t = 1; t <= max; t++) {
-    if (S.pass[track].includes(t)) continue;
-    pairs.push(...passGrant(passReward(t, track)).pairs);
-    S.pass[track].push(t);
+    if (st[track].includes(t)) continue;
+    pairs.push(...passGrant(passReward(t, track, id)).pairs);
+    st[track].push(t);
   }
   return pairs;
 }
@@ -2281,22 +2332,23 @@ function mergePairs(pairs) {
   return [...m];
 }
 
-function passClaimAll() {
-  S.pass = S.pass || { bought: false, free: [], paid: [] };
+function passClaimAll(id = passTab) {
+  const st = passState(id);
   const pairs = [];
   for (const track of ['free', 'paid']) {
-    if (track === 'paid' && !S.pass.bought) continue;
-    pairs.push(...claimPassTrack(track));
+    if (track === 'paid' && !st.bought) continue;
+    pairs.push(...claimPassTrack(track, id));
   }
   if (!pairs.length) return toast(t('받을 것이 없습니다'));
-  save(); renderTop(); openPass();
+  save(); renderTop(); openPass(id);
   gainToast(mergePairs(pairs));
 }
 
-/** 받을 게 남았나. 사이드 패스 아이콘의 빨간 점에 쓴다. */
-function passWaiting() {
-  const st = S.pass || { bought: false, free: [], paid: [] };
-  const max = passTier();
+/** 받을 게 남았나. id 를 안 주면 두 패스 중 하나라도 — 사이드 패스 아이콘의 빨간 점 */
+function passWaiting(id) {
+  if (!id) return PASS_IDS.some(x => passWaiting(x));
+  const st = S[PASSES[id].key] || { bought: false, free: [], paid: [] };
+  const max = passTier(id);
   for (let t = 1; t <= max; t++) {
     if (!st.free.includes(t)) return true;
     if (st.bought && !st.paid.includes(t)) return true;
@@ -2304,53 +2356,66 @@ function passWaiting() {
   return false;
 }
 
-function openPass() {
-  const P = D.pass;
-  S.pass = S.pass || { bought: false, free: [], paid: [] };
-  const cur = passTier(), per = P.progress.tierEvery;
+function openPass(id = passTab) {
+  passTab = id;
+  const P = PASSES[id].def();
+  const st = passState(id);
+  const cur = passTier(id), per = P.progress.tierEvery;
   const nextAt = Math.min(P.progress.maxTier, cur + 1) * per;
+  const have = PASSES[id].progress();
 
   const chip = g => Object.entries(g).map(([k, v]) =>
     typeof v === 'number'
       ? `<span class="ps-c"><img src="/assets/ui/${CUR_ICON2[k] || 'CU-01'}.png" alt="">${num(v)}</span>`
       : `<span class="ps-c ps-deco">${CUR_KO[k] || k}</span>`).join('');
 
-  const row = t => {
-    const open = t <= cur;
-    const f = S.pass.free.includes(t), p2 = S.pass.paid.includes(t);
+  // 티어 칸 아래 작은 글씨 — 그 티어가 열리는 조건
+  const need = tier => id === 'thunder' ? t('소환 {0}회', tier * per) : stageLabel(tier * per).text;
+
+  const row = tier => {
+    const open = tier <= cur;
+    const f = st.free.includes(tier), p2 = st.paid.includes(tier);
     const cell = (track, done) => {
-      const locked = track === 'paid' && !S.pass.bought;
+      const locked = track === 'paid' && !st.bought;
       const cls = done ? ' done' : (!open || locked) ? ' off' : '';
-      return `<button class="ps-cell${cls}" data-t="${t}" data-tr="${track}">
-        ${chip(passReward(t, track))}
+      return `<button class="ps-cell${cls}" data-t="${tier}" data-tr="${track}">
+        ${chip(passReward(tier, track, id))}
         ${done ? '<i class="ps-mark">받음</i>'
           : locked ? '<i class="ps-mark"><img src="/assets/ui/IC-LOCK-S.png" alt="잠김"></i>'
           : !open ? '' : '<i class="ps-mark ps-go">받기</i>'}</button>`;
     };
-    return `<div class="ps-row${t === cur ? ' now' : ''}" data-tier="${t}">
+    return `<div class="ps-row${tier === cur ? ' now' : ''}" data-tier="${tier}">
       <!-- "St15" 는 유저가 쓰는 말이 아니다 — 화면 표기(일반 2-5)로 적는다 -->
-      <span class="ps-tier"><b>${t}</b><span>${stageLabel(t * per).text}</span></span>
+      <span class="ps-tier"><b>${tier}</b><span>${need(tier)}</span></span>
       ${cell('free', f)}${cell('paid', p2)}</div>`;
   };
 
+  const tabs = `<div class="ps-tabs">${PASS_IDS.map(x =>
+    `<button class="ps-tab${x === id ? ' on' : ''}${passWaiting(x) ? ' hasnew' : ''}" data-pt="${x}">
+      ${t(PASSES[x].tab)}</button>`).join('')}</div>`;
+
+  const nextText = cur >= P.progress.maxTier ? t('최고 티어')
+    : id === 'thunder'
+      ? t('다음 티어까지 소환 {0}회', Math.max(0, nextAt - have))
+      : t('다음 티어까지 스테이지 {0}', Math.max(0, nextAt - have));
+
   // 제목은 짧게. 시즌 이름까지 넣으면 좁은 화면에서 잘린다 —
-  // 시즌 이름은 아래 본문(진행 카드)이 이미 보여 준다
+  // 패스 이름은 아래 탭이 이미 보여 준다
   $('#ovt').textContent = t('시즌 패스');
   setSkin('pass');
-  $('#ovb').innerHTML =
-    `<div class="ps-top">
+  $('#ovb').innerHTML = tabs
+    + `<div class="ps-top">
       <div class="ps-tinfo"><b>${cur}</b><span>${t('/ {0} 티어', P.progress.maxTier)}</span></div>
-      <div class="ps-tnext">${cur >= P.progress.maxTier
-        ? t('최고 티어') : t('다음 티어까지 스테이지 {0}', Math.max(0, nextAt - (S.maxStage || 1)))}</div>
+      <div class="ps-tnext">${nextText}</div>
     </div>`
     // 전부 받기가 왼쪽, 프리미엄이 오른쪽. 매번 누르는 버튼을 엄지 쪽에 두고
     // 결제 버튼은 반대편에 둬야 오조작 결제가 안 난다
     + `<div class="ps-buy">
       <button class="mdBuy" id="psAll">${t('전부 받기')}</button>
-      ${S.pass.bought
+      ${st.bought
         ? `<span class="ps-own">${t('프리미엄 보유 중')}</span>`
         : `<button class="fgbtn" id="psBuy">${t('프리미엄 {0} VX',
-             numExact(vxPrice(passProductId(), P.tracks.paid.price.vx)))}</button>`}
+             numExact(vxPrice(passProductId(id), P.tracks.paid.price.vx)))}</button>`}
       </div>`
     + `<div class="ps-head"><span></span><span>${t('무료')}</span><span>${t('프리미엄')}</span></div>`
     + Array.from({ length: P.progress.maxTier }, (_, i) => row(i + 1)).join('');
@@ -2359,31 +2424,39 @@ function openPass() {
     + `<div class="sub" style="line-height:1.6">
         ${P.progress.metricNote}<br><br>
         ${P.tracks.paid.retroactiveNote}<br><br>
-        <b>시즌 ${P.season.durationDays}일.</b> ${P.season.resetPolicy}</div>`;
+        ${P.season.durationDays ? `<b>시즌 ${P.season.durationDays}일.</b> ` : ''}${P.season.resetPolicy}</div>`;
 
   $('#psBuy')?.addEventListener('click', () => {
-    if (vxBuy(passProductId())) return;
+    if (vxBuy(passProductId(id))) return;
     toast(t('지금은 결제할 수 없습니다'));
   });
-  $('#psAll')?.addEventListener('click', passClaimAll);
+  $('#psAll')?.addEventListener('click', () => passClaimAll(id));
+  $('#ovb').querySelectorAll('.ps-tab').forEach(x => x.addEventListener('click', () => {
+    if (x.dataset.pt !== passTab) openPass(x.dataset.pt);
+  }));
   $('#ovb').querySelectorAll('.ps-cell').forEach(x => x.addEventListener('click',
-    () => passClaim(+x.dataset.t, x.dataset.tr)));
+    () => passClaim(+x.dataset.t, x.dataset.tr, id)));
   $('#ov').classList.remove('forced'); $('#ov').classList.add('show');
 
   // 스크롤 위치를 기억한다. 150티어짜리 목록이라 닫을 때마다 현재 티어로 튕기면
   // 위쪽 미수령분을 훑던 중에 자리를 잃는다. 처음 열 때만 현재 티어를 가운데로.
+  // 패스마다 따로 기억한다 — 탭을 오갈 때 다른 패스의 위치로 튀면 안 된다
   const body = $('#ovb');
   if (!body._passScrollBound) {
     body._passScrollBound = true;
     body.addEventListener('scroll', () => {
       // #ovb 는 10개 패널이 돌려 쓴다. 다른 패널이 innerHTML 을 덮으면 .ps-row 가
       // 사라지므로, 그걸 그대로 판정에 쓴다 — 따로 표식을 떼 줄 필요가 없다
-      if (body.querySelector('.ps-row')) S.passScroll = body.scrollTop;
+      if (body.querySelector('.ps-row')) S[passScrollKey(passTab)] = body.scrollTop;
     }, { passive: true });
   }
-  if (typeof S.passScroll === 'number') body.scrollTop = S.passScroll;
+  const sk = passScrollKey(id);
+  if (typeof S[sk] === 'number') body.scrollTop = S[sk];
   else body.querySelector('.ps-row.now')?.scrollIntoView({ block: 'center' });
 }
+
+/** 스테이지 패스는 옛 세이브의 passScroll 을 그대로 쓴다 */
+const passScrollKey = id => id === 'stage' ? 'passScroll' : 'passScroll_' + id;
 
 /** 보상 칩 아이콘. 재화 id → 에셋 번호 */
 const CUR_ICON2 = {
@@ -3009,6 +3082,38 @@ function setDiceFace(el, n) {
   el.innerHTML = `<img src="/assets/ui/EV-DICE-${n}.png" alt="${n}"
     onerror="this.parentNode.textContent='${n}';window.__diceImgFail=1">`;
   if (window.__diceImgFail) diceImgOk = false;
+}
+
+/**
+ * 업데이트 안내 — data/patchnotes.json. **버전이 바뀐 뒤 첫 접속에 한 번** 뜬다.
+ * 본 버전은 S.patchSeen 에 남긴다.
+ *
+ * 완전 신규 유저에게는 안 띄운다 — 프롤로그·직업 선택 바로 뒤에 "새로 바뀐 점" 을
+ * 내밀면 무엇이 새것인지 모르는 사람에게 소음이다. 그 사람은 조용히 본 것으로 적는다.
+ * @param fresh 이번 부트가 첫 시작(직업 없음)이었나
+ */
+function maybeShowPatchNotes(fresh) {
+  const pn = D.patchnotes;
+  if (!pn?.version || S.patchSeen === pn.version) return;
+  S.patchSeen = pn.version;
+  save();
+  if (fresh) return;
+  openPatchNotes();
+}
+
+function openPatchNotes() {
+  const pn = D.patchnotes;
+  if (!pn) return;
+  const ttl = $('#smTitle'); if (ttl) ttl.textContent = t('업데이트 안내');
+  $('#smBody').innerHTML = `
+    <div class="pn-hero"><b>${t(pn.title)}</b><span>v${pn.version} · ${pn.date}</span></div>
+    ${pn.lead ? `<div class="pn-lead">${t(pn.lead)}</div>` : ''}
+    ${(pn.items || []).map(it => `<div class="pn-item">
+      ${it.img ? `<img src="${it.img}" alt="" onerror="this.remove()">` : ''}
+      <div><b>${t(it.title)}</b><span>${t(it.body)}</span></div></div>`).join('')}
+    <button class="fgbtn" id="pnOk" style="margin-top:8px">${t('확인')}</button>`;
+  $('#pnOk').addEventListener('click', () => $('#smPop').classList.remove('show'));
+  $('#smPop').classList.add('show');
 }
 
 /** 한정 상품 설명 — 진열장 카드를 누르면 뜬다. 효과·조건·보유 상태를 한 창에 */
@@ -8367,6 +8472,7 @@ function bootTapToStart() {
       save();
     },
     action: a => {
+      if (a === 'patchnotes') return openPatchNotes();
       if (a === 'reset') {
         // **resetSave 를 거쳐야 한다.** 여기서 localStorage 만 지우면 클라우드
         // 세이브가 다음 부팅에 도로 살린다 — "초기화가 안 먹혀요" 의 마지막
@@ -8670,6 +8776,9 @@ function bootTapToStart() {
   // 닉네임이 없으면 아무거나 붙여 준다. 유저는 나중에 한 번 공짜로 바꾼다.
   if (!S.nickname) { S.nickname = autoNickname(); save(); }
   seedMail();
+  // 천둥 원정의 소환 기준점은 **여기서** 박는다 — 패스 화면을 열 때 박으면
+  // 그 전까지 뽑은 소환이 진행도에서 빠진다
+  initPasses();
   // 계정 생성 시각 — 스타터 팩의 "생성 후 7일" 창이 여기서 시작한다. 기존
   // 세이브(필드 없음)는 지금부터 7일을 준다 — 과거로 소급하면 살 기회 없이 닫힌다
   if (!S.accountAt) { S.accountAt = Date.now(); save(); }
@@ -9045,6 +9154,8 @@ function bootTapToStart() {
   // 배선이 전부 끝난 뒤에 전투를 시작한다. 이 await 이 부트의 마지막이다
   bootStep(100, t('출격 준비 완료!'));
   await bootTapToStart();
+  // 직업이 없으면 이번이 첫 시작이다 — 업데이트 안내를 띄울지 가른다 (maybeShowPatchNotes)
+  const freshStart = !S.promoClass;
   // ── 프롤로그가 맨 앞이다 ──────────────────────────────
   // **무슨 세계인지 모르고 길부터 고르게 하지 않는다** (단장 지시 2026-08-30).
   // 세계관 두 컷 → (3컷이 needs:class 라 여기서) 직업 선택 → 고른 직업의 단장으로
@@ -9059,5 +9170,6 @@ function bootTapToStart() {
   // 진행도가 바뀌기 전까지 다시 안 돌아서 첫 손이 영영 안 떴다
   // (단장 지적 2026-08-25). 걷히는 애니메이션(0.4s)이 끝나고 잰다
   setTimeout(maybeOnboardHint, 500);
+  maybeShowPatchNotes(freshStart);
   await runStage();
 })();
