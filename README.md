@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/screenshots/thumbnail.jpg" width="320" alt="냥냥 용병단">
+</p>
+
 # 냥냥 용병단
 
 > 고양이 용병단을 꾸려 성 밖의 위협을 몰아내는 **방치형 가챠 RPG**
@@ -6,6 +10,20 @@
 모바일 세로 화면 기준의 2D 게임이고, 브라우저에서 설치 없이 바로 플레이할 수 있다.
 
 **▶ [플레이하기 (Verse8)](https://verse8.io/x3d3X9K)**
+
+## 게임 화면
+
+<p align="center">
+  <img src="docs/screenshots/title.jpg" width="23%" alt="타이틀">
+  <img src="docs/screenshots/story.jpg" width="23%" alt="프롤로그">
+  <img src="docs/screenshots/class.jpg" width="23%" alt="직업 선택">
+  <img src="docs/screenshots/battle.jpg" width="23%" alt="자동 전투">
+</p>
+<p align="center">
+  <img src="docs/screenshots/summon.jpg" width="23%" alt="용병 소환">
+  <img src="docs/screenshots/mercs.jpg" width="23%" alt="용병 목록">
+  <img src="docs/screenshots/dungeon.jpg" width="23%" alt="던전">
+</p>
 
 <p align="center">
   <img src="game/public/assets/art/LR-01-ART.png" width="19%" alt="성좌룡">
