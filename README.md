@@ -1,103 +1,59 @@
 # 냥냥 용병단
 
-방치형 가챠 RPG 프로토타입. PixiJS v8 · 모바일 세로형 · Verse8 탑재 예정.
+> 고양이 용병단을 꾸려 성 밖의 위협을 몰아내는 **방치형 가챠 RPG**
 
-## 실행
+전투는 자동으로 돌아가고, 플레이어(단장)는 **누구를 편성하고 무엇을 키울지**만 정한다.
+모바일 세로 화면 기준의 2D 게임이고, 브라우저에서 설치 없이 바로 플레이할 수 있다.
 
-**Vite 프로젝트다** — Verse8 이 Vite 구조를 전제로 한다.
+**▶ [플레이하기 (Verse8)](https://verse8.io/x3d3X9K)**
 
-```bash
-npm install
-npm run dev      # → http://localhost:5180
-npm run build    # → dist/
-```
+<p align="center">
+  <img src="game/public/assets/art/LR-01-ART.png" width="19%" alt="성좌룡">
+  <img src="game/public/assets/art/LR-02-ART.png" width="19%" alt="종말의 흑기린">
+  <img src="game/public/assets/art/LR-03-ART.png" width="19%" alt="천둥 그리핀 궁신">
+  <img src="game/public/assets/art/LR-04-ART.png" width="19%" alt="대지 코뿔소 전쟁군주">
+  <img src="game/public/assets/art/LR-05-ART.png" width="19%" alt="심해 고래 대현자">
+</p>
 
-## 구조
+## 세계관
 
-Vite `root` 가 `game/` 이다 (`vite.config.js`). **게임에 들어갈 것은 전부 `game/` 안**,
-저장소 루트에는 빌드에 안 들어가는 것만 둔다.
+별이 떨어진 날, 세상은 조용해졌다. 쪼개진 별의 조각은 짐승과 쇠붙이, 사람에게 스며들었고
+견디지 못한 것들은 괴물로 변했다. 사람의 나라는 성벽 안으로 물러났고, 성 밖의 일은
+값을 받고 대신 나가는 용병들이 맡는다. 조각은 서로를 부른다 — 부르면 찾아온다.
+그것이 용병단이 서는 법이다.
 
-| 경로 | 내용 |
-|---|---|
-| `game/index.html` | 진입점. 전체 CSS 가 여기 있다 |
-| `game/src/` | `main.js`(부트·상태·화면 배선) + `view/`(화면들) + `view/battle/`(PixiJS 전투) + `net/`(백엔드 추상화) |
-| `game/public/data/` | **게임 규칙의 단일 소스.** 밸런스·확률·보상 전부 JSON. `data/README.md` 에 불변식 목록 |
-| `game/public/assets/` | 생성 에셋. `ui/9s/` 는 9-slice 가공본 |
-| `game/tools/` | 브라우저에서 돌리는 검사기 (`screens.js` · `uicheck.js`) |
-| `tools/` | node·python 검증·가공 도구 (아래) |
-| `sim/` | 밸런스 시뮬레이터 |
-| `dist/` | 빌드 산출물. 커밋하지 않는다 |
-| `에셋_생성_프롬프트.md` | 전 에셋의 생성 프롬프트 원본 |
-| `작업정리.md` | 최근 작업 로그 + 미결 사항 |
+## 어떤 게임인가
 
-`public/` 안은 **가공 없이 그대로 복사**된다. `data/` 를 여기 두는 이유가 핵심이다 —
-런타임에 `fetch` 로 읽으므로 JSON 만 고쳐 배포할 수 있다. `import` 로 바꾸면 번들에
-박혀서 그 길이 막힌다. 코드에서는 절대경로(`/assets/...` · `/data/...`)로 참조한다.
+- **자동 전투 + 스테이지 돌파** — 400단계 메인 스테이지를 따라 올라가며 보스를 쓰러뜨린다.
+  접속하지 않아도 방치 보상이 쌓이고, 절전 모드도 있다.
+- **용병 소환** — 꼬마 햄찌 같은 N등급부터 전설의 **LR**까지 6단계 등급, 용병 35종.
+  전사·궁수·마법사 3개 직업과 불·물·풀·빛·암 5속성이 있고, 같은 용병을 또 뽑으면 레벨이 오른다.
+- **스킬과 장비** — 스킬 32종, 장비 6부위(무기·방어구·장신구·부적·깃발·유물). 제작대에서 소환하고 강화한다.
+- **성장 콘텐츠** — 황금 광산·보물 창고·용광로·수정 동굴·시련의 탑 **5종 던전**,
+  끝없이 오르는 **무한의 탑**, 다른 단장과 겨루는 **아레나**.
+- **연합(길드)** — 연합원과 주간 연합 보스를 함께 두들기고, 채팅과 친구 기능으로 이어진다.
+- **퀘스트 체인과 컬렉션** — 퀘스트로 던전·장비 칸·배속이 하나씩 열린다. 도감, 출석, 시즌 패스, 이벤트까지.
+- **5개 언어 지원**, 클라우드 세이브.
 
-## 배포
+## 신경 쓴 부분
 
-배포 주소(verse)는 `.env` · `.agent8.lock` 의 `VITE_AGENT8_VERSE` 로 갈리는데,
-**이 두 파일은 플랫폼이 배포할 때마다 자동으로 새 값(계정+타임스탬프)을 찍어
-덮어쓴다.** 저장소에서 손으로 고쳐도 다음 배포에 되돌아오므로 이 프로젝트는
-verse 를 고정하지 않는다. 배포 창에서 `[Update existing game]` 은 마지막으로
-배포한 게임을 갱신하고, `[Publish as new game]` 은 그때 verse 로 새 게임을 만든다.
+- **무과금도 끝까지 갈 수 있는 경제 설계** — 뽑기 재화가 어디서 얼마나 나오는지 장기 예산을 잡고,
+  콘텐츠를 추가할 때마다 다른 배출을 줄여 균형을 맞췄다. 시뮬레이터로 수치를 검증했다.
+- **에셋 파이프라인** — 용병 일러스트, 전투 스프라이트, 배경, 스토리 컷, UI 킷, 효과음과 BGM까지
+  AI 생성 에셋을 프롬프트부터 설계하고 게임에 맞게 가공했다.
+- **광고는 선택 사항** — 강제 노출 광고와 부활 광고는 없고, 유저가 버튼을 눌렀을 때만 나오는 보상형 광고만 있다.
+- **라이브 서비스 운영** — 출시 이후 신규 LR 용병 3종과 새 시즌 패스를 담은 **천둥 업데이트(v1.4.0)** 를
+  내놓고, 업데이트 안내·감사 우편·결제 오류 수정까지 운영 사이클을 돌렸다.
 
-## 도구 (수정했으면 반드시 돌린다)
+## 성과
 
-```bash
-npm run check             # validate + audit 한 번에
-node tools/validate.mjs   # data/ 불변식 23파일 — 밸런스 깨지면 여기서 터진다
-node tools/audit.mjs      # 죽은 재화 참조·없는 에셋 검사
-node tools/prompts.js     # 에셋_생성_프롬프트.md → prompts/ 재생성
-python tools/nineslice.py # UI 킷 9-slice 재가공 (game/public/assets/ui/9s/)
-python tools/fosheet.py   # 제작대 타격 시트 → 스트립 (정렬 보정 포함)
-python tools/trim.py      # 캐릭터 불투명 bbox → game/public/assets/trim.json
-```
+- Verse8에 출시, 실제 유저 결제 발생: **1,800 VX (약 $18)**
 
-> python 도구들은 아직 옛 경로(`assets/`)를 볼 수 있다. 돌리기 전에 확인할 것.
+## 제작 방식
 
-브라우저 검사 (전 화면 겹침·정렬):
+기획과 구현 전 과정을 **바이브 코딩**(AI와 대화하며 개발)으로 만들었다.
+게임 규칙과 밸런스 수치는 모두 데이터(JSON)로 분리해 두어, 코드를 건드리지 않고도 조정할 수 있다.
 
-```js
-const s = await import('/tools/screens.js');
-console.log(await s.run());        // 빈 배열이면 통과. 새 화면을 만들면 SCREENS 에 한 줄 추가
-```
-
-## 규칙 요약
-
-- 수치를 코드에 하드코딩하지 않는다 — `data/*.json` 이 단일 소스
-- 뽑기 재화 배출을 늘리면 반드시 다른 배출을 줄여 상쇄한다 (README 불변식 5)
-- UI 를 만지면 `tools/screens.js` 를 돌려 겹침을 확인한다
-- **스크롤바는 전역으로 감춰져 있다** (`index.html` 상단). OS 기본 막대가 UI 킷과
-  안 맞아서다. 새 스크롤 영역에서 다시 노출시키지 않는다
-- 뽑기는 **보유함(`S.own`)·강화 대기열(`S.pend`)에 쌓기만** 한다. 편성·레벨 반영은
-  용병/스킬 시트의 `자동장착`·`자동강화` 를 눌러야 일어난다
-- 중복은 **그 대상 본인의 레벨**을 올린다. 만렙일 때만 가치로 환산해 이관한다
-  (`economy.json > cascade.twoStepRule`)
-- **해금 기준은 전투력이 아니라 퀘스트다.** 던전·장착 칸 전부.
-  `quests.json > slotUnlockQuests` 가 단일 소스(`canonicalSource: true`).
-  CP 로 열면 뽑기 운으로 순서가 깨져 `dungeons.json > unlockOrder` 가 무너진다
-- 세이브는 아직 localStorage (`nyang:proto:v1`). 서버 연동은 `game/src/net/` 참고
-- 보상형 광고는 `game/src/net/ads.js` 창구로만 부른다. `showRewarded` 에 **`timeoutMs` 를
-  넘기지 않는다** — 클라가 끊으면 광고를 끝까지 본 유저가 보상을 못 받고, 그 판정을
-  클라가 쥐어 조작 창구가 된다. 지면 id 는 `idle_double` · `instant_claim` 2개
-
-## 규칙 추가분
-
-- **배속은 성장축이다.** 1x 기본 · 2x 퀘스트 Q5 · 3x 상점 일회성 패키지
-  (`combat.json > clientRendering.speedUp`, 단일 소스 `quests.json > speedUnlockQuests`).
-  방치 수익은 **해금 최고 배속**을 곱한다 (`stages.json > idleReward.speedBasis`) —
-  이걸 빼면 온라인 파밍이 방치의 8.6배가 되어 장르가 무너진다
-- 스킬 등급은 **종류에 고정**이다 (`skills.json > meta.gradeIsFixed`). 32종, 분포는 용병과 동수
-- 전투 화면 등급 표시: SR+ 발밑 링, UR/LR 궤도 입자 (`view/battle/rig.js > drawGradeRing`)
-
-## 미결 (작업정리.md 상세 — 2026-08-23 심야분 포함)
-
-- Verse8 서버 연동 — `main.js` 를 `game/src/net/` 계층 위로 올리는 리팩터링 필요
-- 보상형 광고 — SDK 연결 완료. 남은 것은 **Verse8 대시보드 지면 2개 등록**과 실호스트 검증
-- 3배속 실결제 — VXShop 등록 후. 지금은 dev 빌드만 즉시 해금 (프로덕션에 분기 없음)
-- 연합 보스 HP 계수 0.55 sim 검증 · 탈퇴 시 코인 처리
-- 사운드 엔진 (sound.json 은 정의만 있음)
-- 스킬 아이콘 신규 7장(SK-A16·P11~P16) · 도감 일러 20장 — `prompts/남은작업.md`
-- 보류 질문 6건 — `작업정리.md > 2026-08-23 > 보류` (스킬 이름 충돌 · 출석 day3 빈 보상 ·
-  캐릭터 렌더 크기 이상치 · f2p 수익 재계산 등)
+- 엔진: PixiJS 8 (전투) + 웹 UI
+- 플랫폼: [Verse8](https://verse8.io)
+- 서버: 랭킹·연합·결제 검증 등을 Verse8 서버 함수로 처리
